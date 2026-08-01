@@ -126,4 +126,13 @@ class TelosModel:
         )
 
         sampled_ids = sampler.sample(seq_len=max_tokens, prompt_ids=prompt_ids, device=self.device)
-        return self.tokenizer.decode(sampled_ids[0].tolist())
+        
+        # Decode generated tokens
+        full_text = self.tokenizer.decode(sampled_ids[0].tolist())
+
+        # Truncate at EOS or PAD tokens if present in text
+        for stop_str in ["[EOS]", "[PAD]", "<|endoftext|>"]:
+            if stop_str in full_text:
+                full_text = full_text.split(stop_str)[0]
+
+        return full_text.strip()

@@ -38,7 +38,7 @@ def build_app(model_path_or_id: str = "checkpoints"):
             ),
             gr.Slider(minimum=32, maximum=512, value=128, step=32, label="Max Target Tokens"),
             gr.Slider(minimum=16, maximum=128, value=64, step=8, label="Denoising Steps (Speed vs Quality Knob)"),
-            gr.Slider(minimum=0.1, maximum=1.5, value=0.8, step=0.1, label="Sampling Temperature"),
+            gr.Slider(minimum=0.1, maximum=1.5, value=0.4, step=0.1, label="Sampling Temperature (Lower = Deterministic Code)"),
         ],
         outputs=gr.Code(language="python", label="Télos Masked Diffusion Completion"),
         title="τέλος (télos) — Masked Diffusion Language Model for Code Autocomplete",
