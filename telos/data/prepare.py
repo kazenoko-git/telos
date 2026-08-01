@@ -6,36 +6,43 @@ target token count is reached.
 """
 
 import ast
+import warnings
 from pathlib import Path
 from tqdm import tqdm
 from datasets import load_dataset
 
 
 def is_valid_python(code: str) -> bool:
+    """Checks if raw string parses cleanly as valid Python AST."""
     try:
-        ast.parse(code)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            ast.parse(code)
         return True
-    except (SyntaxError, ValueError):
+    except (SyntaxError, ValueError, Exception):
         return False
 
 
 def extract_functions_from_code(code: str) -> list[str]:
+    """Extracts top-level and class method functions with docstrings from Python source code."""
     if not is_valid_python(code):
         return []
 
     functions = []
     try:
-        tree = ast.parse(code)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            tree = ast.parse(code)
+
         lines = code.splitlines()
 
         for node in ast.walk(tree):
+            # Matches top-level functions, class methods, static methods, and async defs
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                # must contain a docstring for function completion framing
                 if ast.get_docstring(node) is not None:
                     start_line = node.lineno - 1
                     end_line = getattr(node, "end_lineno", start_line + 60)
                     fn_code = "\n".join(lines[start_line:end_line])
-                    # filter out tiny snippets or giant monolithic blocks
                     if 20 <= len(fn_code) <= 4000:
                         functions.append(fn_code)
     except Exception:
