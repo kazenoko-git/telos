@@ -6,14 +6,15 @@ This document details how to set up, reproduce, train, and deploy **télos (τέ
 
 ## 1. Architecture Specifications
 
-| Parameter | Phase A (Local M5 Pro) | Phase B (H100 GPU Run) |
+| Parameter | Phase A (1-Hour Local Run) | Phase B (H100 GPU Run) |
 | :--- | :--- | :--- |
-| **Model Size** | **~1.62 Million** ($1.62 \times 10^6$) | **~80.2 Million** ($80.2 \times 10^6$) |
-| **Architecture** | Deep & Narrow (8 layers, $d=112$) | Deep & Narrow (16 layers, $d=672$) |
-| **Attention** | Grouped-Query Attention (4 Query, 2 KV) | Grouped-Query Attention (12 Query, 2 KV) |
+| **Model Size** | **~12.48 Million** ($1.25 \times 10^7$) | **~80.2 Million** ($80.2 \times 10^6$) |
+| **Architecture** | Deep & Narrow (10 layers, $d=320$) | Deep & Narrow (16 layers, $d=672$) |
+| **Attention** | Grouped-Query Attention (8 Query, 2 KV) | Grouped-Query Attention (12 Query, 2 KV) |
 | **Vocabulary** | 4,096 BPE Tokens | 8,192 BPE Tokens |
 | **Context Length** | 256 tokens | 512 tokens |
-| **Token Budget** | 30 Million tokens | 1.70 Billion tokens |
+| **Token Budget** | 120 Million tokens | 1.70 Billion tokens |
+| **Target Steps** | 25,000 steps (~60 mins on M5 Pro) | 13,000 steps (~2 hrs on H100) |
 | **Precision** | `bf16` mixed precision (MPS) | `bf16` mixed precision (CUDA) |
 
 ---
@@ -35,10 +36,10 @@ uv sync
 
 ## 3. Phase A: Local Training & Validation (M5 Pro MacBook Pro)
 
-Phase A validates the full pipeline locally on Apple Silicon before remote GPU compute allocation.
+Phase A runs a 1-hour extended validation run locally on Apple Silicon.
 
-### Step 1: Stream Online Python Dataset
-Streams real, AST-valid Python functions with docstrings directly from HuggingFace (`codeparrot/codeparrot-clean`) until the 30M token target is reached:
+### Step 1: Stream Online Python Dataset (120M Tokens)
+Streams 120 Million tokens of real, AST-valid Python functions with docstrings directly from HuggingFace (`codeparrot/codeparrot-clean`):
 ```bash
 uv run python scripts/prepare_data.py --config configs/phase_a.yaml
 ```
@@ -49,8 +50,8 @@ Trains a ByteLevel BPE tokenizer with a 4,096 vocabulary:
 uv run python scripts/train_tokenizer.py --config configs/phase_a.yaml
 ```
 
-### Step 3: Run Local Training
-Executes 5,000 training steps (~9-10 minutes on M5 Pro MPS):
+### Step 3: Run 1-Hour Extended Training
+Executes 25,000 training steps (~60 minutes on M5 Pro MPS):
 ```bash
 uv run python scripts/train.py --config configs/phase_a.yaml
 ```
@@ -104,7 +105,7 @@ code = model.complete(
     "def fibonacci(n: int) -> int:\n    \"\"\"Return the nth Fibonacci number.\"\"\"\n",
     max_tokens=128,
     num_steps=64,
-    temperature=0.8
+    temperature=0.4
 )
 print(code)
 ```
