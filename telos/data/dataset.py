@@ -9,16 +9,34 @@ from telos.diffusion.forward_process import apply_masking
 from telos.data.tokenizer import PAD_TOKEN_ID, MASK_TOKEN_ID, BOS_TOKEN_ID, EOS_TOKEN_ID
 
 
-class PythonCodeDataset(Dataset):
-    """PyTorch Dataset holding tokenized Python code sequences."""
+import torch
+import numpy as np
+from torch.utils.data import Dataset, DataLoader
+from tokenizers import Tokenizer
+from telos.diffusion.forward_process import apply_masking
+from telos.data.tokenizer import PAD_TOKEN_ID, MASK_TOKEN_ID, BOS_TOKEN_ID, EOS_TOKEN_ID
 
-    def __init__(self, sequences: list[list[int]], max_seq_len: int = 512):
+
+class PythonCodeDataset(Dataset):
+    """PyTorch Dataset with zero-copy NumPy storage for ultra-low RAM footprint."""
+
+    def __init__(self, sequences: list | np.ndarray, max_seq_len: int = 512):
         """
         Args:
-            sequences: list of token ID sequences.
-            max_seq_len: maximum sequence length (padding/truncating target).
+            sequences: list of token ID lists OR a contiguous 2D NumPy array [num_samples, max_seq_len].
+            max_seq_len: maximum sequence length.
         """
-        self.sequences = sequences
+        if isinstance(sequences, list):
+            # Pre-pad into contiguous int32 numpy array to free CPython list RAM overhead
+            num_samples = len(sequences)
+            arr = np.full((num_samples, max_seq_len), PAD_TOKEN_ID, dtype=np.int32)
+            for i, seq in enumerate(sequences):
+                trunc_seq = seq[:max_seq_len]
+                arr[i, :len(trunc_seq)] = trunc_seq
+            self.sequences = arr
+        else:
+            self.sequences = sequences
+
         self.max_seq_len = max_seq_len
 
     def __len__(self) -> int:
@@ -26,15 +44,7 @@ class PythonCodeDataset(Dataset):
 
     def __getitem__(self, idx: int) -> torch.Tensor:
         seq = self.sequences[idx]
-
-        # truncate sequence if longer than max_seq_len
-        if len(seq) > self.max_seq_len:
-            seq = seq[: self.max_seq_len]
-
-        # pad sequence to max_seq_len with PAD_TOKEN_ID
-        padded_seq = seq + [PAD_TOKEN_ID] * (self.max_seq_len - len(seq))
-
-        return torch.tensor(padded_seq, dtype=torch.long)
+        return torch.from_numpy(seq.astype(np.int64))
 
 
 def collate_fn_dynamic_masking(batch: list[torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:

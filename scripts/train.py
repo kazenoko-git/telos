@@ -23,23 +23,55 @@ def main():
 
     corpus_path = "data/python_corpus.txt"
     try:
+        import gc
+        import numpy as np
+        from telos.data.tokenizer import PAD_TOKEN_ID
+
+        seq_len = cfg["model"].get("seq_len", 256)
+        batch_size = cfg["training"].get("batch_size", 32)
+        device = cfg["training"].get("device", "auto")
+
+        print(f"Loading and encoding corpus from {corpus_path} into ultra-compact NumPy memory layout...")
+
+        # Read corpus in streaming blocks to prevent 12GB CPython heap RAM spike
+        token_sequences = []
         with open(corpus_path, "r", encoding="utf-8") as f:
-            raw_text = f.read()
+            block = []
+            for line in f:
+                if line == "\n" and block:
+                    snippet = "".join(block).strip()
+                    if snippet:
+                        token_sequences.append(tokenizer.encode(snippet).ids[:seq_len])
+                    block = []
+                else:
+                    block.append(line)
+            if block:
+                snippet = "".join(block).strip()
+                if snippet:
+                    token_sequences.append(tokenizer.encode(snippet).ids[:seq_len])
+
+        num_samples = len(token_sequences)
+        print(f"Encoded {num_samples:,} function sequences. Converting to 2D NumPy array to free RAM...")
+
+        # Pack into contiguous 2D int32 array (takes < 400 MB RAM!)
+        arr = np.full((num_samples, seq_len), PAD_TOKEN_ID, dtype=np.int32)
+        for i, seq in enumerate(token_sequences):
+            arr[i, :len(seq)] = seq
+
+        # Free temporary Python list memory
+        del token_sequences
+        gc.collect()
+
+        print(f"NumPy dataset memory footprint: {arr.nbytes / (1024 * 1024):.1f} MB!")
+
     except FileNotFoundError:
         print("Corpus file not found! Please run python scripts/prepare_data.py first.")
         return
 
-    snippets = [s for s in raw_text.split("\n\n") if len(s.strip()) > 0]
-    sequences = [tokenizer.encode(s).ids for s in snippets]
-
-    seq_len = cfg["model"].get("seq_len", 256)
-    batch_size = cfg["training"].get("batch_size", 32)
-    device = cfg["training"].get("device", "auto")
-
     if device == "auto":
         device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
-    train_loader = create_dataloader(sequences, batch_size=batch_size, max_seq_len=seq_len, shuffle=True)
+    train_loader = create_dataloader(arr, batch_size=batch_size, max_seq_len=seq_len, shuffle=True)
 
     model_cfg = TelosConfig(**cfg["model"])
     model = TelosTransformer(model_cfg)
