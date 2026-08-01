@@ -14,7 +14,7 @@ This document details how to set up, reproduce, train, and deploy **télos (τέ
 | **Vocabulary** | 4,096 BPE Tokens | 8,192 BPE Tokens |
 | **Context Length** | 256 tokens | 512 tokens |
 | **Token Budget** | 120 Million tokens | 1.70 Billion tokens |
-| **Target Steps** | 25,000 steps (~60 mins on M5 Pro) | 13,000 steps (~2 hrs on H100) |
+| **Target Steps** | 7,500 steps (~60 mins on M5 Pro) | 13,000 steps (~2 hrs on H100) |
 | **Precision** | `bf16` mixed precision (MPS) | `bf16` mixed precision (CUDA) |
 
 ---
@@ -51,7 +51,7 @@ uv run python scripts/train_tokenizer.py --config configs/phase_a.yaml
 ```
 
 ### Step 3: Run 1-Hour Extended Training
-Executes 25,000 training steps (~60 minutes on M5 Pro MPS):
+Executes 7,500 training steps (~60 minutes on M5 Pro MPS):
 ```bash
 uv run python scripts/train.py --config configs/phase_a.yaml
 ```
