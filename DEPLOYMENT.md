@@ -14,8 +14,8 @@ This document details how to set up, reproduce, train, and deploy **télos (τέ
 | **Vocabulary** | 4,096 BPE Tokens | 8,192 BPE Tokens | **32,768 BPE Tokens** (Multi-Domain) |
 | **Context Length** | 256 tokens | 512 tokens | **512 tokens** |
 | **Domain Mixture** | Pure Python | **100% Pure Python Code** | **60% Python, 25% English, 15% Shell** |
-| **Token Budget** | 120 Million tokens | **8.0 Billion tokens** (34:1 ratio) | **40.0 Billion tokens** (37:1 ratio) |
-| **Target Steps** | 7,500 steps (~60 mins) | **60,000 steps (~12.5 Mins on TPU v6e-1)** | **250,000 steps (~1.2 Hours on TPU v6e-1)** |
+| **Token Budget** | 120 Million tokens | **8.0 Billion tokens** (34:1 ratio) | **60.0 Billion tokens** (55:1 overtraining ratio) |
+| **Target Steps** | 7,500 steps (~60 mins) | **60,000 steps (~12.5 Mins on TPU v6e-1)** | **375,000 steps (~1.8 Hours on TPU v6e-1)** |
 | **Hardware** | Apple Silicon MPS | Lightning AI TPU v6e-1 / 4x T4 | **Lightning AI TPU v6e-1 / Kaggle TPU** |
 
 ---
@@ -55,16 +55,16 @@ python scripts/train.py --config configs/phase_b.yaml --device tpu
 
 ---
 
-## 4. Phase C: 1.08B Flagship Coder Model (~1.08B Params / 40B Tokens)
+## 4. Phase C: 1.08B Flagship Coder Model (~1.08B Params / 60B Tokens)
 
-Phase C trains our flagship **1.08 Billion parameter** multi-domain model on **40 Billion tokens** across Python, English instructions, and UNIX/Windows shell commands.
+Phase C trains our flagship **1.08 Billion parameter** multi-domain model on **60 Billion tokens** across Python, English instructions, and UNIX/Windows shell commands.
 
 ```bash
 # Step 1: Clone & prepare dataset
 python scripts/prepare_data.py --config configs/phase_c.yaml --raw
 python scripts/train_tokenizer.py --config configs/phase_c.yaml
 
-# Step 2: Execute Phase C Training (~1.2 Hours on TPU v6e-1, ~2.0 credits total)
+# Step 2: Execute Phase C Training (~1.8 Hours on TPU v6e-1, ~3.0 credits total)
 python scripts/train.py --config configs/phase_c.yaml --device tpu
 ```
 
