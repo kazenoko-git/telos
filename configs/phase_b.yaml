@@ -1,41 +1,42 @@
-# Phase B — Final training run on H100 (Deep & Narrow + GQA)
-# Target compute budget: ~1.6e18 FLOPs
-# Deep & Narrow architecture (~80.2M params, 16 layers, 1.7B tokens)
+# Phase B — Upgraded 3-Hour Pure Python Run on Kaggle TPU/GPU
+# Model: Deep & Narrow + GQA (~141.3M params, 16 layers, d=896)
+# Token Budget: 4.0 Billion Python tokens (Pure high-density Python code)
+# Runtime: ~3 Hours on TPU v5e-8 / 2x T4 GPUs
 
 model:
   vocab_size: 8192          # 8,192 vocab for Phase B
-  d_model: 672              # Deep & Narrow hidden dimension
-  n_layers: 16              # Deep 16 layers for superior hierarchical reasoning
-  n_heads: 12               # 12 Query attention heads
+  d_model: 896              # Upgraded hidden dimension
+  n_layers: 16              # 16 deep layers for high-capacity reasoning
+  n_heads: 14               # 14 Query attention heads
   n_kv_heads: 2             # 2 Key/Value heads (Grouped-Query Attention GQA)
   seq_len: 512
-  dropout: 0.0              # No dropout for final large-scale run
+  dropout: 0.0              # No dropout for large-scale training
   mlp_type: swiglu
   tied_embeddings: true
   no_timestep_embed: true
 
 training:
   batch_size: 128
-  gradient_accumulation: 2  # Effective batch = 256 sequences
-  max_steps: 13000          # ~1.7B tokens with batch_size 256 * 512
+  gradient_accumulation: 2  # Effective batch = 256 sequences (131,072 tokens/step)
+  max_steps: 30000          # 30,000 steps (~2.8 hours wall-clock time on TPU v5e-8)
   max_lr: 3e-4
-  min_lr: 3e-5
-  warmup_steps: 500
+  min_lr: 2e-5
+  warmup_steps: 1000
   weight_decay: 0.1
   grad_clip: 1.0
   precision: bf16
-  device: cuda
+  device: tpu
 
 data:
-  corpus_size_tokens: 1700000000
+  corpus_size_tokens: 4000000000 # 4.0 Billion tokens (The Stack v2 Python deduplicated)
   num_epochs: 1
 
 checkpoint:
   dir: checkpoints/phase_b
-  save_every_minutes: 10   # Periodic save every 10 min
-  save_every_steps: 2000
+  save_every_minutes: 20   # Periodic save every 20 min
+  save_every_steps: 3000
   keep_last_n: 5
 
 eval:
   val_every_steps: 1000
-  sample_every_steps: 2000
+  sample_every_steps: 3000

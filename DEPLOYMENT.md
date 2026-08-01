@@ -1,21 +1,22 @@
 # DEPLOYMENT — τέλος (télos) MDLM
 
-This document details how to set up, reproduce, train, and deploy **télos (τέλος)** — a Masked Diffusion Language Model for Python code autocomplete.
+This document details how to set up, reproduce, train, and deploy **télos (τέλος)** — a Masked Diffusion Language Model for Python code autocomplete, natural language instructions, and shell command execution.
 
 ---
 
-## 1. Model Phase & Hardware Comparison
+## 1. Model Phase & Hardware Specifications
 
-| Parameter | Phase A (Local M5 Pro) | Phase B (Standard TPU/H100) | **Phase C (7-Hour Flagship Overtrained)** |
+| Parameter | Phase A (Local M5 Pro) | **Phase B (3-Hour Python Run)** | **Phase C (14-Hour Multi-Domain Flagship)** |
 | :--- | :--- | :--- | :--- |
-| **Model Size** | **~12.48 Million** ($1.25 \times 10^7$) | **~80.2 Million** ($80.2 \times 10^6$) | **~232.4 Million** ($2.32 \times 10^8$) |
-| **Architecture** | Deep & Narrow (10L, $d=320$) | Deep & Narrow (16L, $d=672$) | **Deep & Narrow (16L, $d=1152$)** |
-| **Attention** | GQA (8 Query, 2 KV) | GQA (12 Query, 2 KV) | **GQA (16 Query, 4 KV)** |
-| **Vocabulary** | 4,096 BPE Tokens | 8,192 BPE Tokens | **8,192 BPE Tokens** |
+| **Model Size** | **~12.48 Million** ($1.25 \times 10^7$) | **~141.3 Million** ($1.41 \times 10^8$) | **~365.1 Million** ($3.65 \times 10^8$) |
+| **Architecture** | Deep & Narrow (10L, $d=320$) | Deep & Narrow (16L, $d=896$) | **Deep & Narrow (20L, $d=1280$)** |
+| **Attention** | GQA (8 Query, 2 KV) | GQA (14 Query, 2 KV) | **GQA (20 Query, 4 KV)** |
+| **Vocabulary** | 4,096 BPE Tokens | 8,192 BPE Tokens | **16,384 BPE Tokens** (Multi-Domain) |
 | **Context Length** | 256 tokens | 512 tokens | **512 tokens** |
-| **Token Budget** | 120 Million tokens | 1.70 Billion tokens | **10.0 Billion tokens** (Overtrained 43:1 ratio) |
-| **Target Steps** | 7,500 steps (~60 mins) | 13,000 steps (~50 mins) | **75,000 steps (~6.9 Hours on TPU v5e-8)** |
-| **Hardware** | Apple Silicon MPS | H100 / TPU v5e-8 | **Kaggle TPU v5e-8 (128GB VRAM)** |
+| **Domain Mixture** | Pure Python | Pure Python Code | **60% Python, 25% English, 15% Shell** |
+| **Token Budget** | 120 Million tokens | 4.0 Billion tokens | **25.0 Billion tokens** (Overtrained 68:1 ratio) |
+| **Target Steps** | 7,500 steps (~60 mins) | 30,000 steps (~2.8 Hours) | **150,000 steps (~13.8 Hours on TPU v5e-8)** |
+| **Hardware** | Apple Silicon MPS | Kaggle TPU v5e-8 / 2x T4 | **Kaggle TPU v5e-8 (128GB VRAM)** |
 
 ---
 
@@ -34,41 +35,37 @@ uv sync
 
 ---
 
-## 3. Phase C: 7-Hour Flagship Overtrained Model (~232.4M Params / 10B Tokens)
+## 3. Phase B: Upgraded 3-Hour Pure Python Run (~141.3M Params)
 
-Phase C trains our largest, overtrained **232.4M parameter** model on **10 Billion Python tokens** for ~7 hours on Kaggle TPU v5e-8 ($0 cost).
+Executes a 3-hour pure Python training run on Kaggle TPU v5e-8 or 2x T4 GPUs.
 
-### Commands for Kaggle TPU Notebook:
 ```bash
 # Step 1: Clone repo & install
 !git clone https://github.com/kazenoko-git/telos.git
 %cd telos
 !pip install -e .
 
-# Step 2: Stream 10B Python tokens & train tokenizer
-!python scripts/prepare_data.py --config configs/phase_c.yaml --dataset bigcode/the-stack-v2-dedup
-!python scripts/train_tokenizer.py --config configs/phase_c.yaml
+# Step 2: Stream 4.0B Python tokens & train 8k tokenizer
+!python scripts/prepare_data.py --config configs/phase_b.yaml --dataset bigcode/the-stack-v2-dedup
+!python scripts/train_tokenizer.py --config configs/phase_b.yaml
 
-# Step 3: Run Phase C Flagship Training (~6.9 Hours on TPU v5e-8)
-!python scripts/train.py --config configs/phase_c.yaml --device tpu
+# Step 3: Execute Phase B Training (~2.8 Hours on TPU v5e-8)
+!python scripts/train.py --config configs/phase_b.yaml --device tpu
 ```
 
 ---
 
-## 4. Phase A & Phase B Summary
+## 4. Phase C: 14-Hour Multi-Domain Flagship Model (~365.1M Params / 25B Tokens)
 
-### Phase A (Local M5 Pro)
-```bash
-uv run python scripts/prepare_data.py --config configs/phase_a.yaml
-uv run python scripts/train_tokenizer.py --config configs/phase_a.yaml
-uv run python scripts/train.py --config configs/phase_a.yaml
-```
+Phase C trains our largest **365.1M parameter** multi-domain model on **25 Billion tokens** across Python, English instructions, and UNIX/Windows shell commands.
 
-### Phase B (50-Minute TPU/GPU Run)
 ```bash
-python scripts/prepare_data.py --config configs/phase_b.yaml --dataset bigcode/the-stack-v2-dedup
-python scripts/train_tokenizer.py --config configs/phase_b.yaml
-python scripts/train.py --config configs/phase_b.yaml --device tpu
+# Step 1: Clone & prepare dataset
+!python scripts/prepare_data.py --config configs/phase_c.yaml
+!python scripts/train_tokenizer.py --config configs/phase_c.yaml
+
+# Step 2: Execute Phase C Training (~13.8 Hours across 2 Kaggle TPU sessions)
+!python scripts/train.py --config configs/phase_c.yaml --device tpu
 ```
 
 ---
@@ -77,15 +74,16 @@ python scripts/train.py --config configs/phase_b.yaml --device tpu
 
 ### Step 1: Export Weights & Upload to HuggingFace Hub
 ```bash
-python -m telos.hub.upload --model-dir checkpoints/phase_c --repo-id kazenoko/telos-230m
+python -m telos.hub.upload --model-dir checkpoints/phase_c --repo-id kazenoko/telos-365m
 ```
 
 ### Step 2: Standalone Programmatic Inference
 ```python
 from telos.hub import TelosModel
 
-model = TelosModel.from_pretrained("kazenoko/telos-230m")
+model = TelosModel.from_pretrained("kazenoko/telos-365m")
 
+# Python Code Completion
 code = model.complete(
     "def fibonacci(n: int) -> int:\n    \"\"\"Return the nth Fibonacci number.\"\"\"\n",
     max_tokens=128,
