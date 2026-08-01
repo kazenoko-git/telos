@@ -97,8 +97,8 @@ class TelosTrainer:
             min_lr=self.min_lr
         )
 
-        # mixed precision GradScaler if using fp16/bf16 on CUDA/MPS
-        use_amp = (self.precision in ["fp16", "bf16"]) and (self.device.type in ["cuda", "mps"])
+        # mixed precision GradScaler if using fp16/bf16 on CUDA/MPS/XLA
+        use_amp = (self.precision in ["fp16", "bf16"]) and (self.device.type in ["cuda", "mps", "xla"])
         self.amp_dtype = torch.bfloat16 if self.precision == "bf16" else torch.float16
         self.use_amp = use_amp
 

@@ -17,8 +17,8 @@ model:
   no_timestep_embed: true
 
 training:
-  batch_size: 128
-  gradient_accumulation: 2  # Effective batch = 256 sequences (131,072 tokens/step)
+  batch_size: 64
+  gradient_accumulation: 4  # Effective batch = 256 sequences (131,072 tokens/step)
   max_steps: 60000          # 60,000 steps (~12.5 minutes on TPU v6e-1)
   max_lr: 3e-4
   min_lr: 2e-5
