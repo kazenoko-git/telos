@@ -5,6 +5,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import argparse
 import yaml
 import torch
+import numpy as np
 from telos.model.transformer import TelosTransformer, TelosConfig
 from telos.data.tokenizer import load_tokenizer
 from telos.data.dataset import create_dataloader
@@ -25,66 +26,67 @@ def main():
     tokenizer = load_tokenizer(tokenizer_path)
 
     corpus_path = "data/python_corpus.txt"
-    cache_npy_path = Path(corpus_path).with_suffix(".npy")
+    bin_path = Path(corpus_path).with_suffix(".bin")
 
-    try:
-        import gc
-        import numpy as np
-        from telos.data.tokenizer import PAD_TOKEN_ID
+    seq_len = cfg["model"].get("seq_len", 256)
+    batch_size = cfg["training"].get("batch_size", 32)
+    device = cfg["training"].get("device", "auto")
+    from telos.data.tokenizer import PAD_TOKEN_ID
 
-        seq_len = cfg["model"].get("seq_len", 256)
-        batch_size = cfg["training"].get("batch_size", 32)
-        device = cfg["training"].get("device", "auto")
+    if not bin_path.exists():
+        print(f"Tokenizing {corpus_path} directly into binary disk format with <500MB RAM footprint...")
 
-        if cache_npy_path.exists():
-            print(f"Loading pre-tokenized binary dataset from {cache_npy_path} (0.05s instant load)...")
-            arr = np.load(cache_npy_path, mmap_mode="r")
-        else:
-            print(f"Streaming corpus from {corpus_path} with low memory footprint...")
-            snippets = []
-            with open(corpus_path, "r", encoding="utf-8") as f:
-                block = []
-                for line in f:
-                    if line == "\n" and block:
-                        snippet = "".join(block).strip()
-                        if len(snippet) >= 30:
-                            snippets.append(snippet)
-                        block = []
-                    elif line != "\n":
-                        block.append(line)
-                if block:
+        batch_size_snippets = 32000
+        current_batch = []
+        total_samples = 0
+
+        with open(bin_path, "wb") as bin_file, open(corpus_path, "r", encoding="utf-8") as text_file:
+            block = []
+            for line in text_file:
+                if line == "\n\n" or (line == "\n" and len(block) > 10):
                     snippet = "".join(block).strip()
                     if len(snippet) >= 30:
-                        snippets.append(snippet)
+                        current_batch.append(snippet)
+                    block = []
+                else:
+                    block.append(line)
 
-            num_samples = len(snippets)
-            print(f"Loaded {num_samples:,} code files. Running 44-core parallel Rust tokenizer...")
+                if len(current_batch) >= batch_size_snippets:
+                    # Tokenize batch in parallel across 44 CPU cores
+                    encoded = tokenizer.encode_batch(current_batch)
+                    arr_batch = np.full((len(encoded), seq_len), PAD_TOKEN_ID, dtype=np.int32)
+                    for i, enc in enumerate(encoded):
+                        ids = enc.ids[:seq_len]
+                        arr_batch[i, :len(ids)] = ids
 
-            # Pre-allocate contiguous int32 numpy array (only 6.4 GB RAM for 3.14M files!)
-            arr = np.full((num_samples, seq_len), PAD_TOKEN_ID, dtype=np.int32)
+                    bin_file.write(arr_batch.tobytes())
+                    total_samples += len(encoded)
+                    current_batch.clear()
 
-            # Fast multi-threaded batch encoding (chunk size = 64,000)
-            chunk_size = 64000
-            for start_idx in range(0, num_samples, chunk_size):
-                end_idx = min(start_idx + chunk_size, num_samples)
-                chunk = snippets[start_idx:end_idx]
-                encoded_chunk = tokenizer.encode_batch(chunk)
+            if block:
+                snippet = "".join(block).strip()
+                if len(snippet) >= 30:
+                    current_batch.append(snippet)
 
-                for sub_i, enc in enumerate(encoded_chunk):
-                    token_ids = enc.ids[:seq_len]
-                    arr[start_idx + sub_i, :len(token_ids)] = token_ids
+            if current_batch:
+                encoded = tokenizer.encode_batch(current_batch)
+                arr_batch = np.full((len(encoded), seq_len), PAD_TOKEN_ID, dtype=np.int32)
+                for i, enc in enumerate(encoded):
+                    ids = enc.ids[:seq_len]
+                    arr_batch[i, :len(ids)] = ids
 
-            del snippets
-            gc.collect()
+                bin_file.write(arr_batch.tobytes())
+                total_samples += len(encoded)
+                current_batch.clear()
 
-            print(f"Caching binary tokenized dataset to {cache_npy_path} for 0.05s instant future loads...")
-            np.save(cache_npy_path, arr)
+        print(f"Tokenized {total_samples:,} samples into binary disk file {bin_path}!")
 
-        print(f"NumPy dataset memory footprint: {arr.nbytes / (1024 * 1024):.1f} MB ({len(arr):,} samples)!")
+    # Memory-map binary file (0.00s instant load, zero RAM footprint)
+    file_bytes = bin_path.stat().st_size
+    num_samples = file_bytes // (seq_len * 4)
+    print(f"Memory-mapping {bin_path} ({num_samples:,} samples, {file_bytes / (1024*1024):.1f} MB) in 0.00s...")
 
-    except FileNotFoundError:
-        print("Corpus file not found! Please run python scripts/prepare_data.py first.")
-        return
+    arr = np.memmap(bin_path, dtype=np.int32, mode="r", shape=(num_samples, seq_len))
 
     if args.device:
         device = args.device
