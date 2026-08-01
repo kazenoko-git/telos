@@ -102,6 +102,10 @@ class MDLMSampler:
             # model forward pass: get unnormalized logits [1, seq_len, vocab_size]
             logits = self.model(seq)
 
+            # zero out probability for mask_token_id so model never predicts [MASK]
+            logits = logits.clone()
+            logits[:, :, self.mask_token_id] = -float("inf")
+
             # apply sampling temperature
             scaled_logits = logits / max(self.temperature, 1e-5)
             probs = F.softmax(scaled_logits, dim=-1)
