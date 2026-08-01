@@ -1,0 +1,42 @@
+# Phase C — 7-Hour Flagship Overtrained Model on TPU v5e-8
+# Architecture: Deep & Narrow + GQA (~232.4M params, 16 layers, d=1152)
+# Dataset: 10.0 Billion tokens (Overtrained 43:1 ratio beyond Chinchilla, Llama-3 style)
+# Runtime: ~7 Hours on TPU v5e-8 (within Kaggle's 9-hour session limit)
+
+model:
+  vocab_size: 8192          # 8,192 vocab size
+  d_model: 1152             # 1,152 hidden dimension
+  n_layers: 16              # 16 deep layers for high-capacity reasoning
+  n_heads: 16               # 16 Query attention heads
+  n_kv_heads: 4             # 4 Key/Value heads (Grouped-Query Attention GQA)
+  seq_len: 512
+  dropout: 0.0              # No dropout for large-scale overtraining
+  mlp_type: swiglu
+  tied_embeddings: true
+  no_timestep_embed: true
+
+training:
+  batch_size: 128
+  gradient_accumulation: 2  # Effective batch = 256 sequences (131,072 tokens/step)
+  max_steps: 75000          # 75,000 steps (~6.9 hours wall-clock time on TPU v5e-8)
+  max_lr: 3e-4
+  min_lr: 2e-5
+  warmup_steps: 1000
+  weight_decay: 0.1
+  grad_clip: 1.0
+  precision: bf16
+  device: tpu
+
+data:
+  corpus_size_tokens: 10000000000 # 10 Billion tokens (The Stack v2 Python deduplicated)
+  num_epochs: 1
+
+checkpoint:
+  dir: checkpoints/phase_c
+  save_every_minutes: 20   # Periodic save every 20 min
+  save_every_steps: 5000
+  keep_last_n: 5
+
+eval:
+  val_every_steps: 1000
+  sample_every_steps: 5000
