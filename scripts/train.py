@@ -25,6 +25,8 @@ def main():
     tokenizer = load_tokenizer(tokenizer_path)
 
     corpus_path = "data/python_corpus.txt"
+    cache_npy_path = Path(corpus_path).with_suffix(".npy")
+
     try:
         import gc
         import numpy as np
@@ -34,38 +36,44 @@ def main():
         batch_size = cfg["training"].get("batch_size", 32)
         device = cfg["training"].get("device", "auto")
 
-        print(f"Loading and encoding corpus from {corpus_path} into ultra-compact NumPy memory layout...")
+        if cache_npy_path.exists():
+            print(f"Loading pre-tokenized binary dataset from {cache_npy_path} (0.05s instant load)...")
+            arr = np.load(cache_npy_path, mmap_mode="r")
+        else:
+            print(f"Loading and encoding corpus from {corpus_path} into binary memory layout...")
 
-        # Read corpus in streaming blocks to prevent 12GB CPython heap RAM spike
-        token_sequences = []
-        with open(corpus_path, "r", encoding="utf-8") as f:
-            block = []
-            for line in f:
-                if line == "\n" and block:
+            # Read corpus in streaming blocks to prevent CPython heap RAM spike
+            token_sequences = []
+            with open(corpus_path, "r", encoding="utf-8") as f:
+                block = []
+                for line in f:
+                    if line == "\n" and block:
+                        snippet = "".join(block).strip()
+                        if snippet:
+                            token_sequences.append(tokenizer.encode(snippet).ids[:seq_len])
+                        block = []
+                    else:
+                        block.append(line)
+                if block:
                     snippet = "".join(block).strip()
                     if snippet:
                         token_sequences.append(tokenizer.encode(snippet).ids[:seq_len])
-                    block = []
-                else:
-                    block.append(line)
-            if block:
-                snippet = "".join(block).strip()
-                if snippet:
-                    token_sequences.append(tokenizer.encode(snippet).ids[:seq_len])
 
-        num_samples = len(token_sequences)
-        print(f"Encoded {num_samples:,} function sequences. Converting to 2D NumPy array to free RAM...")
+            num_samples = len(token_sequences)
+            print(f"Encoded {num_samples:,} function sequences. Converting to 2D NumPy array...")
 
-        # Pack into contiguous 2D int32 array (takes < 400 MB RAM!)
-        arr = np.full((num_samples, seq_len), PAD_TOKEN_ID, dtype=np.int32)
-        for i, seq in enumerate(token_sequences):
-            arr[i, :len(seq)] = seq
+            # Pack into contiguous 2D int32 array
+            arr = np.full((num_samples, seq_len), PAD_TOKEN_ID, dtype=np.int32)
+            for i, seq in enumerate(token_sequences):
+                arr[i, :len(seq)] = seq
 
-        # Free temporary Python list memory
-        del token_sequences
-        gc.collect()
+            del token_sequences
+            gc.collect()
 
-        print(f"NumPy dataset memory footprint: {arr.nbytes / (1024 * 1024):.1f} MB!")
+            print(f"Caching binary tokenized dataset to {cache_npy_path} for instant future loads...")
+            np.save(cache_npy_path, arr)
+
+        print(f"NumPy dataset memory footprint: {arr.nbytes / (1024 * 1024):.1f} MB ({len(arr):,} samples)!")
 
     except FileNotFoundError:
         print("Corpus file not found! Please run python scripts/prepare_data.py first.")
