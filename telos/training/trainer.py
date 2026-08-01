@@ -1,0 +1,190 @@
+"""
+PyTorch trainer for télos MDLM.
+
+includes:
+- AdamW optimizer (weight decay = .1, beta1 = .9, beta2 = .95)
+- mixed precision training via torch.amp (bf16 on MPS/CUDA)
+- gradient clipping (max_norm=1.0)
+- periodic checkpointing (by minutes or by step count)
+
+training configuration:
+- max_steps: 5000
+- max_lr: 3e-4
+- min_lr: 3e-5
+- warmup_steps: 100
+- weight_decay: 0.1
+- grad_clip: 1.0
+- precision: bf16 (fp16 on CPU)
+- checkpoint_dir: checkpoints
+- save_every_steps: 500
+- save_every_minutes: 10
+"""
+
+import time
+from pathlib import Path
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
+
+from telos.model.transformer import TelosTransformer, TelosConfig
+from telos.diffusion.loss import mdlm_loss
+from telos.diffusion.sampler import MDLMSampler
+from telos.training.lr_schedule import WarmupCosineLR
+
+
+class TelosTrainer:
+    """trainer orchestrator for MDLM model training and checkpointing."""
+
+    def __init__(
+        self,
+        model: TelosTransformer,
+        train_loader: DataLoader,
+        val_loader: DataLoader | None = None,
+        config: dict | None = None,
+        device: str | torch.device = "cpu"
+    ):
+        self.model = model
+        self.train_loader = train_loader
+        self.val_loader = val_loader
+        self.config = config or {}
+        self.device = torch.device(device)
+
+        self.model.to(self.device)
+
+        # training hyperparameters
+        train_cfg = self.config.get("training", {})
+        self.max_steps = train_cfg.get("max_steps", 5000)
+        self.max_lr = train_cfg.get("max_lr", 3e-4)
+        self.min_lr = train_cfg.get("min_lr", 3e-5)
+        self.warmup_steps = train_cfg.get("warmup_steps", 100)
+        self.weight_decay = train_cfg.get("weight_decay", 0.1)
+        self.grad_clip = train_cfg.get("grad_clip", 1.0)
+        self.precision = train_cfg.get("precision", "bf16")
+
+        # checkpoint parameters
+        ckpt_cfg = self.config.get("checkpoint", {})
+        self.save_every_steps = ckpt_cfg.get("save_every_steps", 500)
+        self.save_every_minutes = ckpt_cfg.get("save_every_minutes", 10)
+        self.checkpoint_dir = Path(ckpt_cfg.get("dir", "checkpoints"))
+        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+        # setup AdamW optimizer
+        self.optimizer = torch.optim.AdamW(
+            self.model.parameters(),
+            lr=self.max_lr,
+            betas=(0.9, 0.95),
+            weight_decay=self.weight_decay,
+            eps=1e-8
+        )
+
+        # setup LR scheduler
+        self.scheduler = WarmupCosineLR(
+            self.optimizer,
+            warmup_steps=self.warmup_steps,
+            max_steps=self.max_steps,
+            min_lr=self.min_lr
+        )
+
+        # mixed precision GradScaler if using fp16/bf16 on CUDA/MPS
+        use_amp = (self.precision in ["fp16", "bf16"]) and (self.device.type in ["cuda", "mps"])
+        self.amp_dtype = torch.bfloat16 if self.precision == "bf16" else torch.float16
+        self.use_amp = use_amp
+
+        self.global_step = 0
+        self.last_saved_time = time.time()
+
+    def save_checkpoint(self, path: str | Path):
+        """saves complete checkpoint including model, optimizer, scheduler, and RNG states."""
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        checkpoint = {
+            "global_step": self.global_step,
+            "model_state_dict": self.model.state_dict(),
+            "optimizer_state_dict": self.optimizer.state_dict(),
+            "scheduler_state_dict": self.scheduler.state_dict(),
+            "torch_rng_state": torch.get_rng_state(),
+            "cuda_rng_state": torch.cuda.get_rng_state() if torch.cuda.is_available() else None,
+            "config": self.config,
+        }
+        torch.save(checkpoint, path)
+        print(f"Checkpoint saved to {path} (Step {self.global_step})")
+
+    def load_checkpoint(self, path: str | Path):
+        """loads checkpoint and restores all states to continue training smoothly."""
+        path = Path(path)
+        assert path.exists(), f"Checkpoint not found at {path}"
+
+        checkpoint = torch.load(path, map_location=self.device)
+        self.global_step = checkpoint["global_step"]
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+        torch.set_rng_state(checkpoint["torch_rng_state"].cpu())
+        
+        if checkpoint.get("cuda_rng_state") is not None and torch.cuda.is_available():
+            torch.cuda.set_rng_state(checkpoint["cuda_rng_state"])
+
+        print(f"Checkpoint restored from {path} at Step {self.global_step}")
+
+    def train(self):
+        """executes full training loop."""
+        self.model.train()
+        start_time = time.time()
+        train_iterator = iter(self.train_loader)
+
+        print(f"Starting training: total_steps={self.max_steps}, device={self.device}, amp={self.use_amp}")
+
+        while self.global_step < self.max_steps:
+            # fetch batch, restart iterator if dataset epoch finishes
+            try:
+                masked_input_ids, targets, mask_positions, t_values = next(train_iterator)
+            except StopIteration:
+                train_iterator = iter(self.train_loader)
+                masked_input_ids, targets, mask_positions, t_values = next(train_iterator)
+
+            # move tensors to hardware accelerator
+            masked_input_ids = masked_input_ids.to(self.device)
+            targets = targets.to(self.device)
+            mask_positions = mask_positions.to(self.device)
+            t_values = t_values.to(self.device)
+
+            self.optimizer.zero_grad()
+
+            # forward pass with mixed precision context
+            if self.use_amp:
+                with torch.amp.autocast(device_type=self.device.type, dtype=self.amp_dtype):
+                    logits = self.model(masked_input_ids)
+                    loss, metrics = mdlm_loss(logits, targets, mask_positions, t_values)
+            else:
+                logits = self.model(masked_input_ids)
+                loss, metrics = mdlm_loss(logits, targets, mask_positions, t_values)
+
+            # backward pass & optimizer step
+            loss.backward()
+            nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
+            self.optimizer.step()
+            self.scheduler.step()
+
+            self.global_step += 1
+
+            # logging step
+            if self.global_step % 50 == 0 or self.global_step == 1:
+                lr = self.scheduler.get_last_lr()[0]
+                elapsed = time.time() - start_time
+                print(f"Step {self.global_step}/{self.max_steps} | Loss: {metrics['loss']:.4f} | "
+                      f"Unweighted CE: {metrics['unweighted_ce']:.4f} | LR: {lr:.2e} | Elapsed: {elapsed:.1f}s")
+
+            # checkpoint by step count or time interval
+            current_time = time.time()
+            time_since_last_save = (current_time - self.last_saved_time) / 60.0
+
+            if (self.global_step % self.save_every_steps == 0) or (time_since_last_save >= self.save_every_minutes):
+                ckpt_path = self.checkpoint_dir / f"checkpoint_step_{self.global_step}.pt"
+                self.save_checkpoint(ckpt_path)
+                self.last_saved_time = current_time
+
+        # save final checkpoint
+        final_path = self.checkpoint_dir / "checkpoint_final.pt"
+        self.save_checkpoint(final_path)
+        print("Training complete!")
