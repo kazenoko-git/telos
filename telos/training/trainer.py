@@ -51,14 +51,14 @@ class TelosTrainer:
 
         self.model.to(self.device)
 
-        # training hyperparameters
+        # Training hyperparameters
         train_cfg = self.config.get("training", {})
-        self.max_steps = train_cfg.get("max_steps", 5000)
-        self.max_lr = train_cfg.get("max_lr", 3e-4)
-        self.min_lr = train_cfg.get("min_lr", 3e-5)
-        self.warmup_steps = train_cfg.get("warmup_steps", 100)
-        self.weight_decay = train_cfg.get("weight_decay", 0.1)
-        self.grad_clip = train_cfg.get("grad_clip", 1.0)
+        self.max_steps = int(train_cfg.get("max_steps", 5000))
+        self.max_lr = float(train_cfg.get("max_lr", 3e-4))
+        self.min_lr = float(train_cfg.get("min_lr", 3e-5))
+        self.warmup_steps = int(train_cfg.get("warmup_steps", 100))
+        self.weight_decay = float(train_cfg.get("weight_decay", 0.1))
+        self.grad_clip = float(train_cfg.get("grad_clip", 1.0))
         self.precision = train_cfg.get("precision", "bf16")
 
         # checkpoint parameters
@@ -173,7 +173,7 @@ class TelosTrainer:
                 lr = self.scheduler.get_last_lr()[0]
                 elapsed = time.time() - start_time
                 print(f"Step {self.global_step}/{self.max_steps} | Loss: {metrics['loss']:.4f} | "
-                      f"Unweighted CE: {metrics['unweighted_ce']:.4f} | LR: {lr:.2e} | Elapsed: {elapsed:.1f}s")
+                      f"Unweighted CE: {metrics['unweighted_ce']:.4f} | LR: {lr:.2e} | Elapsed: {elapsed:.1f}s", flush=True)
 
             # checkpoint by step count or time interval
             current_time = time.time()
