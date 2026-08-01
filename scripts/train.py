@@ -40,14 +40,22 @@ def main():
             print(f"Loading pre-tokenized binary dataset from {cache_npy_path} (0.05s instant load)...")
             arr = np.load(cache_npy_path, mmap_mode="r")
         else:
-            print(f"Reading corpus from {corpus_path}...")
+            print(f"Streaming corpus from {corpus_path} with low memory footprint...")
+            snippets = []
             with open(corpus_path, "r", encoding="utf-8") as f:
-                content = f.read()
-
-            # Split code files by double-newline boundary (exact file separator)
-            snippets = [s.strip() for s in content.split("\n\n") if len(s.strip()) >= 30]
-            del content
-            gc.collect()
+                block = []
+                for line in f:
+                    if line == "\n" and block:
+                        snippet = "".join(block).strip()
+                        if len(snippet) >= 30:
+                            snippets.append(snippet)
+                        block = []
+                    elif line != "\n":
+                        block.append(line)
+                if block:
+                    snippet = "".join(block).strip()
+                    if len(snippet) >= 30:
+                        snippets.append(snippet)
 
             num_samples = len(snippets)
             print(f"Loaded {num_samples:,} code files. Running 44-core parallel Rust tokenizer...")
