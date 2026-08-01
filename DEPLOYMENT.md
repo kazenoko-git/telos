@@ -14,9 +14,9 @@ This document details how to set up, reproduce, train, and deploy **télos (τέ
 | **Vocabulary** | 4,096 BPE Tokens | 8,192 BPE Tokens | **16,384 BPE Tokens** (Multi-Domain) |
 | **Context Length** | 256 tokens | 512 tokens | **512 tokens** |
 | **Domain Mixture** | Pure Python | **100% Pure Python Code** | **60% Python, 25% English, 15% Shell** |
-| **Token Budget** | 120 Million tokens | **8.0 Billion tokens** (Hyper-Overtrained 100:1 ratio) | **25.0 Billion tokens** (Overtrained 68:1 ratio) |
-| **Target Steps** | 7,500 steps (~60 mins) | **60,000 steps (~3.7 Hours)** | **150,000 steps (~13.8 Hours on TPU v5e-8)** |
-| **Hardware** | Apple Silicon MPS | Kaggle TPU v5e-8 / 2x T4 | **Kaggle TPU v5e-8 (128GB VRAM)** |
+| **Token Budget** | 120 Million tokens | **3.5 Billion tokens** (Kaggle 20GB Disk Safe) | **25.0 Billion tokens** (Overtrained 68:1 ratio) |
+| **Target Steps** | 7,500 steps (~60 mins) | **27,000 steps (~35 Mins on 2x T4)** | **150,000 steps (~13.8 Hours on TPU v5e-8)** |
+| **Hardware** | Apple Silicon MPS | Kaggle GPU T4 x2 / TPU v5e-8 | **Kaggle TPU v5e-8 (128GB VRAM)** |
 
 ---
 
@@ -35,21 +35,26 @@ uv sync
 
 ---
 
-## 3. Phase B: Hyper-Overtrained Pure Python Model (~80.2M Params / 8B Tokens)
+## 3. Phase B: Kaggle 20GB Disk-Safe Model (~80.2M Params / 3.5B Tokens)
 
-Executes a 3.7-hour lean & hyper-overtrained Python model on Kaggle GPU T4 x2 or TPU v5e-8.
+Executes a 35-minute lean & hyper-overtrained Python model on Kaggle GPU T4 x2.
 
 ```bash
 # Step 1: Clone repo & install
+!rm -rf telos
 !git clone https://github.com/kazenoko-git/telos.git
 %cd telos
 !pip install -e .
 
-# Step 2: Stream 8.0B ungated Python tokens & train 8k tokenizer
-!python scripts/prepare_data.py --config configs/phase_b.yaml
+# Step 2: Clear cache to reclaim disk space
+!rm -rf ~/.cache/huggingface/
+!rm -rf data/python_corpus.txt
+
+# Step 3: Stream 3.5B ungated Python tokens & train 8k tokenizer (~14GB text file)
+!python scripts/prepare_data.py --config configs/phase_b.yaml --raw
 !python scripts/train_tokenizer.py --config configs/phase_b.yaml
 
-# Step 3: Execute Phase B Training (~3.7 Hours on TPU or ~1.2 Hours on 2x T4)
+# Step 4: Execute Phase B Training (~35 Mins on 2x T4 GPUs)
 !python scripts/train.py --config configs/phase_b.yaml --device cuda
 ```
 
@@ -61,7 +66,7 @@ Phase C trains our largest **365.1M parameter** multi-domain model on **25 Billi
 
 ```bash
 # Step 1: Clone & prepare dataset
-!python scripts/prepare_data.py --config configs/phase_c.yaml
+!python scripts/prepare_data.py --config configs/phase_c.yaml --raw
 !python scripts/train_tokenizer.py --config configs/phase_c.yaml
 
 # Step 2: Execute Phase C Training (~13.8 Hours across 2 Kaggle TPU sessions)

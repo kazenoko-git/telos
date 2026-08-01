@@ -1,7 +1,8 @@
-# Phase B — Lean & Hyper-Overtrained Pure Python Autocomplete Model
+# Phase B — Lean & Hyper-Overtrained Pure Python Autocomplete Model (Kaggle 20GB Disk Safe)
 # Model: Deep & Narrow + GQA (~80.2M params, 16 layers, d=672)
-# Token Budget: 8.0 Billion Python tokens (Hyper-overtrained 100:1 ratio beyond Chinchilla)
-# Runtime: ~3.7 Hours on Kaggle TPU v5e-8 ($0 cost)
+# Token Budget: 3.5 Billion Python tokens (Overtrained 44:1 ratio — Llama-3 style)
+# File Size: 14.0 GB raw text (safely fits inside Kaggle's 20 GB disk limit)
+# Runtime: ~35 Minutes on Kaggle GPU T4 x2 ($0 cost)
 
 model:
   vocab_size: 8192          # 8,192 vocab for Phase B
@@ -18,25 +19,25 @@ model:
 training:
   batch_size: 128
   gradient_accumulation: 2  # Effective batch = 256 sequences (131,072 tokens/step)
-  max_steps: 60000          # 60,000 steps (~3.7 hours wall-clock time on TPU v5e-8)
+  max_steps: 27000          # 27,000 steps (~35 minutes wall-clock time on 2x T4 GPUs)
   max_lr: 3e-4
   min_lr: 2e-5
   warmup_steps: 1000
   weight_decay: 0.1
   grad_clip: 1.0
   precision: bf16
-  device: tpu
+  device: cuda
 
 data:
-  corpus_size_tokens: 8000000000 # 8.0 Billion tokens (The Stack v2 Python deduplicated)
+  corpus_size_tokens: 3500000000 # 3.5 Billion tokens (~14 GB text, safe for Kaggle 20GB quota)
   num_epochs: 1
 
 checkpoint:
   dir: checkpoints/phase_b
-  save_every_minutes: 20   # Periodic save every 20 min
-  save_every_steps: 5000
+  save_every_minutes: 10   # Periodic save every 10 min
+  save_every_steps: 3000
   keep_last_n: 5
 
 eval:
   val_every_steps: 1000
-  sample_every_steps: 5000
+  sample_every_steps: 3000
