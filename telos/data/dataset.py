@@ -76,19 +76,23 @@ def collate_fn_dynamic_masking(batch: list[torch.Tensor]) -> tuple[torch.Tensor,
 
 
 def create_dataloader(
-    sequences: list[list[int]],
+    sequences: list[list[int]] | np.ndarray,
     batch_size: int = 32,
     max_seq_len: int = 256,
     shuffle: bool = True,
-    num_workers: int = 0
+    num_workers: int = 4
 ) -> DataLoader:
-    """creates a PyTorch DataLoader with dynamic masking enabled."""
+    """creates a PyTorch DataLoader with multi-worker parallel masking prefetch."""
     dataset = PythonCodeDataset(sequences, max_seq_len=max_seq_len)
-    return DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        collate_fn=collate_fn_dynamic_masking,
-        num_workers=num_workers,
-        pin_memory=True
-    )
+    kwargs = {
+        "batch_size": batch_size,
+        "shuffle": shuffle,
+        "collate_fn": collate_fn_dynamic_masking,
+        "num_workers": num_workers,
+        "pin_memory": True
+    }
+    if num_workers > 0:
+        kwargs["persistent_workers"] = True
+        kwargs["prefetch_factor"] = 4
+
+    return DataLoader(dataset, **kwargs)

@@ -143,7 +143,13 @@ class TelosTrainer:
         """executes full training loop."""
         self.model.train()
         start_time = time.time()
-        train_iterator = iter(self.train_loader)
+
+        if self.is_tpu:
+            import torch_xla.distributed.parallel_loader as pl
+            para_loader = pl.ParallelLoader(self.train_loader, [self.device])
+            train_iterator = iter(para_loader.per_device_loader(self.device))
+        else:
+            train_iterator = iter(self.train_loader)
 
         print(f"Starting training: total_steps={self.max_steps}, device={self.device}, amp={self.use_amp}")
 
