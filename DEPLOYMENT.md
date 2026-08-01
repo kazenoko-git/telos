@@ -15,7 +15,7 @@ This document details how to set up, reproduce, train, and deploy **télos (τέ
 | **Context Length** | 256 tokens | 512 tokens | **512 tokens** |
 | **Domain Mixture** | Pure Python | **100% Pure Python Code** | **60% Python, 25% English, 15% Shell** |
 | **Token Budget** | 120 Million tokens | **8.0 Billion tokens** (34:1 ratio) | **60.0 Billion tokens** (55:1 overtraining ratio) |
-| **Target Steps** | 7,500 steps (~60 mins) | **60,000 steps (~12.5 Mins on TPU v6e-1)** | **375,000 steps (~1.8 Hours on TPU v6e-1)** |
+| **Target Steps** | 7,500 steps (~60 mins) | **1,700 steps (~15 Mins on TPU v6e-1)** | **375,000 steps (~1.8 Hours on TPU v6e-1)** |
 | **Hardware** | Apple Silicon MPS | Lightning AI TPU v6e-1 / 4x T4 | **Lightning AI TPU v6e-1 / Kaggle TPU** |
 
 ---
