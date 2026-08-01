@@ -40,29 +40,19 @@ def main():
             print(f"Loading pre-tokenized binary dataset from {cache_npy_path} (0.05s instant load)...")
             arr = np.load(cache_npy_path, mmap_mode="r")
         else:
-            print(f"Encoding corpus from {corpus_path} using 44-core parallel Rust tokenizer...")
-
-            # Collect raw text snippets
-            snippets = []
+            print(f"Reading corpus from {corpus_path}...")
             with open(corpus_path, "r", encoding="utf-8") as f:
-                block = []
-                for line in f:
-                    if line == "\n" and block:
-                        snippet = "".join(block).strip()
-                        if snippet:
-                            snippets.append(snippet)
-                        block = []
-                    else:
-                        block.append(line)
-                if block:
-                    snippet = "".join(block).strip()
-                    if snippet:
-                        snippets.append(snippet)
+                content = f.read()
+
+            # Split code files by double-newline boundary (exact file separator)
+            snippets = [s.strip() for s in content.split("\n\n") if len(s.strip()) >= 30]
+            del content
+            gc.collect()
 
             num_samples = len(snippets)
-            print(f"Loaded {num_samples:,} raw snippets. Running 44-core Rust encode_batch...")
+            print(f"Loaded {num_samples:,} code files. Running 44-core parallel Rust tokenizer...")
 
-            # Pre-allocate contiguous int32 numpy array
+            # Pre-allocate contiguous int32 numpy array (only 6.4 GB RAM for 3.14M files!)
             arr = np.full((num_samples, seq_len), PAD_TOKEN_ID, dtype=np.int32)
 
             # Fast multi-threaded batch encoding (chunk size = 64,000)
@@ -79,7 +69,7 @@ def main():
             del snippets
             gc.collect()
 
-            print(f"Caching binary dataset to {cache_npy_path} for 0.05s instant future loads...")
+            print(f"Caching binary tokenized dataset to {cache_npy_path} for 0.05s instant future loads...")
             np.save(cache_npy_path, arr)
 
         print(f"NumPy dataset memory footprint: {arr.nbytes / (1024 * 1024):.1f} MB ({len(arr):,} samples)!")
