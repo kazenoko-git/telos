@@ -6,16 +6,16 @@ This document details how to set up, reproduce, train, and deploy **télos (τέ
 
 ## 1. Model Phase & Hardware Specifications
 
-| Parameter | Phase A (Local M5 Pro) | **Phase B (Flagship Autocomplete)** | **Phase C (14-Hour Multi-Domain Flagship)** |
+| Parameter | Phase A (Local M5 Pro) | **Phase B (Flagship Autocomplete)** | **Phase C (1.1B Flagship Coder)** |
 | :--- | :--- | :--- | :--- |
-| **Model Size** | **~12.48 Million** ($1.25 \times 10^7$) | **~232.4 Million** ($2.32 \times 10^8$) | **~365.1 Million** ($3.65 \times 10^8$) |
-| **Architecture** | Deep & Narrow (10L, $d=320$) | Deep & Narrow (16L, $d=1152$) | **Deep & Narrow (20L, $d=1280$)** |
-| **Attention** | GQA (8 Query, 2 KV) | GQA (16 Query, 4 KV) | **GQA (20 Query, 4 KV)** |
-| **Vocabulary** | 4,096 BPE Tokens | 8,192 BPE Tokens | **16,384 BPE Tokens** (Multi-Domain) |
+| **Model Size** | **~12.48 Million** ($1.25 \times 10^7$) | **~232.4 Million** ($2.32 \times 10^8$) | **~1.08 Billion** ($1.08 \times 10^9$) |
+| **Architecture** | Deep & Narrow (10L, $d=320$) | Deep & Narrow (16L, $d=1152$) | **Deep & Narrow (24L, $d=2048$)** |
+| **Attention** | GQA (8 Query, 2 KV) | GQA (16 Query, 4 KV) | **GQA (32 Query, 8 KV)** |
+| **Vocabulary** | 4,096 BPE Tokens | 8,192 BPE Tokens | **32,768 BPE Tokens** (Multi-Domain) |
 | **Context Length** | 256 tokens | 512 tokens | **512 tokens** |
 | **Domain Mixture** | Pure Python | **100% Pure Python Code** | **60% Python, 25% English, 15% Shell** |
-| **Token Budget** | 120 Million tokens | **8.0 Billion tokens** (34:1 overtraining ratio) | **25.0 Billion tokens** (Overtrained 68:1 ratio) |
-| **Target Steps** | 7,500 steps (~60 mins) | **60,000 steps (~12.5 Mins on TPU v6e-1)** | **150,000 steps (~13.8 Hours on TPU v5e-8)** |
+| **Token Budget** | 120 Million tokens | **8.0 Billion tokens** (34:1 ratio) | **80.0 Billion tokens** (74:1 overtraining ratio) |
+| **Target Steps** | 7,500 steps (~60 mins) | **60,000 steps (~12.5 Mins on TPU v6e-1)** | **500,000 steps (~2.8 Hours on TPU v6e-1)** |
 | **Hardware** | Apple Silicon MPS | Lightning AI TPU v6e-1 / 4x T4 | **Lightning AI TPU v6e-1 / Kaggle TPU** |
 
 ---
@@ -23,7 +23,7 @@ This document details how to set up, reproduce, train, and deploy **télos (τέ
 ## 2. Environment Setup
 
 ### Prerequisites
-- Python >= 3.13
+- Python >= 3.10
 - `uv` package manager (`curl -LsSf https://ast.sh/uv/install.sh | sh`)
 
 ### Installation
@@ -49,22 +49,22 @@ pip install -e .
 python scripts/prepare_data.py --config configs/phase_b.yaml --raw
 python scripts/train_tokenizer.py --config configs/phase_b.yaml
 
-# Step 3: Execute Phase B Training (~12.5 Mins on TPU v6e-1 or ~1.2 Hours on 2x T4)
+# Step 3: Execute Phase B Training (~12.5 Mins on TPU v6e-1)
 python scripts/train.py --config configs/phase_b.yaml --device tpu
 ```
 
 ---
 
-## 4. Phase C: 14-Hour Multi-Domain Flagship Model (~365.1M Params / 25B Tokens)
+## 4. Phase C: 1.1B Flagship Coder Model (~1.08B Params / 80B Tokens)
 
-Phase C trains our largest **365.1M parameter** multi-domain model on **25 Billion tokens** across Python, English instructions, and UNIX/Windows shell commands.
+Phase C trains our flagship **1.08 Billion parameter** multi-domain model on **80 Billion tokens** across Python, English instructions, and UNIX/Windows shell commands.
 
 ```bash
 # Step 1: Clone & prepare dataset
 python scripts/prepare_data.py --config configs/phase_c.yaml --raw
 python scripts/train_tokenizer.py --config configs/phase_c.yaml
 
-# Step 2: Execute Phase C Training (~13.8 Hours across Kaggle/Lightning TPU sessions)
+# Step 2: Execute Phase C Training (~2.8 Hours on TPU v6e-1)
 python scripts/train.py --config configs/phase_c.yaml --device tpu
 ```
 
@@ -74,14 +74,14 @@ python scripts/train.py --config configs/phase_c.yaml --device tpu
 
 ### Step 1: Export Weights & Upload to HuggingFace Hub
 ```bash
-python -m telos.hub.upload --model-dir checkpoints/phase_b --repo-id kazenoko/telos-230m-python
+python -m telos.hub.upload --model-dir checkpoints/phase_c --repo-id kazenoko/telos-1.1b-coder
 ```
 
 ### Step 2: Standalone Programmatic Inference
 ```python
 from telos.hub import TelosModel
 
-model = TelosModel.from_pretrained("kazenoko/telos-230m-python")
+model = TelosModel.from_pretrained("kazenoko/telos-1.1b-coder")
 
 # Python Code Completion
 code = model.complete(

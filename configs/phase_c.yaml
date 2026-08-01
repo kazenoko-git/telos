@@ -1,18 +1,18 @@
-# Phase C — 14-Hour Multi-Domain Flagship Overtrained Model (~365.1M Params, 25B Tokens)
-# Architecture: Deep & Narrow 20-Layer GQA (~365.1M params, 20 layers, d=1280, 16.3k vocab)
+# Phase C — Flagship 1.1B Multi-Domain Code & Tool Model (~1.08B Params, 80B Tokens)
+# Architecture: Deep & Narrow 24-Layer GQA (~1.08B params, 24 layers, d=2048, 32.7k vocab)
 # Multi-Domain Mixture:
 #   1. Python Code (~60%)
 #   2. English Technical Reasoning & Instructions (~25%)
 #   3. UNIX / Windows Shell Commands & CLI Tools (git, bash, docker, powershell) (~15%)
-# Dataset: 25.0 Billion tokens (Overtrained 68:1 ratio beyond Chinchilla)
-# Runtime: ~14 Hours total across 2 Kaggle TPU sessions or continuous compute
+# Dataset: 80.0 Billion tokens (Overtrained 74:1 ratio beyond Chinchilla)
+# Runtime: ~2.8 Hours on TPU v6e-1 / Google TPU (~4.5 credits total)
 
 model:
-  vocab_size: 16384         # 16,384 expanded vocab for Python + English + UNIX/Windows shell
-  d_model: 1280             # 1,280 hidden dimension
-  n_layers: 20              # 20 deep layers for multi-domain reasoning & tool execution
-  n_heads: 20               # 20 Query attention heads
-  n_kv_heads: 4             # 4 Key/Value heads (Grouped-Query Attention GQA)
+  vocab_size: 32768         # 32,768 expanded vocab for Python + English + UNIX/Windows shell
+  d_model: 2048             # 2,048 hidden dimension (1.08B params)
+  n_layers: 24              # 24 deep layers for high-level architectural reasoning
+  n_heads: 32               # 32 Query attention heads
+  n_kv_heads: 8             # 8 Key/Value heads (Grouped-Query Attention GQA 4:1)
   seq_len: 512
   dropout: 0.0              # No dropout for large-scale overtraining
   mlp_type: swiglu
@@ -22,17 +22,17 @@ model:
 training:
   batch_size: 128
   gradient_accumulation: 2  # Effective batch = 256 sequences (131,072 tokens/step)
-  max_steps: 150000         # 150,000 steps (~13.8 hours wall-clock time on TPU v5e-8)
+  max_steps: 500000         # 500,000 steps (~2.8 hours wall-clock time on TPU v6e-1)
   max_lr: 3e-4
   min_lr: 1.5e-5
-  warmup_steps: 2000
+  warmup_steps: 5000
   weight_decay: 0.1
   grad_clip: 1.0
   precision: bf16
   device: tpu
 
 data:
-  corpus_size_tokens: 25000000000 # 25 Billion multi-domain tokens
+  corpus_size_tokens: 80000000000 # 80.0 Billion multi-domain tokens
   mixture:
     python_code: 0.60
     english_instructions: 0.25
@@ -41,10 +41,10 @@ data:
 
 checkpoint:
   dir: checkpoints/phase_c
-  save_every_minutes: 30   # Periodic save every 30 min
+  save_every_minutes: 5    # Periodic save every 5 min for spot safety
   save_every_steps: 5000
   keep_last_n: 10
 
 eval:
-  val_every_steps: 2500
-  sample_every_steps: 5000
+  val_every_steps: 5000
+  sample_every_steps: 10000
