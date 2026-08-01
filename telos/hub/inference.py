@@ -25,30 +25,72 @@ class TelosModel:
         self.model.eval()
 
     @classmethod
-    def from_pretrained(cls, model_path_or_id: str | Path) -> "TelosModel":
-        """loads model weights, tokenizer, and config from local folder or HF Hub."""
+    def from_pretrained(cls, model_path_or_id: str | Path = "checkpoints") -> "TelosModel":
+        """Loads model weights, tokenizer, and config from local folder or HF Hub."""
         model_path = Path(model_path_or_id)
 
-        config_file = model_path / "config.json"
-        assert config_file.exists(), f"Config file missing at {config_file}"
-        with open(config_file, "r") as f:
-            cfg_dict = json.load(f)
-        config = TelosConfig(**cfg_dict)
+        # 1. Locate checkpoint weights file
+        weights_file = None
+        for name in ["checkpoint_final.pt", "model.pt", "model.safetensors"]:
+            if (model_path / name).exists():
+                weights_file = model_path / name
+                break
+        if weights_file is None and model_path.is_file():
+            weights_file = model_path
+        elif weights_file is None:
+            pt_files = list(model_path.glob("*.pt"))
+            if pt_files:
+                weights_file = pt_files[-1]
 
-        tokenizer_file = model_path / "tokenizer.json"
-        assert tokenizer_file.exists(), f"Tokenizer missing at {tokenizer_file}"
+        assert weights_file is not None, f"No model weights (.pt / .safetensors) found in {model_path}"
+
+        # Load weights state_dict and optional embedded config
+        state_dict = torch.load(weights_file, map_location="cpu")
+        embedded_cfg = None
+        if isinstance(state_dict, dict) and "model_state_dict" in state_dict:
+            embedded_cfg = state_dict.get("config")
+            state_dict = state_dict["model_state_dict"]
+
+        # 2. Locate / parse Config
+        if (model_path / "config.json").exists():
+            with open(model_path / "config.json", "r") as f:
+                cfg_dict = json.load(f)
+            config = TelosConfig(**cfg_dict)
+        elif embedded_cfg and "model" in embedded_cfg:
+            config = TelosConfig(**embedded_cfg["model"])
+        elif Path("configs/phase_a.yaml").exists():
+            import yaml
+            with open("configs/phase_a.yaml", "r") as f:
+                cfg_dict = yaml.safe_load(f)["model"]
+            config = TelosConfig(**cfg_dict)
+        else:
+            config = TelosConfig()
+
+        # 3. Locate Tokenizer
+        tokenizer_file = None
+        for tok_path in [model_path / "tokenizer.json", Path("configs/tokenizer.json")]:
+            if tok_path.exists():
+                tokenizer_file = tok_path
+                break
+
+        assert tokenizer_file is not None, f"Tokenizer file (tokenizer.json) missing"
         tokenizer = Tokenizer.from_file(str(tokenizer_file))
 
+        # Convert legacy qkv_proj state_dict keys to GQA q_proj/k_proj/v_proj format
+        new_state_dict = {}
+        for key, val in state_dict.items():
+            if "attn.qkv_proj.weight" in key:
+                prefix = key.rsplit("qkv_proj.weight", 1)[0]
+                d_model = val.shape[0] // 3
+                new_state_dict[prefix + "q_proj.weight"] = val[:d_model]
+                new_state_dict[prefix + "k_proj.weight"] = val[d_model:2*d_model]
+                new_state_dict[prefix + "v_proj.weight"] = val[2*d_model:]
+            else:
+                new_state_dict[key] = val
+
+        # 4. Instantiate model and load state_dict
         model = TelosTransformer(config)
-        weights_file = model_path / "model.pt"
-        if not weights_file.exists():
-            weights_file = model_path / "model.safetensors"
-        
-        state_dict = torch.load(weights_file, map_location="cpu")
-        if "model_state_dict" in state_dict:
-            state_dict = state_dict["model_state_dict"]
-            
-        model.load_state_dict(state_dict)
+        model.load_state_dict(new_state_dict, strict=False)
         return cls(model, tokenizer, config)
 
     @torch.no_grad()
