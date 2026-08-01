@@ -116,42 +116,59 @@ class SwiGLU(nn.Module):
 
 
 class BidirectionalAttention(nn.Module):
-    """multi-head self-attention WITHOUT causal mask (Full Bidirectional).
-
-    allows each token to attend to all other tokens in the sequence.
+    """Multi-Head Self-Attention WITHOUT causal mask (Full Bidirectional).
+    
+    Supports:
+    - Multi-Head Attention (MHA): n_kv_heads == n_heads
+    - Grouped-Query Attention (GQA): n_kv_heads < n_heads (e.g. 8 query heads, 2 KV heads)
+    - Multi-Query Attention (MQA): n_kv_heads == 1
     """
-
-    def __init__(self, d_model: int, n_heads: int, dropout: float = 0.0):
+    def __init__(self, d_model: int, n_heads: int, n_kv_heads: int | None = None, dropout: float = 0.0):
         super().__init__()
         assert d_model % n_heads == 0, f"d_model ({d_model}) must be divisible by n_heads ({n_heads})"
         self.d_model = d_model
         self.n_heads = n_heads
+        self.n_kv_heads = n_heads if n_kv_heads is None else n_kv_heads
+        assert n_heads % self.n_kv_heads == 0, f"n_heads ({n_heads}) must be divisible by n_kv_heads ({self.n_kv_heads})"
+        
+        self.num_queries_per_kv = n_heads // self.n_kv_heads
         self.head_dim = d_model // n_heads
         self.dropout = dropout
-        # combined Q, K, V linear projections (no bias terms)
-        self.qkv_proj = nn.Linear(d_model, 3 * d_model, bias=False)
-        # output projection
+
+        # Q projection: d_model -> n_heads * head_dim
+        self.q_proj = nn.Linear(d_model, n_heads * self.head_dim, bias=False)
+        # K projection: d_model -> n_kv_heads * head_dim
+        self.k_proj = nn.Linear(d_model, self.n_kv_heads * self.head_dim, bias=False)
+        # V projection: d_model -> n_kv_heads * head_dim
+        self.v_proj = nn.Linear(d_model, self.n_kv_heads * self.head_dim, bias=False)
+        # Output projection: d_model -> d_model
         self.out_proj = nn.Linear(d_model, d_model, bias=False)
 
     # thank you claude
     def forward(self, x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.Tensor:
         batch, seq_len, _ = x.shape
-        # 1. Project input to Q, K, V tensors: [batch, seq_len, 3 * d_model]
-        qkv = self.qkv_proj(x)
-        # 2. Reshape & permute to [batch, n_heads, seq_len, head_dim]
-        qkv = qkv.view(batch, seq_len, 3, self.n_heads, self.head_dim).permute(2, 0, 3, 1, 4)
-        q, k, v = qkv[0], qkv[1], qkv[2]
-        # 3. Apply Rotary Positional Embeddings (RoPE) to Q and K
+
+        # Linear projections
+        q = self.q_proj(x).view(batch, seq_len, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
+        k = self.k_proj(x).view(batch, seq_len, self.n_kv_heads, self.head_dim).permute(0, 2, 1, 3)
+        v = self.v_proj(x).view(batch, seq_len, self.n_kv_heads, self.head_dim).permute(0, 2, 1, 3)
+
+        # Apply Rotary Positional Embeddings (RoPE) to Q and K
         q, k = apply_rope(q, k, cos, sin)
-        # 4. Compute scaled dot-product attention WITHOUT causal mask (is_causal=False)
-        # FlashAttention / Metal kernels selected automatically via F.scaled_dot_product_attention
+
+        # Repeat K and V heads if using GQA (n_kv_heads < n_heads)
+        if self.num_queries_per_kv > 1:
+            k = k.repeat_interleave(self.num_queries_per_kv, dim=1)
+            v = v.repeat_interleave(self.num_queries_per_kv, dim=1)
+
+        # Compute scaled dot-product attention WITHOUT causal mask
         out = F.scaled_dot_product_attention(
             q, k, v,
             attn_mask=None,
             dropout_p=self.dropout if self.training else 0.0,
-            is_causal=False  # CRITICAL: Full bidirectional attention for MDLM
+            is_causal=False  # Full bidirectional attention for MDLM
         )
-        # 5. Reshape back to [batch, seq_len, d_model]
+
+        # Reshape back to [batch, seq_len, d_model] and apply output projection
         out = out.permute(0, 2, 1, 3).contiguous().view(batch, seq_len, self.d_model)
-        # 6. Apply final output projection
         return self.out_proj(out)

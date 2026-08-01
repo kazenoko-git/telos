@@ -22,7 +22,8 @@ class TelosConfig:
     vocab_size: int = 4096       # Size of tokenizer vocabulary
     d_model: int = 128           # Hidden embedding dimension
     n_layers: int = 6            # Number of transformer block layers
-    n_heads: int = 4             # Number of attention heads
+    n_heads: int = 4             # Number of query attention heads
+    n_kv_heads: int | None = None # Number of key/value heads for GQA (defaults to n_heads if None)
     max_seq_len: int = 512       # Maximum supported sequence length
     seq_len: int | None = None   # Alias for max_seq_len
     dropout: float = 0.1         # Attention dropout rate
@@ -42,8 +43,8 @@ class TransformerBlock(nn.Module):
         super().__init__()
         # pre-attention RMSNorm
         self.attn_norm = RMSNorm(config.d_model)
-        # bidirectional Multi-Head Self-Attention
-        self.attn = BidirectionalAttention(config.d_model, config.n_heads, config.dropout)
+        # bidirectional Multi-Head / Grouped-Query Self-Attention
+        self.attn = BidirectionalAttention(config.d_model, config.n_heads, config.n_kv_heads, config.dropout)
         
         # pre-MLP RMSNorm
         self.mlp_norm = RMSNorm(config.d_model)

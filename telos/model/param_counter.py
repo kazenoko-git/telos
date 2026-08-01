@@ -14,12 +14,17 @@ def count_parameters(config: TelosConfig) -> dict[str, int]:
     l = config.n_layers
     h = config.n_heads
     head_dim = d // h
+    n_kv = h if config.n_kv_heads is None else config.n_kv_heads
 
-    # token mbeddings: V * d
+    # token embeddings: V * d
     embedding_params = v * d
 
-    # attention per block: qkv projection + out projection = 4 * d * d
-    attn_params_per_layer = 4 * d * d
+    # attention per block:
+    # Q proj: d * d
+    # K proj: d * (n_kv * head_dim)
+    # V proj: d * (n_kv * head_dim)
+    # Out proj: d * d
+    attn_params_per_layer = (d * d) + 2 * (d * (n_kv * head_dim)) + (d * d)
 
     # SwiGLU MLP per block:
     hidden_dim = int(2 * 4 * d / 3)

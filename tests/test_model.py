@@ -28,3 +28,25 @@ def test_embedding_weight_tying():
     model = TelosTransformer(config)
 
     assert model.tok_embeddings.weight is model.output_projection.weight
+
+
+def test_grouped_query_attention():
+    """Verifies GQA forward pass and parameter calculation matching."""
+    config = TelosConfig(
+        vocab_size=1000,
+        d_model=128,
+        n_layers=2,
+        n_heads=8,
+        n_kv_heads=2,  # 4 query heads per KV head (GQA)
+        max_seq_len=64
+    )
+    model = TelosTransformer(config)
+    analytical_count = count_parameters(config)["total"]
+    actual_count = verify_with_model(config)
+
+    assert analytical_count == actual_count
+    
+    # Test forward pass with GQA
+    x = torch.randint(0, 1000, (2, 16))
+    out = model(x)
+    assert out.shape == (2, 16, 1000)
