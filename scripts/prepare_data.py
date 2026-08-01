@@ -12,6 +12,8 @@ def main():
     parser.add_argument("--config", type=str, default="configs/phase_a.yaml", help="Path to config YAML")
     parser.add_argument("--output", type=str, default="data/python_corpus.txt", help="Output text file path")
     parser.add_argument("--dataset", type=str, default="codeparrot/codeparrot-clean", help="HuggingFace dataset to stream")
+    parser.add_argument("--raw", action="store_true", help="Skip AST parsing, write raw Python code (max throughput)")
+    parser.add_argument("--fast", action="store_true", help="Download full dataset in parallel first (faster iteration)")
     args = parser.parse_args()
 
     # Load target token count from config YAML
@@ -24,7 +26,9 @@ def main():
     prepare_online_corpus(
         output_path=args.output,
         target_tokens=target_tokens,
-        dataset_name=args.dataset
+        dataset_name=args.dataset,
+        raw_mode=args.raw,
+        fast_mode=args.fast,
     )
 
 
