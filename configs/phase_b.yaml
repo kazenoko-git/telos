@@ -1,12 +1,13 @@
-# Phase B — Final training run on H100 (≤2 hour hard budget)
+# Phase B — Final training run on H100 (Deep & Narrow + GQA)
 # Target compute budget: ~1.6e18 FLOPs
-# Chinchilla-optimal ratio: ~85M parameters trained on ~1.7B tokens
+# Deep & Narrow architecture (~80.2M params, 16 layers, 1.7B tokens)
 
 model:
-  vocab_size: 8192          # 8,192 vocab for Phase B (amortized across larger model)
-  d_model: 768              # Solved by param_counter to hit ~85M params
-  n_layers: 12
-  n_heads: 12
+  vocab_size: 8192          # 8,192 vocab for Phase B
+  d_model: 672              # Deep & Narrow hidden dimension
+  n_layers: 16              # Deep 16 layers for superior hierarchical reasoning
+  n_heads: 12               # 12 Query attention heads
+  n_kv_heads: 2             # 2 Key/Value heads (Grouped-Query Attention GQA)
   seq_len: 512
   dropout: 0.0              # No dropout for final large-scale run
   mlp_type: swiglu
@@ -31,7 +32,7 @@ data:
 
 checkpoint:
   dir: checkpoints/phase_b
-  save_every_minutes: 10   # Periodic save every 10 min (hard budget constraint)
+  save_every_minutes: 10   # Periodic save every 10 min
   save_every_steps: 2000
   keep_last_n: 5
 
