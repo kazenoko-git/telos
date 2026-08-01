@@ -55,7 +55,14 @@ def prepare_online_corpus(
     print(f"Streaming Python code from HuggingFace dataset '{dataset_name}'...")
     print(f"Target token budget: {target_tokens:,} tokens (~{target_chars / 1e6:.1f} MB text)...")
 
-    ds = load_dataset(dataset_name, streaming=True, split="train")
+    import os
+    token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN")
+    ds_kwargs = {"streaming": True, "split": "train"}
+    if token:
+        print(f"Using HuggingFace authentication token for rate-limit bypass...")
+        ds_kwargs["token"] = token
+
+    ds = load_dataset(dataset_name, **ds_kwargs)
 
     written_chars = 0
     extracted_functions_count = 0
