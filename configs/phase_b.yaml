@@ -1,0 +1,40 @@
+# Phase B — Final training run on H100 (≤2 hour hard budget)
+# Target compute budget: ~1.6e18 FLOPs
+# Chinchilla-optimal ratio: ~85M parameters trained on ~1.7B tokens
+
+model:
+  vocab_size: 8192          # 8,192 vocab for Phase B (amortized across larger model)
+  d_model: 768              # Solved by param_counter to hit ~85M params
+  n_layers: 12
+  n_heads: 12
+  seq_len: 512
+  dropout: 0.0              # No dropout for final large-scale run
+  mlp_type: swiglu
+  tied_embeddings: true
+  no_timestep_embed: true
+
+training:
+  batch_size: 128
+  gradient_accumulation: 2  # Effective batch = 256 sequences
+  max_steps: 13000          # ~1.7B tokens with batch_size 256 * 512
+  max_lr: 3e-4
+  min_lr: 3e-5
+  warmup_steps: 500
+  weight_decay: 0.1
+  grad_clip: 1.0
+  precision: bf16
+  device: cuda
+
+data:
+  corpus_size_tokens: 1700000000
+  num_epochs: 1
+
+checkpoint:
+  dir: checkpoints/phase_b
+  save_every_minutes: 10   # Periodic save every 10 min (hard budget constraint)
+  save_every_steps: 2000
+  keep_last_n: 5
+
+eval:
+  val_every_steps: 1000
+  sample_every_steps: 2000
