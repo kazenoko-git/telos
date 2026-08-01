@@ -83,8 +83,8 @@ def apply_rope(q: torch.Tensor, k: torch.Tensor, cos: torch.Tensor, sin: torch.T
     q, k shapes: [batch, n_heads, seq_len, head_dim]
     cos, sin shapes: [seq_len, head_dim] -> unsqueezed to [1, 1, seq_len, head_dim]
     """
-    cos = cos.unsqueeze(0).unsqueeze(0)  # Broadcast for batch and head dims
-    sin = sin.unsqueeze(0).unsqueeze(0)
+    cos = cos.to(dtype=q.dtype).unsqueeze(0).unsqueeze(0)  # Broadcast for batch and head dims
+    sin = sin.to(dtype=q.dtype).unsqueeze(0).unsqueeze(0)
 
     # Apply rotation formula: R_theta * x = x * cos + rotate_half(x) * sin
     q_embed = (q * cos) + (_rotate_half(q) * sin)
