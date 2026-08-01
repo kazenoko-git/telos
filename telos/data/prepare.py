@@ -1,22 +1,21 @@
-"""
-data preparation script for télos.
-downloads, filters, and extracts python function definitions from source datasets.
-filters for:
-- valid python syntax (must parse via ast.parse).
-- top-level function definitions containing docstrings.
-- output tokenized sequences saved as JSON/numpy arrays for training.
+"""online data oreparation script for télos.
+
+streams real Python source code online from HuggingFace Datasets, filters for valid AST
+syntax, extracts clean function definitions with docstrings, and stops automatically once the
+target token count is reached.
 """
 
 import ast
-import json
 from pathlib import Path
+from tqdm import tqdm
+from datasets import load_dataset
 
 
 def is_valid_python(code: str) -> bool:
     try:
         ast.parse(code)
         return True
-    except SyntaxError:
+    except (SyntaxError, ValueError):
         return False
 
 
@@ -31,11 +30,13 @@ def extract_functions_from_code(code: str) -> list[str]:
 
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                # must contain a docstring for function completion framing
                 if ast.get_docstring(node) is not None:
                     start_line = node.lineno - 1
-                    end_line = getattr(node, "end_lineno", start_line + 50)
+                    end_line = getattr(node, "end_lineno", start_line + 60)
                     fn_code = "\n".join(lines[start_line:end_line])
-                    if 10 < len(fn_code) < 4000:  # reasonable size check? 
+                    # filter out tiny snippets or giant monolithic blocks
+                    if 20 <= len(fn_code) <= 4000:
                         functions.append(fn_code)
     except Exception:
         pass
@@ -43,24 +44,61 @@ def extract_functions_from_code(code: str) -> list[str]:
     return functions
 
 
-def prepare_synthetic_corpus(output_path: str = "data/python_corpus.txt"):
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    
-    samples = [
-        "def add(a: int, b: int) -> int:\n    \"\"\"Add two numbers and return result.\"\"\"\n    return a + b\n",
-        "def subtract(a: float, b: float) -> float:\n    \"\"\"Subtract b from a.\"\"\"\n    return a - b\n",
-        "def multiply(x: int, y: int) -> int:\n    \"\"\"Calculate product of x and y.\"\"\"\n    return x * y\n",
-        "def divide(a: float, b: float) -> float:\n    \"\"\"Divide a by b with zero check.\"\"\"\n    if b == 0:\n        raise ValueError('Division by zero')\n    return a / b\n",
-        "def fibonacci(n: int) -> int:\n    \"\"\"Calculate nth Fibonacci number recursively.\"\"\"\n    if n <= 1:\n        return n\n    return fibonacci(n - 1) + fibonacci(n - 2)\n",
-        "def is_prime(n: int) -> bool:\n    \"\"\"Check if an integer is prime.\"\"\"\n    if n < 2:\n        return False\n    for i in range(2, int(n ** 0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\n",
-        "def factorial(n: int) -> int:\n    \"\"\"Compute factorial of n.\"\"\"\n    result = 1\n    for i in range(2, n + 1):\n        result *= i\n    return result\n",
-        "def reverse_string(s: str) -> str:\n    \"\"\"Return reversed string.\"\"\"\n    return s[::-1]\n",
-        "def binary_search(arr: list[int], target: int) -> int:\n    \"\"\"Perform binary search on sorted array.\"\"\"\n    low, high = 0, len(arr) - 1\n    while low <= high:\n        mid = (low + high) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            low = mid + 1\n        else:\n            high = mid - 1\n    return -1\n"
-    ]
+def prepare_online_corpus(
+    output_path: str = "data/python_corpus.txt",
+    target_tokens: int = 30_000_000,
+    dataset_name: str = "codeparrot/codeparrot-clean"
+):
+    """streams online Python code dataset, extracts valid function blocks, and writes to file.
 
-    # Duplicate samples to create initial Phase A token pool
-    full_corpus = "\n\n".join(samples * 500)
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(full_corpus)
+    args:
+        output_path: target output text file path.
+        target_tokens: target total tokens (approx 4 characters per token).
+        dataset_name: HuggingFace dataset name to stream from.
+    """
+    output_file = Path(output_path)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
 
-    print(f"Sample corpus saved to {output_path} ({len(full_corpus)} characters).")
+    # convert target tokens to target character count (approx 1 token ~ 4 chars)
+    target_chars = target_tokens * 4
+
+    print(f"Streaming Python code from HuggingFace dataset '{dataset_name}'...")
+    print(f"Target token budget: {target_tokens:,} tokens (~{target_chars / 1e6:.1f} MB text)...")
+
+    # load dataset in streaming mode so no giant downloads are needed upfront
+    ds = load_dataset(dataset_name, streaming=True, split="train")
+
+    written_chars = 0
+    extracted_functions_count = 0
+
+    pbar = tqdm(total=target_chars, unit="char", unit_scale=True)
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        for sample in ds:
+            # extract raw python code string from dataset column
+            code_text = sample.get("content") or sample.get("code") or ""
+            if not code_text or not is_valid_python(code_text):
+                continue
+
+            # extract AST-valid functions with docstrings
+            functions = extract_functions_from_code(code_text)
+            for fn_code in functions:
+                formatted_block = fn_code.strip() + "\n\n"
+                f.write(formatted_block)
+
+                fn_len = len(formatted_block)
+                written_chars += fn_len
+                extracted_functions_count += 1
+                pbar.update(fn_len)
+
+                # stop automatically when target token/character budget is reached
+                if written_chars >= target_chars:
+                    break
+
+            if written_chars >= target_chars:
+                break
+
+    pbar.close()
+    approx_tokens = written_chars // 4
+    print(f"Dataset preparation complete! Saved {extracted_functions_count:,} functions "
+          f"({written_chars / 1e6:.2f} MB, ~{approx_tokens:,} tokens) to {output_path}")
