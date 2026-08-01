@@ -34,9 +34,9 @@ data:
 
 checkpoint:
   dir: checkpoints/phase_b
-  save_every_minutes: 10   # Periodic save every 10 min
-  save_every_steps: 3000
-  keep_last_n: 5
+  save_every_minutes: 3    # Frequent save every 3 min for spot safety
+  save_every_steps: 1000   # Checkpoint every 1,000 steps (~1 min on 4x T4)
+  keep_last_n: 10
 
 eval:
   val_every_steps: 1000
