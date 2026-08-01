@@ -57,6 +57,13 @@ def prepare_online_corpus(
 
     import os
     token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN")
+    if not token and Path(".env").exists():
+        with open(".env", "r") as env_file:
+            for line in env_file:
+                if line.startswith("HF_TOKEN="):
+                    token = line.split("=", 1)[1].strip().strip("'\"")
+                    break
+
     ds_kwargs = {"streaming": True, "split": "train"}
     if token:
         print(f"Using HuggingFace authentication token for rate-limit bypass...")
