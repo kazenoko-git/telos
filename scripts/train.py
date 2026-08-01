@@ -13,6 +13,7 @@ def main():
     parser = argparse.ArgumentParser(description="Train télos MDLM model")
     parser.add_argument("--config", type=str, default="configs/phase_a.yaml", help="Path to config YAML")
     parser.add_argument("--resume", type=str, default=None, help="Optional checkpoint path to resume from")
+    parser.add_argument("--device", type=str, default=None, help="Device target ('auto', 'tpu', 'cuda', 'mps', 'cpu')")
     args = parser.parse_args()
 
     with open(args.config, "r") as f:
@@ -68,7 +69,9 @@ def main():
         print("Corpus file not found! Please run python scripts/prepare_data.py first.")
         return
 
-    if device == "auto":
+    if args.device:
+        device = args.device
+    elif device == "auto":
         device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
     train_loader = create_dataloader(arr, batch_size=batch_size, max_seq_len=seq_len, shuffle=True)

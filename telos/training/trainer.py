@@ -47,7 +47,19 @@ class TelosTrainer:
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.config = config or {}
-        self.device = torch.device(device)
+        # Resolve device (including TPU / PyTorch XLA)
+        if str(device).lower() in ["tpu", "xla"]:
+            try:
+                import torch_xla.core.xla_model as xm
+                self.device = xm.xla_device()
+                self.is_tpu = True
+            except ImportError:
+                print("Warning: torch_xla not installed. Falling back to CPU.")
+                self.device = torch.device("cpu")
+                self.is_tpu = False
+        else:
+            self.device = torch.device(device)
+            self.is_tpu = False
 
         self.model.to(self.device)
 
@@ -163,7 +175,13 @@ class TelosTrainer:
             # backward pass & optimizer step
             loss.backward()
             nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
-            self.optimizer.step()
+
+            if self.is_tpu:
+                import torch_xla.core.xla_model as xm
+                xm.optimizer_step(self.optimizer)
+            else:
+                self.optimizer.step()
+
             self.scheduler.step()
 
             self.global_step += 1
