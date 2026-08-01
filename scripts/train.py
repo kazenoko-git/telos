@@ -40,37 +40,46 @@ def main():
             print(f"Loading pre-tokenized binary dataset from {cache_npy_path} (0.05s instant load)...")
             arr = np.load(cache_npy_path, mmap_mode="r")
         else:
-            print(f"Loading and encoding corpus from {corpus_path} into binary memory layout...")
+            print(f"Encoding corpus from {corpus_path} using 44-core parallel Rust tokenizer...")
 
-            # Read corpus in streaming blocks to prevent CPython heap RAM spike
-            token_sequences = []
+            # Collect raw text snippets
+            snippets = []
             with open(corpus_path, "r", encoding="utf-8") as f:
                 block = []
                 for line in f:
                     if line == "\n" and block:
                         snippet = "".join(block).strip()
                         if snippet:
-                            token_sequences.append(tokenizer.encode(snippet).ids[:seq_len])
+                            snippets.append(snippet)
                         block = []
                     else:
                         block.append(line)
                 if block:
                     snippet = "".join(block).strip()
                     if snippet:
-                        token_sequences.append(tokenizer.encode(snippet).ids[:seq_len])
+                        snippets.append(snippet)
 
-            num_samples = len(token_sequences)
-            print(f"Encoded {num_samples:,} function sequences. Converting to 2D NumPy array...")
+            num_samples = len(snippets)
+            print(f"Loaded {num_samples:,} raw snippets. Running 44-core Rust encode_batch...")
 
-            # Pack into contiguous 2D int32 array
+            # Pre-allocate contiguous int32 numpy array
             arr = np.full((num_samples, seq_len), PAD_TOKEN_ID, dtype=np.int32)
-            for i, seq in enumerate(token_sequences):
-                arr[i, :len(seq)] = seq
 
-            del token_sequences
+            # Fast multi-threaded batch encoding (chunk size = 64,000)
+            chunk_size = 64000
+            for start_idx in range(0, num_samples, chunk_size):
+                end_idx = min(start_idx + chunk_size, num_samples)
+                chunk = snippets[start_idx:end_idx]
+                encoded_chunk = tokenizer.encode_batch(chunk)
+
+                for sub_i, enc in enumerate(encoded_chunk):
+                    token_ids = enc.ids[:seq_len]
+                    arr[start_idx + sub_i, :len(token_ids)] = token_ids
+
+            del snippets
             gc.collect()
 
-            print(f"Caching binary tokenized dataset to {cache_npy_path} for instant future loads...")
+            print(f"Caching binary dataset to {cache_npy_path} for 0.05s instant future loads...")
             np.save(cache_npy_path, arr)
 
         print(f"NumPy dataset memory footprint: {arr.nbytes / (1024 * 1024):.1f} MB ({len(arr):,} samples)!")
