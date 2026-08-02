@@ -1,0 +1,31 @@
+# télos Phase B — 85M Parameter Model Ratio Study (1:10 Ratio — 850M Tokens)
+# Architecture: ~85.4M params (d=768, 12 layers, 12 heads, 3 kv_heads)
+# Token Budget: 850 Million Tokens (1:10 parameter-to-token ratio)
+
+model:
+  vocab_size: 8192
+  d_model: 768
+  n_layers: 12
+  n_heads: 12
+  n_kv_heads: 3
+  seq_len: 512
+  dropout: 0.0
+  mlp_type: swiglu
+  tied_embeddings: true
+  no_timestep_embed: true
+
+training:
+  batch_size: 32           # Micro-batch size 32 (fits within 8.5GB HBM for 85M model)
+  gradient_accumulation: 32 # Effective batch = 1024 (524,288 tokens/step)
+  max_steps: 1621           # 850,000,000 / 524,288 tokens = 1,621 steps
+  max_lr: 8e-4
+  min_lr: 4e-5
+  warmup_steps: 100
+  weight_decay: 0.1
+  grad_clip: 1.0
+  timestep_schedule: beta
+
+checkpoint:
+  dir: checkpoints/phase_b_85m_tpu_ratio_1_10
+  save_every_steps: 200
+  save_every_minutes: 2
