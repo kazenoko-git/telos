@@ -17,9 +17,11 @@ import os
 
 def detect_device():
     try:
+        os.environ["PJRT_DEVICE"] = "TPU"
+        # pyrefly: ignore
         import torch_xla.core.xla_model as xm
         device = xm.xla_device()
-        return device, f"TPU ({os.environ.get('TPU_NAME', 'v5e')})", "tpu"
+        return device, f"TPU ({os.environ.get('TPU_NAME', 'v6e-1')})", "tpu"
     except Exception:
         pass
     if torch.cuda.is_available():
