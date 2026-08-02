@@ -187,7 +187,7 @@ def main():
     model.set_dtype(mx.bfloat16)
     mx.eval(model.parameters())
 
-    param_count = sum(p.size for _, p in tree_flatten(model.parameters()))
+    param_count = sum(p.size for p in tree_flatten(model.parameters()))
     print(f"  Model Parameters: {param_count:,}")
 
     # Load pre-tokenized 500M token dataset
@@ -204,10 +204,11 @@ def main():
         dataset_matrix = np.random.randint(0, m_cfg["vocab_size"], (10000, m_cfg["seq_len"]), dtype=np.uint16)
 
     # Optimizer & Scheduler Setup
-    max_steps = t_cfg["max_steps"]
-    warmup_steps = t_cfg["warmup_steps"]
-    max_lr = t_cfg["max_lr"]
-    min_lr = t_cfg["min_lr"]
+    max_steps = int(t_cfg["max_steps"])
+    warmup_steps = int(t_cfg["warmup_steps"])
+    max_lr = float(t_cfg["max_lr"])
+    min_lr = float(t_cfg["min_lr"])
+    weight_decay = float(t_cfg.get("weight_decay", 0.1))
 
     def get_lr(step):
         if step < warmup_steps:
@@ -215,7 +216,7 @@ def main():
         progress = (step - warmup_steps) / max(1, max_steps - warmup_steps)
         return min_lr + 0.5 * (max_lr - min_lr) * (1.0 + math.cos(math.pi * progress))
 
-    optimizer = optim.AdamW(learning_rate=max_lr, weight_decay=t_cfg.get("weight_decay", 0.1))
+    optimizer = optim.AdamW(learning_rate=max_lr, weight_decay=weight_decay)
 
     loss_and_grad_fn = nn.value_and_grad(model, loss_fn)
 
