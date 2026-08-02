@@ -137,11 +137,21 @@ def main():
 
     model_cfg = TelosConfig(**cfg["model"])
     model = TelosTransformer(model_cfg)
+    if device == "xla" or (isinstance(device, str) and "xla" in device):
+        model = model.to(torch.bfloat16)
 
     trainer = TelosTrainer(model=model, train_loader=train_loader, config=cfg, device=device)
 
     if args.resume:
-        trainer.load_checkpoint(args.resume)
+        resume_path = args.resume
+        if resume_path == "auto":
+            ckpt_dir = Path(cfg.get("checkpoint", {}).get("dir", "checkpoints"))
+            ckpts = sorted(ckpt_dir.glob("checkpoint_step_*.pt"), key=lambda p: int(p.stem.split("_")[-1]))
+            if ckpts:
+                resume_path = ckpts[-1]
+                print(f"Auto-resuming from latest checkpoint: {resume_path}")
+        if Path(resume_path).exists():
+            trainer.load_checkpoint(resume_path)
 
     trainer.train()
 
