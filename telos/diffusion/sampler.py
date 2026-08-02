@@ -102,26 +102,36 @@ class MDLMSampler:
             # model forward pass: get unnormalized logits [1, seq_len, vocab_size]
             logits = self.model(seq)
 
-            # zero out probability for mask_token_id so model never predicts [MASK]
-            logits = logits.clone()
-            logits[:, :, self.mask_token_id] = -float("inf")
-
-            # apply sampling temperature
+            # Apply temperature scaling and compute probabilities
             scaled_logits = logits / max(self.temperature, 1e-5)
             probs = F.softmax(scaled_logits, dim=-1)
 
-            # max confidence and sampled token at each position
-            confidences, predicted_tokens = torch.max(probs, dim=-1)
+            # Sample predicted tokens stochastically or greedily
+            B, L, V = probs.shape
+            probs_flat = probs.view(-1, V)
 
-            # for masked positions, evaluate confidence score; set unmasked to -inf
-            confidence_scores = confidences.clone()
+            if self.temperature > 0.05:
+                # Stochastic multinomial sampling to prevent repetition loops
+                predicted_tokens = torch.multinomial(probs_flat, num_samples=1).view(B, L)
+                # Compute confidence as logit probability of sampled token
+                confidences = torch.gather(probs, dim=-1, index=predicted_tokens.unsqueeze(-1)).squeeze(-1)
+            else:
+                confidences, predicted_tokens = torch.max(probs, dim=-1)
+
+            # Add Gumbel temperature noise to confidence scores for unmasking diversity
+            if self.temperature > 0.05:
+                gumbel_noise = -torch.log(-torch.log(torch.rand_like(confidences) + 1e-8) + 1e-8)
+                confidence_scores = confidences + 0.1 * self.temperature * gumbel_noise
+            else:
+                confidence_scores = confidences.clone()
+
             confidence_scores[~current_mask] = -float("inf")
 
-            # select top-k positions with highest model confidence to unmask this step
+            # Select top-k positions with highest confidence to unmask this step
             k = min(num_to_unmask_this_step, num_currently_masked)
             _, topk_indices = torch.topk(confidence_scores[0], k=k)
 
-            # update sequence with predicted tokens at top-k confident positions
+            # Update sequence with predicted tokens at selected positions
             seq[0, topk_indices] = predicted_tokens[0, topk_indices]
             already_unmasked_count += k
 
