@@ -92,8 +92,8 @@ class TinyModel(nn.Module):
 
 def run():
     device, dev_name, dev_type = detect_device()
-    use_amp = dev_type in ("cuda", "xla")
-    amp_dtype = torch.bfloat16 if dev_type == "xla" else torch.float16
+    use_amp = (dev_type == "cuda")
+    amp_dtype = torch.float16
 
     V, d, layers, heads = 4096, 256, 4, 4
     bs, seq = 8, 512
@@ -113,7 +113,7 @@ def run():
     print(f"  Model:   {n_params:,} params (d={d}, {layers}L, {heads}H)")
     print(f"  Batch:   {bs} × {grad_accum} accum = {bs*grad_accum} eff")
     print(f"  Seq:     {seq}")
-    print(f"  Prec:    {'fp32' if not use_amp else 'AMP ' + str(amp_dtype)}")
+    print(f"  Prec:    {'bfloat16 (XLA)' if dev_type == 'xla' else ('AMP fp16' if use_amp else 'fp32')}")
     print(f"  Steps:   {warmup} warmup + {measure} measured")
     print("=" * 60)
 
@@ -124,7 +124,7 @@ def run():
         opt.zero_grad()
         for _ in range(grad_accum):
             if use_amp:
-                with torch.amp.autocast(device_type=dev_type, dtype=amp_dtype):
+                with torch.amp.autocast(device_type="cuda", dtype=amp_dtype):
                     loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
             else:
                 loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
@@ -145,7 +145,7 @@ def run():
         opt.zero_grad()
         for _ in range(grad_accum):
             if use_amp:
-                with torch.amp.autocast(device_type=dev_type, dtype=amp_dtype):
+                with torch.amp.autocast(device_type="cuda", dtype=amp_dtype):
                     loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
             else:
                 loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
