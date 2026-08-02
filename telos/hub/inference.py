@@ -113,8 +113,8 @@ class TelosModel:
                 # Convert MLX layer names
                 k_clean = key.replace(".norm1.", ".attn_norm.").replace(".norm2.", ".mlp_norm.")
                 k_clean = k_clean.replace(".out.", ".attn.o_proj.")
-                # Transpose MLX linear weights (nn.Linear in MLX stores weights as [out_features, in_features] or transposed)
-                if k_clean.endswith(".weight") and ("attn.q_proj" in k_clean or "attn.k_proj" in k_clean or "attn.v_proj" in k_clean or "attn.o_proj" in k_clean or "mlp.w2" in k_clean or "mlp.w3" in k_clean):
+                # Transpose MLX linear weights only if loading from .safetensors
+                if str(weights_file).endswith(".safetensors") and k_clean.endswith(".weight") and ("attn.q_proj" in k_clean or "attn.k_proj" in k_clean or "attn.v_proj" in k_clean or "attn.o_proj" in k_clean or "mlp.w2" in k_clean or "mlp.w3" in k_clean):
                     val = val.T
                 new_state_dict[k_clean] = val
             elif key.startswith("norm."):

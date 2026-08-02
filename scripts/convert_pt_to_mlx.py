@@ -29,14 +29,26 @@ def convert(pt_path: str, output_dir: str):
         key = k
         if key.startswith("model."):
             key = key[6:]
-        
+
+        key = key.replace("tok_embeddings.", "emb.")
+        key = key.replace("final_norm.", "norm.")
+        key = key.replace("output_projection.", "head.")
+        key = key.replace(".attn_norm.", ".norm1.")
+        key = key.replace(".mlp_norm.", ".norm2.")
+        key = key.replace(".attn.out_proj.", ".out.")
+        key = key.replace(".attn.o_proj.", ".out.")
+        key = key.replace(".attn.q_proj.", ".q_proj.")
+        key = key.replace(".attn.k_proj.", ".k_proj.")
+        key = key.replace(".attn.v_proj.", ".v_proj.")
+
+        # Map PyTorch SwiGLU (w1, v, w2) -> MLX (w1, w2, w3)
+        if ".mlp.w2." in key:
+            key = key.replace(".mlp.w2.", ".mlp.w3.")
+        if ".mlp.v." in key:
+            key = key.replace(".mlp.v.", ".mlp.w2.")
+
         # Convert torch.bfloat16 or torch.float32 tensor to float32 numpy array for safetensors
         tensor = v.detach().to(torch.float32).cpu()
-
-        # MLX Linear weight transposition mapping
-        if "w2.weight" in key or "w3.weight" in key or "mlp.w3.weight" in key or "out_proj.weight" in key:
-            tensor = tensor.T.contiguous()
-
         mlx_state_dict[key] = tensor
 
     # Save safetensors
