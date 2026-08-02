@@ -105,7 +105,7 @@ def run():
     seq = 512
     grad_accum = 2
     warmup, measure = 2, 5
-    batch_sizes = [4, 8, 16, 32, 64, 128]
+    batch_sizes = [4, 8, 16, 32, 64, 128, 256, 512]
 
     model = TinyModel(V, d, layers, heads).to(device)
     n_params = sum(p.numel() for p in model.parameters())
