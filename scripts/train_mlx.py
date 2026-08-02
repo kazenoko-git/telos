@@ -264,8 +264,25 @@ def main():
             print(f"  [Checkpoint] Saved weights to {ckpt_file}")
 
     total_time = time.time() - start_time
+
+    # Final self-contained model artifact saving
+    final_weights = ckpt_dir / "model.safetensors"
+    model.save_weights(str(final_weights))
+
+    # Save config.json for standalone loading
+    import json
+    with open(ckpt_dir / "config.json", "w") as f:
+        json.dump(m_cfg, f, indent=2)
+
+    # Copy tokenizer into checkpoint dir if available
+    tok_source = Path("configs/tokenizer_mac.json")
+    if tok_source.exists():
+        import shutil
+        shutil.copy(tok_source, ckpt_dir / "tokenizer.json")
+
     print("=" * 70)
     print(f"  Training Complete! Total time: {total_time/60.0:.2f} minutes.")
+    print(f"  Saved standalone model artifact to {ckpt_dir}/")
     print("=" * 70)
 
 
