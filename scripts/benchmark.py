@@ -98,7 +98,7 @@ class TinyModel(nn.Module):
 
 def run():
     device, dev_name, dev_type = detect_device()
-    use_amp = (dev_type == "cuda")
+    use_amp = dev_type in ("cuda", "mps")
     amp_dtype = torch.float16
 
     V, d, layers, heads = 4096, 256, 4, 4
@@ -130,7 +130,7 @@ def run():
         opt.zero_grad()
         for _ in range(grad_accum):
             if use_amp:
-                with torch.amp.autocast(device_type="cuda", dtype=amp_dtype):
+                with torch.amp.autocast(device_type=dev_type, dtype=amp_dtype):
                     loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
             else:
                 loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
@@ -151,7 +151,7 @@ def run():
         opt.zero_grad()
         for _ in range(grad_accum):
             if use_amp:
-                with torch.amp.autocast(device_type="cuda", dtype=amp_dtype):
+                with torch.amp.autocast(device_type=dev_type, dtype=amp_dtype):
                     loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
             else:
                 loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
