@@ -153,33 +153,39 @@ class TelosTrainer:
 
         print(f"Starting training: total_steps={self.max_steps}, device={self.device}, amp={self.use_amp}")
 
+        grad_accum = self.config.get("training", {}).get("gradient_accumulation", 1)
+        self.optimizer.zero_grad()
+
         while self.global_step < self.max_steps:
-            # fetch batch, restart iterator if dataset epoch finishes
-            try:
-                masked_input_ids, targets, mask_positions, t_values = next(train_iterator)
-            except StopIteration:
-                train_iterator = iter(self.train_loader)
-                masked_input_ids, targets, mask_positions, t_values = next(train_iterator)
+            # metrics accumulate as on-device tensors — NO .item() in the hot loop
+            last_metrics = None
 
-            # move tensors to hardware accelerator
-            masked_input_ids = masked_input_ids.to(self.device)
-            targets = targets.to(self.device)
-            mask_positions = mask_positions.to(self.device)
-            t_values = t_values.to(self.device)
+            for micro_step in range(grad_accum):
+                try:
+                    masked_input_ids, targets, mask_positions, t_values = next(train_iterator)
+                except StopIteration:
+                    train_iterator = iter(self.train_loader)
+                    masked_input_ids, targets, mask_positions, t_values = next(train_iterator)
 
-            self.optimizer.zero_grad()
+                masked_input_ids = masked_input_ids.to(self.device)
+                targets = targets.to(self.device)
+                mask_positions = mask_positions.to(self.device)
+                t_values = t_values.to(self.device)
 
-            # forward pass with mixed precision context
-            if self.use_amp:
-                with torch.amp.autocast(device_type=self.device.type, dtype=self.amp_dtype):
+                if self.use_amp:
+                    with torch.amp.autocast(device_type=self.device.type, dtype=self.amp_dtype):
+                        logits = self.model(masked_input_ids)
+                        loss, metrics = mdlm_loss(logits, targets, mask_positions, t_values)
+                else:
                     logits = self.model(masked_input_ids)
                     loss, metrics = mdlm_loss(logits, targets, mask_positions, t_values)
-            else:
-                logits = self.model(masked_input_ids)
-                loss, metrics = mdlm_loss(logits, targets, mask_positions, t_values)
 
-            # backward pass & optimizer step
-            loss.backward()
+                loss = loss / grad_accum
+                loss.backward()
+
+                # keep last micro-step metrics (tensor, no sync)
+                last_metrics = metrics
+
             nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
 
             if self.is_tpu:
@@ -188,16 +194,16 @@ class TelosTrainer:
             else:
                 self.optimizer.step()
 
+            self.optimizer.zero_grad()
             self.scheduler.step()
-
             self.global_step += 1
 
-            # logging step
+            # logging step — ONLY sync device→host here via .item()
             if self.global_step % 50 == 0 or self.global_step == 1:
                 lr = self.scheduler.get_last_lr()[0]
                 elapsed = time.time() - start_time
-                print(f"Step {self.global_step}/{self.max_steps} | Loss: {metrics['loss']:.4f} | "
-                      f"Unweighted CE: {metrics['unweighted_ce']:.4f} | LR: {lr:.2e} | Elapsed: {elapsed:.1f}s", flush=True)
+                print(f"Step {self.global_step}/{self.max_steps} | Loss: {last_metrics['loss'].item():.4f} | "
+                      f"Unweighted CE: {last_metrics['unweighted_ce'].item():.4f} | LR: {lr:.2e} | Elapsed: {elapsed:.1f}s", flush=True)
 
             # checkpoint by step count or time interval
             current_time = time.time()
