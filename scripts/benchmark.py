@@ -102,99 +102,118 @@ def run():
     amp_dtype = torch.float16
 
     V, d, layers, heads = 4096, 256, 4, 4
-    bs, seq = 8, 512
+    seq = 512
     grad_accum = 2
     warmup, measure = 2, 5
+    batch_sizes = [4, 8, 16, 32, 64, 128]
 
     model = TinyModel(V, d, layers, heads).to(device)
     n_params = sum(p.numel() for p in model.parameters())
-    opt = torch.optim.AdamW(model.parameters(), lr=1e-4)
-    tokens = torch.randint(0, V, (bs, seq), device=device)
-    targets = torch.randint(0, V, (bs, seq), device=device)
 
+    print("=" * 65)
+    print("  télos Batch-Size Optimization Benchmark")
     print("=" * 60)
-    print("  télos Minimal Throughput Benchmark")
-    print("=" * 60)
-    print(f"  Device:  {dev_name}")
-    print(f"  Model:   {n_params:,} params (d={d}, {layers}L, {heads}H)")
-    print(f"  Batch:   {bs} × {grad_accum} accum = {bs*grad_accum} eff")
-    print(f"  Seq:     {seq}")
-    print(f"  Prec:    {'bfloat16 (XLA)' if dev_type == 'xla' else ('AMP fp16' if use_amp else 'fp32')}")
-    print(f"  Steps:   {warmup} warmup + {measure} measured")
-    print("=" * 60)
+    print(f"  Device:     {dev_name}")
+    print(f"  Model:      {n_params:,} params (d={d}, {layers}L, {heads}H)")
+    print(f"  Precision:  {'bfloat16 (XLA)' if dev_type == 'xla' else ('AMP fp16' if use_amp else 'fp32')}")
+    print(f"  Batch Sizes Tested: {batch_sizes}")
+    print("=" * 65)
 
-    model.train()
+    results = []
 
-    # Warmup
-    for _ in range(warmup):
-        opt.zero_grad()
-        for _ in range(grad_accum):
-            if use_amp:
-                with torch.amp.autocast(device_type=dev_type, dtype=amp_dtype):
-                    loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
-            else:
-                loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
-            loss.backward()
-        if dev_type == "xla":
-            # pyrefly: ignore
-            import torch_xla.core.xla_model as xm
-            xm.optimizer_step(opt); xm.mark_step()
-        else:
-            opt.step()
-        if dev_type == "cuda": torch.cuda.synchronize()
+    for bs in batch_sizes:
+        try:
+            opt = torch.optim.AdamW(model.parameters(), lr=1e-4)
+            tokens = torch.randint(0, V, (bs, seq), device=device)
+            targets = torch.randint(0, V, (bs, seq), device=device)
 
-    # Measure
-    if dev_type == "cuda": torch.cuda.synchronize()
-    t0 = time.perf_counter()
+            model.train()
 
-    for _ in range(measure):
-        opt.zero_grad()
-        for _ in range(grad_accum):
-            if use_amp:
-                with torch.amp.autocast(device_type=dev_type, dtype=amp_dtype):
-                    loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
-            else:
-                loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
-            loss.backward()
-        if dev_type == "xla":
-            # pyrefly: ignore
-            import torch_xla.core.xla_model as xm
-            xm.optimizer_step(opt); xm.mark_step()
-        else:
-            opt.step()
-        if dev_type == "cuda": torch.cuda.synchronize()
+            # Warmup
+            for _ in range(warmup):
+                opt.zero_grad()
+                for _ in range(grad_accum):
+                    if use_amp:
+                        with torch.amp.autocast(device_type=dev_type, dtype=amp_dtype):
+                            loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
+                    else:
+                        loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
+                    loss.backward()
+                if dev_type == "xla":
+                    # pyrefly: ignore
+                    import torch_xla.core.xla_model as xm
+                    xm.optimizer_step(opt); xm.mark_step()
+                else:
+                    opt.step()
+                if dev_type == "cuda": torch.cuda.synchronize()
 
-    t1 = time.perf_counter()
-    elapsed = t1 - t0
-    sps = measure / elapsed
-    tps = sps * bs * seq * grad_accum
+            # Measure
+            if dev_type == "cuda": torch.cuda.synchronize()
+            t0 = time.perf_counter()
 
-    # ─── FLOP-based scaling ─────────────────────────────────────
-    # Transformer FLOPs ≈ 6 × N × T per token (forward+backward)
-    # So tok/sec scales as: tok_sec_big ≈ tok_sec_small × (N_small / N_big)
-    # This is approximate but grounded in compute reality.
+            for _ in range(measure):
+                opt.zero_grad()
+                for _ in range(grad_accum):
+                    if use_amp:
+                        with torch.amp.autocast(device_type=dev_type, dtype=amp_dtype):
+                            loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
+                    else:
+                        loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
+                    loss.backward()
+                if dev_type == "xla":
+                    # pyrefly: ignore
+                    import torch_xla.core.xla_model as xm
+                    xm.optimizer_step(opt); xm.mark_step()
+                else:
+                    opt.step()
+                if dev_type == "cuda": torch.cuda.synchronize()
 
-    print(f"\n  MEASURED ({n_params:,} params):")
-    print(f"    {sps:.2f} steps/sec | {tps:,.0f} tok/sec | {elapsed:.2f}s total")
+            t1 = time.perf_counter()
+            elapsed = t1 - t0
+            sps = measure / elapsed
+            tps = sps * bs * seq * grad_accum
 
-    print(f"\n  EXTRAPOLATED (linear FLOP scaling from measured):")
-    print(f"  {'Model':<8} {'Params':>12} {'Est tok/s':>12} {'Chinchilla 20×':>16} {'Overtrain 50×':>16}")
-    print(f"  {'─'*8} {'─'*12} {'─'*12} {'─'*16} {'─'*16}")
+            results.append((bs, bs * grad_accum, sps, tps, elapsed))
+            print(f"  bs={bs:>3d} | eff_batch={bs*grad_accum:>3d} | {sps:>6.2f} steps/s | {tps:>10,.0f} tok/s | {elapsed:.2f}s")
 
-    for name, params in [("5M", n_params), ("25M", 25_000_000),
-                          ("85M", 85_000_000), ("232M", 232_000_000)]:
-        scale = n_params / params  # smaller model = faster
-        est_tps = tps * scale
-        chin_hrs = (params * 20) / est_tps / 3600
-        over_hrs = (params * 50) / est_tps / 3600
-        marker = " ← measured" if params == n_params else ""
-        print(f"  {name:<8} {params:>12,} {est_tps:>12,.0f} {chin_hrs:>14.1f}h {over_hrs:>14.1f}h{marker}")
+            del opt, tokens, targets
+        except Exception as e:
+            print(f"  bs={bs:>3d} | OOM/Error: {e}")
+            break
 
-    print(f"\n{'=' * 60}")
-    print(f"  Copy these numbers. No more guessing.")
-    print(f"{'=' * 60}")
+    print("\n" + "=" * 65)
+    print("  BATCH SIZE COMPARISON SUMMARY")
+    print("=" * 65)
+    print(f"  {'Batch':<8} {'Eff Batch':<10} {'Steps/sec':<12} {'Tok/sec':<14} {'Speed vs bs=8'}")
+    print(f"  {'─'*7:<8} {'─'*9:<10} {'─'*11:<12} {'─'*13:<14} {'─'*13}")
 
-    del model, opt, tokens, targets
+    bs8_tps = next((r[3] for r in results if r[0] == 8), results[0][3] if results else 1.0)
+    best_res = max(results, key=lambda x: x[3]) if results else None
+
+    for bs, eff_b, sps, tps, el in results:
+        ratio = tps / bs8_tps
+        star = " ★ BEST" if best_res and bs == best_res[0] else ""
+        print(f"  {bs:<8} {eff_b:<10} {sps:<12.2f} {tps:<14,.0f} {ratio:>5.2f}x{star}")
+
+    print("=" * 65)
+
+    if best_res:
+        best_tps = best_res[3]
+        print(f"\n  EXTRAPOLATED FROM BEST (bs={best_res[0]}, {best_tps:,.0f} tok/s):")
+        print(f"  {'Model':<8} {'Params':>12} {'Est tok/s':>12} {'Chinchilla 20×':>16} {'Overtrain 50×':>16}")
+        print(f"  {'─'*8} {'─'*12} {'─'*12} {'─'*16} {'─'*16}")
+
+        for name, params in [("5M", n_params), ("25M", 25_000_000),
+                              ("85M", 85_000_000), ("232M", 232_000_000)]:
+            scale = n_params / params
+            est_tps = best_tps * scale
+            chin_hrs = (params * 20) / est_tps / 3600
+            over_hrs = (params * 50) / est_tps / 3600
+            marker = " ← measured" if params == n_params else ""
+            print(f"  {name:<8} {params:>12,} {est_tps:>12,.0f} {chin_hrs:>14.1f}h {over_hrs:>14.1f}h{marker}")
+
+        print("=" * 65)
+
 
 if __name__ == "__main__":
     run()
