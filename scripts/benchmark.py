@@ -11,12 +11,17 @@ import os
 import sys
 import time
 
-# Import torch_xla module before torch for C++ ABI alignment, but defer xm.xla_device() call
+# Force PJRT runtime for TPU detection before importing PyTorch/XLA
+if "PJRT_DEVICE" not in os.environ:
+    os.environ["PJRT_DEVICE"] = "TPU"
+
 HAS_XLA_MODULE = False
 XLA_DEBUG_ERR = None
 try:
     # pyrefly: ignore
     import torch_xla
+    # pyrefly: ignore
+    import torch_xla.core.xla_model as xm
     # pyrefly: ignore
     import torch_xla.runtime as xr
     try:
