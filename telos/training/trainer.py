@@ -191,9 +191,10 @@ class TelosTrainer:
             nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
 
             if self.is_tpu:
-                # pyrefly: ignore 
-                import torch_xla.core.xla_model as xm
-                xm.optimizer_step(self.optimizer)
+                self.optimizer.step()
+                # pyrefly: ignore
+                import torch_xla
+                torch_xla.sync()
             else:
                 self.optimizer.step()
 
