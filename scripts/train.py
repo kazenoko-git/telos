@@ -32,7 +32,9 @@ def main():
     tokenizer = load_tokenizer(tokenizer_path)
 
     corpus_path = Path("data/python_corpus.txt")
-    if Path("data/python_corpus_mac.bin").exists():
+    if Path("data/python_corpus_1.7b.bin").exists():
+        bin_path = Path("data/python_corpus_1.7b.bin")
+    elif Path("data/python_corpus_mac.bin").exists():
         bin_path = Path("data/python_corpus_mac.bin")
     elif Path("data/python_corpus.bin").exists():
         bin_path = Path("data/python_corpus.bin")
