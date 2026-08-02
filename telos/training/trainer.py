@@ -128,7 +128,7 @@ class TelosTrainer:
         path = Path(path)
         assert path.exists(), f"Checkpoint not found at {path}"
 
-        checkpoint = torch.load(path, map_location=self.device)
+        checkpoint = torch.load(path, map_location="cpu")
         self.global_step = checkpoint["global_step"]
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
