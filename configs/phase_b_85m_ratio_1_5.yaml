@@ -15,8 +15,8 @@ model:
   no_timestep_embed: true
 
 training:
-  batch_size: 64
-  gradient_accumulation: 16 # Effective batch = 1024 (524,288 tokens/step)
+  batch_size: 32           # Micro-batch size 32 (fits within 8.5GB HBM for 85M model)
+  gradient_accumulation: 32 # Effective batch = 1024 (524,288 tokens/step)
   max_steps: 811            # 425,000,000 / 524,288 tokens = 811 steps
   max_lr: 8e-4
   min_lr: 4e-5
