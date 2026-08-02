@@ -11,15 +11,13 @@ import os
 import sys
 import time
 
-# On TPU/XLA systems, torch_xla MUST be imported BEFORE torch to initialize C++ runtime once
-XLA_DEVICE = None
+# Import torch_xla module before torch for C++ ABI alignment, but defer xm.xla_device() call
+HAS_XLA_MODULE = False
 XLA_DEBUG_ERR = None
 try:
     # pyrefly: ignore
     import torch_xla
-    # pyrefly: ignore
-    import torch_xla.core.xla_model as xm
-    XLA_DEVICE = xm.xla_device()
+    HAS_XLA_MODULE = True
 except Exception as e:
     XLA_DEBUG_ERR = str(e)
 
@@ -30,10 +28,16 @@ import torch.nn.functional as F
 # ─── Device Detection ───────────────────────────────────────────────
 
 def detect_device():
-    if XLA_DEVICE is not None:
-        return XLA_DEVICE, f"TPU ({os.environ.get('TPU_NAME', 'v6e-1')})", "xla"
+    if HAS_XLA_MODULE:
+        try:
+            # pyrefly: ignore
+            import torch_xla.core.xla_model as xm
+            device = xm.xla_device()
+            return device, f"TPU ({os.environ.get('TPU_NAME', 'v6e-1')})", "xla"
+        except Exception as e:
+            print(f"DEBUG: xm.xla_device() error: {e}")
     if XLA_DEBUG_ERR:
-        print(f"DEBUG: torch_xla detection note: {XLA_DEBUG_ERR}")
+        print(f"DEBUG: torch_xla import error: {XLA_DEBUG_ERR}")
     if torch.cuda.is_available():
         n = torch.cuda.device_count()
         name = torch.cuda.get_device_name(0)
