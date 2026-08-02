@@ -17,17 +17,18 @@ if "PJRT_DEVICE" not in os.environ:
 
 HAS_XLA_MODULE = False
 XLA_DEBUG_ERR = None
+XLA_DEVICE_OBJ = None
+
 try:
     # pyrefly: ignore
     import torch_xla
-    # pyrefly: ignore
-    import torch_xla.core.xla_model as xm
     # pyrefly: ignore
     import torch_xla.runtime as xr
     try:
         xr.initialize_cache()
     except Exception:
         pass
+    XLA_DEVICE_OBJ = torch_xla.device()
     HAS_XLA_MODULE = True
 except Exception as e:
     XLA_DEBUG_ERR = str(e)
@@ -39,14 +40,10 @@ import torch.nn.functional as F
 # ─── Device Detection ───────────────────────────────────────────────
 
 def detect_device():
-    if HAS_XLA_MODULE:
-        try:
-            # pyrefly: ignore
-            import torch_xla
-            device = torch_xla.device()
-            return device, f"TPU ({os.environ.get('TPU_NAME', 'v6e-1')})", "xla"
-        except Exception as e:
-            print(f"Notice: PyTorch XLA TPU device initialization failed ({e}).")
+    if HAS_XLA_MODULE and XLA_DEVICE_OBJ is not None:
+        return XLA_DEVICE_OBJ, f"TPU ({os.environ.get('TPU_NAME', 'v6e-1')})", "xla"
+    elif XLA_DEBUG_ERR:
+        print(f"Notice: PyTorch XLA TPU device initialization failed ({XLA_DEBUG_ERR}).")
 
     if torch.cuda.is_available():
         n = torch.cuda.device_count()
