@@ -31,15 +31,27 @@ def main():
             tokenizer_path = "configs/tokenizer_0.json"
     tokenizer = load_tokenizer(tokenizer_path)
 
-    corpus_path = "data/python_corpus.txt"
-    bin_path = Path("data/python_corpus_mac.bin") if Path("data/python_corpus_mac.bin").exists() else Path("data/python_corpus.bin")
+    corpus_path = Path("data/python_corpus.txt")
+    if Path("data/python_corpus_mac.bin").exists():
+        bin_path = Path("data/python_corpus_mac.bin")
+    elif Path("data/python_corpus.bin").exists():
+        bin_path = Path("data/python_corpus.bin")
+    else:
+        bin_path = Path("data/python_corpus.bin")
+
+    bin_path.parent.mkdir(parents=True, exist_ok=True)
     meta_path = bin_path.with_suffix(".meta")
 
-    seq_len = cfg["model"].get("seq_len", 256)
+    seq_len = cfg["model"].get("seq_len", 512)
     batch_size = cfg["training"].get("batch_size", 32)
     device = cfg["training"].get("device", "auto")
 
     if not bin_path.exists():
+        if not corpus_path.exists():
+            print(f"Data file {bin_path} not found. Running online dataset downloader...")
+            from telos.data.prepare import prepare_online_corpus
+            target_tokens = cfg.get("data", {}).get("corpus_size_tokens", 500_000_000)
+            prepare_online_corpus(output_path=str(corpus_path), target_tokens=target_tokens)
         print(f"Streaming {corpus_path} -> {bin_path} with <500MB RAM...")
 
         # Stream text line-by-line, accumulate blocks between blank lines,
