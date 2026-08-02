@@ -17,6 +17,12 @@ XLA_DEBUG_ERR = None
 try:
     # pyrefly: ignore
     import torch_xla
+    # pyrefly: ignore
+    import torch_xla.runtime as xr
+    try:
+        xr.initialize_cache()
+    except Exception:
+        pass
     HAS_XLA_MODULE = True
 except Exception as e:
     XLA_DEBUG_ERR = str(e)
