@@ -46,9 +46,8 @@ class MLXBlock(nn.Module):
         v = qkv[:, :, 2].transpose(0, 2, 1, 3)
 
         scale = 1.0 / (self.head_dim ** 0.5)
-        scores = (q @ k.transpose(0, 1, 3, 2)) * scale
-        attn = mx.softmax(scores, axis=-1)
-        out = (attn @ v).transpose(0, 2, 1, 3).reshape(B, T, D)
+        out = mx.fast.scaled_dot_product_attention(q, k, v, scale=scale)
+        out = out.transpose(0, 2, 1, 3).reshape(B, T, D)
 
         x = x + self.out(out)
         x = x + self.mlp(self.norm2(x))
@@ -111,21 +110,21 @@ def main():
             targets = mx.random.randint(0, V, (bs, seq))
             mx.eval(tokens, targets)
 
-            def step_fn(m, tok, tgt):
-                loss, grads = loss_and_grad(m, tok, tgt)
-                optimizer.update(m, grads)
+            def step_fn(tok, tgt):
+                loss, grads = loss_and_grad(model, tok, tgt)
+                optimizer.update(model, grads)
                 return loss
 
             # Warmup
             for _ in range(warmup):
-                loss = step_fn(model, tokens, targets)
+                loss = step_fn(tokens, targets)
                 mx.eval(model.parameters(), optimizer.state)
 
             # Measured steps
             t0 = time.perf_counter()
             for _ in range(measure):
                 for _ in range(grad_accum):
-                    loss = step_fn(model, tokens, targets)
+                    loss = step_fn(tokens, targets)
                 mx.eval(model.parameters(), optimizer.state)
 
             t1 = time.perf_counter()
