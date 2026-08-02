@@ -32,8 +32,9 @@ def evaluate_perplexity(
         logits = model(masked_input_ids)
         loss, batch_metrics = mdlm_loss(logits, targets, mask_positions, t_values)
 
-        total_loss += batch_metrics["loss"]
-        total_ce += batch_metrics["unweighted_ce"]
+        # .item() is fine here — eval runs rarely, need scalar accumulation
+        total_loss += batch_metrics["loss"].item()
+        total_ce += batch_metrics["unweighted_ce"].item()
         num_batches += 1
 
     avg_loss = total_loss / max(1, num_batches)
