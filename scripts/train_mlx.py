@@ -15,6 +15,7 @@ import numpy as np
 import mlx.core as mx
 import mlx.nn as nn
 import mlx.optimizers as optim
+from mlx.utils import tree_map
 
 
 # ─── Model Components (MLX Native) ──────────────────────────────────
@@ -245,8 +246,8 @@ def main():
         lr = get_lr(step)
         optimizer.learning_rate = lr
 
-        accum_loss = 0.0
-        accum_ce = 0.0
+        accum_grads = None
+        last_loss, last_ce = None, None
 
         for _ in range(grad_accum):
             targets = get_data_batch(dataset_matrix, idx_ptr, bs, m_cfg["seq_len"])
@@ -254,10 +255,12 @@ def main():
 
             masked_ids, mask_pos, t_vals = apply_masking_mlx(targets, mask_token_id=1)
             (loss, ce), grads = loss_and_grad_fn(model, masked_ids, targets, mask_pos, t_vals, m_cfg["vocab_size"])
-            optimizer.update(model, grads)
-            accum_loss += loss.item()
-            accum_ce += ce.item()
 
+            accum_grads = grads if accum_grads is None else tree_map(lambda a, b: a + b, accum_grads, grads)
+            last_loss, last_ce = loss, ce  # stay as MLX arrays — no .item() in micro-loop
+
+        accum_grads = tree_map(lambda g: g / grad_accum, accum_grads)
+        optimizer.update(model, accum_grads)
         mx.eval(model.parameters(), optimizer.state)
 
         if step % 50 == 0 or step == 1:
@@ -266,8 +269,8 @@ def main():
             tps = sps * bs * grad_accum * m_cfg["seq_len"]
             eta_mins = (max_steps - step) / sps / 60.0
 
-            avg_loss = accum_loss / grad_accum
-            avg_ce = accum_ce / grad_accum
+            avg_loss = last_loss.item()
+            avg_ce = last_ce.item()
 
             print(f"  Step {step:>6d}/{max_steps} | ELBO Loss: {avg_loss:>6.2f} | "
                   f"CE: {avg_ce:>5.3f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s | ETA: {eta_mins:>4.1f}m", flush=True)
