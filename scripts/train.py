@@ -133,7 +133,11 @@ def main():
     if args.device:
         device = args.device
     elif device == "auto":
-        device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+        try:
+            import torch_xla
+            device = "xla"
+        except Exception:
+            device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
     train_loader = create_dataloader(arr, batch_size=batch_size, max_seq_len=seq_len, shuffle=True)
 

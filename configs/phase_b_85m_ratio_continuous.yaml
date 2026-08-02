@@ -20,6 +20,7 @@ model:
   no_timestep_embed: true
 
 training:
+  device: tpu              # Explicitly set device to TPU (xla:0)
   batch_size: 32           # Micro-batch size 32 (fits within 8.5GB HBM for 85M model)
   gradient_accumulation: 32 # Effective batch = 1024 (524,288 tokens/step)
   max_steps: 2741           # 1,437,370,880 / 524,288 tokens = 2,741 steps (1:17 ratio)
