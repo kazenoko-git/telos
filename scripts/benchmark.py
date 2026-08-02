@@ -21,9 +21,9 @@ def detect_device():
         # pyrefly: ignore
         import torch_xla.core.xla_model as xm
         device = xm.xla_device()
-        return device, f"TPU ({os.environ.get('TPU_NAME', 'v5e-1')})", "xla"
-    except Exception:
-        pass
+        return device, f"TPU ({os.environ.get('TPU_NAME', 'v6e-1')})", "xla"
+    except Exception as e:
+        print(f"DEBUG: torch_xla detection note: {e}")
     if torch.cuda.is_available():
         n = torch.cuda.device_count()
         name = torch.cuda.get_device_name(0)
