@@ -141,15 +141,21 @@ def run():
                         loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
                     loss.backward()
                 if dev_type == "xla":
+                    opt.step()
                     # pyrefly: ignore
-                    import torch_xla.core.xla_model as xm
-                    xm.optimizer_step(opt); xm.mark_step()
+                    import torch_xla
+                    torch_xla.sync()
                 else:
                     opt.step()
                 if dev_type == "cuda": torch.cuda.synchronize()
 
             # Measure
             if dev_type == "cuda": torch.cuda.synchronize()
+            if dev_type == "xla":
+                # pyrefly: ignore
+                import torch_xla
+                torch_xla.sync(wait=True)
+
             t0 = time.perf_counter()
 
             for _ in range(measure):
@@ -162,12 +168,18 @@ def run():
                         loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
                     loss.backward()
                 if dev_type == "xla":
+                    opt.step()
                     # pyrefly: ignore
-                    import torch_xla.core.xla_model as xm
-                    xm.optimizer_step(opt); xm.mark_step()
+                    import torch_xla
+                    torch_xla.sync()
                 else:
                     opt.step()
                 if dev_type == "cuda": torch.cuda.synchronize()
+
+            if dev_type == "xla":
+                # pyrefly: ignore
+                import torch_xla
+                torch_xla.sync(wait=True)
 
             t1 = time.perf_counter()
             elapsed = t1 - t0
