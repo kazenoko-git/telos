@@ -39,16 +39,35 @@ import torch.nn.functional as F
 # ─── Device Detection ───────────────────────────────────────────────
 
 def detect_device():
+    if XLA_DEBUG_ERR:
+        print(f"DEBUG: torch_xla import failed with error: {XLA_DEBUG_ERR}")
+
     if HAS_XLA_MODULE:
+        # Try xm.xla_device() first
         try:
             # pyrefly: ignore
             import torch_xla.core.xla_model as xm
             device = xm.xla_device()
             return device, f"TPU ({os.environ.get('TPU_NAME', 'v6e-1')})", "xla"
         except Exception as e:
-            print(f"DEBUG: xm.xla_device() error: {e}")
-    if XLA_DEBUG_ERR:
-        print(f"DEBUG: torch_xla import error: {XLA_DEBUG_ERR}")
+            print(f"DEBUG: xm.xla_device() failed: {e}")
+
+        # Try torch_xla.device() second
+        try:
+            # pyrefly: ignore
+            import torch_xla
+            device = torch_xla.device()
+            return device, f"TPU ({os.environ.get('TPU_NAME', 'v6e-1')})", "xla"
+        except Exception as e:
+            print(f"DEBUG: torch_xla.device() failed: {e}")
+
+        # Try torch.device('xla') third
+        try:
+            device = torch.device("xla:0")
+            return device, f"TPU ({os.environ.get('TPU_NAME', 'v6e-1')})", "xla"
+        except Exception as e:
+            print(f"DEBUG: torch.device('xla') failed: {e}")
+
     if torch.cuda.is_available():
         n = torch.cuda.device_count()
         name = torch.cuda.get_device_name(0)
