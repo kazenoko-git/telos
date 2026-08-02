@@ -107,15 +107,13 @@ class TelosTrainer:
         self.last_saved_time = time.time()
 
     def save_checkpoint(self, path: str | Path):
-        """saves complete checkpoint and standalone weights-only file."""
+        """saves complete checkpoint including model, optimizer, scheduler, and RNG states."""
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        model_state = self.model.state_dict()
-
         checkpoint = {
             "global_step": self.global_step,
-            "model_state_dict": model_state,
+            "model_state_dict": self.model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
             "scheduler_state_dict": self.scheduler.state_dict(),
             "torch_rng_state": torch.get_rng_state(),
@@ -123,24 +121,6 @@ class TelosTrainer:
             "config": self.config,
         }
         torch.save(checkpoint, path)
-
-        # Save weights-only file alongside full checkpoint
-        weights_path = path.parent / f"weights_{path.name}"
-        torch.save(model_state, weights_path)
-
-        # Ratio milestone explicit tagging
-        ratio_tags = {
-            162: "ratio_1_1_step_162.pt",
-            486: "ratio_1_3_step_486.pt",
-            811: "ratio_1_5_step_811.pt",
-            1621: "ratio_1_10_step_1621.pt",
-            2741: "ratio_1_17_step_2741.pt",
-        }
-        if self.global_step in ratio_tags:
-            milestone_path = path.parent / ratio_tags[self.global_step]
-            torch.save({"config": self.config, "model_state_dict": model_state}, milestone_path)
-            print(f"⭐ Milestone Checkpoint saved -> {milestone_path}")
-
         print(f"Checkpoint saved to {path} (Step {self.global_step})")
 
     def load_checkpoint(self, path: str | Path):
@@ -229,9 +209,21 @@ class TelosTrainer:
                 print(f"Step {self.global_step}/{self.max_steps} | Loss: {last_metrics['loss'].item():.4f} | "
                       f"Unweighted CE: {last_metrics['unweighted_ce'].item():.4f} | LR: {lr:.2e} | Elapsed: {elapsed:.1f}s", flush=True)
 
-            # checkpoint by step count or time interval
+            # Checkpoint by step count, time interval, or explicit ratio milestones
             current_time = time.time()
             time_since_last_save = (current_time - self.last_saved_time) / 60.0
+
+            ratio_milestones = {
+                162: "checkpoint_ratio_1_1_step_162.pt",
+                486: "checkpoint_ratio_1_3_step_486.pt",
+                811: "checkpoint_ratio_1_5_step_811.pt",
+                1621: "checkpoint_ratio_1_10_step_1621.pt",
+                2741: "checkpoint_ratio_1_17_step_2741.pt",
+            }
+
+            if self.global_step in ratio_milestones:
+                milestone_path = self.checkpoint_dir / ratio_milestones[self.global_step]
+                self.save_checkpoint(milestone_path)
 
             if (self.global_step % self.save_every_steps == 0) or (time_since_last_save >= self.save_every_minutes):
                 ckpt_path = self.checkpoint_dir / f"checkpoint_step_{self.global_step}.pt"
