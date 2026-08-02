@@ -45,13 +45,12 @@ def mdlm_loss(
     # final loss is average reweighted loss across batch
     total_loss = reweighted_per_example_loss.mean()
 
-    # calculate unweighted metric for monitoring
-    unweighted_ce = per_example_ce.mean().item()
-
+    # metrics stay as on-device tensors to avoid device→host sync stalls
+    # .item() is only called at logging time in trainer.py (every 50 steps)
     metrics = {
-        "loss": total_loss.item(),
-        "unweighted_ce": unweighted_ce,
-        "masked_tokens_avg": mask_positions.sum().float().item() / batch_size
+        "loss": total_loss,
+        "unweighted_ce": per_example_ce.mean(),
+        "masked_tokens_avg": mask_positions.sum().float() / batch_size
     }
 
     return total_loss, metrics
