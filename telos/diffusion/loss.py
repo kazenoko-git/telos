@@ -44,8 +44,8 @@ def mdlm_loss(
     masked_ce_loss = ce_loss_per_token * mask_positions.float()
     per_example_ce = masked_ce_loss.sum(dim=1) / masked_count_per_example
 
-    # apply 1/t ELBO loss reweighting
-    t_weights = 1.0 / t_values.squeeze(-1)
+    # apply 1/t ELBO loss reweighting with eps=1e-3 clamp for loss stability
+    t_weights = 1.0 / t_values.squeeze(-1).clamp(min=1e-3)
     reweighted_per_example_loss = per_example_ce * t_weights
     total_loss = reweighted_per_example_loss.mean()
 

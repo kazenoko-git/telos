@@ -138,8 +138,8 @@ def loss_fn(model, masked_input_ids, targets, mask_positions, t_values, vocab_si
     per_example_ce = mx.sum(masked_ce, axis=1) / masked_count
     unweighted_ce = mx.mean(per_example_ce)
 
-    # 1/t ELBO reweighting
-    t_weights = 1.0 / mx.squeeze(t_values, -1)
+    # 1/t ELBO reweighting with eps=1e-3 clamp
+    t_weights = 1.0 / mx.clip(mx.squeeze(t_values, -1), 1e-3, 1.0)
     reweighted_loss = mx.mean(per_example_ce * t_weights)
     return reweighted_loss, unweighted_ce
 

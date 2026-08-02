@@ -1,58 +1,88 @@
 """
-télos MDLM — Apple MLX Optimization Benchmark
-===============================================
-Benchmarks:
-1. Micro-Batch Sizes (bs=2, 4, 8, 16, 32, 64)
-2. Head Slicing (Proposal 3: un-embed only masked tokens) vs Full Un-Embedding
-3. Fused Metal FlashAttention (mx.fast.scaled_dot_product_attention)
+télos — 25M Model Benchmark v2 (Apple MLX Framework)
+=====================================================
+Benchmarks the EXACT 25M Model Architecture on Apple MLX Metal:
+- vocab_size: 8192
+- d_model: 512, n_layers: 6, n_heads: 8, n_kv_heads: 2 (GQA 4:1)
+- sequence length: 512 tokens
+- Precision: bfloat16 + Fused Metal FlashAttention + Head Slicing
+- Batch sizes tested: [2, 4, 8, 16, 32, 64]
 """
 
 import time
 import numpy as np
+# pyrefly: ignore [missing-import]
 import mlx.core as mx
 import mlx.nn as nn
 import mlx.optimizers as optim
 
 
-class MLXBlock(nn.Module):
-    def __init__(self, d_model: int = 512, n_heads: int = 8):
+class MLXRMSNorm(nn.Module):
+    def __init__(self, d_model: int, eps: float = 1e-5):
         super().__init__()
-        self.norm1 = nn.LayerNorm(d_model)
-        self.norm2 = nn.LayerNorm(d_model)
+        self.weight = mx.ones((d_model,))
+        self.eps = eps
+
+    def __call__(self, x):
+        variance = mx.mean(mx.square(x), axis=-1, keepdims=True)
+        return x * mx.rsqrt(variance + self.eps) * self.weight
+
+
+class MLXSwiGLU(nn.Module):
+    def __init__(self, d_model: int):
+        super().__init__()
+        hidden = int(d_model * 8 / 3)
+        hidden = ((hidden + 63) // 64) * 64
+        self.w1 = nn.Linear(d_model, hidden, bias=False)
+        self.w2 = nn.Linear(d_model, hidden, bias=False)
+        self.w3 = nn.Linear(hidden, d_model, bias=False)
+
+    def __call__(self, x):
+        return self.w3(nn.silu(self.w1(x)) * self.w2(x))
+
+
+class MLXBlock25M(nn.Module):
+    def __init__(self, d_model: int = 512, n_heads: int = 8, n_kv_heads: int = 2):
+        super().__init__()
+        self.norm1 = MLXRMSNorm(d_model)
+        self.norm2 = MLXRMSNorm(d_model)
         self.head_dim = d_model // n_heads
         self.n_heads = n_heads
+        self.n_kv_heads = n_kv_heads
+        self.kv_groups = n_heads // n_kv_heads
 
-        self.qkv = nn.Linear(d_model, d_model * 3, bias=False)
-        self.out = nn.Linear(d_model, d_model, bias=False)
-        self.mlp = nn.Sequential(
-            nn.Linear(d_model, d_model * 4),
-            nn.SiLU(),
-            nn.Linear(d_model * 4, d_model),
-        )
+        self.q_proj = nn.Linear(d_model, n_heads * self.head_dim, bias=False)
+        self.k_proj = nn.Linear(d_model, n_kv_heads * self.head_dim, bias=False)
+        self.v_proj = nn.Linear(d_model, n_kv_heads * self.head_dim, bias=False)
+        self.out_proj = nn.Linear(d_model, d_model, bias=False)
+        self.mlp = MLXSwiGLU(d_model)
 
     def __call__(self, x):
         B, T, D = x.shape
         h = self.norm1(x)
-        qkv = self.qkv(h).reshape(B, T, 3, self.n_heads, self.head_dim)
-        q = qkv[:, :, 0].transpose(0, 2, 1, 3)
-        k = qkv[:, :, 1].transpose(0, 2, 1, 3)
-        v = qkv[:, :, 2].transpose(0, 2, 1, 3)
+        q = self.q_proj(h).reshape(B, T, self.n_heads, self.head_dim).transpose(0, 2, 1, 3)
+        k = self.k_proj(h).reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
+        v = self.v_proj(h).reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
+
+        if self.kv_groups > 1:
+            k = mx.repeat(k, self.kv_groups, axis=1)
+            v = mx.repeat(v, self.kv_groups, axis=1)
 
         scale = 1.0 / (self.head_dim ** 0.5)
         out = mx.fast.scaled_dot_product_attention(q, k, v, scale=scale)
         out = out.transpose(0, 2, 1, 3).reshape(B, T, D)
 
-        x = x + self.out(out)
+        x = x + self.out_proj(out)
         x = x + self.mlp(self.norm2(x))
         return x
 
 
-class MLXModel(nn.Module):
-    def __init__(self, vocab_size: int = 8192, d_model: int = 512, n_layers: int = 6, n_heads: int = 8):
+class MLXModel25M(nn.Module):
+    def __init__(self, vocab_size: int = 8192, d_model: int = 512, n_layers: int = 6, n_heads: int = 8, n_kv_heads: int = 2):
         super().__init__()
         self.emb = nn.Embedding(vocab_size, d_model)
-        self.layers = [MLXBlock(d_model, n_heads) for _ in range(n_layers)]
-        self.norm = nn.LayerNorm(d_model)
+        self.layers = [MLXBlock25M(d_model, n_heads, n_kv_heads) for _ in range(n_layers)]
+        self.norm = MLXRMSNorm(d_model)
         self.head = nn.Linear(d_model, vocab_size, bias=False)
 
     def forward_hidden(self, x):
@@ -66,20 +96,12 @@ class MLXModel(nn.Module):
         return self.head(h)
 
 
-def full_unembedding_loss(model, tokens, targets, mask_pos):
-    logits = model(tokens)
-    B, T, V = logits.shape
-    ce = nn.losses.cross_entropy(logits.reshape(-1, V), targets.reshape(-1), reduction="none").reshape(B, T)
-    return mx.sum(ce * mask_pos) / mx.clip(mx.sum(mask_pos), 1.0, float(B * T))
-
-
 def head_sliced_loss(model, tokens, targets, mask_pos):
     h = model.forward_hidden(tokens)
     B, T, D = h.shape
     h_flat = h.reshape(-1, D)
     targets_flat = targets.reshape(-1)
 
-    # Convert mask positions for MLX indexing
     mask_np = np.array(mask_pos)
     idx_np = np.where(mask_np.reshape(-1))[0]
 
@@ -96,54 +118,60 @@ def head_sliced_loss(model, tokens, targets, mask_pos):
 
 def main():
     print("=" * 70)
-    print("  télos MLX Head Slicing & Batch Size Optimization Benchmark")
+    print("  télos 25M Model Benchmark v2 (Apple MLX Metal Framework)")
     print("=" * 70)
     print(f"  Backend:    Apple MLX Metal ({mx.__version__})")
-    print(f"  Precision:  bfloat16 (Metal GPU)")
+    print(f"  Architecture: 25.3M params (d=512, 6L, 8H, 2KV)")
+    print(f"  Precision:  bfloat16 (Metal GPU) + Head Slicing")
     print("=" * 70)
 
-    V, d, layers, heads = 8192, 512, 6, 8
+    V, d, layers, heads, kv_heads = 8192, 512, 6, 8, 2
     seq = 512
-    batch_sizes = [2, 4, 8, 16, 32]
+    grad_accum = 2
+    batch_sizes = [2, 4, 8, 16, 32, 64]
     warmup, measure = 2, 5
 
-    for mode_name, loss_func in [("Full Un-Embedding", full_unembedding_loss), ("Head Slicing (Proposal 3)", head_sliced_loss)]:
-        print(f"\n  --- Mode: {mode_name} ---")
-        print(f"  {'Batch':<7} {'Steps/sec':<12} {'Tok/sec':<14} {'Step Latency':<12}")
-        print("  " + "─" * 45)
+    results = []
 
-        for bs in batch_sizes:
-            model = MLXModel(V, d, layers, heads)
-            model.set_dtype(mx.bfloat16)
-            optimizer = optim.AdamW(learning_rate=1e-4)
+    print(f"  {'Batch':<7} {'Eff Batch':<10} {'Steps/sec':<12} {'Tok/sec':<14} {'Step Latency':<12}")
+    print("  " + "─" * 60)
 
-            loss_and_grad = nn.value_and_grad(model, loss_func)
+    for bs in batch_sizes:
+        model = MLXModel25M(V, d, layers, heads, kv_heads)
+        model.set_dtype(mx.bfloat16)
+        optimizer = optim.AdamW(learning_rate=1e-4)
 
-            tokens = mx.random.randint(0, V, (bs, seq))
-            targets = mx.random.randint(0, V, (bs, seq))
-            mask_pos = mx.random.uniform(0, 1, (bs, seq)) > 0.5
-            mx.eval(tokens, targets, mask_pos)
+        loss_and_grad = nn.value_and_grad(model, head_sliced_loss)
 
-            def step_fn(t, y, m):
-                l, g = loss_and_grad(model, t, y, m)
-                optimizer.update(model, g)
-                return l
+        tokens = mx.random.randint(0, V, (bs, seq))
+        targets = mx.random.randint(0, V, (bs, seq))
+        mask_pos = mx.random.uniform(0, 1, (bs, seq)) > 0.5
+        mx.eval(tokens, targets, mask_pos)
 
-            for _ in range(warmup):
-                l = step_fn(tokens, targets, mask_pos)
-                mx.eval(model.parameters(), optimizer.state)
+        def step_fn(t, y, m):
+            l, g = loss_and_grad(model, t, y, m)
+            optimizer.update(model, g)
+            return l
 
-            t0 = time.perf_counter()
-            for _ in range(measure):
-                l = step_fn(tokens, targets, mask_pos)
-                mx.eval(model.parameters(), optimizer.state)
-            t1 = time.perf_counter()
+        for _ in range(warmup):
+            l = step_fn(tokens, targets, mask_pos)
+            mx.eval(model.parameters(), optimizer.state)
 
-            avg_time = (t1 - t0) / measure
-            sps = 1.0 / avg_time
-            tps = sps * bs * seq
+        t0 = time.perf_counter()
+        for _ in range(measure):
+            l = step_fn(tokens, targets, mask_pos)
+            mx.eval(model.parameters(), optimizer.state)
+        t1 = time.perf_counter()
 
-            print(f"  bs={bs:<4}  {sps:>7.2f} st/s   {tps:>10,.0f} tok/s   {avg_time*1000:>6.1f} ms")
+        avg_time = (t1 - t0) / measure
+        sps = 1.0 / avg_time
+        tps = sps * bs * grad_accum * seq
+        lat_ms = avg_time * 1000.0
+
+        results.append((bs, bs * grad_accum, sps, tps, lat_ms))
+        print(f"  bs={bs:<4d} {bs*grad_accum:<10d} {sps:>7.2f} st/s   {tps:>10,.0f} tok/s   {lat_ms:>6.1f} ms")
+
+    print("=" * 70)
 
 
 if __name__ == "__main__":
