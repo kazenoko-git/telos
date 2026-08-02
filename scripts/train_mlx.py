@@ -195,7 +195,7 @@ def main():
 
     if train_bin.exists():
         print(f"  Loading pre-tokenized dataset from {train_bin}...")
-        raw_data = np.memmap(train_bin, dtype=np.uint16, mode="r")
+        raw_data = np.memmap(train_bin, dtype=np.int32, mode="r")
         n_seqs = len(raw_data) // m_cfg["seq_len"]
         dataset_matrix = raw_data[:n_seqs * m_cfg["seq_len"]].reshape(n_seqs, m_cfg["seq_len"])
         print(f"  Loaded {n_seqs:,} sequences ({n_seqs * m_cfg['seq_len'] / 1e6:.1f}M tokens).")
