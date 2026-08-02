@@ -52,7 +52,11 @@ def apply_masking(
     mask_positions = raw_mask & (~is_special)
 
     # construct masked input sequence: replace masked positions with mask_token_id
-    masked_input_ids = input_ids.clone()
-    masked_input_ids[mask_positions] = mask_token_id
+    # uses torch.where instead of in-place indexing for cleaner XLA/Metal graph tracing
+    masked_input_ids = torch.where(
+        mask_positions,
+        torch.full_like(input_ids, mask_token_id),
+        input_ids
+    )
 
     return masked_input_ids, mask_positions, t_values
