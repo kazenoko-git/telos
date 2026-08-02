@@ -50,6 +50,7 @@ class TelosTrainer:
         # Resolve device (including TPU / PyTorch XLA)
         if str(device).lower() in ["tpu", "xla"]:
             try:
+                # pyrefly: ignore
                 import torch_xla.core.xla_model as xm
                 self.device = xm.xla_device()
                 self.is_tpu = True
@@ -145,6 +146,7 @@ class TelosTrainer:
         start_time = time.time()
 
         if self.is_tpu:
+            # pyrefly: ignore
             import torch_xla.distributed.parallel_loader as pl
             para_loader = pl.ParallelLoader(self.train_loader, [self.device])
             train_iterator = iter(para_loader.per_device_loader(self.device))
@@ -189,6 +191,7 @@ class TelosTrainer:
             nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
 
             if self.is_tpu:
+                # pyrefly: ignore 
                 import torch_xla.core.xla_model as xm
                 xm.optimizer_step(self.optimizer)
             else:
