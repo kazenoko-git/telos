@@ -21,7 +21,7 @@ def detect_device():
         # pyrefly: ignore
         import torch_xla.core.xla_model as xm
         device = xm.xla_device()
-        return device, f"TPU ({os.environ.get('TPU_NAME', 'v6e-1')})", "tpu"
+        return device, f"TPU ({os.environ.get('TPU_NAME', 'v5e-1')})", "xla"
     except Exception:
         pass
     if torch.cuda.is_available():
@@ -78,8 +78,8 @@ class TinyModel(nn.Module):
 
 def run():
     device, dev_name, dev_type = detect_device()
-    use_amp = dev_type in ("cuda", "tpu")
-    amp_dtype = torch.bfloat16 if dev_type == "tpu" else torch.float16
+    use_amp = dev_type in ("cuda", "xla")
+    amp_dtype = torch.bfloat16 if dev_type == "xla" else torch.float16
 
     V, d, layers, heads = 4096, 256, 4, 4
     bs, seq = 8, 512
@@ -115,7 +115,8 @@ def run():
             else:
                 loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
             loss.backward()
-        if dev_type == "tpu":
+        if dev_type == "xla":
+            # pyrefly: ignore
             import torch_xla.core.xla_model as xm
             xm.optimizer_step(opt); xm.mark_step()
         else:
@@ -135,7 +136,8 @@ def run():
             else:
                 loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
             loss.backward()
-        if dev_type == "tpu":
+        if dev_type == "xla":
+            # pyrefly: ignore
             import torch_xla.core.xla_model as xm
             xm.optimizer_step(opt); xm.mark_step()
         else:
