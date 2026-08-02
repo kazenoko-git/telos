@@ -13,15 +13,17 @@ def apply_masking(
     input_ids: torch.Tensor,
     mask_token_id: int,
     special_token_ids: set[int] | None = None,
-    eps: float = 1e-5
+    eps: float = 1e-5,
+    schedule: str = "uniform"
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """ppplies the MDLM forward process by masking content tokens dynamically.
+    """Applies the MDLM forward process by masking content tokens dynamically.
 
-    args:
+    Args:
         input_ids: tensor of shape [batch_size, seq_len] with original clean token IDs.
         mask_token_id: token ID reserved for [MASK].
         special_token_ids: set of token IDs (PAD, BOS, EOS) that should NOT be masked.
         eps: minimum value for t to prevent division by zero in 1/t loss reweighting.
+        schedule: timestep sampling schedule ("beta" for Beta(1.5, 1.5) or "uniform").
 
     Returns:
         masked_input_ids: tensor of shape [batch_size, seq_len] with masked tokens inserted.
@@ -34,8 +36,15 @@ def apply_masking(
     if special_token_ids is None:
         special_token_ids = set()
 
-    # sample t ~ Uniform(eps, 1.0) per example in the batch: shape [batch_size, 1]
-    t_values = torch.zeros(batch_size, 1, device=device).uniform_(eps, 1.0)
+    # sample t: Beta(1.5, 1.5) importance sampling focuses compute on t in [0.2, 0.8]
+    if schedule == "beta":
+        beta_dist = torch.distributions.Beta(
+            torch.tensor([1.5], device=device),
+            torch.tensor([1.5], device=device)
+        )
+        t_values = beta_dist.sample((batch_size,)).view(batch_size, 1).clamp(min=eps, max=1.0)
+    else:
+        t_values = torch.zeros(batch_size, 1, device=device).uniform_(eps, 1.0)
 
     # draw random probability matrix [batch_size, seq_len] ~ Uniform(0, 1)
     rand_matrix = torch.rand(batch_size, seq_len, device=device)
