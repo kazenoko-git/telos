@@ -24,11 +24,16 @@ def main():
         cfg = yaml.safe_load(f)
 
     tokenizer_path = "configs/tokenizer.json"
+    if not Path(tokenizer_path).exists():
+        if Path("configs/tokenizer_mac.json").exists():
+            tokenizer_path = "configs/tokenizer_mac.json"
+        elif Path("configs/tokenizer_0.json").exists():
+            tokenizer_path = "configs/tokenizer_0.json"
     tokenizer = load_tokenizer(tokenizer_path)
 
     corpus_path = "data/python_corpus.txt"
-    bin_path = Path(corpus_path).with_suffix(".bin")
-    meta_path = Path(corpus_path).with_suffix(".meta")
+    bin_path = Path("data/python_corpus_mac.bin") if Path("data/python_corpus_mac.bin").exists() else Path("data/python_corpus.bin")
+    meta_path = bin_path.with_suffix(".meta")
 
     seq_len = cfg["model"].get("seq_len", 256)
     batch_size = cfg["training"].get("batch_size", 32)
