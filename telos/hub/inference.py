@@ -135,7 +135,8 @@ class TelosModel:
         prompt: str,
         max_tokens: int = 128,
         num_steps: int = 64,
-        temperature: float = 0.8,
+        temperature: float = 0.3,
+        repetition_penalty: float = 1.2,
         schedule: str = "linear"
     ) -> str:
         """completes code given a prompt using masked diffusion iterative unmasking.
@@ -145,6 +146,7 @@ class TelosModel:
             max_tokens: total target sequence length.
             num_steps: denoising steps (16-128).
             temperature: sampling temperature.
+            repetition_penalty: penalty factor (e.g. 1.2) for repeated tokens.
             schedule: unmasking schedule ("linear" or "cosine").
 
         returns:
@@ -158,6 +160,7 @@ class TelosModel:
             mask_token_id=1,
             num_steps=num_steps,
             temperature=temperature,
+            repetition_penalty=repetition_penalty,
             schedule=schedule
         )
 

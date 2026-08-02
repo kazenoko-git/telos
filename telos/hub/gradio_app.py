@@ -54,7 +54,7 @@ def build_app(default_checkpoint: str = "checkpoints/phase_b_25m_mlx"):
     # Pre-warm default model
     load_model(default_checkpoint)
 
-    def predict(checkpoint: str, prompt: str, max_tokens: int, num_steps: int, temperature: float):
+    def predict(checkpoint: str, prompt: str, max_tokens: int, num_steps: int, temperature: float, repetition_penalty: float):
         model = load_model(checkpoint)
         if model is None:
             return f"# Error: Failed to load checkpoint from '{checkpoint}'. Make sure trained weights exist in that directory."
@@ -63,7 +63,8 @@ def build_app(default_checkpoint: str = "checkpoints/phase_b_25m_mlx"):
             prompt=prompt,
             max_tokens=int(max_tokens),
             num_steps=int(num_steps),
-            temperature=float(temperature)
+            temperature=float(temperature),
+            repetition_penalty=float(repetition_penalty)
         )
         return completion
 
@@ -98,8 +99,12 @@ def build_app(default_checkpoint: str = "checkpoints/phase_b_25m_mlx"):
                     label="Denoising Steps (Speed vs Quality Knob)"
                 )
                 temp_slider = gr.Slider(
-                    minimum=0.1, maximum=1.5, value=0.3, step=0.05,
+                    minimum=0.0, maximum=1.5, value=0.3, step=0.05,
                     label="Sampling Temperature (Lower = Deterministic Code)"
+                )
+                rep_penalty_slider = gr.Slider(
+                    minimum=1.0, maximum=2.0, value=1.2, step=0.05,
+                    label="Repetition Penalty (Prevents Token Loops)"
                 )
                 submit_btn = gr.Button("Generate Code Completion", variant="primary")
 
@@ -112,7 +117,7 @@ def build_app(default_checkpoint: str = "checkpoints/phase_b_25m_mlx"):
 
         submit_btn.click(
             fn=predict,
-            inputs=[checkpoint_dropdown, prompt_input, max_tokens_slider, num_steps_slider, temp_slider],
+            inputs=[checkpoint_dropdown, prompt_input, max_tokens_slider, num_steps_slider, temp_slider, rep_penalty_slider],
             outputs=output_code
         )
 

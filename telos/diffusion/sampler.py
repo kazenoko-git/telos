@@ -19,6 +19,7 @@ class MDLMSampler:
         mask_token_id: int,
         num_steps: int = 64,
         temperature: float = 1.0,
+        repetition_penalty: float = 1.2,
         schedule: str = "linear"
     ):
         """
@@ -27,12 +28,14 @@ class MDLMSampler:
             mask_token_id: token ID used for [MASK].
             num_steps: speed vs quality knob 16–128.
             temperature: sampling temperature.
+            repetition_penalty: penalty factor (e.g. 1.2) for already unmasked tokens.
             schedule: "linear" or "cosine".
         """
         self.model = model
         self.mask_token_id = mask_token_id
         self.num_steps = num_steps
         self.temperature = temperature
+        self.repetition_penalty = repetition_penalty
         self.schedule = schedule
 
     def _get_num_to_unmask(self, step: int, total_masked: int) -> int:
@@ -55,16 +58,6 @@ class MDLMSampler:
         prompt_ids: torch.Tensor | None = None,
         device: str | torch.device = "cpu"
     ) -> torch.Tensor:
-        """runs iterative denoising generation.
-
-        Args:
-            seq_len: desired target length of output sequence.
-            prompt_ids: optional prefix tensor [1, prompt_len].
-            device: execution device.
-
-        Returns:
-            seq: fully unmasked token ID tensor [1, seq_len].
-        """
         self.model.eval()
 
         # initialize sequence: start with prompt followed by [MASK] tokens
@@ -102,37 +95,52 @@ class MDLMSampler:
             # model forward pass: get unnormalized logits [1, seq_len, vocab_size]
             logits = self.model(seq)
 
+            # Zero out mask_token_id in logits so it is never predicted
+            logits = logits.clone()
+            logits[:, :, self.mask_token_id] = -float("inf")
+
+            # Apply repetition penalty to already unmasked tokens to prevent repetition loops
+            if self.repetition_penalty != 1.0:
+                unmasked_tokens = seq[seq != self.mask_token_id]
+                for tok_id in set(unmasked_tokens.tolist()):
+                    if tok_id > 3:  # Skip special tokens
+                        logits[:, :, tok_id] = torch.where(
+                            logits[:, :, tok_id] > 0,
+                            logits[:, :, tok_id] / self.repetition_penalty,
+                            logits[:, :, tok_id] * self.repetition_penalty
+                        )
+
             # Apply temperature scaling and compute probabilities
             scaled_logits = logits / max(self.temperature, 1e-5)
             probs = F.softmax(scaled_logits, dim=-1)
 
-            # Sample predicted tokens stochastically or greedily
             B, L, V = probs.shape
-            probs_flat = probs.view(-1, V)
 
-            if self.temperature > 0.05:
-                # Stochastic multinomial sampling to prevent repetition loops
-                predicted_tokens = torch.multinomial(probs_flat, num_samples=1).view(B, L)
-                # Compute confidence as logit probability of sampled token
-                confidences = torch.gather(probs, dim=-1, index=predicted_tokens.unsqueeze(-1)).squeeze(-1)
-            else:
-                confidences, predicted_tokens = torch.max(probs, dim=-1)
+            # Confidence score is max probability at each position
+            max_conf, argmax_tokens = torch.max(probs, dim=-1)
 
-            # Add Gumbel temperature noise to confidence scores for unmasking diversity
+            # Add Gumbel noise to confidence scores for position selection diversity
             if self.temperature > 0.05:
-                gumbel_noise = -torch.log(-torch.log(torch.rand_like(confidences) + 1e-8) + 1e-8)
-                confidence_scores = confidences + 0.1 * self.temperature * gumbel_noise
+                gumbel_noise = -torch.log(-torch.log(torch.rand_like(max_conf) + 1e-8) + 1e-8)
+                confidence_scores = max_conf + 0.1 * self.temperature * gumbel_noise
             else:
-                confidence_scores = confidences.clone()
+                confidence_scores = max_conf.clone()
 
             confidence_scores[~current_mask] = -float("inf")
 
-            # Select top-k positions with highest confidence to unmask this step
+            # Select top-k positions with highest model certainty to unmask
             k = min(num_to_unmask_this_step, num_currently_masked)
             _, topk_indices = torch.topk(confidence_scores[0], k=k)
 
-            # Update sequence with predicted tokens at selected positions
-            seq[0, topk_indices] = predicted_tokens[0, topk_indices]
+            # For selected top-k positions, sample predicted tokens
+            if self.temperature > 0.05:
+                selected_probs = probs[0, topk_indices]  # [k, V]
+                sampled_tokens = torch.multinomial(selected_probs, num_samples=1).squeeze(-1)
+            else:
+                sampled_tokens = argmax_tokens[0, topk_indices]
+
+            # Update sequence at selected positions
+            seq[0, topk_indices] = sampled_tokens
             already_unmasked_count += k
 
         return seq
