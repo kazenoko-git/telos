@@ -117,9 +117,12 @@ def main():
         print(f"Tokenized {total_samples:,} samples -> {bin_path} "
               f"({bin_path.stat().st_size / (1024**3):.2f} GB)")
 
-    # Read sample count from metadata
-    with open(meta_path, "r") as mf:
-        num_samples = int(mf.read().strip())
+    # Read sample count from metadata or compute directly from binary file size
+    if meta_path.exists():
+        with open(meta_path, "r") as mf:
+            num_samples = int(mf.read().strip())
+    else:
+        num_samples = bin_path.stat().st_size // (seq_len * 4)
 
     # Memory-map binary file (instant load, zero RAM)
     print(f"Memory-mapping {bin_path} ({num_samples:,} samples) in 0.00s...")
