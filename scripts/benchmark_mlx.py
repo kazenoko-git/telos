@@ -92,12 +92,13 @@ def main():
     batch_sizes = [4, 8, 16, 32, 64]
 
     model = MLXTinyModel(V, d, layers, heads)
+    model.set_dtype(mx.bfloat16)
     mx.eval(model.parameters())
 
     param_count = sum(p.size for p in tree_flatten(model.parameters()))
 
     print(f"  Model:      {param_count:,} params (d={d}, {layers}L, {heads}H)")
-    print(f"  Precision:  float32/float16 (MLX Unified GPU)")
+    print(f"  Precision:  bfloat16 (MLX Metal GPU)")
     print("=" * 65)
 
     loss_and_grad = nn.value_and_grad(model, loss_fn)
