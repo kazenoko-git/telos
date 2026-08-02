@@ -136,11 +136,12 @@ def loss_fn(model, masked_input_ids, targets, mask_positions, t_values, vocab_si
 
     masked_count = mx.clip(mx.sum(mask_positions.astype(mx.float32), axis=1), 1.0, float(T))
     per_example_ce = mx.sum(masked_ce, axis=1) / masked_count
+    unweighted_ce = mx.mean(per_example_ce)
 
     # 1/t ELBO reweighting
     t_weights = 1.0 / mx.squeeze(t_values, -1)
     reweighted_loss = mx.mean(per_example_ce * t_weights)
-    return reweighted_loss
+    return reweighted_loss, unweighted_ce
 
 
 # ─── Data Iterator ──────────────────────────────────────────────────
@@ -220,8 +221,16 @@ def main():
 
     loss_and_grad_fn = nn.value_and_grad(model, loss_fn)
 
-    ckpt_dir = Path(c_cfg.get("dir", "checkpoints/phase_b_25m_mlx"))
+    # Automatic Timestamped Run Versioning
+    base_dir = Path(c_cfg.get("dir", "checkpoints/phase_b_25m_mlx"))
+    if base_dir.exists() and any(base_dir.iterdir()):
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        ckpt_dir = Path(f"{base_dir}_{timestamp}")
+    else:
+        ckpt_dir = base_dir
+
     ckpt_dir.mkdir(parents=True, exist_ok=True)
+    print(f"  Checkpoint Directory: {ckpt_dir} (Versioned)")
 
     print("\n  Starting training loop...")
     print("─" * 70)
@@ -237,15 +246,17 @@ def main():
         optimizer.learning_rate = lr
 
         accum_loss = 0.0
+        accum_ce = 0.0
 
         for _ in range(grad_accum):
             targets = get_data_batch(dataset_matrix, idx_ptr, bs, m_cfg["seq_len"])
             idx_ptr += bs
 
             masked_ids, mask_pos, t_vals = apply_masking_mlx(targets, mask_token_id=1)
-            loss, grads = loss_and_grad_fn(model, masked_ids, targets, mask_pos, t_vals, m_cfg["vocab_size"])
+            (loss, ce), grads = loss_and_grad_fn(model, masked_ids, targets, mask_pos, t_vals, m_cfg["vocab_size"])
             optimizer.update(model, grads)
             accum_loss += loss.item()
+            accum_ce += ce.item()
 
         mx.eval(model.parameters(), optimizer.state)
 
@@ -255,8 +266,11 @@ def main():
             tps = sps * bs * grad_accum * m_cfg["seq_len"]
             eta_mins = (max_steps - step) / sps / 60.0
 
-            print(f"  Step {step:>6d}/{max_steps} | Loss: {accum_loss/grad_accum:>6.4f} | "
-                  f"LR: {lr:.2e} | {sps:>5.1f} step/s | {tps:>9,.0f} tok/s | ETA: {eta_mins:>4.1f}m", flush=True)
+            avg_loss = accum_loss / grad_accum
+            avg_ce = accum_ce / grad_accum
+
+            print(f"  Step {step:>6d}/{max_steps} | ELBO Loss: {avg_loss:>6.2f} | "
+                  f"CE: {avg_ce:>5.3f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s | ETA: {eta_mins:>4.1f}m", flush=True)
 
         if step % c_cfg.get("save_every_steps", 1000) == 0:
             ckpt_file = ckpt_dir / f"checkpoint_step_{step}.safetensors"
