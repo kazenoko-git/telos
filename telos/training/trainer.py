@@ -107,13 +107,15 @@ class TelosTrainer:
         self.last_saved_time = time.time()
 
     def save_checkpoint(self, path: str | Path):
-        """saves complete checkpoint including model, optimizer, scheduler, and RNG states."""
+        """saves complete checkpoint and standalone weights-only file."""
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
 
+        model_state = self.model.state_dict()
+
         checkpoint = {
             "global_step": self.global_step,
-            "model_state_dict": self.model.state_dict(),
+            "model_state_dict": model_state,
             "optimizer_state_dict": self.optimizer.state_dict(),
             "scheduler_state_dict": self.scheduler.state_dict(),
             "torch_rng_state": torch.get_rng_state(),
@@ -121,6 +123,24 @@ class TelosTrainer:
             "config": self.config,
         }
         torch.save(checkpoint, path)
+
+        # Save weights-only file alongside full checkpoint
+        weights_path = path.parent / f"weights_{path.name}"
+        torch.save(model_state, weights_path)
+
+        # Ratio milestone explicit tagging
+        ratio_tags = {
+            162: "ratio_1_1_step_162.pt",
+            486: "ratio_1_3_step_486.pt",
+            811: "ratio_1_5_step_811.pt",
+            1621: "ratio_1_10_step_1621.pt",
+            2741: "ratio_1_17_step_2741.pt",
+        }
+        if self.global_step in ratio_tags:
+            milestone_path = path.parent / ratio_tags[self.global_step]
+            torch.save({"config": self.config, "model_state_dict": model_state}, milestone_path)
+            print(f"⭐ Milestone Checkpoint saved -> {milestone_path}")
+
         print(f"Checkpoint saved to {path} (Step {self.global_step})")
 
     def load_checkpoint(self, path: str | Path):
