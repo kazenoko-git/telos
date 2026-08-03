@@ -70,16 +70,20 @@ def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, d
 
     model = TelosTransformer(model_config).to(device)
 
+    max_lr = float(global_cfg["max_lr"])
+    min_lr = float(global_cfg.get("min_lr", 4e-5))
+    weight_decay = float(global_cfg.get("weight_decay", 0.1))
+    grad_clip = float(global_cfg.get("grad_clip", 1.0))
+
     # 2. Optimizer and Dedicated LR Scheduler for this specific ratio
     optimizer = torch.optim.AdamW(
         model.parameters(),
-        lr=global_cfg["max_lr"],
-        weight_decay=global_cfg.get("weight_decay", 0.1)
+        lr=max_lr,
+        weight_decay=weight_decay
     )
 
-    max_steps = ratio_cfg["max_steps"]
-    warmup_steps = ratio_cfg["warmup_steps"]
-    min_lr = global_cfg.get("min_lr", 4e-5)
+    max_steps = int(ratio_cfg["max_steps"])
+    warmup_steps = int(ratio_cfg["warmup_steps"])
 
     scheduler = WarmupCosineLR(
         optimizer,

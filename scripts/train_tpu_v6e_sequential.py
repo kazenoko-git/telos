@@ -79,21 +79,26 @@ def train_tpu_model(model_name: str, model_cfg: dict, global_cfg: dict, dataset:
 
     model = TelosTransformer(config).to(device)
 
+    max_lr = float(global_cfg["max_lr"])
+    min_lr = float(global_cfg.get("min_lr", 3e-5))
+    weight_decay = float(global_cfg.get("weight_decay", 0.1))
+    grad_clip = float(global_cfg.get("grad_clip", 1.0))
+
     # 2. Optimizer & LR Scheduler
     optimizer = torch.optim.AdamW(
         model.parameters(),
-        lr=global_cfg["max_lr"],
-        weight_decay=global_cfg["weight_decay"]
+        lr=max_lr,
+        weight_decay=weight_decay
     )
 
-    max_steps = model_cfg["max_steps"]
-    warmup_steps = model_cfg["warmup_steps"]
+    max_steps = int(model_cfg["max_steps"])
+    warmup_steps = int(model_cfg["warmup_steps"])
 
     scheduler = WarmupCosineLR(
         optimizer,
         warmup_steps=warmup_steps,
         max_steps=max_steps,
-        min_lr=global_cfg["min_lr"]
+        min_lr=min_lr
     )
 
     # 3. DataLoader
