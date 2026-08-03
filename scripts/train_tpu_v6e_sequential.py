@@ -125,7 +125,7 @@ def train_tpu_model(model_name: str, model_cfg: dict, global_cfg: dict, dataset:
 
     while step < max_steps:
         optimizer.zero_grad()
-        accum_loss = 0.0
+        accum_loss = torch.tensor(0.0, device=device)
 
         for _ in range(grad_accum):
             try:
@@ -149,29 +149,30 @@ def train_tpu_model(model_name: str, model_cfg: dict, global_cfg: dict, dataset:
                 mask_positions=mask_positions,
                 t_values=t_values
             )
-            unweighted_ce = loss_metrics.get("ce_loss", loss.item()) if isinstance(loss_metrics, dict) else loss_metrics
 
-            loss = loss / grad_accum
-            loss.backward()
-            accum_loss += loss.item() * grad_accum
+            loss_scaled = loss / grad_accum
+            loss_scaled.backward()
 
-        torch.nn.utils.clip_grad_norm_(model.parameters(), global_cfg["grad_clip"])
+            accum_loss += loss.detach()
 
         try:
             import torch_xla.core.xla_model as xm
             xm.optimizer_step(optimizer)
+            xm.mark_step()
         except ImportError:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), float(global_cfg["grad_clip"]))
             optimizer.step()
 
         scheduler.step()
         step += 1
 
-        if step % 25 == 0 or step == max_steps:
+        if step % 10 == 0 or step == max_steps:
+            loss_val = accum_loss.item() / grad_accum
             current_lr = scheduler.get_last_lr()[0]
             elapsed = time.time() - start_time
             steps_per_sec = step / max(1.0, elapsed)
             tok_per_sec = steps_per_sec * batch_size * grad_accum * global_cfg["seq_len"]
-            print(f"{model_name:<5} | Step {step:>4}/{max_steps} | Loss: {accum_loss:.4f} | Unweighted CE: {unweighted_ce:.4f} | LR: {current_lr:.6f} | Tok/s: {tok_per_sec:,.0f}")
+            print(f"{model_name:<5} | Step {step:>4}/{max_steps} | Loss: {loss_val:.4f} | LR: {current_lr:.6f} | Tok/s: {tok_per_sec:,.0f}")
 
     # Save final model checkpoint
     ckpt_path = ckpt_dir / f"checkpoint_tpu_{model_name}_final_step_{step}.pt"
