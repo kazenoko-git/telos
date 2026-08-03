@@ -134,13 +134,13 @@ def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, d
             )
 
             logits = model(masked_ids)
-            loss, unweighted_ce = mdlm_loss(
+            loss, loss_metrics = mdlm_loss(
                 logits=logits,
-                target_ids=input_ids,
+                targets=input_ids,
                 mask_positions=mask_positions,
-                t_values=t_values,
-                mask_token_id=mask_token_id
+                t_values=t_values
             )
+            unweighted_ce = loss_metrics.get("ce_loss", loss.item()) if isinstance(loss_metrics, dict) else loss_metrics
 
             loss = loss / grad_accum
             loss.backward()
