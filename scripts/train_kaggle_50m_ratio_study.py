@@ -12,16 +12,40 @@ import sys
 import time
 from pathlib import Path
 import yaml
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from telos.model.transformer import TelosTransformer, TelosConfig
 from tokenizers import Tokenizer
-from telos.data.dataset import TelosDataset
 from telos.diffusion.forward_process import apply_masking
 from telos.diffusion.loss import mdlm_loss
 from telos.training.lr_schedule import get_cosine_schedule_with_warmup
+
+
+class MemmapBinaryDataset(torch.utils.data.Dataset):
+    """Memory-mapped binary token dataset loader."""
+
+    def __init__(self, data_path: str, seq_len: int = 512):
+        self.data_path = Path(data_path)
+        self.seq_len = seq_len
+
+        if self.data_path.exists() and self.data_path.suffix == ".bin":
+            self.data = np.fromfile(self.data_path, dtype=np.uint16)
+            self.num_samples = len(self.data) // seq_len
+        else:
+            # Fallback for dummy/dry-run testing
+            self.data = np.zeros(seq_len * 100, dtype=np.uint16)
+            self.num_samples = 100
+
+    def __len__(self) -> int:
+        return self.num_samples
+
+    def __getitem__(self, idx: int) -> dict:
+        offset = idx * self.seq_len
+        chunk = self.data[offset: offset + self.seq_len].astype(np.int64)
+        return {"input_ids": torch.from_numpy(chunk)}
 
 
 def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, dataset: TelosDataset, tokenizer: TelosTokenizer):
@@ -188,7 +212,7 @@ def run_ratio_study(
     print(f"Checkpoint Dir:    {resolved_checkpoint_dir}")
 
     tokenizer = Tokenizer.from_file(resolved_tokenizer_path)
-    dataset = TelosDataset(
+    dataset = MemmapBinaryDataset(
         data_path=resolved_data_path,
         seq_len=model_cfg["seq_len"]
     )
