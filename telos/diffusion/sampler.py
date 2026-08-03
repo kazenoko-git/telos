@@ -99,16 +99,16 @@ class MDLMSampler:
             logits = logits.clone()
             logits[:, :, self.mask_token_id] = -float("inf")
 
-            # Apply repetition penalty to already unmasked tokens to prevent repetition loops
+            # Apply repetition penalty ONLY to newly generated tokens (excluding prompt tokens)
             if self.repetition_penalty != 1.0:
-                unmasked_tokens = seq[seq != self.mask_token_id]
+                gen_seq = seq[:, prompt_len:] if prompt_len is not None else seq
+                unmasked_tokens = gen_seq[(gen_seq != self.mask_token_id) & (gen_seq > 3)]
                 for tok_id in set(unmasked_tokens.tolist()):
-                    if tok_id > 3:  # Skip special tokens
-                        logits[:, :, tok_id] = torch.where(
-                            logits[:, :, tok_id] > 0,
-                            logits[:, :, tok_id] / self.repetition_penalty,
-                            logits[:, :, tok_id] * self.repetition_penalty
-                        )
+                    logits[:, :, tok_id] = torch.where(
+                        logits[:, :, tok_id] > 0,
+                        logits[:, :, tok_id] / self.repetition_penalty,
+                        logits[:, :, tok_id] * self.repetition_penalty
+                    )
 
             # Apply temperature scaling and compute probabilities
             scaled_logits = logits / max(self.temperature, 1e-5)
