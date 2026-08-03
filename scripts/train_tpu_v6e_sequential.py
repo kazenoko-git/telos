@@ -160,28 +160,65 @@ def train_tpu_model(model_name: str, model_cfg: dict, global_cfg: dict, dataset:
     print(f"\nSuccessfully completed {model_name} model training! Saved: {ckpt_path}\n")
 
 
-def run_sequential_tpu_scaling(config_path: str = "configs/phase_c_tpu_v6e.yaml"):
-    """Runs 125M -> 250M -> 500M sequentially on TPU v6e-1."""
+def run_sequential_tpu_scaling(
+    config_path: str = "configs/phase_c_tpu_v6e.yaml",
+    data_path: str | None = None,
+    tokenizer_path: str | None = None,
+    checkpoint_dir: str | None = None
+):
+    """Runs 125M -> 250M -> 500M sequentially on TPU v6e-1 with configurable paths."""
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
 
     global_cfg = config["global"]
     models = config["models"]
 
-    from tokenizers import Tokenizer
-    tokenizer_path = "configs/tokenizer_mac.json" if Path("configs/tokenizer_mac.json").exists() else "configs/tokenizer.json"
-    tokenizer = Tokenizer.from_file(tokenizer_path)
+    # Resolution order: CLI flag > YAML config > fallback file discovery
+    resolved_tokenizer_path = tokenizer_path or global_cfg.get("tokenizer_path")
+    if not resolved_tokenizer_path:
+        for candidate in ["configs/tokenizer_mac.json", "configs/tokenizer.json"]:
+            if Path(candidate).exists():
+                resolved_tokenizer_path = candidate
+                break
+    if not resolved_tokenizer_path:
+        raise FileNotFoundError("No tokenizer JSON file found! Please specify --tokenizer-path or add global.tokenizer_path to config.")
 
-    data_path = "data/python_corpus_1.7b.bin" if Path("data/python_corpus_1.7b.bin").exists() else "data/train.bin"
+    resolved_data_path = data_path or global_cfg.get("dataset_path")
+    if not resolved_data_path:
+        for candidate in ["data/python_corpus_1.7b.bin", "data/train.bin", "data/python_corpus.txt"]:
+            if Path(candidate).exists():
+                resolved_data_path = candidate
+                break
+    if not resolved_data_path:
+        raise FileNotFoundError("No binary dataset file found! Please specify --data-path or add global.dataset_path to config.")
+
+    print(f"Loading Tokenizer: {resolved_tokenizer_path}")
+    print(f"Loading Dataset:   {resolved_data_path}")
+
+    tokenizer = Tokenizer.from_file(resolved_tokenizer_path)
     dataset = TelosDataset(
-        data_path=data_path,
+        data_path=resolved_data_path,
         seq_len=global_cfg["seq_len"]
     )
 
     for model_name, model_cfg in models.items():
+        if checkpoint_dir:
+            model_cfg["checkpoint_dir"] = os.path.join(checkpoint_dir, f"phase_c_tpu_{model_name.lower()}")
         train_tpu_model(model_name, model_cfg, global_cfg, dataset, tokenizer)
 
 
 if __name__ == "__main__":
-    cfg_file = sys.argv[1] if len(sys.argv) > 1 else "configs/phase_c_tpu_v6e.yaml"
-    run_sequential_tpu_scaling(cfg_file)
+    import argparse
+    parser = argparse.ArgumentParser(description="Sequential TPU v6e-1 Training Runner")
+    parser.add_argument("--config", type=str, default="configs/phase_c_tpu_v6e.yaml", help="Path to config YAML")
+    parser.add_argument("--data-path", type=str, default=None, help="Path to binary dataset (.bin)")
+    parser.add_argument("--tokenizer-path", type=str, default=None, help="Path to tokenizer JSON")
+    parser.add_argument("--checkpoint-dir", type=str, default=None, help="Output directory for checkpoints")
+    args = parser.parse_args()
+
+    run_sequential_tpu_scaling(
+        config_path=args.config,
+        data_path=args.data_path,
+        tokenizer_path=args.tokenizer_path,
+        checkpoint_dir=args.checkpoint_dir
+    )

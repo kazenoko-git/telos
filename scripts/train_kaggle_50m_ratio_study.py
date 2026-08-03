@@ -147,24 +147,49 @@ def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, d
     print(f"\nSuccessfully saved fully decayed ratio checkpoint: {ckpt_path}\n")
 
 
-def run_ratio_study(config_path: str = "configs/phase_b_50m_ratio_study.yaml"):
-    """Runs all 5 ratio checkpoints sequentially."""
+def run_ratio_study(
+    config_path: str = "configs/phase_b_50m_ratio_study.yaml",
+    data_path: str | None = None,
+    tokenizer_path: str | None = None,
+    checkpoint_dir: str | None = None
+):
+    """Runs all ratio checkpoints sequentially with configurable dataset & tokenizer paths."""
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
 
     model_cfg = config["model"]
     train_cfg = config["training"]
     train_cfg.update(model_cfg)
-    train_cfg["checkpoint_dir"] = config["checkpoint"]["dir"]
 
-    # Load tokenizer & dataset
-    from tokenizers import Tokenizer
-    tokenizer_path = "configs/tokenizer_mac.json" if Path("configs/tokenizer_mac.json").exists() else "configs/tokenizer.json"
-    tokenizer = Tokenizer.from_file(tokenizer_path)
+    # Resolution order: CLI flag > YAML config > fallback file discovery
+    resolved_checkpoint_dir = checkpoint_dir or config.get("checkpoint", {}).get("dir", "checkpoints/phase_b_50m_ratio_study")
+    train_cfg["checkpoint_dir"] = resolved_checkpoint_dir
 
-    data_path = "data/python_corpus_1.7b.bin" if Path("data/python_corpus_1.7b.bin").exists() else "data/train.bin"
+    resolved_tokenizer_path = tokenizer_path or config.get("data", {}).get("tokenizer_path")
+    if not resolved_tokenizer_path:
+        for candidate in ["configs/tokenizer_mac.json", "configs/tokenizer.json"]:
+            if Path(candidate).exists():
+                resolved_tokenizer_path = candidate
+                break
+    if not resolved_tokenizer_path:
+        raise FileNotFoundError("No tokenizer JSON file found! Please specify --tokenizer-path or add data.tokenizer_path to config.")
+
+    resolved_data_path = data_path or config.get("data", {}).get("dataset_path")
+    if not resolved_data_path:
+        for candidate in ["data/python_corpus_1.7b.bin", "data/train.bin", "data/python_corpus.txt"]:
+            if Path(candidate).exists():
+                resolved_data_path = candidate
+                break
+    if not resolved_data_path:
+        raise FileNotFoundError("No binary dataset file found! Please specify --data-path or add data.dataset_path to config.")
+
+    print(f"Loading Tokenizer: {resolved_tokenizer_path}")
+    print(f"Loading Dataset:   {resolved_data_path}")
+    print(f"Checkpoint Dir:    {resolved_checkpoint_dir}")
+
+    tokenizer = Tokenizer.from_file(resolved_tokenizer_path)
     dataset = TelosDataset(
-        data_path=data_path,
+        data_path=resolved_data_path,
         seq_len=model_cfg["seq_len"]
     )
 
@@ -174,5 +199,17 @@ def run_ratio_study(config_path: str = "configs/phase_b_50m_ratio_study.yaml"):
 
 
 if __name__ == "__main__":
-    cfg_file = sys.argv[1] if len(sys.argv) > 1 else "configs/phase_b_50m_ratio_study.yaml"
-    run_ratio_study(cfg_file)
+    import argparse
+    parser = argparse.ArgumentParser(description="Automated 50M Ratio Study Training Runner")
+    parser.add_argument("--config", type=str, default="configs/phase_b_50m_ratio_study.yaml", help="Path to config YAML")
+    parser.add_argument("--data-path", type=str, default=None, help="Path to binary dataset (.bin)")
+    parser.add_argument("--tokenizer-path", type=str, default=None, help="Path to tokenizer JSON")
+    parser.add_argument("--checkpoint-dir", type=str, default=None, help="Output directory for checkpoints")
+    args = parser.parse_args()
+
+    run_ratio_study(
+        config_path=args.config,
+        data_path=args.data_path,
+        tokenizer_path=args.tokenizer_path,
+        checkpoint_dir=args.checkpoint_dir
+    )
