@@ -93,5 +93,16 @@ code = model.complete(
 print(code)
 ```
 
-### Step 3: Interactive Web Demo (HuggingFace Spaces)
-Deploy `telos/hub/gradio_app.py` to a free-tier CPU HuggingFace Space for interactive code completion generation with step-by-step unmasking speed controls.
+### Step 3: Interactive Web Demo & Ratio Comparison App
+
+#### Standalone Single-Model UI
+```bash
+uv run python telos/hub/gradio_app.py
+```
+
+#### 5-Way Simultaneous Model Ratio Study Comparison UI (1:1, 1:3, 1:5, 1:10, 1:17)
+```bash
+uv run python telos/hub/gradio_ratio_app.py
+```
+
+Deploy `telos/hub/gradio_ratio_app.py` or `telos/hub/gradio_app.py` to a free-tier CPU HuggingFace Space for interactive code completion generation with step-by-step unmasking speed controls.
