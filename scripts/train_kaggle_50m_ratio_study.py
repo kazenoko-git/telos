@@ -92,13 +92,13 @@ def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, d
         min_lr=min_lr
     )
 
-    # 3. DataLoader
-    batch_size = global_cfg["batch_size"]
-    grad_accum = global_cfg["gradient_accumulation"]
+    # 3. DataLoader (shuffle=False for zero-copy memmap sequential disk streaming)
+    batch_size = int(global_cfg["batch_size"])
+    grad_accum = int(global_cfg["gradient_accumulation"])
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=batch_size,
-        shuffle=True,
+        shuffle=False,
         drop_last=True
     )
 
