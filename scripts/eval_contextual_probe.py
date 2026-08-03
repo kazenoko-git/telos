@@ -67,14 +67,39 @@ PROBE_SUITE = [
 ]
 
 
-def run_contextual_probe():
+def get_checkpoints(cli_path: str | None = None) -> dict[str, str]:
+    """Dynamically resolves checkpoints from CLI path or searches checkpoints directory recursively."""
+    if cli_path:
+        p = Path(cli_path)
+        if p.is_file():
+            return {p.stem: str(p)}
+        elif p.is_dir():
+            found = {pt.stem: str(pt) for pt in sorted(p.rglob("*.pt"))}
+            if found:
+                return found
+
+    # Fallback to recursive discovery in checkpoints/
+    found = {}
+    ck_root = Path("checkpoints")
+    if ck_root.exists():
+        for pt in sorted(ck_root.rglob("*.pt")):
+            found[pt.stem] = str(pt)
+    return found
+
+
+def run_contextual_probe(ckpt_path: str | None = None):
     """Runs the targeted contextual probe benchmark."""
     print("=" * 90)
     print("CONTEXTUAL MASK PROBE BENCHMARK: TOP-1, TOP-5 & RANK ACCURACY")
     print("=" * 90 + "\n")
 
-    for label, ckpt_path in CHECKPOINTS.items():
-        if not Path(ckpt_path).exists():
+    checkpoints = get_checkpoints(ckpt_path)
+    if not checkpoints:
+        print("No model checkpoints found to evaluate! Specify --checkpoint or place .pt files in checkpoints/")
+        return
+
+    for label, ckpt_file in checkpoints.items():
+        if not Path(ckpt_file).exists():
             continue
 
         print(f"\n==========================================================================================")
@@ -82,7 +107,7 @@ def run_contextual_probe():
         print(f"==========================================================================================\n")
 
         try:
-            model_wrapper = TelosModel.from_pretrained(ckpt_path)
+            model_wrapper = TelosModel.from_pretrained(ckpt_file)
             tokenizer = model_wrapper.tokenizer
             model = model_wrapper.model
             device = model_wrapper.device
@@ -136,4 +161,9 @@ def run_contextual_probe():
 
 
 if __name__ == "__main__":
-    run_contextual_probe()
+    import argparse
+    parser = argparse.ArgumentParser(description="Contextual Mask Probe Benchmark")
+    parser.add_argument("--checkpoint", "--ckpt-dir", type=str, default=None, help="Path to checkpoint file (.pt) or directory")
+    args = parser.parse_args()
+
+    run_contextual_probe(args.checkpoint)

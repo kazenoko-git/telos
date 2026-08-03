@@ -65,6 +65,60 @@ def classify_token(tok_str: str) -> str:
     return "Punctuation"
 
 
+def get_checkpoints(cli_path: str | None = None) -> dict[str, str]:
+    """Dynamically resolves checkpoints from CLI path or searches checkpoints directory recursively."""
+    if cli_path:
+        p = Path(cli_path)
+        if p.is_file():
+            return {p.stem: str(p)}
+        elif p.is_dir():
+            found = {pt.stem: str(pt) for pt in sorted(p.rglob("*.pt"))}
+            if found:
+                return found
+
+    # Fallback to recursive discovery in checkpoints/
+    found = {}
+    ck_root = Path("checkpoints")
+    if ck_root.exists():
+        for pt in sorted(ck_root.rglob("*.pt")):
+            found[pt.stem] = str(pt)
+    return found
+
+
+def run_ce_evaluation(ckpt_path: str | None = None):
+    """Runs cross-entropy evaluation broken down by token category."""
+    print("=" * 80)
+    print("CROSS-ENTROPY LOSS BY TOKEN CATEGORY EVALUATION")
+    print("=" * 80 + "\n")
+
+    checkpoints = get_checkpoints(ckpt_path)
+    if not checkpoints:
+        print("No model checkpoints found to evaluate! Specify --checkpoint or place .pt files in checkpoints/")
+        return
+
+    for label, ckpt_file in checkpoints.items():
+        if not Path(ckpt_file).exists():
+            continue
+
+        print(f"\n==========================================================================================")
+        print(f"EVALUATING MODEL: {label}")
+        print(f"==========================================================================================\n")
+
+        try:
+            model_wrapper = TelosModel.from_pretrained(ckpt_file)
+            metrics = evaluate_ce_by_category(model_wrapper, TEST_CODE_SNIPPETS)
+
+            print(f"{'Category':<15} | {'Count':<8} | {'Avg CE Loss':<12}")
+            print("-" * 45)
+            for cat, data in metrics.items():
+                print(f"{cat:<15} | {data['count']:<8} | {data['loss']:<12.4f}")
+
+        except Exception as e:
+            print(f"Error evaluating {label}: {e}")
+
+    print("\n" + "=" * 80 + "\n")
+
+
 def evaluate_ce_by_category():
     """Measures cross-entropy loss by token category for all models."""
     print("=" * 90)
