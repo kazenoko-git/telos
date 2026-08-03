@@ -142,9 +142,16 @@ def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, d
             )
             unweighted_ce = loss_metrics.get("ce_loss", loss.item()) if isinstance(loss_metrics, dict) else loss_metrics
 
-            loss = loss / grad_accum
-            loss.backward()
-            accum_loss += loss.item() * grad_accum
+            loss_scaled = loss / grad_accum
+            loss_scaled.backward()
+
+            accum_loss += loss.detach()
+
+            try:
+                import torch_xla.core.xla_model as xm
+                xm.mark_step()
+            except ImportError:
+                pass
 
         torch.nn.utils.clip_grad_norm_(model.parameters(), global_cfg.get("grad_clip", 1.0))
         optimizer.step()

@@ -155,6 +155,12 @@ def train_tpu_model(model_name: str, model_cfg: dict, global_cfg: dict, dataset:
 
             accum_loss += loss.detach()
 
+            try:
+                import torch_xla.core.xla_model as xm
+                xm.mark_step()
+            except ImportError:
+                pass
+
         try:
             import torch_xla.core.xla_model as xm
             xm.optimizer_step(optimizer)
