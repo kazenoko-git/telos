@@ -19,6 +19,8 @@ models:
     d_model: 768
     n_layers: 12
     n_heads: 16
+    batch_size: 32
+    gradient_accumulation: 32  # 32×32 = 1024 effective
     tokens: 125000000        # 125M tokens (1:1 Ratio)
     max_steps: 238
     warmup_steps: 25
@@ -28,6 +30,8 @@ models:
     d_model: 1024
     n_layers: 16
     n_heads: 16
+    batch_size: 16
+    gradient_accumulation: 64  # 16×64 = 1024 effective
     tokens: 250000000        # 250M tokens (1:1 Ratio)
     max_steps: 476
     warmup_steps: 50
@@ -37,6 +41,8 @@ models:
     d_model: 1280
     n_layers: 24
     n_heads: 16
+    batch_size: 8
+    gradient_accumulation: 128 # 8×128 = 1024 effective
     tokens: 500000000        # 500M tokens (1:1 Ratio)
     max_steps: 953
     warmup_steps: 100

@@ -102,8 +102,9 @@ def train_tpu_model(model_name: str, model_cfg: dict, global_cfg: dict, dataset:
     )
 
     # 3. DataLoader (shuffle=False for zero-copy memmap sequential disk streaming)
-    batch_size = int(global_cfg["batch_size"])
-    grad_accum = int(global_cfg["gradient_accumulation"])
+    # Per-model batch sizing to fit TPU VRAM (larger models need smaller microbatches)
+    batch_size = int(model_cfg.get("batch_size", global_cfg["batch_size"]))
+    grad_accum = int(model_cfg.get("gradient_accumulation", global_cfg["gradient_accumulation"]))
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=batch_size,
