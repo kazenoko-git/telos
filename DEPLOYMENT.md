@@ -95,14 +95,16 @@ print(code)
 
 ---
 
-## 6. Local Pre-Tokenization for TPU & Kaggle Runs
+## 6. Local Data Preparation & Tokenizer Training
 
-Pre-tokenizes Python code directly into compact `uint16` binary datasets locally before uploading or launching TPU runs:
+Uses the master dataset script (`scripts/prepare_full_ratio_dataset.py`) to stream raw Python code from HuggingFace, train the 8,192 BPE tokenizer (`configs/tokenizer_mac.json`), and tokenize into binary memmapped dataset files (`data/python_corpus_1.7b.bin`):
 
 ```bash
-# Pre-tokenize 500M tokens for TPU 1:1 scaling suite (data/train.bin = 1.0 GB)
-# and 2.0B tokens for Kaggle 50M ratio suite (data/train_2b.bin = 4.0 GB)
-uv run python scripts/prepare_tpu_data.py --tpu-tokens 500000000 --kaggle-tokens 2000000000
+# 1. Prepare 500M tokens for TPU 1:1 scaling suite (125M, 250M, 500M models)
+uv run python scripts/prepare_full_ratio_dataset.py --tokens 500000000
+
+# 2. Prepare 2.0B tokens for Kaggle 50M ratio study (1:1 to 1:40 ratios)
+uv run python scripts/prepare_full_ratio_dataset.py --tokens 2000000000
 ```
 
 ---
