@@ -216,4 +216,9 @@ def evaluate_ce_by_category():
 
 
 if __name__ == "__main__":
-    evaluate_ce_by_category()
+    import argparse
+    parser = argparse.ArgumentParser(description="Cross-Entropy Loss by Token Category Evaluation")
+    parser.add_argument("--checkpoint", "--ckpt-dir", type=str, default=None, help="Path to checkpoint file (.pt) or directory")
+    args = parser.parse_args()
+
+    run_ce_evaluation(args.checkpoint)
