@@ -21,7 +21,7 @@ from telos.model.transformer import TelosTransformer, TelosConfig
 from tokenizers import Tokenizer
 from telos.diffusion.forward_process import apply_masking
 from telos.diffusion.loss import mdlm_loss
-from telos.training.lr_schedule import get_cosine_schedule_with_warmup
+from telos.training.lr_schedule import WarmupCosineLR
 
 
 class MemmapBinaryDataset(torch.utils.data.Dataset):
@@ -48,7 +48,7 @@ class MemmapBinaryDataset(torch.utils.data.Dataset):
         return {"input_ids": torch.from_numpy(chunk)}
 
 
-def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, dataset: TelosDataset, tokenizer: TelosTokenizer):
+def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, dataset: MemmapBinaryDataset, tokenizer: Tokenizer):
     """Trains a single ratio checkpoint with dedicated Cosine LR decay."""
     print(f"\n" + "=" * 80)
     print(f"STARTING 50M MODEL RATIO RUN: {ratio_name} ({ratio_cfg['tokens']:,} tokens)")
@@ -80,14 +80,12 @@ def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, d
     max_steps = ratio_cfg["max_steps"]
     warmup_steps = ratio_cfg["warmup_steps"]
     min_lr = global_cfg.get("min_lr", 4e-5)
-    max_lr = global_cfg["max_lr"]
 
-    scheduler = get_cosine_schedule_with_warmup(
+    scheduler = WarmupCosineLR(
         optimizer,
-        num_warmup_steps=warmup_steps,
-        num_training_steps=max_steps,
-        min_lr=min_lr,
-        max_lr=max_lr
+        warmup_steps=warmup_steps,
+        max_steps=max_steps,
+        min_lr=min_lr
     )
 
     # 3. DataLoader

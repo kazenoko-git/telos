@@ -22,7 +22,7 @@ from telos.model.transformer import TelosTransformer, TelosConfig
 from tokenizers import Tokenizer
 from telos.diffusion.forward_process import apply_masking
 from telos.diffusion.loss import mdlm_loss
-from telos.training.lr_schedule import get_cosine_schedule_with_warmup
+from telos.training.lr_schedule import WarmupCosineLR
 
 
 class MemmapBinaryDataset(torch.utils.data.Dataset):
@@ -49,7 +49,7 @@ class MemmapBinaryDataset(torch.utils.data.Dataset):
         return {"input_ids": torch.from_numpy(chunk)}
 
 
-def train_tpu_model(model_name: str, model_cfg: dict, global_cfg: dict, dataset: TelosDataset, tokenizer: TelosTokenizer):
+def train_tpu_model(model_name: str, model_cfg: dict, global_cfg: dict, dataset: MemmapBinaryDataset, tokenizer: Tokenizer):
     """Trains a single model size on TPU v6e-1 at effective batch size 1024."""
     print(f"\n" + "=" * 80)
     print(f"STARTING TPU v6e-1 TRAINING: {model_name} MODEL (1:1 RATIO)")
@@ -89,12 +89,11 @@ def train_tpu_model(model_name: str, model_cfg: dict, global_cfg: dict, dataset:
     max_steps = model_cfg["max_steps"]
     warmup_steps = model_cfg["warmup_steps"]
 
-    scheduler = get_cosine_schedule_with_warmup(
+    scheduler = WarmupCosineLR(
         optimizer,
-        num_warmup_steps=warmup_steps,
-        num_training_steps=max_steps,
-        min_lr=global_cfg["min_lr"],
-        max_lr=global_cfg["max_lr"]
+        warmup_steps=warmup_steps,
+        max_steps=max_steps,
+        min_lr=global_cfg["min_lr"]
     )
 
     # 3. DataLoader
