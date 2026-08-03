@@ -133,13 +133,23 @@ def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, d
                 special_token_ids=(0, 2, 3)
             )
 
-            logits = model(masked_ids)
-            loss, loss_metrics = mdlm_loss(
-                logits=logits,
-                targets=input_ids,
-                mask_positions=mask_positions,
-                t_values=t_values
-            )
+            if device.type == "cuda":
+                with torch.cuda.amp.autocast(dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16):
+                    logits = model(masked_ids)
+                    loss, loss_metrics = mdlm_loss(
+                        logits=logits,
+                        targets=input_ids,
+                        mask_positions=mask_positions,
+                        t_values=t_values
+                    )
+            else:
+                logits = model(masked_ids)
+                loss, loss_metrics = mdlm_loss(
+                    logits=logits,
+                    targets=input_ids,
+                    mask_positions=mask_positions,
+                    t_values=t_values
+                )
             unweighted_ce = loss_metrics.get("ce_loss", loss.item()) if isinstance(loss_metrics, dict) else loss_metrics
 
             loss_scaled = loss / grad_accum
