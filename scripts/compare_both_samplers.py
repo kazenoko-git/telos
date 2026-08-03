@@ -17,21 +17,25 @@ CHECKPOINTS = {
 }
 
 TEST_PROMPTS = [
+    "def fibonacci(n: int) -> int:\n",
     "import math\n\ndef calculate_std_dev(data):\n    mean = sum(data) / len(data)\n",
     "def is_prime(n: int) -> bool:\n",
+    "class Node:\n    def __init__(self, val=0, next=None):\n        self.val = val\n        self.next = next\n\ndef reverse_list(head):\n",
+    "def count_frequency(items):\n    counts = {}\n",
+    "def merge_sort(arr):\n    if len(arr) <= 1:\n        return arr\n"
 ]
 
 
 def compare_samplers():
-    """Runs comparative benchmark of Sampler A vs Sampler B."""
-    print("=" * 80)
-    print("SAMPLER COMPARISON: MARGIN MONOTONIC (A) VS NON-MONOTONIC RE-MASKING (B)")
-    print("=" * 80 + "\n")
+    """Runs comprehensive comparative benchmark of Sampler A vs Sampler B with full untruncated output."""
+    print("=" * 90)
+    print("FULL SAMPLER COMPARISON REPORT: MARGIN MONOTONIC (A) VS NON-MONOTONIC RE-MASKING (B)")
+    print("=" * 90 + "\n")
 
-    for prompt in TEST_PROMPTS:
-        print(f"\n================================================================================")
-        print(f"EVALUATING PROMPT:\n{prompt!r}")
-        print(f"================================================================================\n")
+    for p_idx, prompt in enumerate(TEST_PROMPTS, 1):
+        print(f"\n==========================================================================================")
+        print(f"PROMPT #{p_idx}:\n{prompt}")
+        print(f"==========================================================================================\n")
 
         for label, ckpt_path in CHECKPOINTS.items():
             if not Path(ckpt_path).exists():
@@ -40,7 +44,7 @@ def compare_samplers():
             try:
                 model_wrapper = TelosModel.from_pretrained(ckpt_path)
 
-                # Sampler A: Probability Margin Monotonic Sampler
+                # Sampler A: Probability Margin Monotonic Sampler (temp=0.0, rep_penalty=1.0)
                 out_a = model_wrapper.complete(
                     prompt=prompt,
                     max_tokens=64,
@@ -50,7 +54,7 @@ def compare_samplers():
                     schedule="cosine"
                 )
 
-                # Sampler B: Non-Monotonic Re-Masking Sampler
+                # Sampler B: Non-Monotonic Re-Masking Sampler (temp=0.0, rep_penalty=1.0)
                 out_b = model_wrapper.complete_non_monotonic(
                     prompt=prompt,
                     max_tokens=64,
@@ -61,12 +65,12 @@ def compare_samplers():
                     remask_threshold=0.15
                 )
 
-                print(f"--- {label} ---")
-                print("SAMPLER A (Probability Margin Monotonic):")
-                print(repr(out_a))
-                print("\nSAMPLER B (Non-Monotonic Dynamic Re-Masking):")
-                print(repr(out_b))
-                print("-" * 65 + "\n")
+                print(f"┌─────────────────────────────────────────────────────────────────────────┐")
+                print(f"│ MODEL CHECKPOINT: {label:<53} │")
+                print(f"└─────────────────────────────────────────────────────────────────────────┘")
+                print(f"[SAMPLER A - Margin Monotonic Full Output]:\n{out_a}\n")
+                print(f"[SAMPLER B - Non-Monotonic Re-Masking Full Output]:\n{out_b}\n")
+                print("-" * 90 + "\n")
 
             except Exception as e:
                 print(f"Error evaluating {label}: {e}\n")
