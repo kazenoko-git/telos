@@ -172,7 +172,7 @@ def train_tpu_model(model_name: str, model_cfg: dict, global_cfg: dict, dataset:
             elapsed = time.time() - start_time
             steps_per_sec = step / max(1.0, elapsed)
             tok_per_sec = steps_per_sec * batch_size * grad_accum * global_cfg["seq_len"]
-            print(f"{model_name:<5} | Step {step:>4}/{max_steps} | Loss: {loss_val:.4f} | LR: {current_lr:.6f} | Tok/s: {tok_per_sec:,.0f}")
+            print(f"{model_name:<5} | Step {step:>4}/{max_steps} | Loss: {loss_val:.4f} | LR: {current_lr:.6f} | Tok/s: {tok_per_sec:,.0f}", flush=True)
 
     # Save final model checkpoint
     ckpt_path = ckpt_dir / f"checkpoint_tpu_{model_name}_final_step_{step}.pt"

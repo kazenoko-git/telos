@@ -156,7 +156,7 @@ def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, d
             elapsed = time.time() - start_time
             steps_per_sec = step / max(1.0, elapsed)
             tok_per_sec = steps_per_sec * batch_size * grad_accum * global_cfg["seq_len"]
-            print(f"Ratio {ratio_name:<5} | Step {step:>5}/{max_steps} | Loss: {accum_loss:.4f} | Unweighted CE: {unweighted_ce:.4f} | LR: {current_lr:.6f} | Tok/s: {tok_per_sec:,.0f}")
+            print(f"Ratio {ratio_name:<5} | Step {step:>5}/{max_steps} | Loss: {accum_loss:.4f} | Unweighted CE: {unweighted_ce:.4f} | LR: {current_lr:.6f} | Tok/s: {tok_per_sec:,.0f}", flush=True)
 
     # Save final fully-decayed ratio checkpoint
     ckpt_path = ckpt_dir / f"checkpoint_50m_ratio_{ratio_name.replace(':', '_')}_step_{step}.pt"
