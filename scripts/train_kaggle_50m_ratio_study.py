@@ -55,7 +55,14 @@ def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, d
     print(f"Target Steps: {ratio_cfg['max_steps']} | Effective Batch Size: {global_cfg['batch_size'] * global_cfg['gradient_accumulation']}")
     print("=" * 80 + "\n")
 
-    device = torch.device(global_cfg.get("device", "cuda" if torch.cuda.is_available() else "cpu"))
+    # Auto-detect TPU XLA or fallback to CUDA/CPU
+    try:
+        import torch_xla.core.xla_model as xm
+        device = xm.xla_device()
+        print(">> Using TPU XLA Device")
+    except ImportError:
+        device = torch.device(global_cfg.get("device", "cuda" if torch.cuda.is_available() else "cpu"))
+        print(f">> Using {device}")
 
     # 1. Model Configuration
     model_config = TelosConfig(
@@ -133,6 +140,13 @@ def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, d
                 special_token_ids=(0, 2, 3)
             )
 
+            # XLA graph break: materialize masking tensors before model forward pass
+            try:
+                import torch_xla.core.xla_model as xm
+                xm.mark_step()
+            except ImportError:
+                pass
+
             if device.type == "cuda":
                 with torch.cuda.amp.autocast(dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16):
                     logits = model(masked_ids)
@@ -163,8 +177,14 @@ def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, d
             except ImportError:
                 pass
 
-        torch.nn.utils.clip_grad_norm_(model.parameters(), global_cfg.get("grad_clip", 1.0))
-        optimizer.step()
+        # TPU or GPU optimizer step
+        try:
+            import torch_xla.core.xla_model as xm
+            xm.optimizer_step(optimizer)
+            xm.mark_step()
+        except ImportError:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), global_cfg.get("grad_clip", 1.0))
+            optimizer.step()
         scheduler.step()
         step += 1
 
