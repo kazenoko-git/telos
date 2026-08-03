@@ -95,7 +95,19 @@ print(code)
 
 ---
 
-## 6. Kaggle 50M Parameter Overtraining Ratio Study (1:1 -> 1:40 Ratios)
+## 6. Local Pre-Tokenization for TPU & Kaggle Runs
+
+Pre-tokenizes Python code directly into compact `uint16` binary datasets locally before uploading or launching TPU runs:
+
+```bash
+# Pre-tokenize 500M tokens for TPU 1:1 scaling suite (data/train.bin = 1.0 GB)
+# and 2.0B tokens for Kaggle 50M ratio suite (data/train_2b.bin = 4.0 GB)
+uv run python scripts/prepare_tpu_data.py --tpu-tokens 500000000 --kaggle-tokens 2000000000
+```
+
+---
+
+## 7. Kaggle 50M Parameter Overtraining Ratio Study (1:1 -> 1:40 Ratios)
 
 Executes sequential training across 5 overtraining ratios ($1:1$, $1:10$, $1:20$, $1:30$, $1:40$) with independent per-run Cosine LR decays:
 
