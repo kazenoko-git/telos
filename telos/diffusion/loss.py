@@ -25,20 +25,16 @@ def mdlm_loss(
 
     # mask-only head loss optimization: compute cross entropy ONLY on masked tokens
     # saves 60-70% SRAM memory bandwidth & FLOPs while preserving 100% exact math match
-    flat_mask = mask_positions.view(-1)
-    flat_logits = logits.view(-1, vocab_size)
-    flat_targets = targets.view(-1)
+    # compute 3D cross-entropy loss directly [batch_size, vocab_size, seq_len] for native XLA TPU lowering
+    ce_loss_per_token = F.cross_entropy(
+        logits.transpose(1, 2),
+        targets,
+        reduction="none",
+        label_smoothing=label_smoothing
+    )
 
     # per-example masked token counts
     masked_count_per_example = mask_positions.sum(dim=1).float().clamp(min=1.0)
-
-    # compute CE loss per token (reduction='none')
-    ce_loss_per_token = F.cross_entropy(
-        flat_logits,
-        flat_targets,
-        reduction="none",
-        label_smoothing=label_smoothing
-    ).view(batch_size, seq_len)
 
     # zero out unmasked positions
     masked_ce_loss = ce_loss_per_token * mask_positions.float()
