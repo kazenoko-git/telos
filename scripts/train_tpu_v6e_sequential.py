@@ -189,6 +189,18 @@ def train_tpu_model(model_name: str, model_cfg: dict, global_cfg: dict, dataset:
             tok_per_sec = steps_per_sec * batch_size * grad_accum * global_cfg["seq_len"]
             print(f"{model_name:<5} | Step {step:>4}/{max_steps} | Loss: {loss_val:.4f} | LR: {current_lr:.6f} | Tok/s: {tok_per_sec:,.0f}", flush=True)
 
+        # Save periodic checkpoint every 50 steps
+        if step % 50 == 0:
+            interim_ckpt = ckpt_dir / f"checkpoint_tpu_{model_name}_step_{step}.pt"
+            torch.save({
+                "step": step,
+                "model_name": model_name,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "config": config,
+                "loss": accum_loss.item() / grad_accum,
+            }, interim_ckpt)
+
     # Save final model checkpoint
     ckpt_path = ckpt_dir / f"checkpoint_tpu_{model_name}_final_step_{step}.pt"
     torch.save({
