@@ -13,7 +13,7 @@ import numpy as np
 from tqdm import tqdm
 from datasets import load_dataset
 
-from telos.data.tokenizer import TelosTokenizer
+from tokenizers import Tokenizer
 
 
 def pretokenize_corpus_to_bin(
@@ -27,7 +27,7 @@ def pretokenize_corpus_to_bin(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     print(f"Pre-tokenizing {target_tokens:,} tokens into '{output_bin_path}'...")
-    tokenizer = TelosTokenizer(tokenizer_path)
+    tokenizer = Tokenizer.from_file(tokenizer_path)
 
     token_buffer = []
     total_written = 0
@@ -42,7 +42,7 @@ def pretokenize_corpus_to_bin(
             if not code or len(code) < 30:
                 continue
 
-            token_ids = tokenizer.encode(code)
+            token_ids = tokenizer.encode(code).ids
             token_buffer.extend(token_ids)
             pbar.update(len(token_ids))
 
