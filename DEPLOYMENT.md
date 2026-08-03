@@ -93,11 +93,37 @@ code = model.complete(
 print(code)
 ```
 
-### Step 3: Interactive Web Demo & Ratio Comparison App
+---
 
-#### Standalone Single-Model UI
+## 6. Kaggle 50M Parameter Overtraining Ratio Study (1:1 -> 1:40 Ratios)
+
+Executes sequential training across 5 overtraining ratios ($1:1$, $1:10$, $1:20$, $1:30$, $1:40$) with independent per-run Cosine LR decays:
+
 ```bash
-uv run python telos/hub/gradio_app.py
+# Execute 50M Ratio Study on Kaggle (2x T4 or TPU v5e)
+uv run python scripts/train_kaggle_50m_ratio_study.py configs/phase_b_50m_ratio_study.yaml
+```
+
+---
+
+## 7. TPU v6e-1 High-Density Sequential Scaling (125M / 250M / 500M @ Eff Batch 1024)
+
+Executes sequential 1:1 scaling across 3 model sizes at effective batch size 1024 (524,288 tokens/step):
+
+```bash
+# Execute 125M -> 250M -> 500M Sequential Training on TPU v6e-1 (~1 Hour Total)
+uv run python scripts/train_tpu_v6e_sequential.py configs/phase_c_tpu_v6e.yaml
+```
+
+---
+
+## 8. Interactive Gradio 5-Way Ratio App Deployment
+
+Deploy the real-time 5-way ratio model comparison app:
+
+```bash
+# Launch interactive Gradio web application
+uv run python telos/hub/gradio_ratio_app.py
 ```
 
 #### 5-Way Simultaneous Model Ratio Study Comparison UI (1:1, 1:3, 1:5, 1:10, 1:17)
