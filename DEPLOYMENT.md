@@ -114,24 +114,32 @@ uv run python scripts/prepare_full_ratio_dataset.py --tokens 2000000000
 Executes sequential training across 5 overtraining ratios ($1:1$, $1:10$, $1:20$, $1:30$, $1:40$) with independent per-run Cosine LR decays:
 
 ```bash
-# Execute 50M Ratio Study on Kaggle (2x T4 or TPU v5e)
-uv run python scripts/train_kaggle_50m_ratio_study.py configs/phase_b_50m_ratio_study.yaml
+# Execute 50M Ratio Study on Kaggle with explicit CLI dataset & tokenizer paths:
+python scripts/train_kaggle_50m_ratio_study.py \
+    --config configs/phase_b_50m_ratio_study.yaml \
+    --data-path data/python_corpus_1.7b.bin \
+    --tokenizer-path configs/tokenizer_mac.json \
+    --checkpoint-dir checkpoints/phase_b_50m_ratio_study
 ```
 
 ---
 
-## 7. TPU v6e-1 High-Density Sequential Scaling (125M / 250M / 500M @ Eff Batch 1024)
+## 8. TPU v6e-1 High-Density Sequential Scaling (125M / 250M / 500M @ Eff Batch 1024)
 
 Executes sequential 1:1 scaling across 3 model sizes at effective batch size 1024 (524,288 tokens/step):
 
 ```bash
-# Execute 125M -> 250M -> 500M Sequential Training on TPU v6e-1 (~1 Hour Total)
-uv run python scripts/train_tpu_v6e_sequential.py configs/phase_c_tpu_v6e.yaml
+# Execute 125M -> 250M -> 500M Sequential Training on TPU v6e-1 (~1 Hour Total):
+python scripts/train_tpu_v6e_sequential.py \
+    --config configs/phase_c_tpu_v6e.yaml \
+    --data-path data/python_corpus_1.7b.bin \
+    --tokenizer-path configs/tokenizer_mac.json \
+    --checkpoint-dir checkpoints/phase_c_tpu
 ```
 
 ---
 
-## 8. Interactive Gradio 5-Way Ratio App Deployment
+## 9. Interactive Gradio 5-Way Ratio App Deployment
 
 Deploy the real-time 5-way ratio model comparison app:
 
