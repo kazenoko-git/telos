@@ -57,7 +57,7 @@ def evaluate_add_b():
             mask_logits[mask_token_id] = -float("inf")
             probs = F.softmax(mask_logits, dim=-1)
 
-            top_probs, top_indices = torch.topk(probs, k=10)
+            top_probs, top_indices = torch.topk(probs, k=15)
 
             target_b_id = tokenizer.encode(" b", add_special_tokens=False).ids[0]
             target_b_prob = probs[target_b_id].item() * 100
