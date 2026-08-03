@@ -14,21 +14,29 @@ LOADED_MODELS = {}
 
 
 def get_available_checkpoints() -> list[str]:
-    """Scans checkpoints directory for available model directories or weights."""
+    """Scans checkpoints directory for all available model checkpoint files and model directories."""
     ckpt_base = Path("checkpoints")
     options = []
     if ckpt_base.exists():
+        # Check files inside subdirectories (e.g. ratio study checkpoints)
+        for pt_file in ckpt_base.rglob("*.pt"):
+            # Exclude intermediate non-ratio steps to keep dropdown clean
+            if "checkpoint_step_" in pt_file.name and "checkpoint_ratio_" not in pt_file.name:
+                continue
+            options.append(str(pt_file))
+
+        for st_file in ckpt_base.rglob("*.safetensors"):
+            parent_dir = st_file.parent
+            if parent_dir != ckpt_base and str(parent_dir) not in options:
+                options.append(str(parent_dir))
+
         for item in ckpt_base.iterdir():
-            if item.is_dir():
-                # Check if dir contains weights
-                if list(item.glob("*.safetensors")) or list(item.glob("*.pt")):
-                    options.append(str(item))
-            elif item.suffix in [".pt", ".safetensors"]:
+            if item.suffix in [".pt", ".safetensors"]:
                 options.append(str(item))
 
     if not options:
         options = ["checkpoints/phase_b_25m_mlx"]
-    return sorted(options)
+    return sorted(list(set(options)))
 
 
 def load_model(checkpoint_path: str) -> TelosModel | None:
