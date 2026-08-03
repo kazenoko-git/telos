@@ -73,9 +73,9 @@ def test_windowed_sampler():
                 print(f"┌─────────────────────────────────────────────────────────────────────────┐")
                 print(f"│ MODEL CHECKPOINT: {label:<53} │")
                 print(f"└─────────────────────────────────────────────────────────────────────────┘")
-                print(f"[SAMPLER A - Global Margin Monotonic]:\n{out_a}\n")
-                print(f"[SAMPLER B - Global Non-Monotonic Re-Masking]:\n{out_b}\n")
-                print(f"[SAMPLER C - Windowed Progressive Localized (W=32)]:\n{out_c}\n")
+                print(f"[SAMPLER A - Global Margin Monotonic]:\n{out_a!r}\n")
+                print(f"[SAMPLER B - Global Non-Monotonic Re-Masking]:\n{out_b!r}\n")
+                print(f"[SAMPLER C - Windowed Progressive Localized (W=32)]:\n{out_c!r}\n")
                 print("-" * 90 + "\n")
 
             except Exception as e:
