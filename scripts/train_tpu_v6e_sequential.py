@@ -142,6 +142,14 @@ def train_tpu_model(model_name: str, model_cfg: dict, global_cfg: dict, dataset:
                 special_token_ids=(0, 2, 3)
             )
 
+            # XLA graph break: materialize masking tensors before model forward pass
+            # prevents windowing_util.cc compiler crash from fused masking+model graph
+            try:
+                import torch_xla.core.xla_model as xm
+                xm.mark_step()
+            except ImportError:
+                pass
+
             logits = model(masked_ids)
             loss, loss_metrics = mdlm_loss(
                 logits=logits,
@@ -188,8 +196,7 @@ def train_tpu_model(model_name: str, model_cfg: dict, global_cfg: dict, dataset:
         "model_state_dict": model.state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
         "config": config,
-        "final_loss": accum_loss,
-        "unweighted_ce": unweighted_ce
+        "final_loss": accum_loss.item() / grad_accum,
     }, ckpt_path)
 
     print(f"\nSuccessfully completed {model_name} model training! Saved: {ckpt_path}\n")
