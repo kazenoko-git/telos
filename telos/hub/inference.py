@@ -210,3 +210,40 @@ class TelosModel:
                 full_text = full_text.split(stop_str)[0]
 
         return full_text.rstrip()
+
+    def complete_windowed(
+        self,
+        prompt: str,
+        max_tokens: int = 128,
+        window_size: int = 32,
+        num_steps_per_window: int = 16,
+        temperature: float = 0.0,
+        remask_threshold: float = 0.15
+    ) -> str:
+        """Completes code using the Progressive Windowed Localized Masked Diffusion Sampler."""
+        from telos.diffusion.windowed_sampler import WindowedMDLMSampler
+
+        encoded = self.tokenizer.encode(prompt)
+        prompt_ids = torch.tensor([encoded.ids], dtype=torch.long, device=self.device)
+
+        sampler = WindowedMDLMSampler(
+            self.model,
+            mask_token_id=1,
+            window_size=window_size,
+            num_steps_per_window=num_steps_per_window,
+            temperature=temperature,
+            remask_threshold=remask_threshold
+        )
+
+        target_tokens = max_tokens - prompt_ids.shape[1]
+        if target_tokens <= 0:
+            return prompt
+
+        sampled_ids = sampler.sample(target_tokens=target_tokens, prompt_ids=prompt_ids, device=self.device)
+        full_text = self.tokenizer.decode(sampled_ids[0].tolist(), skip_special_tokens=True)
+
+        for stop_str in ["[EOS]", "[PAD]", "<|endoftext|>"]:
+            if stop_str in full_text:
+                full_text = full_text.split(stop_str)[0]
+
+        return full_text.rstrip()
