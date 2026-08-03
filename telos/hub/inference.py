@@ -175,3 +175,38 @@ class TelosModel:
                 full_text = full_text.split(stop_str)[0]
 
         return full_text.rstrip()
+
+    def complete_non_monotonic(
+        self,
+        prompt: str,
+        max_tokens: int = 128,
+        num_steps: int = 64,
+        temperature: float = 0.0,
+        repetition_penalty: float = 1.0,
+        schedule: str = "cosine",
+        remask_threshold: float = 0.15
+    ) -> str:
+        """Completes code using the Non-Monotonic Re-Masking Diffusion Sampler."""
+        from telos.diffusion.non_monotonic_sampler import NonMonotonicMDLMSampler
+
+        encoded = self.tokenizer.encode(prompt)
+        prompt_ids = torch.tensor([encoded.ids], dtype=torch.long, device=self.device)
+
+        sampler = NonMonotonicMDLMSampler(
+            self.model,
+            mask_token_id=1,
+            num_steps=num_steps,
+            temperature=temperature,
+            repetition_penalty=repetition_penalty,
+            schedule=schedule,
+            remask_threshold=remask_threshold
+        )
+
+        sampled_ids = sampler.sample(seq_len=max_tokens, prompt_ids=prompt_ids, device=self.device)
+        full_text = self.tokenizer.decode(sampled_ids[0].tolist(), skip_special_tokens=True)
+
+        for stop_str in ["[EOS]", "[PAD]", "<|endoftext|>"]:
+            if stop_str in full_text:
+                full_text = full_text.split(stop_str)[0]
+
+        return full_text.rstrip()
