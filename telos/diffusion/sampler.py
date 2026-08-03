@@ -116,15 +116,17 @@ class MDLMSampler:
 
             B, L, V = probs.shape
 
-            # Confidence score is max probability at each position
-            max_conf, argmax_tokens = torch.max(probs, dim=-1)
+            # Confidence score is Probability Margin (top1_prob - top2_prob) for true calibration
+            top2_probs, top2_indices = torch.topk(probs, k=2, dim=-1)
+            margin_conf = top2_probs[:, :, 0] - top2_probs[:, :, 1]
+            argmax_tokens = top2_indices[:, :, 0]
 
             # Add Gumbel noise to confidence scores for position selection diversity
             if self.temperature > 0.05:
-                gumbel_noise = -torch.log(-torch.log(torch.rand_like(max_conf) + 1e-8) + 1e-8)
-                confidence_scores = max_conf + 0.1 * self.temperature * gumbel_noise
+                gumbel_noise = -torch.log(-torch.log(torch.rand_like(margin_conf) + 1e-8) + 1e-8)
+                confidence_scores = margin_conf + 0.1 * self.temperature * gumbel_noise
             else:
-                confidence_scores = max_conf.clone()
+                confidence_scores = margin_conf.clone()
 
             confidence_scores[~current_mask] = -float("inf")
 
