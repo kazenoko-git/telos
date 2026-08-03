@@ -130,7 +130,7 @@ def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, d
             masked_ids, mask_positions, t_values = apply_masking(
                 input_ids,
                 mask_token_id=mask_token_id,
-                special_token_ids={0, 2, 3}
+                special_token_ids=(0, 2, 3)
             )
 
             logits = model(masked_ids)

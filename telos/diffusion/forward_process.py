@@ -52,10 +52,11 @@ def apply_masking(
     # determine raw mask positions: True where rand < t for that example
     raw_mask = rand_matrix < t_values
 
-    # identify special tokens (PAD, BOS, EOS) that must stay unmasked
+    # identify special tokens (PAD, BOS, EOS) using deterministic ordering for static XLA compilation
     is_special = torch.zeros(batch_size, seq_len, dtype=torch.bool, device=device)
-    for token_id in special_token_ids:
-        is_special = is_special | (input_ids == token_id)
+    if special_token_ids:
+        for token_id in sorted(list(special_token_ids)):
+            is_special = is_special | (input_ids == token_id)
 
     # final mask positions: mask content tokens, exclude special tokens
     mask_positions = raw_mask & (~is_special)
