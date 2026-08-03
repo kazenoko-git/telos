@@ -68,7 +68,7 @@ class RotaryEmbedding(nn.Module):
         # return sliced cosine and sine matrices up to current sequence length
         if seq_len > self.max_seq_len:
             self._build_cache(seq_len)
-        return self.cos_cached[:seq_len], self.sin_cached[:seq_len]
+        return self.cos_cached[:seq_len].to(x.device), self.sin_cached[:seq_len].to(x.device)
 
 # rotates input vector half-way across feature dimension for RoPE using static XLA narrow operator.
 def _rotate_half(x: torch.Tensor) -> torch.Tensor:
