@@ -1,0 +1,41 @@
+# Phase C — High-Density TPU v6e-1 Sequential 1:1 Scaling Suite
+# Effective batch size = 1024 (524,288 tokens/step)
+
+global:
+  vocab_size: 8192
+  seq_len: 512
+  precision: bf16
+  batch_size: 128
+  gradient_accumulation: 8   # Effective batch = 1024 sequences (524,288 tokens/step)
+  max_lr: 3e-4
+  min_lr: 3e-5
+  weight_decay: 0.1
+  grad_clip: 1.0
+
+models:
+  "125M":
+    d_model: 768
+    n_layers: 12
+    n_heads: 12
+    tokens: 125000000        # 125M tokens (1:1 Ratio)
+    max_steps: 238
+    warmup_steps: 25
+    checkpoint_dir: checkpoints/phase_c_tpu_125m
+
+  "250M":
+    d_model: 1024
+    n_layers: 16
+    n_heads: 16
+    tokens: 250000000        # 250M tokens (1:1 Ratio)
+    max_steps: 476
+    warmup_steps: 50
+    checkpoint_dir: checkpoints/phase_c_tpu_250m
+
+  "500M":
+    d_model: 1280
+    n_layers: 24
+    n_heads: 20
+    tokens: 500000000        # 500M tokens (1:1 Ratio)
+    max_steps: 953
+    warmup_steps: 100
+    checkpoint_dir: checkpoints/phase_c_tpu_500m
