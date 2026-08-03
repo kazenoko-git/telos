@@ -99,7 +99,7 @@ def build_app(default_checkpoint: str = "checkpoints/phase_b_25m_mlx"):
                     lines=6
                 )
                 max_tokens_slider = gr.Slider(
-                    minimum=32, maximum=512, value=128, step=32,
+                    minimum=8, maximum=512, value=64, step=8,
                     label="Max Target Tokens"
                 )
                 num_steps_slider = gr.Slider(
