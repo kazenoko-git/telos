@@ -10,6 +10,7 @@ includes:
 
 # imports
 
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -161,13 +162,13 @@ class BidirectionalAttention(nn.Module):
             k = k.repeat_interleave(self.num_queries_per_kv, dim=1)
             v = v.repeat_interleave(self.num_queries_per_kv, dim=1)
 
-        # Compute scaled dot-product attention WITHOUT causal mask
-        out = F.scaled_dot_product_attention(
-            q, k, v,
-            attn_mask=None,
-            dropout_p=self.dropout if self.training else 0.0,
-            is_causal=False  # Full bidirectional attention for MDLM
-        )
+        # Compute scaled dot-product attention using native bmm (XLA MXU friendly)
+        scale = 1.0 / math.sqrt(self.head_dim)
+        scores = torch.matmul(q, k.transpose(-2, -1)) * scale
+        attn_probs = F.softmax(scores, dim=-1)
+        if self.dropout > 0.0 and self.training:
+            attn_probs = F.dropout(attn_probs, p=self.dropout)
+        out = torch.matmul(attn_probs, v)
 
         # Reshape back to [batch, seq_len, d_model] and apply output projection
         out = out.permute(0, 2, 1, 3).contiguous().view(batch, seq_len, self.d_model)
