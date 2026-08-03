@@ -111,8 +111,8 @@ def build_app(default_checkpoint: str = "checkpoints/phase_b_25m_mlx"):
                     label="Sampling Temperature (Lower = Deterministic Code)"
                 )
                 rep_penalty_slider = gr.Slider(
-                    minimum=1.0, maximum=2.0, value=1.2, step=0.05,
-                    label="Repetition Penalty (Prevents Token Loops)"
+                    minimum=1.0, maximum=2.0, value=1.0, step=0.05,
+                    label="Repetition Penalty (1.0 = Off)"
                 )
                 submit_btn = gr.Button("Generate Code Completion", variant="primary")
 
