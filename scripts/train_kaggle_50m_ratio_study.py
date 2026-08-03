@@ -17,7 +17,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from telos.model.transformer import TelosTransformer, TelosConfig
-from telos.data.tokenizer import TelosTokenizer
+from tokenizers import Tokenizer
 from telos.data.dataset import TelosDataset
 from telos.diffusion.forward_process import apply_masking
 from telos.diffusion.loss import mdlm_loss
@@ -158,9 +158,13 @@ def run_ratio_study(config_path: str = "configs/phase_b_50m_ratio_study.yaml"):
     train_cfg["checkpoint_dir"] = config["checkpoint"]["dir"]
 
     # Load tokenizer & dataset
-    tokenizer = TelosTokenizer("configs/tokenizer_mac.json")
+    from tokenizers import Tokenizer
+    tokenizer_path = "configs/tokenizer_mac.json" if Path("configs/tokenizer_mac.json").exists() else "configs/tokenizer.json"
+    tokenizer = Tokenizer.from_file(tokenizer_path)
+
+    data_path = "data/python_corpus_1.7b.bin" if Path("data/python_corpus_1.7b.bin").exists() else "data/train.bin"
     dataset = TelosDataset(
-        data_path="data/train.bin",
+        data_path=data_path,
         seq_len=model_cfg["seq_len"]
     )
 

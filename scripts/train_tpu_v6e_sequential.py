@@ -18,7 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from telos.model.transformer import TelosTransformer, TelosConfig
-from telos.data.tokenizer import TelosTokenizer
+from tokenizers import Tokenizer
 from telos.data.dataset import TelosDataset
 from telos.diffusion.forward_process import apply_masking
 from telos.diffusion.loss import mdlm_loss
@@ -168,9 +168,13 @@ def run_sequential_tpu_scaling(config_path: str = "configs/phase_c_tpu_v6e.yaml"
     global_cfg = config["global"]
     models = config["models"]
 
-    tokenizer = TelosTokenizer("configs/tokenizer_mac.json")
+    from tokenizers import Tokenizer
+    tokenizer_path = "configs/tokenizer_mac.json" if Path("configs/tokenizer_mac.json").exists() else "configs/tokenizer.json"
+    tokenizer = Tokenizer.from_file(tokenizer_path)
+
+    data_path = "data/python_corpus_1.7b.bin" if Path("data/python_corpus_1.7b.bin").exists() else "data/train.bin"
     dataset = TelosDataset(
-        data_path="data/train.bin",
+        data_path=data_path,
         seq_len=global_cfg["seq_len"]
     )
 
