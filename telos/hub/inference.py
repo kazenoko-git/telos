@@ -55,21 +55,25 @@ class TelosModel:
                 from safetensors.torch import load_file
                 state_dict = load_file(str(weights_file))
             except Exception:
-                state_dict = torch.load(str(weights_file), map_location="cpu")
+                state_dict = torch.load(str(weights_file), map_location="cpu", weights_only=False)
         else:
-            state_dict = torch.load(str(weights_file), map_location="cpu")
+            state_dict = torch.load(str(weights_file), map_location="cpu", weights_only=False)
 
         if isinstance(state_dict, dict) and "model_state_dict" in state_dict:
             embedded_cfg = state_dict.get("config")
             state_dict = state_dict["model_state_dict"]
 
         # 2. Locate / parse Config
-        if (model_path / "config.json").exists():
+        if isinstance(embedded_cfg, TelosConfig):
+            config = embedded_cfg
+        elif (model_path / "config.json").exists():
             with open(model_path / "config.json", "r") as f:
                 cfg_dict = json.load(f)
             config = TelosConfig(**cfg_dict)
-        elif embedded_cfg and "model" in embedded_cfg:
+        elif embedded_cfg and isinstance(embedded_cfg, dict) and "model" in embedded_cfg:
             config = TelosConfig(**embedded_cfg["model"])
+        elif embedded_cfg and isinstance(embedded_cfg, dict):
+            config = TelosConfig(**embedded_cfg)
         elif Path("configs/phase_b_25m_mlx.yaml").exists():
             import yaml
             with open("configs/phase_b_25m_mlx.yaml", "r") as f:
