@@ -70,10 +70,11 @@ class RotaryEmbedding(nn.Module):
             self._build_cache(seq_len)
         return self.cos_cached[:seq_len], self.sin_cached[:seq_len]
 
-# rotates input vector half-way across feature dimension for RoPE.
+# rotates input vector half-way across feature dimension for RoPE using static XLA narrow operator.
 def _rotate_half(x: torch.Tensor) -> torch.Tensor:
-    x1 = x[..., : x.shape[-1] // 2]
-    x2 = x[..., x.shape[-1] // 2:]
+    d = x.shape[-1] // 2
+    x1 = x.narrow(-1, 0, d)
+    x2 = x.narrow(-1, d, d)
     return torch.cat((-x2, x1), dim=-1)
 
 
