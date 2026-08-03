@@ -59,21 +59,21 @@ def evaluate_add_b():
 
             top_probs, top_indices = torch.topk(probs, k=10)
 
+            target_b_id = tokenizer.encode(" b", add_special_tokens=False).ids[0]
+            target_b_prob = probs[target_b_id].item() * 100
+
             print(f"--- {label} ---")
+            print(f"Target token ' b' (ID {target_b_id}) Prob: {target_b_prob:.4f}%\n")
             print(f"{'Rank':<6} | {'Token ID':<9} | {'Prob (%)':<10} | {'Decoded Token String':<25}")
             print("-" * 60)
 
-            target_b_prob = 0.0
-            for rank in range(10):
+            for rank in range(15):
                 tok_id = top_indices[rank].item()
                 prob_pct = top_probs[rank].item() * 100
                 tok_str = tokenizer.decode([tok_id])
-                if tok_str.strip() == "b":
-                    target_b_prob = prob_pct
-
                 print(f"#{rank+1:<5} | {tok_id:<9} | {prob_pct:>8.2f}%  | {repr(tok_str):<25}")
 
-            print(f"\n>> Probability for target token 'b': {target_b_prob:.2f}%\n")
+            print("\n")
 
         except Exception as e:
             print(f"Error evaluating {label}: {e}\n")
