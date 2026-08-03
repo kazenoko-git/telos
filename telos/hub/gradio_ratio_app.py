@@ -130,9 +130,9 @@ def build_ratio_comparison_app():
         with gr.Row():
             with gr.Column(scale=1):
                 prompt_input = gr.Code(
-                    value="def is_prime(n: int) -> bool:\n    \"\"\"Check if an integer is a prime number.\"\"\"\n",
+                    value="import math\n\ndef calculate_std_dev(data):\n    mean = sum(data) / len(data)\n",
                     language="python",
-                    label="Input Code Prompt (Function Signature + Docstring)",
+                    label="Input Pure Python Code Prompt (Structural Syntax)",
                     lines=6
                 )
                 with gr.Row():
