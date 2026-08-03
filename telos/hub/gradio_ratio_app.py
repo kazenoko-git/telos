@@ -108,7 +108,7 @@ def build_ratio_comparison_app():
     .ratio-card { border: 1px solid #333; border-radius: 8px; padding: 10px; background-color: #1a1a24; }
     """
 
-    with gr.Blocks(title="τέλος — 85M Ratio Study Comparison", css=custom_css) as demo:
+    with gr.Blocks(title="τέλος — 85M Ratio Study Comparison") as demo:
         gr.Markdown(
             """
             # 🧬 télos (τέλος) — 85M Model Ratio Study Comparison
