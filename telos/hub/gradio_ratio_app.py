@@ -38,6 +38,26 @@ def load_all_models() -> dict[str, TelosModel]:
     return LOADED_MODELS
 
 
+def load_model_cached(label: str, path_str: str) -> TelosModel | None:
+    """Loads and caches a model checkpoint into memory safely."""
+    if label in LOADED_MODELS:
+        return LOADED_MODELS[label]
+
+    ckpt_path = Path(path_str)
+    if not ckpt_path.exists():
+        print(f"Warning: Checkpoint file for {label} not found at {path_str}")
+        return None
+
+    try:
+        print(f"Loading ratio model: {label} ({path_str})...")
+        model = TelosModel.from_pretrained(ckpt_path)
+        LOADED_MODELS[label] = model
+        return model
+    except Exception as e:
+        print(f"Error loading {label} from {path_str}: {e}")
+        return None
+
+
 def generate_single_completion(
     model: TelosModel,
     prompt: str,
@@ -60,42 +80,32 @@ def generate_single_completion(
         return f"# Error during generation: {e}"
 
 
-def predict_all_ratios(
+def predict_all_ratios_stream(
     prompt: str,
     max_tokens: int,
     num_steps: int,
     temperature: float,
     repetition_penalty: float
-) -> tuple[str, str, str, str, str]:
-    """Executes parallel generation across all 5 ratio study models."""
-    load_all_models()
-
-    outputs = {}
+):
+    """Executes thread-safe sequential generation across all 5 ratio study models, streaming progress to UI."""
     labels = list(RATIO_CHECKPOINTS.keys())
+    current_outputs = ["⏳ Waiting in queue...", "⏳ Waiting in queue...", "⏳ Waiting in queue...", "⏳ Waiting in queue...", "⏳ Waiting in queue..."]
 
-    # Execute generation across all 5 models using thread pool for speed
-    def worker(label: str):
-        if label in LOADED_MODELS:
-            return label, generate_single_completion(
-                LOADED_MODELS[label], prompt, max_tokens, num_steps, temperature, repetition_penalty
-            )
+    for idx, label in enumerate(labels):
+        current_outputs[idx] = "⏳ Model loading / generating..."
+        yield tuple(current_outputs)
+
+        path_str = RATIO_CHECKPOINTS[label]
+        model = load_model_cached(label, path_str)
+        if model is None:
+            current_outputs[idx] = f"# Error: Checkpoint file not found at '{path_str}'"
         else:
-            path_str = RATIO_CHECKPOINTS[label]
-            return label, f"# Checkpoint File Not Found\n# Missing file: {path_str}"
+            completion = generate_single_completion(
+                model, prompt, max_tokens, num_steps, temperature, repetition_penalty
+            )
+            current_outputs[idx] = completion
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        results = list(executor.map(worker, labels))
-
-    for label, code in results:
-        outputs[label] = code
-
-    return (
-        outputs.get(labels[0], ""),
-        outputs.get(labels[1], ""),
-        outputs.get(labels[2], ""),
-        outputs.get(labels[3], ""),
-        outputs.get(labels[4], ""),
-    )
+        yield tuple(current_outputs)
 
 
 def build_ratio_comparison_app():
@@ -111,7 +121,7 @@ def build_ratio_comparison_app():
     with gr.Blocks(title="τέλος — 85M Ratio Study Comparison") as demo:
         gr.Markdown(
             """
-            # 🧬 télos (τέλος) — 85M Model Ratio Study Comparison
+            # télos (τέλος) — 85M Model Ratio Study Comparison
             ### *Simultaneous 5-Way Evaluation across Dataset-to-Parameter Ratios (1:1, 1:3, 1:5, 1:10, 1:17)*
             *Trained on Google Cloud TPU v6e-1 using Discrete Masked Diffusion with Full Bidirectional Self-Attention.*
             """
@@ -171,7 +181,7 @@ def build_ratio_comparison_app():
                 out_1_17 = gr.Code(language="python", label="1:17 Ratio (Step 2741)", lines=14)
 
         submit_btn.click(
-            fn=predict_all_ratios,
+            fn=predict_all_ratios_stream,
             inputs=[prompt_input, max_tokens_slider, num_steps_slider, temp_slider, rep_penalty_slider],
             outputs=[out_1_1, out_1_3, out_1_5, out_1_10, out_1_17]
         )
