@@ -10,7 +10,6 @@ includes:
 
 # imports
 
-import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -68,13 +67,12 @@ class RotaryEmbedding(nn.Module):
         # return sliced cosine and sine matrices up to current sequence length
         if seq_len > self.max_seq_len:
             self._build_cache(seq_len)
-        return self.cos_cached[:seq_len].to(x.device), self.sin_cached[:seq_len].to(x.device)
+        return self.cos_cached[:seq_len], self.sin_cached[:seq_len]
 
-# rotates input vector half-way across feature dimension for RoPE using static XLA narrow operator.
+# rotates input vector half-way across feature dimension for RoPE.
 def _rotate_half(x: torch.Tensor) -> torch.Tensor:
-    d = x.shape[-1] // 2
-    x1 = x.narrow(-1, 0, d)
-    x2 = x.narrow(-1, d, d)
+    x1 = x[..., : x.shape[-1] // 2]
+    x2 = x[..., x.shape[-1] // 2:]
     return torch.cat((-x2, x1), dim=-1)
 
 
@@ -163,13 +161,13 @@ class BidirectionalAttention(nn.Module):
             k = k.repeat_interleave(self.num_queries_per_kv, dim=1)
             v = v.repeat_interleave(self.num_queries_per_kv, dim=1)
 
-        # Compute scaled dot-product attention using native bmm (XLA MXU friendly)
-        scale = 1.0 / math.sqrt(self.head_dim)
-        scores = torch.matmul(q, k.transpose(-2, -1)) * scale
-        attn_probs = F.softmax(scores, dim=-1)
-        if self.dropout > 0.0 and self.training:
-            attn_probs = F.dropout(attn_probs, p=self.dropout)
-        out = torch.matmul(attn_probs, v)
+        # Compute scaled dot-product attention WITHOUT causal mask
+        out = F.scaled_dot_product_attention(
+            q, k, v,
+            attn_mask=None,
+            dropout_p=self.dropout if self.training else 0.0,
+            is_causal=False  # Full bidirectional attention for MDLM
+        )
 
         # Reshape back to [batch, seq_len, d_model] and apply output projection
         out = out.permute(0, 2, 1, 3).contiguous().view(batch, seq_len, self.d_model)
