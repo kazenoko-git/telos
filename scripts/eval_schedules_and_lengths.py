@@ -28,7 +28,7 @@ CHECKPOINTS = {
 }
 
 SCHEDULES = ["cosine", "front_loaded", "back_loaded", "sigmoid"]
-MASK_LENGTHS = [500, 64, 128]
+MASK_LENGTHS = [485, 64, 128]
 
 TEST_PROMPT = "import math\n\ndef calculate_std_dev(data):\n    mean = sum(data) / len(data)\n"
 
