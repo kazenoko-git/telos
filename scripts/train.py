@@ -27,7 +27,9 @@ from telos.training.lr_schedule import WarmupCosineLR
 def run_pytorch_training(cfg: dict, args):
     """PyTorch training execution pipeline (CPU, MPS, CUDA, TPU)."""
     global_cfg = cfg.get("global", cfg.get("training", {}))
-    model_cfg = cfg.get("models", {}).get("250M", cfg.get("model", {})) if "models" in cfg else cfg.get("model", {})
+    
+    selected_model_key = args.model_size if args.model_size else ("125M" if "models" in cfg and "125M" in cfg["models"] else "250M")
+    model_cfg = cfg.get("models", {}).get(selected_model_key, cfg.get("model", {})) if "models" in cfg else cfg.get("model", {})
 
     # CLI overrides
     if args.batch_size:
@@ -186,6 +188,7 @@ def run_pytorch_training(cfg: dict, args):
 def main():
     parser = argparse.ArgumentParser(description="Unified Master Trainer for télos MDLM")
     parser.add_argument("--config", type=str, default="configs/phase_b.yaml", help="Path to config YAML")
+    parser.add_argument("--model-size", type=str, default=None, help="Model size key ('125M', '250M', '500M')")
     parser.add_argument("--device", type=str, default=None, help="Device ('tpu', 'cuda', 'mps', 'cpu')")
     parser.add_argument("--batch-size", type=int, default=None, help="Microbatch size")
     parser.add_argument("--grad-accum", type=int, default=None, help="Gradient accumulation steps")
