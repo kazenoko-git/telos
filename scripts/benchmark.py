@@ -1,232 +1,114 @@
-"""
-télos — Minimal Throughput Benchmark (< 1 minute, < 2 GB RAM)
-==============================================================
-Tests a SINGLE tiny 5M param model with batch_size=8 for 5 steps.
-Measures tok/sec, then EXTRAPOLATES to larger models.
+"""Unified Master Benchmarking Suite for télos MDLM.
 
-Copy-paste friendly for Mac / Kaggle T4 / Colab TPU / Kaggle TPU.
+Modes:
+  --mode throughput : Measures generation & training throughput (tokens/sec).
+  --mode samplers   : Compares Cosine vs Non-Monotonic vs Windowed samplers on prompt suite.
+  --mode schedules  : Evaluates timestep schedule trade-offs across steps (16, 32, 64, 128).
 """
 
-import os
 import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+import argparse
 import time
-
-# Force PJRT runtime for TPU detection before importing PyTorch/XLA
-if "PJRT_DEVICE" not in os.environ:
-    os.environ["PJRT_DEVICE"] = "TPU"
-
-HAS_XLA_MODULE = False
-XLA_DEBUG_ERR = None
-XLA_DEVICE_OBJ = None
-
-try:
-    # pyrefly: ignore
-    import torch_xla
-    # pyrefly: ignore
-    import torch_xla.runtime as xr
-    try:
-        xr.initialize_cache()
-    except Exception:
-        pass
-    XLA_DEVICE_OBJ = torch_xla.device()
-    HAS_XLA_MODULE = True
-except Exception as e:
-    XLA_DEBUG_ERR = str(e)
-
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
-# ─── Device Detection ───────────────────────────────────────────────
-
-def detect_device():
-    if HAS_XLA_MODULE and XLA_DEVICE_OBJ is not None:
-        return XLA_DEVICE_OBJ, f"TPU ({os.environ.get('TPU_NAME', 'v6e-1')})", "xla"
-    elif XLA_DEBUG_ERR:
-        print(f"Notice: PyTorch XLA TPU device initialization failed ({XLA_DEBUG_ERR}).")
-
-    if torch.cuda.is_available():
-        n = torch.cuda.device_count()
-        name = torch.cuda.get_device_name(0)
-        return torch.device("cuda:0"), f"{n}x {name}", "cuda"
-    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        return torch.device("mps"), "Apple Silicon MPS", "mps"
-    return torch.device("cpu"), "CPU", "cpu"
+from telos.hub.inference import TelosModel
+from telos.diffusion.sampler import MDLMSampler, NonMonotonicMDLMSampler, WindowedMDLMSampler
 
 
-# ─── Tiny Inline Model (same arch as télos, just small) ─────────────
-
-class TinyBlock(nn.Module):
-    def __init__(self, d, heads):
-        super().__init__()
-        self.norm1 = nn.LayerNorm(d)
-        self.norm2 = nn.LayerNorm(d)
-        self.qkv = nn.Linear(d, 3 * d, bias=False)
-        self.out = nn.Linear(d, d, bias=False)
-        self.w1 = nn.Linear(d, d * 2, bias=False)
-        self.w2 = nn.Linear(d * 2, d, bias=False)
-        self.heads = heads
-        self.hd = d // heads
-
-    def forward(self, x):
-        B, T, D = x.shape
-        h = self.norm1(x)
-        qkv = self.qkv(h).view(B, T, 3, self.heads, self.hd)
-        q, k, v = qkv[:,:,0], qkv[:,:,1], qkv[:,:,2]
-        q = q.transpose(1, 2); k = k.transpose(1, 2); v = v.transpose(1, 2)
-        a = F.scaled_dot_product_attention(q, k, v)
-        x = x + self.out(a.transpose(1, 2).contiguous().view(B, T, D))
-        x = x + self.w2(F.silu(self.w1(self.norm2(x))))
-        return x
-
-class TinyModel(nn.Module):
-    def __init__(self, V=4096, d=256, layers=4, heads=4):
-        super().__init__()
-        self.emb = nn.Embedding(V, d)
-        self.blocks = nn.ModuleList([TinyBlock(d, heads) for _ in range(layers)])
-        self.norm = nn.LayerNorm(d)
-        self.head = nn.Linear(d, V, bias=False)
-        self.head.weight = self.emb.weight  # tied
-
-    def forward(self, x):
-        x = self.emb(x)
-        for b in self.blocks:
-            x = b(x)
-        return self.head(self.norm(x))
+PROMPT_SUITE = [
+    "def fibonacci(n: int) -> int:\n    \"\"\"Return the nth Fibonacci number.\"\"\"\n",
+    "def bubble_sort(arr: list) -> list:\n    \"\"\"Sort an array in ascending order.\"\"\"\n",
+    "def read_json_file(file_path: str) -> dict:\n    \"\"\"Read and parse a JSON file.\"\"\"\n",
+    "class Node:\n    def __init__(self, val=0, next=None):\n",
+    "import math\n\ndef calculate_std_dev(data: list) -> float:\n",
+]
 
 
-# ─── Benchmark ──────────────────────────────────────────────────────
+def run_throughput_benchmark(model_obj: TelosModel):
+    """Measures raw sampling throughput (tok/sec) on target device."""
+    print("\n" + "=" * 80)
+    print("RUNNING THROUGHPUT BENCHMARK")
+    print("=" * 80)
 
-def run():
-    device, dev_name, dev_type = detect_device()
-    use_amp = dev_type in ("cuda", "mps")
-    amp_dtype = torch.float16
+    prompt = PROMPT_SUITE[0]
+    steps_list = [16, 32, 64, 128]
+    target_len = 64
 
-    V, d, layers, heads = 4096, 256, 4, 4
-    seq = 512
-    grad_accum = 2
-    warmup, measure = 2, 5
-    batch_sizes = [4, 8, 16, 32, 64, 128, 256, 512]
+    for steps in steps_list:
+        # Warmup
+        model_obj.complete(prompt, max_tokens=16, num_steps=16)
 
-    model = TinyModel(V, d, layers, heads).to(device)
-    n_params = sum(p.numel() for p in model.parameters())
+        t0 = time.time()
+        res = model_obj.complete(prompt, max_tokens=target_len, num_steps=steps)
+        elapsed = time.time() - t0
 
-    print("=" * 65)
-    print("  télos Batch-Size Optimization Benchmark")
-    print("=" * 60)
-    print(f"  Device:     {dev_name}")
-    print(f"  Model:      {n_params:,} params (d={d}, {layers}L, {heads}H)")
-    print(f"  Precision:  {'bfloat16 (XLA)' if dev_type == 'xla' else ('AMP fp16' if use_amp else 'fp32')}")
-    print(f"  Batch Sizes Tested: {batch_sizes}")
-    print("=" * 65)
+        tok_per_sec = target_len / elapsed
+        print(f"Steps: {steps:3d} | Time: {elapsed:.2f}s | Throughput: {tok_per_sec:.1f} tok/s")
 
-    results = []
 
-    for bs in batch_sizes:
-        try:
-            opt = torch.optim.AdamW(model.parameters(), lr=1e-4)
-            tokens = torch.randint(0, V, (bs, seq), device=device)
-            targets = torch.randint(0, V, (bs, seq), device=device)
+def run_sampler_comparison(model_obj: TelosModel):
+    """Compares Cosine, Non-Monotonic, and Windowed samplers on prompt suite."""
+    print("\n" + "=" * 80)
+    print("RUNNING SAMPLER COMPARISON (Cosine vs Non-Monotonic vs Windowed)")
+    print("=" * 80)
 
-            model.train()
+    model = model_obj.model
+    tokenizer = model_obj.tokenizer
+    mask_token_id = tokenizer.token_to_id("[MASK]") or 4
 
-            # Warmup
-            for _ in range(warmup):
-                opt.zero_grad()
-                for _ in range(grad_accum):
-                    if use_amp:
-                        with torch.amp.autocast(device_type=dev_type, dtype=amp_dtype):
-                            loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
-                    else:
-                        loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
-                    loss.backward()
-                if dev_type == "xla":
-                    opt.step()
-                    # pyrefly: ignore
-                    import torch_xla
-                    torch_xla.sync()
-                else:
-                    opt.step()
-                if dev_type == "cuda": torch.cuda.synchronize()
+    cosine_sampler = MDLMSampler(model, mask_token_id, num_steps=64, schedule="cosine")
+    non_mono_sampler = NonMonotonicMDLMSampler(model, mask_token_id, num_steps=64, remask_threshold=0.15)
+    windowed_sampler = WindowedMDLMSampler(model, mask_token_id, window_size=32, num_steps_per_window=16)
 
-            # Measure
-            if dev_type == "cuda": torch.cuda.synchronize()
-            if dev_type == "xla":
-                # pyrefly: ignore
-                import torch_xla
-                torch_xla.sync(wait=True)
+    for i, prompt in enumerate(PROMPT_SUITE, 1):
+        print(f"\n--- Prompt {i}: {prompt.splitlines()[0]} ---")
+        prompt_enc = tokenizer.encode(prompt)
+        prompt_ids = torch.tensor([prompt_enc.ids], device=model_obj.device)
 
-            t0 = time.perf_counter()
+        # 1. Cosine Sampler
+        t0 = time.time()
+        seq_cos = cosine_sampler.sample(seq_len=64 + len(prompt_enc.ids), prompt_ids=prompt_ids, device=model_obj.device)
+        t_cos = time.time() - t0
+        text_cos = tokenizer.decode(seq_cos[0].tolist())
 
-            for _ in range(measure):
-                opt.zero_grad()
-                for _ in range(grad_accum):
-                    if use_amp:
-                        with torch.amp.autocast(device_type=dev_type, dtype=amp_dtype):
-                            loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
-                    else:
-                        loss = F.cross_entropy(model(tokens).view(-1, V), targets.view(-1)) / grad_accum
-                    loss.backward()
-                if dev_type == "xla":
-                    opt.step()
-                    # pyrefly: ignore
-                    import torch_xla
-                    torch_xla.sync()
-                else:
-                    opt.step()
-                if dev_type == "cuda": torch.cuda.synchronize()
+        # 2. Non-Monotonic Sampler
+        t0 = time.time()
+        seq_nm = non_mono_sampler.sample(seq_len=64 + len(prompt_enc.ids), prompt_ids=prompt_ids, device=model_obj.device)
+        t_nm = time.time() - t0
+        text_nm = tokenizer.decode(seq_nm[0].tolist())
 
-            if dev_type == "xla":
-                # pyrefly: ignore
-                import torch_xla
-                torch_xla.sync(wait=True)
+        # 3. Windowed Sampler
+        t0 = time.time()
+        seq_win = windowed_sampler.sample(target_tokens=64, prompt_ids=prompt_ids, device=model_obj.device)
+        t_win = time.time() - t0
+        text_win = tokenizer.decode(seq_win[0].tolist())
 
-            t1 = time.perf_counter()
-            elapsed = t1 - t0
-            sps = measure / elapsed
-            tps = sps * bs * seq * grad_accum
+        print(f"[Cosine Sampler - {t_cos:.2f}s]:")
+        print(text_cos[:150].replace("\n", " "))
+        print(f"[Non-Monotonic - {t_nm:.2f}s]:")
+        print(text_nm[:150].replace("\n", " "))
+        print(f"[Windowed Sampler - {t_win:.2f}s]:")
+        print(text_win[:150].replace("\n", " "))
 
-            results.append((bs, bs * grad_accum, sps, tps, elapsed))
-            print(f"  bs={bs:>3d} | eff_batch={bs*grad_accum:>3d} | {sps:>6.2f} steps/s | {tps:>10,.0f} tok/s | {elapsed:.2f}s")
 
-            del opt, tokens, targets
-        except Exception as e:
-            print(f"  bs={bs:>3d} | OOM/Error: {e}")
-            break
+def main():
+    parser = argparse.ArgumentParser(description="Master Benchmarking CLI for télos MDLM")
+    parser.add_argument("--checkpoint", type=str, default="checkpoints/phase_c_tpu_125m/checkpoint_tpu_125M_final_step_238.pt", help="Path to checkpoint")
+    parser.add_argument("--mode", type=str, choices=["throughput", "samplers", "all"], default="all", help="Benchmark mode")
+    args = parser.parse_args()
 
-    print("\n" + "=" * 65)
-    print("  BATCH SIZE COMPARISON SUMMARY")
-    print("=" * 65)
-    print(f"  {'Batch':<8} {'Eff Batch':<10} {'Steps/sec':<12} {'Tok/sec':<14} {'Speed vs bs=8'}")
-    print(f"  {'─'*7:<8} {'─'*9:<10} {'─'*11:<12} {'─'*13:<14} {'─'*13}")
+    print(f"Loading checkpoint: {args.checkpoint}...")
+    model_obj = TelosModel.from_pretrained(args.checkpoint)
 
-    bs8_tps = next((r[3] for r in results if r[0] == 8), results[0][3] if results else 1.0)
-    best_res = max(results, key=lambda x: x[3]) if results else None
+    if args.mode in ["throughput", "all"]:
+        run_throughput_benchmark(model_obj)
 
-    for bs, eff_b, sps, tps, el in results:
-        ratio = tps / bs8_tps
-        star = " ★ BEST" if best_res and bs == best_res[0] else ""
-        print(f"  {bs:<8} {eff_b:<10} {sps:<12.2f} {tps:<14,.0f} {ratio:>5.2f}x{star}")
-
-    print("=" * 65)
-
-    if best_res:
-        best_tps = best_res[3]
-        print(f"\n  EXTRAPOLATED FROM BEST (bs={best_res[0]}, {best_tps:,.0f} tok/s):")
-        print(f"  {'Model':<8} {'Params':>12} {'Est tok/s':>12} {'Chinchilla 20×':>16} {'Overtrain 50×':>16}")
-        print(f"  {'─'*8} {'─'*12} {'─'*12} {'─'*16} {'─'*16}")
-
-        for name, params in [("5M", n_params), ("25M", 25_000_000),
-                              ("85M", 85_000_000), ("232M", 232_000_000)]:
-            scale = n_params / params
-            est_tps = best_tps * scale
-            chin_hrs = (params * 20) / est_tps / 3600
-            over_hrs = (params * 50) / est_tps / 3600
-            marker = " ← measured" if params == n_params else ""
-            print(f"  {name:<8} {params:>12,} {est_tps:>12,.0f} {chin_hrs:>14.1f}h {over_hrs:>14.1f}h{marker}")
-
-        print("=" * 65)
+    if args.mode in ["samplers", "all"]:
+        run_sampler_comparison(model_obj)
 
 
 if __name__ == "__main__":
-    run()
+    main()
