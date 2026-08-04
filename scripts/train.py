@@ -109,13 +109,37 @@ def run_pytorch_training(cfg: dict, args):
     ckpt_dir = Path(model_cfg.get("checkpoint_dir", "checkpoints/train_run"))
     ckpt_dir.mkdir(parents=True, exist_ok=True)
 
-    model.train()
-    start_time = time.time()
-    data_iter = iter(dataloader)
     step = 0
+    start_time = time.time()
+    
+    # Auto-resume from latest existing checkpoint if present
+    existing_ckpts = sorted(list(ckpt_dir.glob("checkpoint_step_*.pt")), key=lambda p: int(p.stem.split("_")[-1]))
+    if existing_ckpts:
+        latest_ckpt = existing_ckpts[-1]
+        print(f"--> AUTO-RESUMING from latest checkpoint: {latest_ckpt}")
+        ckpt_data = torch.load(latest_ckpt, map_location=device, weights_only=False)
+        model.load_state_dict(ckpt_data["model_state_dict"])
+        if "optimizer_state_dict" in ckpt_data:
+            optimizer.load_state_dict(ckpt_data["optimizer_state_dict"])
+        step = ckpt_data.get("step", 0)
+        print(f"--> Successfully resumed at Step {step}/{max_steps}")
+
+    model.train()
+    data_iter = iter(dataloader)
+    
+    # Skip dataloader samples to match step position
+    if step > 0:
+        samples_to_skip = step * grad_accum
+        print(f"--> Advancing dataloader past {samples_to_skip:,} microbatches to step {step}...")
+        for _ in range(samples_to_skip):
+            try:
+                next(data_iter)
+            except StopIteration:
+                data_iter = iter(dataloader)
+                next(data_iter)
 
     print("=" * 80)
-    print("STARTING TRAINING LOOP")
+    print(f"STARTING TRAINING LOOP (Step {step} -> {max_steps})")
     print("=" * 80)
 
     while step < max_steps:
