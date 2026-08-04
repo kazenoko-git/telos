@@ -132,8 +132,7 @@ def run_pytorch_training(cfg: dict, args):
             input_ids = torch.from_numpy(np.array(batch, dtype=np.int64)).to(device)
             masked_ids, mask_positions, t_values = apply_masking(
                 input_ids=input_ids,
-                mask_token_id=mask_token_id,
-                device=device
+                mask_token_id=mask_token_id
             )
 
             logits = model(masked_ids)
