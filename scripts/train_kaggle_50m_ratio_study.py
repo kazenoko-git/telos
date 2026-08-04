@@ -61,8 +61,13 @@ def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, d
         device = xm.xla_device()
         print(">> Using TPU XLA Device")
     except ImportError:
-        device = torch.device(global_cfg.get("device", "cuda" if torch.cuda.is_available() else "cpu"))
-        print(f">> Using {device}")
+        if torch.backends.mps.is_available():
+            device = torch.device("mps")
+        elif torch.cuda.is_available():
+            device = torch.device("cuda")
+        else:
+            device = torch.device("cpu")
+        print(f">> Using Device: {device}")
 
     # 1. Model Configuration
     model_config = TelosConfig(
@@ -180,6 +185,7 @@ def train_ratio_checkpoint(ratio_name: str, ratio_cfg: dict, global_cfg: dict, d
         # TPU or GPU optimizer step
         try:
             import torch_xla.core.xla_model as xm
+            torch.nn.utils.clip_grad_norm_(model.parameters(), global_cfg.get("grad_clip", 1.0))
             xm.optimizer_step(optimizer)
             xm.mark_step()
         except ImportError:

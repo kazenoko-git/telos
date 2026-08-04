@@ -172,6 +172,7 @@ def train_tpu_model(model_name: str, model_cfg: dict, global_cfg: dict, dataset:
 
         try:
             import torch_xla.core.xla_model as xm
+            torch.nn.utils.clip_grad_norm_(model.parameters(), float(global_cfg["grad_clip"]))
             xm.optimizer_step(optimizer)
             xm.mark_step()
         except ImportError:
