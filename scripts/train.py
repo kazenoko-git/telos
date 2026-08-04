@@ -117,7 +117,7 @@ def run_pytorch_training(cfg: dict, args):
     if existing_ckpts:
         latest_ckpt = existing_ckpts[-1]
         print(f"--> AUTO-RESUMING from latest checkpoint: {latest_ckpt}")
-        ckpt_data = torch.load(latest_ckpt, map_location=device, weights_only=False)
+        ckpt_data = torch.load(latest_ckpt, map_location='cpu', weights_only=False)
         model.load_state_dict(ckpt_data["model_state_dict"])
         if "optimizer_state_dict" in ckpt_data:
             optimizer.load_state_dict(ckpt_data["optimizer_state_dict"])
