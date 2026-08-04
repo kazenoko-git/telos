@@ -135,6 +135,10 @@ def run_pytorch_training(cfg: dict, args):
                 mask_token_id=mask_token_id
             )
 
+            if device_str == "tpu":
+                import torch_xla.core.xla_model as xm
+                xm.mark_step()
+
             logits = model(masked_ids)
             loss, _ = mdlm_loss(logits=logits, targets=input_ids, mask_positions=mask_positions, t_values=t_values)
 
