@@ -169,7 +169,7 @@ def run_pytorch_training(cfg: dict, args):
             elapsed = time.time() - start_time
             steps_per_sec = step / max(1.0, elapsed)
             tok_per_sec = steps_per_sec * eff_batch * seq_len
-            print(f"Step {step:5d}/{max_steps} | Loss: {loss_val:.4f} | LR: {current_lr:.2e} | {steps_per_sec:.2f} st/s | {tok_per_sec:,.0f} tok/s")
+            print(f"Step {step:5d}/{max_steps} | Loss: {loss_val:.4f} | LR: {current_lr:.2e} | {steps_per_sec:.2f} st/s | {tok_per_sec:,.0f} tok/s", flush=True)
 
         # Periodic Checkpointing (every 50 steps)
         if step % 50 == 0 or step == max_steps:
