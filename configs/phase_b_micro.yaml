@@ -1,0 +1,42 @@
+# Phase B-Micro — Fast Mac-Native Python Autocomplete Model (~38.5M params)
+# Architecture: Deep & Compact (~38.5M params, 8 layers, d=512, 8.1k vocab)
+# Token Budget: 120 Million Python tokens (High-density code overtraining)
+# Runtime: ~12–15 Minutes total on Apple Silicon M5 Pro (MPS)
+
+model:
+  vocab_size: 8192          # 8,192 BPE tokens for Python code
+  d_model: 512              # 512 hidden dimension (38.5M params)
+  n_layers: 8               # 8 deep layers
+  n_heads: 8                # 8 Query attention heads
+  n_kv_heads: 2             # 2 Key/Value heads (Grouped-Query Attention GQA)
+  seq_len: 512
+  dropout: 0.0
+  mlp_type: swiglu
+  tied_embeddings: true
+  no_timestep_embed: true
+
+training:
+  batch_size: 32
+  gradient_accumulation: 2  # Effective batch = 64 sequences (32,768 tokens/step)
+  max_steps: 3660           # 3,660 steps (~12–15 minutes on M5 Pro MPS)
+  max_lr: 5e-4
+  min_lr: 3e-5
+  warmup_steps: 300
+  weight_decay: 0.1
+  grad_clip: 1.0
+  precision: bf16
+  device: mps
+
+data:
+  corpus_size_tokens: 120000000 # 120 Million tokens (~480 MB text)
+  num_epochs: 1
+
+checkpoint:
+  dir: checkpoints/phase_b_micro
+  save_every_minutes: 2
+  save_every_steps: 1000
+  keep_last_n: 5
+
+eval:
+  val_every_steps: 1000
+  sample_every_steps: 2000

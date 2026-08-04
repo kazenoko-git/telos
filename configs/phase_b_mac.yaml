@@ -5,10 +5,10 @@
 
 model:
   vocab_size: 8192          # 8,192 BPE tokens for Python code
-  d_model: 768              # 768 hidden dimension (85.4M params)
-  n_layers: 12              # 12 deep layers for high quality
-  n_heads: 12               # 12 Query attention heads
-  n_kv_heads: 3             # 3 Key/Value heads (Grouped-Query Attention GQA 4:1)
+  d_model: 512              # 512 hidden dimension (50M params)
+  n_layers: 10              # 10 layers for fast stable training
+  n_heads: 8                # 8 attention heads
+  n_kv_heads: 8
   seq_len: 512
   dropout: 0.0
   mlp_type: swiglu
@@ -16,15 +16,15 @@ model:
   no_timestep_embed: true
 
 training:
-  batch_size: 32
-  gradient_accumulation: 2  # Effective batch = 64 sequences (32,768 tokens/step)
-  max_steps: 15000          # 15,000 steps (~7.5 hours continuous overnight training)
+  batch_size: 16
+  gradient_accumulation: 32  # Effective batch = 512 sequences (262,144 tokens/step)
+  max_steps: 15000          # Continuous overnight run until tomorrow afternoon
   max_lr: 4e-4
-  min_lr: 2e-5
+  min_lr: 4e-5
   warmup_steps: 500
   weight_decay: 0.1
   grad_clip: 1.0
-  precision: bf16
+  precision: fp32
   device: mps
 
 data:

@@ -1,4 +1,4 @@
-# DEPLOYMENT — τέλος (télos) MDLM
+# DEPLOYMENT — télos (τέλος) MDLM
 
 This document details how to set up, reproduce, train, and deploy **télos (τέλος)** — a Masked Diffusion Language Model for Python code autocomplete, natural language instructions, and shell command execution.
 
@@ -35,122 +35,67 @@ uv sync
 
 ---
 
-## 3. Phase B: Flagship Pure Python Autocomplete Model (~232.4M Params / 8B Tokens)
+## 3. Training Suite
 
-Executes a 12.5-minute flagship pure Python autocomplete model on Lightning AI TPU v6e-1.
+All training is executed through the master script `scripts/train.py` with device auto-detection (`tpu`, `cuda`, `mps`, `cpu`):
 
+### Phase B: Flagship Pure Python Autocomplete Model (~232.4M Params)
 ```bash
-# Step 1: Clone repo & install
-git clone https://github.com/kazenoko-git/telos.git
-cd telos
-pip install -e .
+uv run python scripts/prepare_data.py --config configs/phase_b.yaml
+uv run python scripts/train_tokenizer.py --config configs/phase_b.yaml
+uv run python scripts/train.py --config configs/phase_b.yaml --device tpu
+```
 
-# Step 2: Stream 8.0B ungated Python tokens & train 8k tokenizer (~32GB text file)
-python scripts/prepare_data.py --config configs/phase_b.yaml --raw
-python scripts/train_tokenizer.py --config configs/phase_b.yaml
+### Phase C: TPU v6e-1 Sequential Scaling Suite (125M / 250M / 500M @ Eff Batch 1024)
+```bash
+uv run python scripts/train.py --config configs/phase_c_tpu_v6e.yaml --device tpu
+```
 
-# Step 3: Execute Phase B Training (~12.5 Mins on TPU v6e-1)
-python scripts/train.py --config configs/phase_b.yaml --device tpu
+### Local Mac Training (M5 Pro)
+```bash
+uv run python scripts/train.py --config configs/phase_b_mac.yaml --device mps
 ```
 
 ---
 
-## 4. Phase C: 1.08B Flagship Coder Model (~1.08B Params / 60B Tokens)
+## 4. Master Benchmarking & Evaluation Suite
 
-Phase C trains our flagship **1.08 Billion parameter** multi-domain model on **60 Billion tokens** across Python, English instructions, and UNIX/Windows shell commands.
-
+### Benchmarking
+Run throughput measurements and comparative sampler tests:
 ```bash
-# Step 1: Clone & prepare dataset
-python scripts/prepare_data.py --config configs/phase_c.yaml --raw
-python scripts/train_tokenizer.py --config configs/phase_c.yaml
+uv run python scripts/benchmark.py --checkpoint checkpoints/phase_c_tpu_125m/checkpoint_tpu_125M_final_step_238.pt --mode all
+```
 
-# Step 2: Execute Phase C Training (~1.8 Hours on TPU v6e-1, ~3.0 credits total)
-python scripts/train.py --config configs/phase_c.yaml --device tpu
+### Evaluation & Contextual Probes
+Run loss, category cross-entropy breakdown, and contextual probe token rank analysis:
+```bash
+uv run python scripts/eval.py --checkpoint checkpoints/phase_c_tpu_125m/checkpoint_tpu_125M_final_step_238.pt --mode full
 ```
 
 ---
 
-## 5. Model Publishing & Public Deployment
+## 5. Model Publishing & Interactive Gradio Web UI
 
-### Step 1: Export Weights & Upload to HuggingFace Hub
+### HuggingFace Hub Upload
 ```bash
 python -m telos.hub.upload --model-dir checkpoints/phase_c --repo-id kazenoko/telos-1b-coder
 ```
 
-### Step 2: Standalone Programmatic Inference
+### Standalone Inference
 ```python
 from telos.hub import TelosModel
 
-model = TelosModel.from_pretrained("kazenoko/telos-1b-coder")
-
-# Python Code Completion
+model = TelosModel.from_pretrained("checkpoints/phase_c_tpu_125m/checkpoint_tpu_125M_final_step_238.pt")
 code = model.complete(
     "def fibonacci(n: int) -> int:\n    \"\"\"Return the nth Fibonacci number.\"\"\"\n",
-    max_tokens=128,
+    max_tokens=64,
     num_steps=64,
-    temperature=0.4
+    temperature=0.3
 )
 print(code)
 ```
 
----
-
-## 6. Local Data Preparation & Tokenizer Training
-
-Uses the master dataset script (`scripts/prepare_full_ratio_dataset.py`) to stream raw Python code from HuggingFace, train the 8,192 BPE tokenizer (`configs/tokenizer_mac.json`), and tokenize into binary memmapped dataset files (`data/python_corpus_1.7b.bin`):
-
+### Interactive Gradio Application
 ```bash
-# 1. Prepare 500M tokens for TPU 1:1 scaling suite (125M, 250M, 500M models)
-uv run python scripts/prepare_full_ratio_dataset.py --tokens 500000000
-
-# 2. Prepare 2.0B tokens for Kaggle 50M ratio study (1:1 to 1:40 ratios)
-uv run python scripts/prepare_full_ratio_dataset.py --tokens 2000000000
+uv run python telos/hub/gradio_app.py
 ```
-
----
-
-## 7. Kaggle 50M Parameter Overtraining Ratio Study (1:1 -> 1:40 Ratios)
-
-Executes sequential training across 5 overtraining ratios ($1:1$, $1:10$, $1:20$, $1:30$, $1:40$) with independent per-run Cosine LR decays:
-
-```bash
-# Execute 50M Ratio Study on Kaggle with explicit CLI dataset & tokenizer paths:
-python scripts/train_kaggle_50m_ratio_study.py \
-    --config configs/phase_b_50m_ratio_study.yaml \
-    --data-path data/python_corpus_1.7b.bin \
-    --tokenizer-path configs/tokenizer_mac.json \
-    --checkpoint-dir checkpoints/phase_b_50m_ratio_study
-```
-
----
-
-## 8. TPU v6e-1 High-Density Sequential Scaling (125M / 250M / 500M @ Eff Batch 1024)
-
-Executes sequential 1:1 scaling across 3 model sizes at effective batch size 1024 (524,288 tokens/step):
-
-```bash
-# Execute 125M -> 250M -> 500M Sequential Training on TPU v6e-1 (~1 Hour Total):
-python scripts/train_tpu_v6e_sequential.py \
-    --config configs/phase_c_tpu_v6e.yaml \
-    --data-path data/python_corpus_1.7b.bin \
-    --tokenizer-path configs/tokenizer_mac.json \
-    --checkpoint-dir checkpoints/phase_c_tpu
-```
-
----
-
-## 9. Interactive Gradio 5-Way Ratio App Deployment
-
-Deploy the real-time 5-way ratio model comparison app:
-
-```bash
-# Launch interactive Gradio web application
-uv run python telos/hub/gradio_ratio_app.py
-```
-
-#### 5-Way Simultaneous Model Ratio Study Comparison UI (1:1, 1:3, 1:5, 1:10, 1:17)
-```bash
-uv run python telos/hub/gradio_ratio_app.py
-```
-
-Deploy `telos/hub/gradio_ratio_app.py` or `telos/hub/gradio_app.py` to a free-tier CPU HuggingFace Space for interactive code completion generation with step-by-step unmasking speed controls.

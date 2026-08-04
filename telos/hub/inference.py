@@ -159,16 +159,19 @@ class TelosModel:
         encoded = self.tokenizer.encode(prompt)
         prompt_ids = torch.tensor([encoded.ids], dtype=torch.long, device=self.device)
 
+        mask_token_id = self.tokenizer.token_to_id("[MASK]") or 4
+        total_seq_len = len(encoded.ids) + max_tokens
+
         sampler = MDLMSampler(
             self.model,
-            mask_token_id=1,
+            mask_token_id=mask_token_id,
             num_steps=num_steps,
             temperature=temperature,
             repetition_penalty=repetition_penalty,
             schedule=schedule
         )
 
-        sampled_ids = sampler.sample(seq_len=max_tokens, prompt_ids=prompt_ids, device=self.device)
+        sampled_ids = sampler.sample(seq_len=total_seq_len, prompt_ids=prompt_ids, device=self.device)
         
         # Decode generated tokens skipping special tokens
         full_text = self.tokenizer.decode(sampled_ids[0].tolist(), skip_special_tokens=True)
