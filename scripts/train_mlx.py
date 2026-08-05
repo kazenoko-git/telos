@@ -257,7 +257,12 @@ def main():
             (loss, ce), grads = loss_and_grad_fn(model, masked_ids, targets, mask_pos, t_vals, m_cfg["vocab_size"])
 
             accum_grads = grads if accum_grads is None else tree_map(lambda a, b: a + b, accum_grads, grads)
-            last_loss, last_ce = loss, ce  # stay as MLX arrays — no .item() in micro-loop
+            # CRITICAL MLX MEMORY FIX: Evaluate accum_grads after each microbatch.
+            # Without this, MLX lazily queues all microbatch computation graphs in Metal memory,
+            # causing massive memory inflation and macOS swap paging. Evaluating accum_grads
+            # materializes the accumulated gradients and frees the microbatch graph immediately.
+            mx.eval(accum_grads)
+            last_loss, last_ce = loss, ce
 
         accum_grads = tree_map(lambda g: g / grad_accum, accum_grads)
         optimizer.update(model, accum_grads)
