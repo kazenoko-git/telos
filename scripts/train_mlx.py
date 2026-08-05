@@ -247,7 +247,7 @@ def main():
         optimizer.learning_rate = lr
 
         accum_grads = None
-        last_loss, last_ce = None, None
+        accum_loss, accum_ce = 0.0, 0.0
 
         for _ in range(grad_accum):
             targets = get_data_batch(dataset_matrix, idx_ptr, bs, m_cfg["seq_len"])
@@ -257,25 +257,22 @@ def main():
             (loss, ce), grads = loss_and_grad_fn(model, masked_ids, targets, mask_pos, t_vals, m_cfg["vocab_size"])
 
             accum_grads = grads if accum_grads is None else tree_map(lambda a, b: a + b, accum_grads, grads)
-            # CRITICAL MLX MEMORY FIX: Evaluate accum_grads after each microbatch.
-            # Without this, MLX lazily queues all microbatch computation graphs in Metal memory,
-            # causing massive memory inflation and macOS swap paging. Evaluating accum_grads
-            # materializes the accumulated gradients and frees the microbatch graph immediately.
             mx.eval(accum_grads)
-            last_loss, last_ce = loss, ce
+            accum_loss += loss.item()
+            accum_ce += ce.item()
 
         accum_grads = tree_map(lambda g: g / grad_accum, accum_grads)
         optimizer.update(model, accum_grads)
         mx.eval(model.parameters(), optimizer.state)
 
-        if step % 50 == 0 or step == 1:
+        if step % 50 == 0 or step == 1 or step == max_steps:
             elapsed = time.time() - start_time
             sps = step / elapsed
             tps = sps * bs * grad_accum * m_cfg["seq_len"]
             eta_mins = (max_steps - step) / sps / 60.0
 
-            avg_loss = last_loss.item()
-            avg_ce = last_ce.item()
+            avg_loss = accum_loss / grad_accum
+            avg_ce = accum_ce / grad_accum
 
             print(f"  Step {step:>6d}/{max_steps} | ELBO Loss: {avg_loss:>6.2f} | "
                   f"CE: {avg_ce:>5.3f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s | ETA: {eta_mins:>4.1f}m", flush=True)
