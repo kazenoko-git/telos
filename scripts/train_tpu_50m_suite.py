@@ -22,7 +22,7 @@ Path("logs").mkdir(exist_ok=True)
 LOG_FILE = Path("logs/tpu_50m_ratio_study.log")
 
 HF_WRITE_TOKEN = os.environ.get("HF_TOKEN", "")
-HF_REPO_ID = "kazenoko/telos-50m-ratio-study"
+HF_REPO_ID = "Kazenowoko/telos-50m-ratio-study"
 
 SUITE = [
     ("1:30 Ratio (1.5B Tokens)", "configs/phase_b_50m_1to30_tpu.yaml", "checkpoints/phase_b_50m_1to30_tpu"),
