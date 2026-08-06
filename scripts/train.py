@@ -208,8 +208,9 @@ def run_pytorch_training(cfg: dict, args):
             tok_per_sec = steps_per_sec * eff_batch * seq_len
             print(f"Step {step:5d}/{max_steps} | Loss: {loss_val:.4f} | LR: {current_lr:.2e} | {steps_per_sec:.2f} st/s | {tok_per_sec:,.0f} tok/s", flush=True)
 
-        # Periodic Checkpointing (every 50 steps)
-        if step % 50 == 0 or step == max_steps:
+        # Periodic Checkpointing (every 500 steps or final step)
+        save_every = int(global_cfg.get("save_every_steps", 500))
+        if step % save_every == 0 or step == max_steps:
             ckpt_path = ckpt_dir / f"checkpoint_step_{step}.pt"
             torch.save({
                 "step": step,
