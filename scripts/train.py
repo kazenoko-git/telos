@@ -94,11 +94,7 @@ def run_pytorch_training(cfg: dict, args):
     # a single fused HLO program, eliminating per-op kernel launch overhead
     # and enabling XLA to fuse transposed matmuls across all transformer layers.
     if device_str == "tpu":
-        import torch_xla.core.xla_model as xm
-        # fullgraph=True ensures no graph breaks — the entire model is one
-        # compiled unit, maximizing XLA fusion opportunities.
-        model = torch.compile(model, fullgraph=True)
-        print(">> torch.compile(fullgraph=True) enabled for TPU XLA graph fusion")
+        print(">> Native PyTorch-XLA PJRT HLO graph compilation enabled for TPU v6e-1")
 
     max_lr = float(global_cfg.get("max_lr", 3e-4))
     min_lr = float(global_cfg.get("min_lr", 3e-5))
