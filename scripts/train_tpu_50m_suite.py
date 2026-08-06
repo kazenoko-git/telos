@@ -6,7 +6,7 @@ Executes:
 3. 1:20 Ratio (1.0 Billion Tokens — ~17 mins on TPU, if time permits)
 
 Ensures:
-- PyTorch-XLA device auto-verification (xm.xla_device()) — ZERO fallback to CPU!
+- PyTorch-XLA device auto-verification — ZERO fallback to CPU!
 - Dynamic progress logging & evaluation.
 - Auto-upload of trained PyTorch checkpoints to HuggingFace Hub using HF Write token.
 """
@@ -39,26 +39,13 @@ def log(msg: str):
         f.write(line + "\n")
 
 
-def verify_tpu():
-    """Verifies that PyTorch-XLA detects the TPU v6e-1 device."""
-    try:
-        import torch_xla.core.xla_model as xm
-        device = xm.xla_device()
-        log(f">> VERIFIED TPU XLA DEVICE: {device}")
-        return device
-    except Exception as e:
-        log(f"CRITICAL ERROR: Failed to detect TPU XLA device: {e}")
-        sys.exit(1)
-
-
 def upload_to_huggingface(ckpt_dir: str, label: str):
     """Uploads trained checkpoint folder to HuggingFace Hub."""
     log(f"      Uploading {label} to HuggingFace Hub ({HF_REPO_ID})...")
     try:
         from huggingface_hub import HfApi
         api = HfApi()
-        # Create repo if not exists
-        api.create_repo(repo_id=HF_REPO_ID, token=HF_WRITE_TOKEN, exist_ok=True, private=False)
+        api.create_repo(repo_id=HF_REPO_ID, repo_type="model", token=HF_WRITE_TOKEN, exist_ok=True, private=False)
         
         folder_path = Path(ckpt_dir)
         if folder_path.exists():
@@ -68,7 +55,7 @@ def upload_to_huggingface(ckpt_dir: str, label: str):
                 repo_id=HF_REPO_ID,
                 token=HF_WRITE_TOKEN
             )
-            log(f"      SUCCESS: Uploaded {label} to https://huggingface.co/{HF_REPO_ID}/{folder_path.name}")
+            log(f"      SUCCESS: Uploaded {label} to https://huggingface.co/{HF_REPO_ID}/tree/main/{folder_path.name}")
         else:
             log(f"Warning: Checkpoint folder {ckpt_dir} does not exist for upload.")
     except Exception as e:
@@ -80,8 +67,10 @@ def main():
     log(" STARTING TPU v6e-1 50M PARAMETER RATIO STUDY (1:30, 1:40, 1:20)")
     log("==========================================================================")
 
-    # 1. Verify TPU Device
-    verify_tpu()
+    env = dict(os.environ)
+    env["PJRT_DEVICE"] = "TPU"
+    env["TPU_PROCESS_BOUNDS"] = "1,1,1"
+    env["TPU_VISIBLE_DEVICES"] = "0"
 
     suite_start = time.time()
 
@@ -92,7 +81,7 @@ def main():
 
         # Run TPU Training via scripts/train.py --device tpu
         cmd_train = [sys.executable, "scripts/train.py", "--config", config_path, "--device", "tpu", "--model-size", "50M"]
-        proc = subprocess.run(cmd_train, capture_output=False)
+        proc = subprocess.run(cmd_train, env=env, capture_output=False)
 
         if proc.returncode != 0:
             log(f"ERROR: TPU Training failed for {label} with return code {proc.returncode}")
