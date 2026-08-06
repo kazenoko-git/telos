@@ -71,6 +71,7 @@ def main():
     env["PJRT_DEVICE"] = "TPU"
     env["TPU_PROCESS_BOUNDS"] = "1,1,1"
     env["TPU_VISIBLE_DEVICES"] = "0"
+    env["PYTHONUNBUFFERED"] = "1"
 
     suite_start = time.time()
 
