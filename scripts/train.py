@@ -103,8 +103,8 @@ def run_pytorch_training(cfg: dict, args):
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=max_lr, weight_decay=weight_decay)
 
-    max_steps = int(model_cfg.get("max_steps", 1000))
-    warmup_steps = int(model_cfg.get("warmup_steps", 50))
+    max_steps = int(global_cfg.get("max_steps", model_cfg.get("max_steps", 1000)))
+    warmup_steps = int(global_cfg.get("warmup_steps", model_cfg.get("warmup_steps", 50)))
     scheduler = WarmupCosineLR(optimizer, warmup_steps=warmup_steps, max_steps=max_steps, min_lr=min_lr)
 
     batch_size = int(model_cfg.get("batch_size", global_cfg.get("batch_size", 16)))
