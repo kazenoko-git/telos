@@ -56,7 +56,7 @@ class MLXBlock(nn.Module):
         return x
 
 class MLXTelosTransformer(nn.Module):
-    def __init__(self, vocab_size: int, d_model: int, n_layers: int, n_heads: int, n_kv_heads: int):
+    def __init__(self, vocab_size: int, d_model: int, n_layers: int, n_heads: int, n_kv_heads: int, **kwargs):
         super().__init__()
         self.emb = nn.Embedding(vocab_size, d_model)
         self.layers = [MLXBlock(d_model, n_heads, n_kv_heads) for _ in range(n_layers)]
