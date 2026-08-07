@@ -230,16 +230,64 @@ def main():
     parser = argparse.ArgumentParser(description="Unified Master Trainer for télos MDLM")
     parser.add_argument("--config", type=str, default="configs/phase_b.yaml", help="Path to config YAML")
     parser.add_argument("--model-size", type=str, default=None, help="Model size key ('125M', '250M', '500M')")
-    parser.add_argument("--device", type=str, default=None, help="Device ('tpu', 'cuda', 'mps', 'cpu')")
+    parser.add_argument("--device", type=str, default=None, help="Device ('tpu', 'cuda', 'mps', 'cpu', 'mlx')")
     parser.add_argument("--batch-size", type=int, default=None, help="Microbatch size")
     parser.add_argument("--grad-accum", type=int, default=None, help="Gradient accumulation steps")
     parser.add_argument("--resume", type=str, default=None, help="Optional checkpoint path to resume from")
+    
+    # Net2Net upscaling args
+    parser.add_argument("--upscale-from-ckpt", type=str, default=None, help="Path to smaller source model.safetensors to upscale from (MLX only)")
+    parser.add_argument("--upscale-from-config", type=str, default=None, help="Path to smaller source config.yaml (MLX only)")
     args = parser.parse_args()
 
     with open(args.config, "r") as f:
         cfg = yaml.safe_load(f)
+        
+    device_str = args.device.lower() if args.device else cfg.get("device", "cpu").lower()
 
-    run_pytorch_training(cfg, args)
+    if device_str == "mlx":
+        import mlx.core as mx
+        from telos.model.mlx_components import MLXTelosTransformer, load_upscaled_weights
+        from telos.training.trainer import TelosMLXTrainer
+        
+        m_cfg = cfg["model"]
+        t_cfg = cfg["training"]
+
+        print("=" * 70)
+        print("  télos MDLM — Apple MLX Trainer (Unified)")
+        print("=" * 70)
+        print(f"  Architecture:  d={m_cfg['d_model']}, layers={m_cfg['n_layers']}, heads={m_cfg['n_heads']}")
+        print(f"  Batch Size:    {t_cfg['batch_size']} × {t_cfg['gradient_accumulation']} = {t_cfg['batch_size']*t_cfg['gradient_accumulation']} eff")
+        print("=" * 70)
+
+        model = MLXTelosTransformer(
+            vocab_size=m_cfg["vocab_size"],
+            d_model=m_cfg["d_model"],
+            n_layers=m_cfg["n_layers"],
+            n_heads=m_cfg["n_heads"],
+            n_kv_heads=m_cfg["n_kv_heads"]
+        )
+        model.set_dtype(mx.bfloat16)
+        mx.eval(model.parameters())
+
+        if args.upscale_from_ckpt and args.upscale_from_config:
+            load_upscaled_weights(model, m_cfg, args.upscale_from_ckpt, args.upscale_from_config)
+
+        def tree_flatten(params):
+            if isinstance(params, dict):
+                for v in params.values(): yield from tree_flatten(v)
+            elif isinstance(params, list):
+                for v in params: yield from tree_flatten(v)
+            elif hasattr(params, "size"):
+                yield params
+
+        param_count = sum(p.size for p in tree_flatten(model.parameters()))
+        print(f"  Model Parameters: {param_count:,}\n")
+
+        trainer = TelosMLXTrainer(model, cfg)
+        trainer.train()
+    else:
+        run_pytorch_training(cfg, args)
 
 
 if __name__ == "__main__":

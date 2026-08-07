@@ -56,6 +56,11 @@ uv run python scripts/train.py --config configs/phase_c_tpu_v6e.yaml --device tp
 uv run python scripts/train.py --config configs/phase_b_mac.yaml --device mps
 ```
 
+### Apple MLX 50M Parameter Ratio Study Suite (1:1 and 1:10 Ratios)
+```bash
+uv run python scripts/train_50m_overnight_suite.py
+```
+
 ---
 
 ## 4. Master Benchmarking & Evaluation Suite

@@ -21,6 +21,7 @@ training configuration:
 """
 
 import time
+import math
 from pathlib import Path
 import torch
 import torch.nn as nn
@@ -234,3 +235,208 @@ class TelosTrainer:
         final_path = self.checkpoint_dir / "checkpoint_final.pt"
         self.save_checkpoint(final_path)
         print("Training complete!")
+
+
+# =========================================================================
+# MLX NATIVE TRAINER
+# =========================================================================
+
+try:
+    import mlx.core as mx
+    import mlx.nn as mx_nn
+    import mlx.optimizers as mx_optim
+    from mlx.utils import tree_map
+    MLX_AVAILABLE = True
+except ImportError:
+    MLX_AVAILABLE = False
+
+
+def get_sys_mem_str() -> str:
+    try:
+        active_gb = mx.get_active_memory() / 1e9
+        peak_gb = mx.get_peak_memory() / 1e9
+        import subprocess
+        swap_res = subprocess.run(["sysctl", "vm.swapusage"], capture_output=True, text=True)
+        swap_parts = swap_res.stdout.strip().split()
+        used_swap = swap_parts[6] if len(swap_parts) >= 7 else "0M"
+        return f"Metal Unified GPU: {active_gb:.2f}GB (Peak: {peak_gb:.2f}GB) | Swap: {used_swap}"
+    except Exception:
+        return ""
+
+def sample_beta_timesteps_mlx(batch_size: int, eps: float = 1e-5):
+    u = mx.random.uniform(0.0, 1.0, (batch_size, 1))
+    t = 0.5 - 0.5 * mx.cos(math.pi * u)
+    return mx.clip(t, eps, 1.0)
+
+def apply_masking_mlx(input_ids, mask_token_id=1, special_tokens={0, 1, 2, 3}):
+    B, T = input_ids.shape
+    t_values = sample_beta_timesteps_mlx(B)
+    rand_matrix = mx.random.uniform(0.0, 1.0, (B, T))
+    raw_mask = rand_matrix < t_values
+
+    is_special = mx.zeros((B, T), dtype=mx.bool_)
+    for st in special_tokens:
+        is_special = is_special | (input_ids == st)
+
+    mask_positions = raw_mask & (~is_special)
+    masked_input_ids = mx.where(mask_positions, mask_token_id, input_ids)
+    return masked_input_ids, mask_positions, t_values
+
+def loss_fn_mlx(model, masked_input_ids, targets, mask_positions, t_values, vocab_size):
+    logits = model(masked_input_ids)
+    B, T, V = logits.shape
+    logits_flat = logits.reshape(-1, V)
+    targets_flat = targets.reshape(-1)
+
+    ce_per_token = mx_nn.losses.cross_entropy(logits_flat, targets_flat, reduction="none").reshape(B, T)
+    masked_ce = ce_per_token * mask_positions.astype(mx.float32)
+
+    masked_count = mx.clip(mx.sum(mask_positions.astype(mx.float32), axis=1), 1.0, float(T))
+    per_example_ce = mx.sum(masked_ce, axis=1) / masked_count
+    unweighted_ce = mx.mean(per_example_ce)
+
+    t_weights = 1.0 / mx.clip(mx.squeeze(t_values, -1), 1e-3, 1.0)
+    reweighted_loss = mx.mean(per_example_ce * t_weights)
+    return reweighted_loss, unweighted_ce
+
+class TelosMLXTrainer:
+    def __init__(self, model, cfg):
+        if not MLX_AVAILABLE:
+            raise ImportError("MLX is not installed. Cannot use TelosMLXTrainer.")
+        self.model = model
+        self.cfg = cfg
+        self.m_cfg = cfg["model"]
+        self.t_cfg = cfg["training"]
+        self.c_cfg = cfg.get("checkpoint", {})
+
+    def train(self):
+        import numpy as np
+        import gc
+        
+        train_bin = Path("data/python_corpus_mac.bin")
+        if train_bin.exists():
+            print(f"  Loading pre-tokenized dataset from {train_bin}...")
+            raw_data = np.memmap(train_bin, dtype=np.int32, mode="r")
+            n_seqs = len(raw_data) // self.m_cfg["seq_len"]
+            dataset_matrix = raw_data[:n_seqs * self.m_cfg["seq_len"]].reshape(n_seqs, self.m_cfg["seq_len"])
+        else:
+            print("  Notice: Pre-tokenized dataset file not found. Generating synthetic stream for throughput run...")
+            dataset_matrix = np.random.randint(0, self.m_cfg["vocab_size"], (10000, self.m_cfg["seq_len"]), dtype=np.uint16)
+
+        max_steps = int(self.t_cfg["max_steps"])
+        warmup_steps = int(self.t_cfg["warmup_steps"])
+        max_lr = float(self.t_cfg["max_lr"])
+        min_lr = float(self.t_cfg["min_lr"])
+        weight_decay = float(self.t_cfg.get("weight_decay", 0.1))
+
+        def get_lr(step):
+            if step < warmup_steps:
+                return max_lr * (step + 1) / warmup_steps
+            progress = (step - warmup_steps) / max(1, max_steps - warmup_steps)
+            return min_lr + 0.5 * (max_lr - min_lr) * (1.0 + math.cos(math.pi * progress))
+
+        optimizer = mx_optim.AdamW(learning_rate=max_lr, weight_decay=weight_decay)
+
+        # We initialize loss_and_grad_fn outside
+        loss_and_grad_fn = mx_nn.value_and_grad(self.model, loss_fn_mlx)
+        
+        def train_step_uncompiled(targets, bs, seq_len, vocab_size, grad_accum):
+            accum_loss = mx.array(0.0)
+            accum_ce = mx.array(0.0)
+            
+            accum_grads = None
+            for i in range(grad_accum):
+                batch_seqs = mx.take(targets, mx.arange(i * bs, (i + 1) * bs), axis=0)
+                masked_ids, mask_pos, t_vals = apply_masking_mlx(batch_seqs, mask_token_id=1)
+                (loss, ce), grads = loss_and_grad_fn(self.model, masked_ids, batch_seqs, mask_pos, t_vals, vocab_size)
+                
+                if accum_grads is None: accum_grads = grads
+                else: accum_grads = tree_map(lambda a, b: a + b, accum_grads, grads)
+                    
+                accum_loss = accum_loss + loss
+                accum_ce = accum_ce + ce
+                
+            accum_grads = tree_map(lambda g: g / grad_accum, accum_grads)
+            optimizer.update(self.model, accum_grads)
+            
+            return accum_loss / grad_accum, accum_ce / grad_accum
+            
+        # Run uncompiled step once to initialize optimizer state
+        dummy_targets = mx.random.randint(0, self.m_cfg["vocab_size"], (self.t_cfg["batch_size"], self.m_cfg["seq_len"]))
+        dummy_loss, dummy_ce = train_step_uncompiled(dummy_targets, self.t_cfg["batch_size"] // self.t_cfg["gradient_accumulation"], self.m_cfg["seq_len"], self.m_cfg["vocab_size"], self.t_cfg["gradient_accumulation"])
+        mx.eval(self.model.parameters(), optimizer.state, dummy_loss)
+
+        state = [self.model.state, optimizer.state]
+        train_step = mx.compile(train_step_uncompiled, inputs=state, outputs=state)
+
+        base_dir_str = self.c_cfg.get("checkpoint_dir", self.c_cfg.get("dir", "checkpoints/phase_b_25m_mlx"))
+        base_dir = Path(base_dir_str)
+        if base_dir.exists() and any(base_dir.iterdir()):
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            ckpt_dir = Path(f"{base_dir}_{timestamp}")
+        else:
+            ckpt_dir = base_dir
+
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        print(f"  Checkpoint Directory: {ckpt_dir} (Versioned)")
+
+        start_time = time.time()
+        idx_ptr = 0
+        bs = self.t_cfg["batch_size"]
+        grad_accum = self.t_cfg["gradient_accumulation"]
+
+        for step in range(1, max_steps + 1):
+            lr = get_lr(step)
+            optimizer.learning_rate = lr
+
+            N = dataset_matrix.shape[0]
+            indices = [(idx_ptr + i) % N for i in range(bs * grad_accum)]
+            idx_ptr = (idx_ptr + bs * grad_accum) % N
+            global_targets = mx.array(dataset_matrix[indices, :self.m_cfg["seq_len"]], dtype=mx.int32)
+            
+            avg_loss, avg_ce = train_step(global_targets, bs, self.m_cfg["seq_len"], self.m_cfg["vocab_size"], grad_accum)
+            mx.eval(self.model.parameters(), optimizer.state, avg_loss, avg_ce)
+
+            if step % 50 == 0 or step == 1 or step == max_steps:
+                mx.clear_cache()
+                gc.collect()
+
+                elapsed = time.time() - start_time
+                sps = step / elapsed
+                tps = sps * bs * grad_accum * self.m_cfg["seq_len"]
+                
+                try:
+                    avg_loss_val = avg_loss.item()
+                    avg_ce_val = avg_ce.item()
+                except Exception:
+                    avg_loss_val = 0.0
+                    avg_ce_val = 0.0
+                    
+                eta_mins = (max_steps - step) / sps / 60.0
+                mem_str = get_sys_mem_str()
+
+                print(f"  Step {step:>6d}/{max_steps} | ELBO Loss: {avg_loss_val:>6.2f} | "
+                      f"CE: {avg_ce_val:>5.3f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s | {mem_str} | ETA: {eta_mins:>4.1f}m", flush=True)
+
+            if step % self.c_cfg.get("save_every_steps", 1000) == 0:
+                ckpt_file = ckpt_dir / f"checkpoint_step_{step}.safetensors"
+                self.model.save_weights(str(ckpt_file))
+                print(f"  [Checkpoint] Saved weights to {ckpt_file}")
+
+        total_time = time.time() - start_time
+        final_weights = ckpt_dir / "model.safetensors"
+        self.model.save_weights(str(final_weights))
+
+        import json
+        with open(ckpt_dir / "config.json", "w") as f:
+            json.dump(self.m_cfg, f, indent=2)
+
+        tok_source = Path("configs/tokenizer_mac.json")
+        if tok_source.exists():
+            import shutil
+            shutil.copy(tok_source, ckpt_dir / "tokenizer.json")
+
+        print("=" * 70)
+        print(f"  Training Complete! Total time: {total_time/60.0:.2f} minutes.")
+        print(f"  Saved standalone model artifact to {ckpt_dir}/")
+        print("=" * 70)
