@@ -340,34 +340,19 @@ class TelosMLXTrainer:
         # We initialize loss_and_grad_fn outside
         loss_and_grad_fn = mx_nn.value_and_grad(self.model, loss_fn_mlx)
         
-        def train_step_uncompiled(targets, bs, seq_len, vocab_size, grad_accum):
-            accum_loss = mx.array(0.0)
-            accum_ce = mx.array(0.0)
-            
-            accum_grads = None
-            for i in range(grad_accum):
-                batch_seqs = mx.take(targets, mx.arange(i * bs, (i + 1) * bs), axis=0)
-                masked_ids, mask_pos, t_vals = apply_masking_mlx(batch_seqs, mask_token_id=1)
-                (loss, ce), grads = loss_and_grad_fn(self.model, masked_ids, batch_seqs, mask_pos, t_vals, vocab_size)
-                
-                if accum_grads is None: accum_grads = grads
-                else: accum_grads = tree_map(lambda a, b: a + b, accum_grads, grads)
-                    
-                accum_loss = accum_loss + loss
-                accum_ce = accum_ce + ce
-                
-            accum_grads = tree_map(lambda g: g / grad_accum, accum_grads)
-            optimizer.update(self.model, accum_grads)
-            
-            return accum_loss / grad_accum, accum_ce / grad_accum
+        def microbatch_step_uncompiled(batch_seqs):
+            masked_ids, mask_pos, t_vals = apply_masking_mlx(batch_seqs, mask_token_id=1)
+            (loss, ce), grads = loss_and_grad_fn(self.model, masked_ids, batch_seqs, mask_pos, t_vals, self.m_cfg["vocab_size"])
+            return loss, ce, grads
             
         # Run uncompiled step once to initialize optimizer state
-        dummy_targets = mx.random.randint(0, self.m_cfg["vocab_size"], (self.t_cfg["batch_size"], self.m_cfg["seq_len"]))
-        dummy_loss, dummy_ce = train_step_uncompiled(dummy_targets, self.t_cfg["batch_size"] // self.t_cfg["gradient_accumulation"], self.m_cfg["seq_len"], self.m_cfg["vocab_size"], self.t_cfg["gradient_accumulation"])
+        dummy_seqs = mx.random.randint(0, self.m_cfg["vocab_size"], (self.t_cfg["batch_size"], self.m_cfg["seq_len"]))
+        dummy_loss, dummy_ce, dummy_grads = microbatch_step_uncompiled(dummy_seqs)
+        optimizer.update(self.model, dummy_grads)
         mx.eval(self.model.parameters(), optimizer.state, dummy_loss)
 
-        state = [self.model.state, optimizer.state]
-        train_step = mx.compile(train_step_uncompiled, inputs=state, outputs=state)
+        state = [self.model.state]
+        microbatch_step = mx.compile(microbatch_step_uncompiled, inputs=state, outputs=state)
 
         base_dir_str = self.c_cfg.get("checkpoint_dir", self.c_cfg.get("dir", "checkpoints/phase_b_25m_mlx"))
         base_dir = Path(base_dir_str)
@@ -394,8 +379,31 @@ class TelosMLXTrainer:
             idx_ptr = (idx_ptr + bs * grad_accum) % N
             global_targets = mx.array(dataset_matrix[indices, :self.m_cfg["seq_len"]], dtype=mx.int32)
             
-            avg_loss, avg_ce = train_step(global_targets, bs, self.m_cfg["seq_len"], self.m_cfg["vocab_size"], grad_accum)
-            mx.eval(self.model.parameters(), optimizer.state, avg_loss, avg_ce)
+            accum_grads = None
+            accum_loss = 0.0
+            accum_ce = 0.0
+
+            for i in range(grad_accum):
+                batch_seqs = global_targets[i * bs : (i + 1) * bs]
+                loss, ce, grads = microbatch_step(batch_seqs)
+                
+                if accum_grads is None:
+                    accum_grads = grads
+                else:
+                    accum_grads = tree_map(lambda a, b: a + b, accum_grads, grads)
+                
+                # CRITICAL MEMORY EVICTION: Force MLX to evaluate accumulation graph & free microbatch memory!
+                mx.eval(accum_grads, loss, ce)
+                
+                accum_loss += loss.item()
+                accum_ce += ce.item()
+
+            accum_grads = tree_map(lambda g: g / grad_accum, accum_grads)
+            optimizer.update(self.model, accum_grads)
+            mx.eval(self.model.parameters(), optimizer.state)
+
+            avg_loss_val = accum_loss / grad_accum
+            avg_ce_val = accum_ce / grad_accum
 
             if step % 50 == 0 or step == 1 or step == max_steps:
                 mx.clear_cache()
