@@ -20,6 +20,7 @@ training configuration:
 - save_every_minutes: 10
 """
 
+import numpy as np
 import time
 import math
 from pathlib import Path
@@ -263,20 +264,39 @@ def get_sys_mem_str() -> str:
     except Exception:
         return ""
 
-def sample_beta_timesteps_mlx(batch_size: int, eps: float = 1e-5):
+def sample_cosine_timesteps_mlx(batch_size: int, eps: float = 1e-5):
+    """Cosine-transformed timestep sampler (oversamples endpoints t near 0 and 1)."""
     u = mx.random.uniform(0.0, 1.0, (batch_size, 1))
     t = 0.5 - 0.5 * mx.cos(math.pi * u)
     return mx.clip(t, eps, 1.0)
 
-def apply_masking_mlx(input_ids, mask_token_id=1, special_tokens={0, 1, 2, 3}):
+def sample_uniform_timesteps_mlx(batch_size: int, eps: float = 1e-5):
+    """Uniform timestep sampler for standard MDLM baseline training."""
+    u = mx.random.uniform(0.0, 1.0, (batch_size, 1))
+    return mx.clip(u, eps, 1.0)
+
+def build_special_token_lut(vocab_size: int, special_tokens=(0, 1, 2, 3)):
+    """Precomputes 1D boolean array for constant-time special token lookup."""
+    lut = [False] * vocab_size
+    for token_id in special_tokens:
+        if token_id < vocab_size:
+            lut[token_id] = True
+    return mx.array(lut, dtype=mx.bool_)
+
+def apply_masking_mlx(input_ids, mask_token_id=1, special_token_lut=None, strategy="cosine"):
     B, T = input_ids.shape
-    t_values = sample_beta_timesteps_mlx(B)
+    if strategy == "cosine":
+        t_values = sample_cosine_timesteps_mlx(B)
+    else:
+        t_values = sample_uniform_timesteps_mlx(B)
+
     rand_matrix = mx.random.uniform(0.0, 1.0, (B, T))
     raw_mask = rand_matrix < t_values
 
-    is_special = mx.zeros((B, T), dtype=mx.bool_)
-    for st in special_tokens:
-        is_special = is_special | (input_ids == st)
+    if special_token_lut is not None:
+        is_special = special_token_lut[input_ids]
+    else:
+        is_special = (input_ids == 0) | (input_ids == 1) | (input_ids == 2) | (input_ids == 3)
 
     mask_positions = raw_mask & (~is_special)
     masked_input_ids = mx.where(mask_positions, mask_token_id, input_ids)
@@ -299,6 +319,20 @@ def loss_fn_mlx(model, masked_input_ids, targets, mask_positions, t_values, voca
     reweighted_loss = mx.mean(per_example_ce * t_weights)
     return reweighted_loss, unweighted_ce
 
+def get_global_targets_contiguous(dataset_matrix, idx_ptr, total_batch, seq_len):
+    n_rows = dataset_matrix.shape[0]
+    end_ptr = idx_ptr + total_batch
+    if end_ptr <= n_rows:
+        batch = dataset_matrix[idx_ptr:end_ptr, :seq_len]
+        next_ptr = end_ptr % n_rows
+    else:
+        first = dataset_matrix[idx_ptr:n_rows, :seq_len]
+        remainder = end_ptr - n_rows
+        second = dataset_matrix[:remainder, :seq_len]
+        batch = np.concatenate((first, second), axis=0)
+        next_ptr = remainder
+    return mx.array(batch, dtype=mx.int32), next_ptr
+
 class TelosMLXTrainer:
     def __init__(self, model, cfg):
         if not MLX_AVAILABLE:
@@ -308,10 +342,10 @@ class TelosMLXTrainer:
         self.m_cfg = cfg["model"]
         self.t_cfg = cfg["training"]
         self.c_cfg = cfg.get("checkpoint", {})
+        self.special_lut = build_special_token_lut(self.m_cfg["vocab_size"])
 
     def train(self):
         import numpy as np
-        import gc
         
         train_bin = Path("data/python_corpus_mac.bin")
         if train_bin.exists():
@@ -337,19 +371,19 @@ class TelosMLXTrainer:
 
         optimizer = mx_optim.AdamW(learning_rate=max_lr, weight_decay=weight_decay)
 
-        # We initialize loss_and_grad_fn outside
         loss_and_grad_fn = mx_nn.value_and_grad(self.model, loss_fn_mlx)
+        special_lut = self.special_lut
         
         def microbatch_step_uncompiled(batch_seqs):
-            masked_ids, mask_pos, t_vals = apply_masking_mlx(batch_seqs, mask_token_id=1)
+            masked_ids, mask_pos, t_vals = apply_masking_mlx(batch_seqs, mask_token_id=1, special_token_lut=special_lut)
             (loss, ce), grads = loss_and_grad_fn(self.model, masked_ids, batch_seqs, mask_pos, t_vals, self.m_cfg["vocab_size"])
             return loss, ce, grads
             
-        # Run uncompiled step once to initialize optimizer state
+        # Run graph trace once WITHOUT calling optimizer.update() to avoid synthetic AdamW moment pollution!
         dummy_seqs = mx.random.randint(0, self.m_cfg["vocab_size"], (self.t_cfg["batch_size"], self.m_cfg["seq_len"]))
         dummy_loss, dummy_ce, dummy_grads = microbatch_step_uncompiled(dummy_seqs)
-        optimizer.update(self.model, dummy_grads)
-        mx.eval(self.model.parameters(), optimizer.state, dummy_loss)
+        mx.eval(dummy_loss, dummy_ce, dummy_grads)
+        del dummy_loss, dummy_ce, dummy_grads
 
         state = [self.model.state]
         microbatch_step = mx.compile(microbatch_step_uncompiled, inputs=state, outputs=state)
@@ -374,14 +408,11 @@ class TelosMLXTrainer:
             lr = get_lr(step)
             optimizer.learning_rate = lr
 
-            N = dataset_matrix.shape[0]
-            indices = [(idx_ptr + i) % N for i in range(bs * grad_accum)]
-            idx_ptr = (idx_ptr + bs * grad_accum) % N
-            global_targets = mx.array(dataset_matrix[indices, :self.m_cfg["seq_len"]], dtype=mx.int32)
+            global_targets, idx_ptr = get_global_targets_contiguous(dataset_matrix, idx_ptr, bs * grad_accum, self.m_cfg["seq_len"])
             
             accum_grads = None
-            accum_loss = 0.0
-            accum_ce = 0.0
+            accum_loss = mx.array(0.0, dtype=mx.float32)
+            accum_ce = mx.array(0.0, dtype=mx.float32)
 
             for i in range(grad_accum):
                 batch_seqs = global_targets[i * bs : (i + 1) * bs]
@@ -392,22 +423,19 @@ class TelosMLXTrainer:
                 else:
                     accum_grads = tree_map(lambda a, b: a + b, accum_grads, grads)
                 
-                # CRITICAL MEMORY EVICTION: Force MLX to evaluate accumulation graph & free microbatch memory!
-                mx.eval(accum_grads, loss, ce)
-                
-                accum_loss += loss.item()
-                accum_ce += ce.item()
+                accum_loss = accum_loss + loss
+                accum_ce = accum_ce + ce
+
+                # Evict microbatch graph without device-to-host scalar synchronization
+                mx.eval(accum_grads, accum_loss, accum_ce)
 
             accum_grads = tree_map(lambda g: g / grad_accum, accum_grads)
             optimizer.update(self.model, accum_grads)
             mx.eval(self.model.parameters(), optimizer.state)
 
-            avg_loss_val = accum_loss / grad_accum
-            avg_ce_val = accum_ce / grad_accum
-
             if step % 50 == 0 or step == 1 or step == max_steps:
-                mx.clear_cache()
-                gc.collect()
+                avg_loss_val = accum_loss.item() / grad_accum
+                avg_ce_val = accum_ce.item() / grad_accum
 
                 elapsed = time.time() - start_time
                 sps = step / elapsed

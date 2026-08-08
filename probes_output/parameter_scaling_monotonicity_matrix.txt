@@ -1,0 +1,111 @@
+=============================================================================================================================
+ PER-PROBE PARAMETER SCALING MONOTONICITY MATRIX (12.5M -> 25M -> 50M at 1:10 Ratio)
+=============================================================================================================================
+CAT                  | PROMPT                     | TARGET   | 12.5M RANK   | 25M RANK     | 50M RANK     | SCALING PATTERN     
+-----------------------------------------------------------------------------------------------------------------------------
+Identifier recovery  | return a +                 | b        | #63          | #99          | #45          | Non-Monotonic 🟡
+Identifier recovery  | x = 10\nprint(             | x        | #17          | #55          | #59          | Monotonic Regression 🔴
+Identifier recovery  | def __init__(self,         | name     | #443         | #6486        | #5067        | Non-Monotonic 🟡
+Identifier recovery  | self.name =                | name     | #1479        | #6115        | #4621        | Non-Monotonic 🟡
+Identifier recovery  | total = sum(               | items    | #869         | #1181        | #967         | Non-Monotonic 🟡
+Identifier recovery  | for elem in                | lst      | #1662        | #3919        | #1185        | Non-Monotonic 🟡
+Identifier recovery  | res = val *                | factor   | #86          | #57          | #158         | Non-Monotonic 🟡
+Identifier recovery  | msg = str(                 | err      | #2652        | #2800        | #2560        | Non-Monotonic 🟡
+Identifier recovery  | dx = x2 -                  | x1       | #23          | #55          | #58          | Monotonic Regression 🔴
+Identifier recovery  | data = json.loads(         | text     | #28          | #50          | #28          | Non-Monotonic 🟡
+Identifier recovery  | res = []\nfor x in         | items    | #713         | #1093        | #1001        | Non-Monotonic 🟡
+Identifier recovery  | left +                     | right    | #3865        | #1389        | #2142        | Non-Monotonic 🟡
+Identifier recovery  | width *                    | height   | #5292        | #3518        | #3935        | Non-Monotonic 🟡
+Function names       | def get_                   | name     | #5458        | #6477        | #5859        | Non-Monotonic 🟡
+Function names       | def set_                   | val      | #3294        | #3931        | #3860        | Non-Monotonic 🟡
+Function names       | def parse_                 | data     | #502         | #401         | #389         | Monotonic Improvement 🟢
+Function names       | def build_                 | model    | #3068        | #1803        | #4211        | Non-Monotonic 🟡
+Function names       | def test_                  | func     | #636         | #776         | #401         | Non-Monotonic 🟡
+Function names       | def process_               | request  | #365         | #420         | #634         | Monotonic Regression 🔴
+Function names       | def validate_              | input    | #1508        | #2620        | #959         | Non-Monotonic 🟡
+Function names       | def load_                  | config   | #6086        | #1434        | #3013        | Non-Monotonic 🟡
+Function names       | def save_                  | file     | #8055        | #7973        | #8084        | Non-Monotonic 🟡
+Function names       | def calculate_             | total    | #2989        | #3209        | #1905        | Non-Monotonic 🟡
+Function names       | def convert_               | type     | #135         | #27          | #24          | Monotonic Improvement 🟢
+Function names       | def read_                  | bytes    | #2928        | #1488        | #1662        | Non-Monotonic 🟡
+Function names       | def create_                | instance | #222         | #405         | #296         | Non-Monotonic 🟡
+Keywords             | if x == 1:\n    pass\n     | else     | #305         | #474         | #399         | Non-Monotonic 🟡
+Keywords             | try:\n    pass\n           | except   | #581         | #1168        | #734         | Non-Monotonic 🟡
+Keywords             | for i in                   | range    | #1196        | #5073        | #3366        | Non-Monotonic 🟡
+Keywords             | with open(path)            | as       | #8095        | #7964        | #8106        | Non-Monotonic 🟡
+Keywords             | if not                     | found    | #132         | #57          | #137         | Non-Monotonic 🟡
+Keywords             | while                      | True     | #143         | #445         | #230         | Non-Monotonic 🟡
+Keywords             | from typing                | import   | #433         | #684         | #474         | Non-Monotonic 🟡
+Keywords             | assert x is                | not      | #625         | #810         | #582         | Non-Monotonic 🟡
+Keywords             | if item                    | in       | #6209        | #4682        | #5742        | Non-Monotonic 🟡
+Keywords             | def func():\n              | return   | #436         | #766         | #779         | Monotonic Regression 🔴
+Keywords             | raise ValueError(          | msg      | #954         | #883         | #561         | Monotonic Improvement 🟢
+Keywords             | class MyClass(             | object   | #4744        | #4820        | #6774        | Monotonic Regression 🔴
+Keywords             | yield                      | from     | #323         | #337         | #122         | Non-Monotonic 🟡
+Operators            | x = a +                    | b        | #57          | #104         | #47          | Non-Monotonic 🟡
+Operators            | if a ==                    | b        | #59          | #104         | #48          | Non-Monotonic 🟡
+Operators            | x +=                       | 1        | #11          | #37          | #37          | Monotonic Regression 🔴
+Operators            | a >                        | 0        | #31          | #48          | #44          | Non-Monotonic 🟡
+Operators            | x = y *                    | z        | #189         | #406         | #342         | Non-Monotonic 🟡
+Operators            | a !=                       | None     | #839         | #728         | #1281        | Non-Monotonic 🟡
+Operators            | count = len(arr) -         | 1        | #21          | #38          | #34          | Non-Monotonic 🟡
+Operators            | if x <=                    | max_val  | #533         | #85          | #511         | Non-Monotonic 🟡
+Operators            | idx = (i + 1) %            | n        | #38          | #63          | #43          | Non-Monotonic 🟡
+Operators            | res = a &                  | b        | #90          | #112         | #45          | Non-Monotonic 🟡
+Operators            | flags = A |                | B        | #129         | #193         | #192         | Non-Monotonic 🟡
+Operators            | val = x **                 | 2        | #39          | #49          | #31          | Non-Monotonic 🟡
+Literals             | if x is                    | None     | #714         | #701         | #1373        | Non-Monotonic 🟡
+Literals             | flag =                     | True     | #420         | #451         | #227         | Non-Monotonic 🟡
+Literals             | status =                   | False    | #171         | #460         | #540         | Monotonic Regression 🔴
+Literals             | count =                    | 0        | #65          | #48          | #44          | Monotonic Improvement 🟢
+Literals             | name =                     | ""       | #4211        | #1767        | #6271        | Non-Monotonic 🟡
+Literals             | items =                    | []       | #127         | #76          | #42          | Monotonic Improvement 🟢
+Literals             | data =                     | {}       | #2583        | #1125        | #1226        | Non-Monotonic 🟡
+Literals             | rate =                     | 0.0      | #21          | #46          | #45          | Non-Monotonic 🟡
+Literals             | idx =                      | -1       | #44          | #30          | #25          | Monotonic Improvement 🟢
+Literals             | pi =                       | 3.14     | #256         | #121         | #123         | Non-Monotonic 🟡
+Literals             | res =                      | 1        | #43          | #37          | #42          | Non-Monotonic 🟡
+Literals             | msg =                      | "hello"  | #103         | #65          | #22          | Monotonic Improvement 🟢
+Imports              | import                     | os       | #608         | #945         | #474         | Non-Monotonic 🟡
+Imports              | import                     | sys      | #15          | #16          | #17          | Monotonic Regression 🔴
+Imports              | import                     | json     | #273         | #281         | #432         | Monotonic Regression 🔴
+Imports              | import                     | time     | #2278        | #1977        | #3249        | Non-Monotonic 🟡
+Imports              | import                     | math     | #1469        | #1634        | #1407        | Non-Monotonic 🟡
+Imports              | import                     | re       | #3807        | #3540        | #4995        | Non-Monotonic 🟡
+Imports              | import                     | random   | #1371        | #2797        | #1850        | Non-Monotonic 🟡
+Imports              | from typing import         | List     | #1679        | #1920        | #3019        | Monotonic Regression 🔴
+Imports              | from pathlib import        | Path     | #853         | #1801        | #831         | Non-Monotonic 🟡
+Imports              | import numpy as            | np       | #1631        | #1066        | #1881        | Non-Monotonic 🟡
+Imports              | import torch.nn as         | nn       | #6827        | #3967        | #5032        | Non-Monotonic 🟡
+Imports              | from collections import    | defaultdict | #655         | #536         | #331         | Monotonic Improvement 🟢
+Imports              | import logging             | as       | #8123        | #7959        | #8111        | Non-Monotonic 🟡
+Class names          | class                      | Base     | #145         | #195         | #197         | Monotonic Regression 🔴
+Class names          | class                      | Model    | #2197        | #1688        | #1901        | Non-Monotonic 🟡
+Class names          | class                      | Config   | #5382        | #2814        | #4666        | Non-Monotonic 🟡
+Class names          | class                      | Trainer  | #8071        | #8159        | #8181        | Monotonic Regression 🔴
+Class names          | class                      | User     | #345         | #547         | #370         | Non-Monotonic 🟡
+Class names          | class                      | Dataset  | #1213        | #1137        | #913         | Monotonic Improvement 🟢
+Class names          | class                      | Engine   | #312         | #178         | #301         | Non-Monotonic 🟡
+Class names          | class                      | Handler  | #318         | #249         | #133         | Monotonic Improvement 🟢
+Class names          | class                      | Session  | #2839        | #4645        | #3804        | Non-Monotonic 🟡
+Class names          | class                      | Exception | #529         | #1611        | #1124        | Non-Monotonic 🟡
+Class names          | class                      | Node     | #3550        | #3176        | #1232        | Monotonic Improvement 🟢
+Class names          | class                      | Server   | #93          | #93          | #122         | Monotonic Regression 🔴
+Attribute names      | self.                      | name     | #1179        | #6173        | #5702        | Non-Monotonic 🟡
+Attribute names      | self.                      | value    | #349         | #23          | #20          | Monotonic Improvement 🟢
+Attribute names      | self.                      | config   | #4479        | #1797        | #3148        | Non-Monotonic 🟡
+Attribute names      | self.                      | device   | #464         | #505         | #259         | Non-Monotonic 🟡
+Attribute names      | self.                      | logger   | #7739        | #6554        | #6964        | Non-Monotonic 🟡
+Attribute names      | self.                      | state    | #8020        | #8061        | #8060        | Non-Monotonic 🟡
+Attribute names      | obj.                       | data     | #529         | #391         | #408         | Non-Monotonic 🟡
+Attribute names      | req.                       | json     | #242         | #268         | #422         | Monotonic Regression 🔴
+Attribute names      | path.                      | exists   | #3642        | #2970        | #3946        | Non-Monotonic 🟡
+Attribute names      | res.                       | status_code | #462         | #669         | #717         | Monotonic Regression 🔴
+=============================================================================================================================
+ SCALING BEHAVIOR DISTRIBUTION SUMMARY:
+-----------------------------------------------------------------------------------------------------------------------------
+  Monotonic Improvement     : 12 / 98 probes (12.2%)
+  Monotonic Regression      : 15 / 98 probes (15.3%)
+  Non-Monotonic             : 71 / 98 probes (72.4%)
+  Unchanged / Equal         :  0 / 98 probes (0.0%)
+=============================================================================================================================

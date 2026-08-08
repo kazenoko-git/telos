@@ -63,11 +63,17 @@ class MLXTelosTransformer(nn.Module):
         self.norm = MLXRMSNorm(d_model)
         self.head = nn.Linear(d_model, vocab_size, bias=False)
 
-    def __call__(self, x):
+    def hidden_states(self, x):
         x = self.emb(x)
         for layer in self.layers:
             x = layer(x)
-        return self.head(self.norm(x))
+        return self.norm(x)
+
+    def logits_from_hidden(self, hidden):
+        return self.head(hidden)
+
+    def __call__(self, x):
+        return self.logits_from_hidden(self.hidden_states(x))
 
 def get_upscaled_layer_mapping(src_layers, tgt_layers):
     mapping = []
