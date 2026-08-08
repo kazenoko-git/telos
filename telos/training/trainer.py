@@ -413,18 +413,17 @@ class TelosMLXTrainer:
                 sps = step / elapsed
                 tps = sps * bs * grad_accum * self.m_cfg["seq_len"]
                 
-                try:
-                    avg_loss_val = avg_loss.item()
-                    avg_ce_val = avg_ce.item()
-                except Exception:
-                    avg_loss_val = 0.0
-                    avg_ce_val = 0.0
-                    
                 eta_mins = (max_steps - step) / sps / 60.0
                 mem_str = get_sys_mem_str()
 
-                print(f"  Step {step:>6d}/{max_steps} | ELBO Loss: {avg_loss_val:>6.2f} | "
-                      f"CE: {avg_ce_val:>5.3f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s | {mem_str} | ETA: {eta_mins:>4.1f}m", flush=True)
+                log_msg = f"  Step {step:>6d}/{max_steps} | ELBO Loss: {avg_loss_val:>6.2f} | CE: {avg_ce_val:>5.3f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s | {mem_str} | ETA: {eta_mins:>4.1f}m"
+                print(log_msg, flush=True)
+                try:
+                    Path("logs").mkdir(exist_ok=True)
+                    with open("logs/overnight_suite.log", "a") as f_log:
+                        f_log.write(log_msg + "\n")
+                except Exception:
+                    pass
 
             if step % self.c_cfg.get("save_every_steps", 1000) == 0:
                 ckpt_file = ckpt_dir / f"checkpoint_step_{step}.safetensors"
