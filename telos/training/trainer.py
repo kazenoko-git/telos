@@ -265,7 +265,8 @@ def get_sys_mem_str() -> str:
         return ""
 
 def sample_cosine_timesteps_mlx(batch_size: int, eps: float = 1e-5):
-    """Cosine-transformed timestep sampler (oversamples endpoints t near 0 and 1)."""
+    """Cosine-transformed timestep sampler (equivalent to Beta(0.5, 0.5) / arcsine distribution).
+    Oversamples endpoints t near 0 and 1. Legacy sampler — kept for reproducibility."""
     u = mx.random.uniform(0.0, 1.0, (batch_size, 1))
     t = 0.5 - 0.5 * mx.cos(math.pi * u)
     return mx.clip(t, eps, 1.0)
@@ -275,6 +276,13 @@ def sample_uniform_timesteps_mlx(batch_size: int, eps: float = 1e-5):
     u = mx.random.uniform(0.0, 1.0, (batch_size, 1))
     return mx.clip(u, eps, 1.0)
 
+def sample_beta_timesteps_mlx(batch_size: int, alpha: float = 1.5, beta: float = 1.5, eps: float = 1e-5):
+    """Beta(α, β) timestep sampler matching MDLM paper specification.
+    Default Beta(1.5, 1.5) concentrates mass toward moderate masking rates (t ≈ 0.5).
+    Uses numpy for sampling (negligible cost vs forward/backward pass)."""
+    t = np.random.beta(alpha, beta, size=(batch_size, 1)).astype(np.float32)
+    return mx.clip(mx.array(t), eps, 1.0)
+
 def build_special_token_lut(vocab_size: int, special_tokens=(0, 1, 2, 3)):
     """Precomputes 1D boolean array for constant-time special token lookup."""
     lut = [False] * vocab_size
@@ -283,9 +291,11 @@ def build_special_token_lut(vocab_size: int, special_tokens=(0, 1, 2, 3)):
             lut[token_id] = True
     return mx.array(lut, dtype=mx.bool_)
 
-def apply_masking_mlx(input_ids, mask_token_id=1, special_token_lut=None, strategy="cosine"):
+def apply_masking_mlx(input_ids, mask_token_id=1, special_token_lut=None, strategy="beta"):
     B, T = input_ids.shape
-    if strategy == "cosine":
+    if strategy == "beta":
+        t_values = sample_beta_timesteps_mlx(B)
+    elif strategy == "cosine":
         t_values = sample_cosine_timesteps_mlx(B)
     else:
         t_values = sample_uniform_timesteps_mlx(B)
