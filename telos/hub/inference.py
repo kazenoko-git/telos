@@ -15,9 +15,20 @@ from telos.diffusion.sampler import MDLMSampler
 
 
 class TelosModel:
-    """high-level standalone inference wrapper for télos models."""
+    """High-level standalone inference wrapper for télos models.
+    
+    This class orchestrates the complete iterative denoising inference pipeline 
+    for Masked Diffusion Language Models (MDLMs). It manages the initialization 
+    of the underlying Transformer architecture, the loading of tokenizer 
+    assets, and the execution of the diffusion sampling loop. Unlike 
+    autoregressive models which predict tokens monotonically from left to 
+    right, this model begins with a fully masked sequence and iteratively 
+    predicts all tokens in parallel, solidifying predictions based on the 
+    defined unmasking schedule and temperature dynamics.
+    """
 
     def __init__(self, model: TelosTransformer, tokenizer: Tokenizer, config: TelosConfig):
+        """Initializes the inference wrapper with pre-loaded model components."""
         self.model = model
         self.tokenizer = tokenizer
         self.config = config
@@ -25,12 +36,9 @@ class TelosModel:
         self.model.to(self.device)
         self.model.eval()
 
-    @classmethod
-    def from_pretrained(cls, model_path_or_id: str | Path = "checkpoints") -> "TelosModel":
-        """Loads model weights, tokenizer, and config from local folder or HF Hub."""
-        model_path = Path(model_path_or_id)
-
-        # 1. Locate checkpoint weights file
+    @staticmethod
+    def _load_weights_dict(model_path: Path):
+        """Locates and loads raw state dictionary from safetensors or pt."""
         weights_file = None
         for name in ["checkpoint_final.pt", "model.pt", "model.safetensors"]:
             if (model_path / name).exists():
@@ -46,10 +54,8 @@ class TelosModel:
             elif pt_files:
                 weights_file = pt_files[-1]
 
-        assert weights_file is not None, f"No model weights (.pt / .safetensors) found in {model_path}"
+        assert weights_file is not None, f"No model weights found in {model_path}"
 
-        # Load weights state_dict and optional embedded config
-        embedded_cfg = None
         if str(weights_file).endswith(".safetensors"):
             try:
                 from safetensors.torch import load_file
@@ -58,48 +64,48 @@ class TelosModel:
                 state_dict = torch.load(str(weights_file), map_location="cpu", weights_only=False)
         else:
             state_dict = torch.load(str(weights_file), map_location="cpu", weights_only=False)
+            
+        return state_dict, weights_file
 
-        if isinstance(state_dict, dict) and "model_state_dict" in state_dict:
-            embedded_cfg = state_dict.get("config")
-            state_dict = state_dict["model_state_dict"]
-
-        # 2. Locate / parse Config
+    @staticmethod
+    def _parse_config(model_path: Path, embedded_cfg):
+        """Resolves configuration from embedded dictionary, json file, or fallbacks."""
         if isinstance(embedded_cfg, TelosConfig):
-            config = embedded_cfg
+            return embedded_cfg
         elif (model_path / "config.json").exists():
             with open(model_path / "config.json", "r") as f:
                 cfg_dict = json.load(f)
-            config = TelosConfig(**cfg_dict)
+            return TelosConfig(**cfg_dict)
         elif embedded_cfg and isinstance(embedded_cfg, dict) and "model" in embedded_cfg:
-            config = TelosConfig(**embedded_cfg["model"])
+            return TelosConfig(**embedded_cfg["model"])
         elif embedded_cfg and isinstance(embedded_cfg, dict):
-            config = TelosConfig(**embedded_cfg)
+            return TelosConfig(**embedded_cfg)
         elif Path("configs/phase_b_25m_mlx.yaml").exists():
             import yaml
             with open("configs/phase_b_25m_mlx.yaml", "r") as f:
                 cfg_dict = yaml.safe_load(f)["model"]
-            config = TelosConfig(**cfg_dict)
+            return TelosConfig(**cfg_dict)
         elif Path("configs/phase_a.yaml").exists():
             import yaml
             with open("configs/phase_a.yaml", "r") as f:
                 cfg_dict = yaml.safe_load(f)["model"]
-            config = TelosConfig(**cfg_dict)
-        else:
-            config = TelosConfig()
+            return TelosConfig(**cfg_dict)
+        return TelosConfig()
 
-        # 3. Locate Tokenizer
+    @staticmethod
+    def _load_tokenizer(model_path: Path):
+        """Locates and instantiates tokenizer from local paths."""
         tokenizer_file = None
         for tok_path in [model_path / "tokenizer.json", Path("configs/tokenizer_mac.json"), Path("configs/tokenizer.json")]:
             if tok_path.exists():
                 tokenizer_file = tok_path
                 break
+        assert tokenizer_file is not None, "Tokenizer file missing"
+        return Tokenizer.from_file(str(tokenizer_file))
 
-        assert tokenizer_file is not None, f"Tokenizer file missing"
-        tokenizer = Tokenizer.from_file(str(tokenizer_file))
-
-
-
-        # Convert legacy qkv_proj state_dict keys to GQA q_proj/k_proj/v_proj format
+    @staticmethod
+    def _convert_state_dict(state_dict: dict, is_safetensors: bool) -> dict:
+        """Converts legacy and framework-specific weights to expected schema."""
         new_state_dict = {}
         for key, val in state_dict.items():
             if not isinstance(val, torch.Tensor):
@@ -114,11 +120,10 @@ class TelosModel:
             elif key.startswith("emb."):
                 new_state_dict["tok_embeddings.weight"] = val
             elif key.startswith("layers."):
-                # Convert MLX layer names
                 k_clean = key.replace(".norm1.", ".attn_norm.").replace(".norm2.", ".mlp_norm.")
                 k_clean = k_clean.replace(".out.", ".attn.o_proj.")
-                # Transpose MLX linear weights only if loading from .safetensors
-                if str(weights_file).endswith(".safetensors") and k_clean.endswith(".weight") and ("attn.q_proj" in k_clean or "attn.k_proj" in k_clean or "attn.v_proj" in k_clean or "attn.o_proj" in k_clean or "mlp.w2" in k_clean or "mlp.w3" in k_clean):
+                # Transpose MLX weights for safetensors.
+                if is_safetensors and k_clean.endswith(".weight") and ("attn.q_proj" in k_clean or "attn.k_proj" in k_clean or "attn.v_proj" in k_clean or "attn.o_proj" in k_clean or "mlp.w2" in k_clean or "mlp.w3" in k_clean):
                     val = val.T
                 new_state_dict[k_clean] = val
             elif key.startswith("norm."):
@@ -127,8 +132,39 @@ class TelosModel:
                 new_state_dict["output_projection.weight"] = val
             else:
                 new_state_dict[key] = val
+        return new_state_dict
 
-        # 4. Instantiate model and load state_dict
+    @classmethod
+    def from_pretrained(cls, model_path_or_id: str | Path = "checkpoints") -> "TelosModel":
+        """Instantiates a complete TelosModel pipeline from a designated directory.
+        
+        This factory method orchestrates the discovery and resolution of 
+        model weights, configuration schemas, and tokenizer definitions. It 
+        gracefully handles weight transposition and key mapping for weights 
+        originally trained in external frameworks such as MLX. The resulting 
+        instance is fully primed for device placement and inference.
+        
+        Args:
+            model_path_or_id: Path pointing to the directory containing weights.
+            
+        Returns:
+            An instantiated TelosModel ready for sampling.
+        """
+        model_path = Path(model_path_or_id)
+
+        raw_state_dict, weights_file = cls._load_weights_dict(model_path)
+
+        embedded_cfg = None
+        if isinstance(raw_state_dict, dict) and "model_state_dict" in raw_state_dict:
+            embedded_cfg = raw_state_dict.get("config")
+            raw_state_dict = raw_state_dict["model_state_dict"]
+
+        config = cls._parse_config(model_path, embedded_cfg)
+        tokenizer = cls._load_tokenizer(model_path)
+
+        is_st = str(weights_file).endswith(".safetensors")
+        new_state_dict = cls._convert_state_dict(raw_state_dict, is_st)
+
         model = TelosTransformer(config)
         model.load_state_dict(new_state_dict, strict=False)
         return cls(model, tokenizer, config)
@@ -143,18 +179,26 @@ class TelosModel:
         repetition_penalty: float = 1.2,
         schedule: str = "linear"
     ) -> str:
-        """completes code given a prompt using masked diffusion iterative unmasking.
-
-        args:
-            prompt: input string (e.g., function signature + docstring).
-            max_tokens: total target sequence length.
-            num_steps: denoising steps (16-128).
-            temperature: sampling temperature.
-            repetition_penalty: penalty factor (e.g. 1.2) for repeated tokens.
-            schedule: unmasking schedule ("linear" or "cosine").
-
-        returns:
-            completion: generated Python code text.
+        """Executes full masked diffusion iterative unmasking generation.
+        
+        This method translates the provided prompt string into token ids, 
+        concatenates them with `max_tokens` masked positions, and initiates 
+        the reverse diffusion sampler. Through exactly `num_steps` iterations, 
+        the model parallelizes prediction across all currently masked positions, 
+        selecting and freezing the highest confidence tokens as dictated by 
+        the designated mathematical schedule. The ultimate generated token 
+        sequence is then detokenized and optionally truncated.
+        
+        Args:
+            prompt: The string prefix acting as the conditioned context.
+            max_tokens: The exact number of mask tokens to append and solve.
+            num_steps: Total number of denoising iteration steps to execute.
+            temperature: Softmax scaling factor applied prior to token sampling.
+            repetition_penalty: Logit suppression factor targeting previous tokens.
+            schedule: The functional curve governing the unmasking rate.
+            
+        Returns:
+            The raw text string representing the final generated code.
         """
         encoded = self.tokenizer.encode(prompt)
         prompt_ids = torch.tensor([encoded.ids], dtype=torch.long, device=self.device)
@@ -173,81 +217,9 @@ class TelosModel:
 
         sampled_ids = sampler.sample(seq_len=total_seq_len, prompt_ids=prompt_ids, device=self.device)
         
-        # Decode generated tokens skipping special tokens
-        full_text = self.tokenizer.decode(sampled_ids[0].tolist(), skip_special_tokens=True)
-
-        # Truncate at stop words if present in text
-        for stop_str in ["[EOS]", "[PAD]", "<|endoftext|>"]:
-            if stop_str in full_text:
-                full_text = full_text.split(stop_str)[0]
-
-        return full_text.rstrip()
-
-    def complete_non_monotonic(
-        self,
-        prompt: str,
-        max_tokens: int = 128,
-        num_steps: int = 64,
-        temperature: float = 0.0,
-        repetition_penalty: float = 1.0,
-        schedule: str = "cosine",
-        remask_threshold: float = 0.15
-    ) -> str:
-        """Completes code using the Non-Monotonic Re-Masking Diffusion Sampler."""
-        from telos.diffusion.non_monotonic_sampler import NonMonotonicMDLMSampler
-
-        encoded = self.tokenizer.encode(prompt)
-        prompt_ids = torch.tensor([encoded.ids], dtype=torch.long, device=self.device)
-
-        sampler = NonMonotonicMDLMSampler(
-            self.model,
-            mask_token_id=1,
-            num_steps=num_steps,
-            temperature=temperature,
-            repetition_penalty=repetition_penalty,
-            schedule=schedule,
-            remask_threshold=remask_threshold
-        )
-
-        sampled_ids = sampler.sample(seq_len=max_tokens, prompt_ids=prompt_ids, device=self.device)
-        full_text = self.tokenizer.decode(sampled_ids[0].tolist(), skip_special_tokens=True)
-
-        for stop_str in ["[EOS]", "[PAD]", "<|endoftext|>"]:
-            if stop_str in full_text:
-                full_text = full_text.split(stop_str)[0]
-
-        return full_text.rstrip()
-
-    def complete_windowed(
-        self,
-        prompt: str,
-        max_tokens: int = 128,
-        window_size: int = 32,
-        num_steps_per_window: int = 16,
-        temperature: float = 0.0,
-        remask_threshold: float = 0.15
-    ) -> str:
-        """Completes code using the Progressive Windowed Localized Masked Diffusion Sampler."""
-        from telos.diffusion.windowed_sampler import WindowedMDLMSampler
-
-        encoded = self.tokenizer.encode(prompt)
-        prompt_ids = torch.tensor([encoded.ids], dtype=torch.long, device=self.device)
-
-        sampler = WindowedMDLMSampler(
-            self.model,
-            mask_token_id=1,
-            window_size=window_size,
-            num_steps_per_window=num_steps_per_window,
-            temperature=temperature,
-            remask_threshold=remask_threshold
-        )
-
-        target_tokens = max_tokens - prompt_ids.shape[1]
-        if target_tokens <= 0:
-            return prompt
-
-        sampled_ids = sampler.sample(target_tokens=target_tokens, prompt_ids=prompt_ids, device=self.device)
-        full_text = self.tokenizer.decode(sampled_ids[0].tolist(), skip_special_tokens=True)
+        prompt_len = prompt_ids.shape[1]
+        completion_ids = sampled_ids[0, prompt_len:]
+        full_text = self.tokenizer.decode(completion_ids.tolist(), skip_special_tokens=True)
 
         for stop_str in ["[EOS]", "[PAD]", "<|endoftext|>"]:
             if stop_str in full_text:
