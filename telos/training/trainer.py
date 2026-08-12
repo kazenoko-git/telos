@@ -354,7 +354,7 @@ class TelosMLXTrainer:
         self.c_cfg = cfg.get("checkpoint", {})
         self.special_lut = build_special_token_lut(self.m_cfg["vocab_size"])
 
-    def train(self):
+    def train(self, resume_step: int = 0):
         import numpy as np
         
         train_bin = Path("data/python_corpus_mac.bin")
@@ -372,6 +372,16 @@ class TelosMLXTrainer:
         max_lr = float(self.t_cfg["max_lr"])
         min_lr = float(self.t_cfg["min_lr"])
         weight_decay = float(self.t_cfg.get("weight_decay", 0.1))
+
+        bs = self.t_cfg["batch_size"]
+        grad_accum = self.t_cfg["gradient_accumulation"]
+        idx_ptr = 0
+        
+        if resume_step > 0:
+            print(f"  Resuming from step {resume_step}. Fast-forwarding dataset...")
+            # Each step consumes bs * grad_accum sequences
+            seqs_consumed = resume_step * (bs * grad_accum)
+            idx_ptr = seqs_consumed % len(dataset_matrix)
 
         def get_lr(step):
             if step < warmup_steps:
@@ -410,11 +420,8 @@ class TelosMLXTrainer:
         print(f"  Checkpoint Directory: {ckpt_dir} (Versioned)")
 
         start_time = time.time()
-        idx_ptr = 0
-        bs = self.t_cfg["batch_size"]
-        grad_accum = self.t_cfg["gradient_accumulation"]
 
-        for step in range(1, max_steps + 1):
+        for step in range(resume_step + 1, max_steps + 1):
             lr = get_lr(step)
             optimizer.learning_rate = lr
 
@@ -448,10 +455,11 @@ class TelosMLXTrainer:
                 avg_ce_val = accum_ce.item() / grad_accum
 
                 elapsed = time.time() - start_time
-                sps = step / elapsed
+                steps_taken = step - resume_step
+                sps = steps_taken / elapsed if elapsed > 0 else 0
                 tps = sps * bs * grad_accum * self.m_cfg["seq_len"]
                 
-                eta_mins = (max_steps - step) / sps / 60.0
+                eta_mins = (max_steps - step) / sps / 60.0 if sps > 0 else 0.0
                 mem_str = get_sys_mem_str()
 
                 log_msg = f"  Step {step:>6d}/{max_steps} | ELBO Loss: {avg_loss_val:>6.2f} | CE: {avg_ce_val:>5.3f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s | {mem_str} | ETA: {eta_mins:>4.1f}m"
