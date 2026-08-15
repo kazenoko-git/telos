@@ -349,7 +349,7 @@ def sample_mlx_model(ckpt_dir: Path, num_steps: int = 64, mode: str = "sample"):
         )
     else:
         model = MLXTelosTransformer(vocab_size=8192, d_model=512, n_layers=8, n_heads=8, n_kv_heads=8)
-    model.load_weights(str(weights_path))
+    model.load_weights(str(weights_path), strict=False)
     model.set_dtype(mx.bfloat16)
     mx.eval(model.parameters())
 

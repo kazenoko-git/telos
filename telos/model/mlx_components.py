@@ -47,6 +47,10 @@ class MLXBlock(nn.Module):
         k = self.k_proj(h).reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
         v = self.v_proj(h).reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
 
+        # Apply hardware-accelerated RoPE Metal kernel to Q and K
+        q = mx.fast.rope(q, self.head_dim, traditional=False, base=10000.0, scale=1.0, offset=0)
+        k = mx.fast.rope(k, self.head_dim, traditional=False, base=10000.0, scale=1.0, offset=0)
+
         scale = 1.0 / (self.head_dim ** 0.5)
         out = mx.fast.scaled_dot_product_attention(q, k, v, scale=scale)
         out = out.transpose(0, 2, 1, 3).reshape(B, T, D)
@@ -56,20 +60,40 @@ class MLXBlock(nn.Module):
         return x
 
 class MLXTelosTransformer(nn.Module):
-    def __init__(self, vocab_size: int, d_model: int, n_layers: int, n_heads: int, n_kv_heads: int, **kwargs):
+    def __init__(
+        self,
+        vocab_size: int,
+        d_model: int,
+        n_layers: int,
+        n_heads: int,
+        n_kv_heads: int,
+        tied_embeddings: bool = True,
+        use_grad_checkpoint: bool = False,
+        **kwargs
+    ):
         super().__init__()
+        self.vocab_size = vocab_size
+        self.d_model = d_model
+        self.tied_embeddings = tied_embeddings
+        self.use_grad_checkpoint = use_grad_checkpoint
         self.emb = nn.Embedding(vocab_size, d_model)
         self.layers = [MLXBlock(d_model, n_heads, n_kv_heads) for _ in range(n_layers)]
         self.norm = MLXRMSNorm(d_model)
-        self.head = nn.Linear(d_model, vocab_size, bias=False)
+        if not tied_embeddings:
+            self.head = nn.Linear(d_model, vocab_size, bias=False)
 
     def hidden_states(self, x):
         x = self.emb(x)
         for layer in self.layers:
-            x = layer(x)
+            if self.use_grad_checkpoint:
+                x = mx.checkpoint(layer)(x)
+            else:
+                x = layer(x)
         return self.norm(x)
 
     def logits_from_hidden(self, hidden):
+        if self.tied_embeddings:
+            return self.emb.as_linear(hidden)
         return self.head(hidden)
 
     def __call__(self, x):
@@ -101,7 +125,9 @@ def load_upscaled_weights(tgt_model, tgt_cfg, src_ckpt_path, src_cfg_path):
     tgt_weights = {}
     
     tgt_weights["emb.weight"] = pad_weight(src_weights["emb.weight"], (tgt_cfg["vocab_size"], tgt_cfg["d_model"]))
-    tgt_weights["head.weight"] = pad_weight(src_weights["head.weight"], (tgt_cfg["vocab_size"], tgt_cfg["d_model"]))
+    if not tgt_cfg.get("tied_embeddings", True):
+        head_w = src_weights.get("head.weight", src_weights["emb.weight"])
+        tgt_weights["head.weight"] = pad_weight(head_w, (tgt_cfg["vocab_size"], tgt_cfg["d_model"]))
     tgt_weights["norm.weight"] = pad_weight(src_weights["norm.weight"], (tgt_cfg["d_model"],))
     
     layer_map = get_upscaled_layer_mapping(src_cfg["n_layers"], tgt_cfg["n_layers"])
@@ -128,5 +154,5 @@ def load_upscaled_weights(tgt_model, tgt_cfg, src_ckpt_path, src_cfg_path):
         tgt_weights[prefix_tgt + "mlp.w2.weight"] = pad_weight(src_weights[prefix_src + "mlp.w2.weight"], (hidden_tgt, tgt_cfg["d_model"]))
         tgt_weights[prefix_tgt + "mlp.w3.weight"] = pad_weight(src_weights[prefix_src + "mlp.w3.weight"], (tgt_cfg["d_model"], hidden_tgt))
 
-    tgt_model.load_weights(list(tgt_weights.items()))
+    tgt_model.load_weights(list(tgt_weights.items()), strict=False)
     print("  [Upscaling] Success: Initialized model with upscaled weights.")

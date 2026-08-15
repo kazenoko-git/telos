@@ -343,6 +343,18 @@ def get_global_targets_contiguous(dataset_matrix, idx_ptr, total_batch, seq_len)
         next_ptr = remainder
     return mx.array(batch, dtype=mx.int32), next_ptr
 
+def cast_optimizer_moments_bf16(state_dict: dict) -> dict:
+    """Casts AdamW moment tensors m and v to bfloat16 to reduce memory footprint by 50%."""
+    new_state = {}
+    for k, v in state_dict.items():
+        if isinstance(v, dict):
+            new_state[k] = cast_optimizer_moments_bf16(v)
+        elif isinstance(v, mx.array) and k in ("m", "v") and v.dtype == mx.float32:
+            new_state[k] = v.astype(mx.bfloat16)
+        else:
+            new_state[k] = v
+    return new_state
+
 class TelosMLXTrainer:
     def __init__(self, model, cfg):
         if not MLX_AVAILABLE:
@@ -353,6 +365,11 @@ class TelosMLXTrainer:
         self.t_cfg = cfg["training"]
         self.c_cfg = cfg.get("checkpoint", {})
         self.special_lut = build_special_token_lut(self.m_cfg["vocab_size"])
+        
+        # Enable gradient checkpointing on model if requested in config
+        if self.t_cfg.get("gradient_checkpointing", False) or self.m_cfg.get("use_grad_checkpoint", False):
+            self.model.use_grad_checkpoint = True
+            print("  [Memory] Gradient Checkpointing Enabled.")
 
     def train(self, resume_step: int = 0):
         import numpy as np
@@ -448,7 +465,18 @@ class TelosMLXTrainer:
 
             accum_grads = tree_map(lambda g: g / grad_accum, accum_grads)
             optimizer.update(self.model, accum_grads)
+            
+            # Cast AdamW moments to bf16 on the first step to save 50% optimizer memory
+            if step == resume_step + 1:
+                optimizer.state = cast_optimizer_moments_bf16(optimizer.state)
+                
             mx.eval(self.model.parameters(), optimizer.state)
+
+            # Periodic memory cache defragmentation
+            if step % 100 == 0:
+                mx.clear_cache()
+                import gc
+                gc.collect()
 
             if step % 50 == 0 or step == 1 or step == max_steps:
                 avg_loss_val = accum_loss.item() / grad_accum
