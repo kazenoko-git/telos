@@ -56,6 +56,9 @@ To train the 12M, 25M, or 50M parameter scaling suites locally on Apple Silicon 
 ```bash
 # Open and run the master training notebook
 jupyter notebook notebooks/Training_Suites.ipynb
+
+# Or execute RoPE adaptation & fine-tuning across all 15 models
+jupyter notebook notebooks/RoPE_Finetune_Suite.ipynb
 ```
 Or execute via script entry points:
 ```bash
