@@ -246,23 +246,16 @@ try:
     import mlx.core as mx
     import mlx.nn as mx_nn
     import mlx.optimizers as mx_optim
-    from mlx.utils import tree_map
+    from mlx.utils import tree_map, tree_flatten
     MLX_AVAILABLE = True
 except ImportError:
     MLX_AVAILABLE = False
 
+from telos.training.core import (
+    clip_grad_norm_mlx, build_special_token_lut, get_sys_mem_str,
+    cast_optimizer_moments_bf16, execute_mlx_training_step
+)
 
-def get_sys_mem_str() -> str:
-    try:
-        active_gb = mx.get_active_memory() / 1e9
-        peak_gb = mx.get_peak_memory() / 1e9
-        import subprocess
-        swap_res = subprocess.run(["sysctl", "vm.swapusage"], capture_output=True, text=True)
-        swap_parts = swap_res.stdout.strip().split()
-        used_swap = swap_parts[6] if len(swap_parts) >= 7 else "0M"
-        return f"Metal Unified GPU: {active_gb:.2f}GB (Peak: {peak_gb:.2f}GB) | Swap: {used_swap}"
-    except Exception:
-        return ""
 
 def sample_cosine_timesteps_mlx(batch_size: int, eps: float = 1e-5):
     """Cosine-transformed timestep sampler (equivalent to Beta(0.5, 0.5) / arcsine distribution).
@@ -282,14 +275,6 @@ def sample_beta_timesteps_mlx(batch_size: int, alpha: float = 1.5, beta: float =
     Uses numpy for sampling (negligible cost vs forward/backward pass)."""
     t = np.random.beta(alpha, beta, size=(batch_size, 1)).astype(np.float32)
     return mx.clip(mx.array(t), eps, 1.0)
-
-def build_special_token_lut(vocab_size: int, special_tokens=(0, 1, 2, 3)):
-    """Precomputes 1D boolean array for constant-time special token lookup."""
-    lut = [False] * vocab_size
-    for token_id in special_tokens:
-        if token_id < vocab_size:
-            lut[token_id] = True
-    return mx.array(lut, dtype=mx.bool_)
 
 def apply_masking_mlx(input_ids, mask_token_id=1, special_token_lut=None, strategy="beta"):
     B, T = input_ids.shape
@@ -315,7 +300,8 @@ def apply_masking_mlx(input_ids, mask_token_id=1, special_token_lut=None, strate
 def loss_fn_mlx(model, masked_input_ids, targets, mask_positions, t_values, vocab_size):
     logits = model(masked_input_ids)
     B, T, V = logits.shape
-    logits_flat = logits.reshape(-1, V)
+    # Upcast logits to float32 for numerically stable log-softmax in cross entropy
+    logits_flat = logits.astype(mx.float32).reshape(-1, V)
     targets_flat = targets.reshape(-1)
 
     ce_per_token = mx_nn.losses.cross_entropy(logits_flat, targets_flat, reduction="none").reshape(B, T)
@@ -343,18 +329,6 @@ def get_global_targets_contiguous(dataset_matrix, idx_ptr, total_batch, seq_len)
         next_ptr = remainder
     return mx.array(batch, dtype=mx.int32), next_ptr
 
-def cast_optimizer_moments_bf16(state_dict: dict) -> dict:
-    """Casts AdamW moment tensors m and v to bfloat16 to reduce memory footprint by 50%."""
-    new_state = {}
-    for k, v in state_dict.items():
-        if isinstance(v, dict):
-            new_state[k] = cast_optimizer_moments_bf16(v)
-        elif isinstance(v, mx.array) and k in ("m", "v") and v.dtype == mx.float32:
-            new_state[k] = v.astype(mx.bfloat16)
-        else:
-            new_state[k] = v
-    return new_state
-
 class TelosMLXTrainer:
     def __init__(self, model, cfg):
         if not MLX_AVAILABLE:
@@ -365,6 +339,7 @@ class TelosMLXTrainer:
         self.t_cfg = cfg["training"]
         self.c_cfg = cfg.get("checkpoint", {})
         self.special_lut = build_special_token_lut(self.m_cfg["vocab_size"])
+        self.grad_clip = float(self.t_cfg.get("grad_clip", 1.0))
         
         # Enable gradient checkpointing on model if requested in config
         if self.t_cfg.get("gradient_checkpointing", False) or self.m_cfg.get("use_grad_checkpoint", False):
@@ -406,7 +381,13 @@ class TelosMLXTrainer:
             progress = (step - warmup_steps) / max(1, max_steps - warmup_steps)
             return min_lr + 0.5 * (max_lr - min_lr) * (1.0 + math.cos(math.pi * progress))
 
-        optimizer = mx_optim.AdamW(learning_rate=max_lr, weight_decay=weight_decay)
+        # Standard LLM AdamW configuration: betas=[0.9, 0.95], bias_correction=True
+        optimizer = mx_optim.AdamW(
+            learning_rate=max_lr,
+            weight_decay=weight_decay,
+            betas=[0.9, 0.95],
+            bias_correction=True
+        )
 
         loss_and_grad_fn = mx_nn.value_and_grad(self.model, loss_fn_mlx)
         special_lut = self.special_lut
@@ -438,33 +419,19 @@ class TelosMLXTrainer:
 
             global_targets, idx_ptr = get_global_targets_contiguous(dataset_matrix, idx_ptr, bs * grad_accum, self.m_cfg["seq_len"])
             
-            accum_grads = None
-            accum_loss = mx.array(0.0, dtype=mx.float32)
-            accum_ce = mx.array(0.0, dtype=mx.float32)
+            def batch_gen():
+                for i in range(grad_accum):
+                    yield global_targets[i * bs : (i + 1) * bs]
 
-            for i in range(grad_accum):
-                batch_seqs = global_targets[i * bs : (i + 1) * bs]
-                loss, ce, grads = microbatch_step(batch_seqs)
-                
-                if accum_grads is None:
-                    accum_grads = grads
-                else:
-                    accum_grads = tree_map(lambda a, b: a + b, accum_grads, grads)
-                
-                accum_loss = accum_loss + loss
-                accum_ce = accum_ce + ce
-
-                # Evict microbatch graph without device-to-host scalar synchronization
-                mx.eval(accum_grads, accum_loss, accum_ce)
-
-            accum_grads = tree_map(lambda g: g / grad_accum, accum_grads)
-            optimizer.update(self.model, accum_grads)
-            
-            # Cast AdamW moments to bf16 on the first step to save 50% optimizer memory
-            if step == resume_step + 1:
-                optimizer.state = cast_optimizer_moments_bf16(optimizer.state)
-                
-            mx.eval(self.model.parameters(), optimizer.state)
+            accum_loss, accum_ce = execute_mlx_training_step(
+                model=self.model,
+                optimizer=optimizer,
+                compiled_step_fn=microbatch_step,
+                batch_iterator=batch_gen(),
+                grad_accum=grad_accum,
+                grad_clip=self.grad_clip,
+                is_first_step=(step == resume_step + 1)
+            )
 
             # Periodic memory cache defragmentation
             if step % 100 == 0:

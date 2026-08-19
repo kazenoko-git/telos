@@ -17,36 +17,21 @@ try:
     import mlx.core as mx
     import mlx.nn as mx_nn
     import mlx.optimizers as mx_optim
-    from mlx.utils import tree_map
+    from mlx.utils import tree_map, tree_flatten
     MLX_AVAILABLE = True
 except ImportError:
     MLX_AVAILABLE = False
+
+from telos.training.core import (
+    clip_grad_norm_mlx, build_special_token_lut, get_sys_mem_str,
+    cast_optimizer_moments_bf16, execute_mlx_training_step
+)
 
 from undiff.diffusion.forward_process import apply_uniform_noise_mlx
 from undiff.diffusion.loss import undlm_loss
 
 
-def get_sys_mem_str() -> str:
-    """Returns Apple Silicon Metal unified memory and swap usage string."""
-    try:
-        active_gb = mx.get_active_memory() / 1e9
-        peak_gb = mx.get_peak_memory() / 1e9
-        import subprocess
-        swap_res = subprocess.run(["sysctl", "vm.swapusage"], capture_output=True, text=True)
-        swap_parts = swap_res.stdout.strip().split()
-        used_swap = swap_parts[6] if len(swap_parts) >= 7 else "0M"
-        return f"Metal Unified GPU: {active_gb:.2f}GB (Peak: {peak_gb:.2f}GB) | Swap: {used_swap}"
-    except Exception:
-        return ""
 
-
-def build_special_token_lut(vocab_size: int, special_tokens=(0, 1, 2, 3)):
-    """Precomputes 1D boolean array for constant-time special token lookup."""
-    lut = [False] * vocab_size
-    for token_id in special_tokens:
-        if token_id < vocab_size:
-            lut[token_id] = True
-    return mx.array(lut, dtype=mx.bool_)
 
 
 def get_global_targets_contiguous(dataset_matrix, idx_ptr, total_batch, seq_len):
@@ -65,18 +50,6 @@ def get_global_targets_contiguous(dataset_matrix, idx_ptr, total_batch, seq_len)
     return mx.array(batch, dtype=mx.int32), next_ptr
 
 
-def cast_optimizer_moments_bf16(state_dict: dict) -> dict:
-    """Casts AdamW moment tensors m and v to bfloat16 to reduce memory footprint by 50%."""
-    new_state = {}
-    for k, v in state_dict.items():
-        if isinstance(v, dict):
-            new_state[k] = cast_optimizer_moments_bf16(v)
-        elif isinstance(v, mx.array) and k in ("m", "v") and v.dtype == mx.float32:
-            new_state[k] = v.astype(mx.bfloat16)
-        else:
-            new_state[k] = v
-    return new_state
-
 
 class TelosMLXUNDLMTrainer:
     """MLX-native Trainer orchestrator for UNDLM (Uniform Noise Diffusion)."""
@@ -90,6 +63,7 @@ class TelosMLXUNDLMTrainer:
         self.t_cfg = cfg["training"]
         self.c_cfg = cfg.get("checkpoint", {})
         self.special_lut = build_special_token_lut(self.m_cfg["vocab_size"])
+        self.grad_clip = float(self.t_cfg.get("grad_clip", 1.0))
         
         # Enable gradient checkpointing on model if requested in config
         if self.t_cfg.get("gradient_checkpointing", False) or self.m_cfg.get("use_grad_checkpoint", False):
@@ -128,7 +102,13 @@ class TelosMLXUNDLMTrainer:
             progress = (step - warmup_steps) / max(1, max_steps - warmup_steps)
             return min_lr + 0.5 * (max_lr - min_lr) * (1.0 + math.cos(math.pi * progress))
 
-        optimizer = mx_optim.AdamW(learning_rate=max_lr, weight_decay=weight_decay)
+        # Standard LLM AdamW configuration: betas=[0.9, 0.95], bias_correction=True
+        optimizer = mx_optim.AdamW(
+            learning_rate=max_lr,
+            weight_decay=weight_decay,
+            betas=[0.9, 0.95],
+            bias_correction=True
+        )
 
         loss_and_grad_fn = mx_nn.value_and_grad(self.model, undlm_loss)
         special_lut = self.special_lut
@@ -139,9 +119,9 @@ class TelosMLXUNDLMTrainer:
             noisy_ids, corrupt_mask, t_vals = apply_uniform_noise_mlx(
                 batch_seqs, vocab_size=vocab_size, special_token_lut=special_lut, strategy="beta"
             )
-            # UNDLM loss: compute CE over ALL positions (not just corrupted ones)
+            # UNDLM loss: compute CE over all content positions
             (loss, ce), grads = loss_and_grad_fn(
-                self.model, noisy_ids, batch_seqs, t_vals, vocab_size
+                self.model, noisy_ids, batch_seqs, t_vals, vocab_size, special_token_lut=special_lut
             )
             return loss, ce, grads
 
@@ -167,31 +147,19 @@ class TelosMLXUNDLMTrainer:
 
             global_targets, idx_ptr = get_global_targets_contiguous(dataset_matrix, idx_ptr, bs * grad_accum, self.m_cfg["seq_len"])
             
-            accum_grads = None
-            accum_loss = mx.array(0.0, dtype=mx.float32)
-            accum_ce = mx.array(0.0, dtype=mx.float32)
+            def batch_gen():
+                for i in range(grad_accum):
+                    yield global_targets[i * bs : (i + 1) * bs]
 
-            for i in range(grad_accum):
-                batch_seqs = global_targets[i * bs : (i + 1) * bs]
-                loss, ce, grads = microbatch_step(batch_seqs)
-                
-                if accum_grads is None:
-                    accum_grads = grads
-                else:
-                    accum_grads = tree_map(lambda a, b: a + b, accum_grads, grads)
-                
-                accum_loss = accum_loss + loss
-                accum_ce = accum_ce + ce
-
-                mx.eval(accum_grads, accum_loss, accum_ce)
-
-            accum_grads = tree_map(lambda g: g / grad_accum, accum_grads)
-            optimizer.update(self.model, accum_grads)
-            
-            if step == resume_step + 1:
-                optimizer.state = cast_optimizer_moments_bf16(optimizer.state)
-                
-            mx.eval(self.model.parameters(), optimizer.state)
+            accum_loss, accum_ce = execute_mlx_training_step(
+                model=self.model,
+                optimizer=optimizer,
+                compiled_step_fn=microbatch_step,
+                batch_iterator=batch_gen(),
+                grad_accum=grad_accum,
+                grad_clip=self.grad_clip,
+                is_first_step=(step == resume_step + 1)
+            )
 
             if step % 100 == 0:
                 mx.clear_cache()

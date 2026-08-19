@@ -48,26 +48,26 @@ uv run python scripts/shared/generate_probe_graphs.py
 
 ---
 
-## 4. Training Pipelines
+## 4. Training Pipelines & Benchmarking
 
-### Option A: Masked Diffusion (MDLM) Local Training
-To train the 12M, 25M, or 50M parameter scaling suites locally on Apple Silicon Metal GPU:
-
+### Option A: 3-Paradigm Unified Training (AR vs MDLM vs UNDLM)
+To train all three paradigms under identical configurations sequentially:
 ```bash
-# Open and run the master training notebook
-jupyter notebook notebooks/masked/Training_Suites.ipynb
-
-# Or execute RoPE adaptation & fine-tuning across models
-jupyter notebook notebooks/masked/RoPE_Finetune_Suite.ipynb
+jupyter notebook notebooks/shared/Unified_Training_Suite.ipynb
 ```
 
-### Option B: Uniform Noise Diffusion (UNDLM) Training
-To train using the uniform noise diffusion paradigm:
-
+### Option B: Throughput & Optimization Benchmark Suite
+To test steps/sec, tokens/sec, and memory footprint across model scales (5M–100M) and batch sizes:
 ```bash
-# Uniform noise pipelines reside in undiff/
-jupyter notebook notebooks/uniform/Training_Suites.ipynb
+jupyter notebook notebooks/shared/Optimization_Test_Suite.ipynb
+# Or run standalone CLI:
+python scripts/shared/run_optimization_suite.py
 ```
+
+### Option C: Paradigm-Specific Notebooks
+- **Masked Discrete Diffusion (MDLM)**: `notebooks/masked/Training_Suites.ipynb`
+- **Uniform Noise Diffusion (UNDLM)**: `notebooks/uniform/Training_Suites.ipynb`
+- **Autoregressive Baseline (AR)**: `notebooks/ar/Training_Suites.ipynb`
 
 ---
 

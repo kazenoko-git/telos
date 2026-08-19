@@ -56,6 +56,7 @@ class MLXCausalBlock(nn.Module):
         self.v_proj = nn.Linear(d_model, n_kv_heads * self.head_dim, bias=False)
         self.out = nn.Linear(d_model, d_model, bias=False)
         self.mlp = MLXSwiGLU(d_model)
+        self._mask_cache = {}
 
     def __call__(self, x):
         B, T, D = x.shape
@@ -69,9 +70,11 @@ class MLXCausalBlock(nn.Module):
         q = mx.fast.rope(q, self.head_dim, traditional=False, base=10000.0, scale=1.0, offset=0)
         k = mx.fast.rope(k, self.head_dim, traditional=False, base=10000.0, scale=1.0, offset=0)
 
-        # Causal Attention Mask: lower-triangular mask (position i attends only to j <= i)
-        # Cast to q's dtype so the mask is compatible with bfloat16 model weights
-        causal_mask = nn.MultiHeadAttention.create_additive_causal_mask(T).astype(q.dtype)
+        # Causal Attention Mask: cached lower-triangular mask
+        cache_key = (T, str(q.dtype))
+        if cache_key not in self._mask_cache:
+            self._mask_cache[cache_key] = nn.MultiHeadAttention.create_additive_causal_mask(T).astype(q.dtype)
+        causal_mask = self._mask_cache[cache_key]
 
         scale = 1.0 / (self.head_dim ** 0.5)
         out = mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=causal_mask)

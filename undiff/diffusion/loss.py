@@ -7,21 +7,27 @@ Loss is computed at all content positoins.
 import mlx.core as mx
 import mlx.nn as nn
 
-def undlm_loss(model, noisy_ids, clean_targets, t_values, vocab_size):
-    # compute 1/t reweighted UNDLM cross entropy loss over all positions
-
+def undlm_loss(model, noisy_ids, clean_targets, t_values, vocab_size, special_token_lut=None):
+    # compute 1/t reweighted UNDLM cross entropy loss over all content positions
     logits = model(noisy_ids) # (B, T, V)
     B, T, V = logits.shape
 
-    logits_flat = logits.reshape(-1, V) # (B*T, V)
+    # Upcast logits to float32 for numerically stable log-softmax in cross entropy
+    logits_flat = logits.astype(mx.float32).reshape(-1, V) # (B*T, V)
     targets_flat = clean_targets.reshape(-1) # (B*T,)
 
-    # CE on every position
+    # CE on every position in float32
     ce_per_token = nn.losses.cross_entropy(logits_flat, targets_flat, reduction="none").reshape(B, T)
 
-    # average CE per example across all positions
+    # Exclude special tokens (PAD, MASK, BOS, EOS) from CE loss if LUT provided
+    if special_token_lut is not None:
+        content_mask = ~special_token_lut[clean_targets] # [B, T] True for content
+        ce_per_token = ce_per_token * content_mask.astype(mx.float32)
+        content_count = mx.clip(mx.sum(content_mask.astype(mx.float32), axis=1), 1.0, float(T))
+        per_example_ce = mx.sum(ce_per_token, axis=1) / content_count # [B]
+    else:
+        per_example_ce = mx.mean(ce_per_token, axis=1) # [B]
 
-    per_example_ce = mx.mean(ce_per_token, axis=1) # [B]
     unweighted_ce = mx.mean(per_example_ce)
 
     # 1/t ELBO reweighting

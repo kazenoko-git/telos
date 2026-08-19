@@ -17,14 +17,19 @@ try:
     import mlx.core as mx
     import mlx.nn as mx_nn
     import mlx.optimizers as mx_optim
-    from mlx.utils import tree_map
+    from mlx.utils import tree_map, tree_flatten
     MLX_AVAILABLE = True
 except ImportError:
     MLX_AVAILABLE = False
 
+from telos.training.core import (
+    clip_grad_norm_mlx, build_special_token_lut, get_sys_mem_str,
+    cast_optimizer_moments_bf16, execute_mlx_training_step
+)
 
-def ar_loss_fn_mlx(model, batch_seqs, vocab_size):
-    """Computes next-token cross-entropy loss for Autoregressive models.
+
+def ar_loss_fn_mlx(model, batch_seqs, vocab_size, special_token_lut=None):
+    """Computes next-token cross-entropy loss for Autoregressive models in float32.
 
     Inputs:  x = [t0, t1, t2, ..., tN-1]
     Logits:  predicts next token [t1, t2, ..., tN]
@@ -32,26 +37,24 @@ def ar_loss_fn_mlx(model, batch_seqs, vocab_size):
     logits = model(batch_seqs)  # [B, T, V]
     B, T, V = logits.shape
 
-    shift_logits = logits[:, :-1, :].reshape(-1, V)   # [B*(T-1), V]
-    shift_targets = batch_seqs[:, 1:].reshape(-1)      # [B*(T-1)]
+    # Upcast logits to float32 for numerically stable log-softmax in cross entropy
+    shift_logits = logits[:, :-1, :].astype(mx.float32).reshape(-1, V)   # [B*(T-1), V]
+    shift_targets = batch_seqs[:, 1:].reshape(-1)                        # [B*(T-1)]
 
     ce_per_token = mx_nn.losses.cross_entropy(shift_logits, shift_targets, reduction="none").reshape(B, T - 1)
-    loss = mx.mean(ce_per_token)
+    
+    # Exclude special tokens from loss if LUT provided
+    if special_token_lut is not None:
+        shift_target_2d = batch_seqs[:, 1:]
+        content_mask = ~special_token_lut[shift_target_2d]
+        ce_per_token = ce_per_token * content_mask.astype(mx.float32)
+        content_count = mx.clip(mx.sum(content_mask.astype(mx.float32), axis=1), 1.0, float(T - 1))
+        per_example_ce = mx.sum(ce_per_token, axis=1) / content_count
+        loss = mx.mean(per_example_ce)
+    else:
+        loss = mx.mean(ce_per_token)
+
     return loss, loss  # Return (loss, ce) — identical for AR baseline
-
-
-def get_sys_mem_str() -> str:
-    """Returns Apple Silicon Metal unified memory and swap usage string."""
-    try:
-        active_gb = mx.get_active_memory() / 1e9
-        peak_gb = mx.get_peak_memory() / 1e9
-        import subprocess
-        swap_res = subprocess.run(["sysctl", "vm.swapusage"], capture_output=True, text=True)
-        swap_parts = swap_res.stdout.strip().split()
-        used_swap = swap_parts[6] if len(swap_parts) >= 7 else "0M"
-        return f"Metal Unified GPU: {active_gb:.2f}GB (Peak: {peak_gb:.2f}GB) | Swap: {used_swap}"
-    except Exception:
-        return ""
 
 
 def get_global_targets_contiguous(dataset_matrix, idx_ptr, total_batch, seq_len):
@@ -70,19 +73,6 @@ def get_global_targets_contiguous(dataset_matrix, idx_ptr, total_batch, seq_len)
     return mx.array(batch, dtype=mx.int32), next_ptr
 
 
-def cast_optimizer_moments_bf16(state_dict: dict) -> dict:
-    """Casts AdamW moment tensors m and v to bfloat16 to reduce memory footprint by 50%."""
-    new_state = {}
-    for k, v in state_dict.items():
-        if isinstance(v, dict):
-            new_state[k] = cast_optimizer_moments_bf16(v)
-        elif isinstance(v, mx.array) and k in ("m", "v") and v.dtype == mx.float32:
-            new_state[k] = v.astype(mx.bfloat16)
-        else:
-            new_state[k] = v
-    return new_state
-
-
 class TelosMLXARTrainer:
     """MLX-native Trainer orchestrator for Autoregressive (AR) Causal Models."""
 
@@ -94,6 +84,8 @@ class TelosMLXARTrainer:
         self.m_cfg = cfg["model"]
         self.t_cfg = cfg["training"]
         self.c_cfg = cfg.get("checkpoint", {})
+        self.special_lut = build_special_token_lut(self.m_cfg["vocab_size"])
+        self.grad_clip = float(self.t_cfg.get("grad_clip", 1.0))
 
         if self.t_cfg.get("gradient_checkpointing", False) or self.m_cfg.get("use_grad_checkpoint", False):
             self.model.use_grad_checkpoint = True
@@ -131,13 +123,20 @@ class TelosMLXARTrainer:
             progress = (step - warmup_steps) / max(1, max_steps - warmup_steps)
             return min_lr + 0.5 * (max_lr - min_lr) * (1.0 + math.cos(math.pi * progress))
 
-        optimizer = mx_optim.AdamW(learning_rate=max_lr, weight_decay=weight_decay)
+        # Standard LLM AdamW configuration: betas=[0.9, 0.95], bias_correction=True
+        optimizer = mx_optim.AdamW(
+            learning_rate=max_lr,
+            weight_decay=weight_decay,
+            betas=[0.9, 0.95],
+            bias_correction=True
+        )
 
         loss_and_grad_fn = mx_nn.value_and_grad(self.model, ar_loss_fn_mlx)
         vocab_size = self.m_cfg["vocab_size"]
+        special_lut = self.special_lut
 
         def microbatch_step_uncompiled(batch_seqs):
-            (loss, ce), grads = loss_and_grad_fn(self.model, batch_seqs, vocab_size)
+            (loss, ce), grads = loss_and_grad_fn(self.model, batch_seqs, vocab_size, special_token_lut=special_lut)
             return loss, ce, grads
 
         # Graph trace warmup to compile kernel without polluting AdamW state
@@ -162,31 +161,19 @@ class TelosMLXARTrainer:
 
             global_targets, idx_ptr = get_global_targets_contiguous(dataset_matrix, idx_ptr, bs * grad_accum, self.m_cfg["seq_len"])
 
-            accum_grads = None
-            accum_loss = mx.array(0.0, dtype=mx.float32)
-            accum_ce = mx.array(0.0, dtype=mx.float32)
+            def batch_gen():
+                for i in range(grad_accum):
+                    yield global_targets[i * bs : (i + 1) * bs]
 
-            for i in range(grad_accum):
-                batch_seqs = global_targets[i * bs : (i + 1) * bs]
-                loss, ce, grads = microbatch_step(batch_seqs)
-
-                if accum_grads is None:
-                    accum_grads = grads
-                else:
-                    accum_grads = tree_map(lambda a, b: a + b, accum_grads, grads)
-
-                accum_loss = accum_loss + loss
-                accum_ce = accum_ce + ce
-
-                mx.eval(accum_grads, accum_loss, accum_ce)
-
-            accum_grads = tree_map(lambda g: g / grad_accum, accum_grads)
-            optimizer.update(self.model, accum_grads)
-
-            if step == resume_step + 1:
-                optimizer.state = cast_optimizer_moments_bf16(optimizer.state)
-
-            mx.eval(self.model.parameters(), optimizer.state)
+            accum_loss, accum_ce = execute_mlx_training_step(
+                model=self.model,
+                optimizer=optimizer,
+                compiled_step_fn=microbatch_step,
+                batch_iterator=batch_gen(),
+                grad_accum=grad_accum,
+                grad_clip=self.grad_clip,
+                is_first_step=(step == resume_step + 1)
+            )
 
             if step % 100 == 0:
                 mx.clear_cache()

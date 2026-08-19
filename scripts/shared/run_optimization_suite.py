@@ -24,13 +24,14 @@ sys.path.insert(0, str(project_root))
 import mlx.core as mx
 import mlx.nn as mx_nn
 import mlx.optimizers as mx_optim
-from mlx.utils import tree_map
+from mlx.utils import tree_map, tree_flatten
 
 from mdiff.model.mlx_components import MLXTelosTransformer
-from mdiff.training.trainer import (
-    apply_masking_mlx, loss_fn_mlx, build_special_token_lut,
-    cast_optimizer_moments_bf16, get_sys_mem_str
+from telos.training.core import (
+    clip_grad_norm_mlx, build_special_token_lut, get_sys_mem_str,
+    cast_optimizer_moments_bf16, execute_mlx_training_step
 )
+from mdiff.training.trainer import apply_masking_mlx, loss_fn_mlx
 from undiff.diffusion.forward_process import apply_uniform_noise_mlx
 from undiff.diffusion.loss import undlm_loss
 from ar.model.mlx_components import MLXCausalTransformer
@@ -56,13 +57,13 @@ def benchmark_patch(
         model = MLXTelosTransformer(vocab_size=vocab_size, **model_cfg)
     model.set_dtype(mx.bfloat16)
     
-    n_params = sum(p.size for _, p in mx_nn.utils.tree_flatten(model.parameters()))
+    n_params = sum(p.size for _, p in tree_flatten(model.parameters()))
     special_lut = build_special_token_lut(vocab_size)
     
     if paradigm == "ar":
         loss_and_grad = mx_nn.value_and_grad(model, ar_loss_fn_mlx)
         def microstep_raw(batch):
-            (loss, ce), grads = loss_and_grad(model, batch, vocab_size)
+            (loss, ce), grads = loss_and_grad(model, batch, vocab_size, special_token_lut=special_lut)
             return loss, ce, grads
     elif paradigm == "mdlm":
         loss_and_grad = mx_nn.value_and_grad(model, loss_fn_mlx)
@@ -74,7 +75,7 @@ def benchmark_patch(
         loss_and_grad = mx_nn.value_and_grad(model, undlm_loss)
         def microstep_raw(batch):
             noisy, corrupt_mask, t = apply_uniform_noise_mlx(batch, vocab_size=vocab_size, special_token_lut=special_lut)
-            (loss, ce), grads = loss_and_grad(model, noisy, batch, t, vocab_size)
+            (loss, ce), grads = loss_and_grad(model, noisy, batch, t, vocab_size, special_token_lut=special_lut)
             return loss, ce, grads
     
     dummy_seqs = mx.random.randint(0, vocab_size, (micro_batch, seq_len))
@@ -84,18 +85,24 @@ def benchmark_patch(
     
     state = [model.state]
     compiled_step = mx.compile(microstep_raw, inputs=state, outputs=state)
-    optimizer = mx_optim.AdamW(learning_rate=3e-4, weight_decay=0.1)
+    optimizer = mx_optim.AdamW(learning_rate=3e-4, weight_decay=0.1, betas=[0.9, 0.95], bias_correction=True)
     
+    def random_batch_gen():
+        while True:
+            yield mx.random.randint(0, vocab_size, (micro_batch, seq_len))
+            
+    batch_gen = random_batch_gen()
+
     for _ in range(warmup_steps):
-        accum_grads = None
-        for _ in range(grad_accum):
-            batch = mx.random.randint(0, vocab_size, (micro_batch, seq_len))
-            loss, ce, grads = compiled_step(batch)
-            accum_grads = grads if accum_grads is None else tree_map(lambda a, b: a + b, accum_grads, grads)
-            mx.eval(accum_grads, loss)
-        accum_grads = tree_map(lambda g: g / grad_accum, accum_grads)
-        optimizer.update(model, accum_grads)
-        mx.eval(model.parameters(), optimizer.state)
+        execute_mlx_training_step(
+            model=model,
+            optimizer=optimizer,
+            compiled_step_fn=compiled_step,
+            batch_iterator=batch_gen,
+            grad_accum=grad_accum,
+            grad_clip=1.0,
+            is_first_step=False
+        )
     
     optimizer.state = cast_optimizer_moments_bf16(optimizer.state)
     mx.eval(optimizer.state)
@@ -103,15 +110,15 @@ def benchmark_patch(
     
     start_time = time.perf_counter()
     for step in range(bench_steps):
-        accum_grads = None
-        for _ in range(grad_accum):
-            batch = mx.random.randint(0, vocab_size, (micro_batch, seq_len))
-            loss, ce, grads = compiled_step(batch)
-            accum_grads = grads if accum_grads is None else tree_map(lambda a, b: a + b, accum_grads, grads)
-            mx.eval(accum_grads, loss)
-        accum_grads = tree_map(lambda g: g / grad_accum, accum_grads)
-        optimizer.update(model, accum_grads)
-        mx.eval(model.parameters(), optimizer.state)
+        execute_mlx_training_step(
+            model=model,
+            optimizer=optimizer,
+            compiled_step_fn=compiled_step,
+            batch_iterator=batch_gen,
+            grad_accum=grad_accum,
+            grad_clip=1.0,
+            is_first_step=False
+        )
     
     elapsed = time.perf_counter() - start_time
     
