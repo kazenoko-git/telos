@@ -1,150 +1,72 @@
-"""Iterative Denoising Samplers for Masked Diffusion Inference.
+"""
+Iterative Denoising Sampler for UNDLM with Self Correction
 
-Includes:
-- MDLMSampler: Standard confidence-based unmasking sampler (linear / cosine schedules).
+Unlike MDLM's confidence based unmasking (once, unmasked, permanent),
+the UNDLM sampler re-predicts and re-corrupts at each step, allowing the model to
+correct previous mistakes.
 """
 
-import math
-import torch
-import torch.nn.functional as F
+import math, mlx.core as mx
+import mlx.nn as nn
 
+class UNDLMSapler:
+    # self corrective iterative denoising sampler for UNDLM
 
-class MDLMSampler:
-    """Iterative confidence-based unmasking sampler for Masked Diffusion Models.
-    
-    This sampler executes the core iterative reverse diffusion process. It begins 
-    with a completely masked target sequence and progressively unmasks tokens over 
-    a predefined number of steps. At each step, it predicts the full vocabulary 
-    distribution for all remaining masked positions, measures its confidence 
-    (the margin between the top-1 and top-2 token probabilities), and permanently 
-    locks in the highest confidence predictions. The quantity of tokens unmasked 
-    per step is governed by either a linear or cosine unmasking schedule.
-    """
-
-    def __init__(
-        self,
-        model: torch.nn.Module,
-        mask_token_id: int,
-        num_steps: int = 64,
-        temperature: float = 1.0,
-        repetition_penalty: float = 1.2,
-        schedule: str = "cosine"
-    ):
-        """Initializes the iterative sampler with model and hyperparameters.
-        
-        Args:
-            model: The fully initialized TelosTransformer neural network.
-            mask_token_id: The vocabulary ID corresponding to the [MASK] token.
-            num_steps: The total count of discrete denoising iteration steps.
-            temperature: Softmax scaling constant applied prior to sampling.
-            repetition_penalty: Logit divisor applied to previously generated tokens.
-            schedule: String identifier for unmasking curve ("cosine" or "linear").
-        """
+    def __init__(self, model, vocab_size:int, num_steps: int=64, temperature: float=0.8, schedule:str="linear"):
         self.model = model
-        self.mask_token_id = mask_token_id
+        self.vocab_size = vocab_size
         self.num_steps = num_steps
         self.temperature = temperature
-        self.repetition_penalty = repetition_penalty
         self.schedule = schedule
-
-    def _get_num_to_unmask(self, step: int, total_masked: int) -> int:
-        """Determines the exact count of tokens to unmask this iteration."""
-        if self.schedule == "cosine":
-            progress = (step + 1) / self.num_steps
-            ratio = 1.0 - math.cos(progress * math.pi / 2.0)
-            target_unmasked = math.ceil(ratio * total_masked)
-        else:
-            target_unmasked = math.ceil(((step + 1) / self.num_steps) * total_masked)
-            
-        return min(target_unmasked, total_masked)
-
-    @torch.no_grad()
-    def sample(
-        self,
-        seq_len: int,
-        prompt_ids: torch.Tensor | None = None,
-        device: str | torch.device = "cpu"
-    ) -> torch.Tensor:
-        """Executes the complete multi-step iterative denoising inference loop.
         
-        Args:
-            seq_len: The absolute total length of the required output sequence.
-            prompt_ids: Optional prefix tokens acting as structural conditioning context.
-            device: String or torch device specifying tensor placement execution.
-            
-        Returns:
-            A fully denoised tensor sequence combining prompt and generated tokens.
-        """
-        self.model.eval()
+    def _get_noise_level(self, step: int) -> float:
+        # return noise level t for given step (decreasing from 1 -> 0)
 
-        # Initialize sequence with masks.
-        seq = torch.full((1, seq_len), self.mask_token_id, dtype=torch.long, device=device)
-        
+        progress = step / self.num_steps # 0 -> 1 as step increases
+        if step.schedule == "cosine":
+            # cosine schedule: starts slow, accelerate and then slows at the end
+            return 1.0 - (1.0 - math.cos(math.pi * progress)) / 2.0
+        else: 
+            # linear schedule: uniform decrease
+            return 1.0 - progress
+
+    def sample(self, seq_len: int, prompt_ids=None) -> mx.array:
+        # generate a sequence via iterative denoising from pure noise
+
+        # initialise with pure random noise (t=1)
+        x_t = mx.random.randint(0, self.vocab_size, shape=(1, seq_len))
+
+        # if prompt provided, lock prefix positions
         prompt_len = 0
         if prompt_ids is not None:
             prompt_len = prompt_ids.shape[1]
-            seq[:, :prompt_len] = prompt_ids
+            x_t[:, :prompt_len] = prompt_ids
+        
+        for step in range(1, self.num_steps+1):
+            t_current = self._get_noise_level(step - 1) # noise at start of step
+            t_next = self._get_noise_level(step) # noise after the step
 
-        total_masked_positions = seq_len - prompt_len
-        if total_masked_positions <= 0:
-            return seq
+            # model predicts clean tokens from noisy input
+            logits = self.model(x_t) # [1, seq_len, vocab_size]
+            # sample from predicted distribution with temperature
+            probs = mx.softmax(logits / self.temperature, axis = -1)
+            # gumbel-max trick for efficient categorical sampling
+            gumbel_noise = -mx.log(-mx.log(mx.random.uniform(shape=probs.shape) + 1e-8) + 1e-8)
+            x_clean_pred = mx.argmax(mx.log(probs + 1e-8) + gumbel_noise, axis = -1) # [1, seq_len]
 
-        already_unmasked_count = 0
-
-        for step in range(self.num_steps):
-            current_mask = (seq == self.mask_token_id)
-            # Protect prompt tokens.
-            current_mask[:, :prompt_len] = False
-
-            num_currently_masked = current_mask.sum().item()
-            if num_currently_masked == 0:
-                break
-
-            target_unmasked_count = self._get_num_to_unmask(step, total_masked_positions)
-            num_to_unmask_this_step = target_unmasked_count - already_unmasked_count
-
-            if num_to_unmask_this_step <= 0:
-                continue
-
-            logits = self.model(seq)
-            logits = logits.clone()
-            logits[:, :, self.mask_token_id] = -float("inf")
-
-            if self.repetition_penalty != 1.0:
-                gen_seq = seq[:, prompt_len:] if prompt_len is not None else seq
-                unmasked_tokens = gen_seq[(gen_seq != self.mask_token_id) & (gen_seq > 3)]
-                for tok_id in set(unmasked_tokens.tolist()):
-                    logits[:, :, tok_id] = torch.where(
-                        logits[:, :, tok_id] > 0,
-                        logits[:, :, tok_id] / self.repetition_penalty,
-                        logits[:, :, tok_id] * self.repetition_penalty
-                    )
-
-            scaled_logits = logits / max(self.temperature, 1e-5)
-            probs = F.softmax(scaled_logits, dim=-1)
-
-            top2_probs, top2_indices = torch.topk(probs, k=2, dim=-1)
-            margin_conf = top2_probs[:, :, 0] - top2_probs[:, :, 1]
-            argmax_tokens = top2_indices[:, :, 0]
-
-            if self.temperature > 0.05:
-                gumbel_noise = -torch.log(-torch.log(torch.rand_like(margin_conf) + 1e-8) + 1e-8)
-                confidence_scores = margin_conf + 0.1 * self.temperature * gumbel_noise
+            if step == self.num_steps:
+                # final step
+                x_t = x_clean_pred
             else:
-                confidence_scores = margin_conf.clone()
-
-            confidence_scores[~current_mask] = -float("inf")
-
-            k = min(num_to_unmask_this_step, num_currently_masked)
-            _, topk_indices = torch.topk(confidence_scores[0], k=k)
-
-            if self.temperature > 0.05:
-                selected_probs = probs[0, topk_indices]
-                sampled_tokens = torch.multinomial(selected_probs, num_samples=1).squeeze(-1)
-            else:
-                sampled_tokens = argmax_tokens[0, topk_indices]
-
-            seq[0, topk_indices] = sampled_tokens
-            already_unmasked_count += k
-
-        return seq
+                # recorrupt at reduced noise level t_next
+                random_tokens = mx.random.randint(0, self.vocab_size, shape=(1, seq_len))            
+                corrupt_mask = mx.random.uniform(shape=(1,seq_len)) < t_next 
+                x_t = mx.where(corrupt_mask, random_tokens, x_clean_pred)
+            
+            # always preserve prompt prefix
+            if prompt_ids is not None:
+                x_t[:, :prompt_len] = prompt_ids
+            
+            mx.eval(x_t)
+            
+        return x_t
