@@ -1,11 +1,11 @@
 """
-Trainer for télos UNDLM (Uniform Noise Diffusion Language Modeling).
+Trainer for télos Autoregressive (AR) Language Model Baseline.
 
 Includes:
-- MLX-native compiled training loop with uniform noise corruption
-- 1/t ELBO-reweighted cross entropy loss over all sequence positions
+- MLX-native compiled training loop with causal next-token cross entropy loss
 - bfloat16 AdamW optimizer moment casting for 50% RAM savings
 - Automatic gradient accumulation and checkpoint management
+- Parity with MDLM and UNDLM training pipelines
 """
 
 import numpy as np
@@ -22,8 +22,22 @@ try:
 except ImportError:
     MLX_AVAILABLE = False
 
-from undiff.diffusion.forward_process import apply_uniform_noise_mlx
-from undiff.diffusion.loss import undlm_loss
+
+def ar_loss_fn_mlx(model, batch_seqs, vocab_size):
+    """Computes next-token cross-entropy loss for Autoregressive models.
+
+    Inputs:  x = [t0, t1, t2, ..., tN-1]
+    Logits:  predicts next token [t1, t2, ..., tN]
+    """
+    logits = model(batch_seqs)  # [B, T, V]
+    B, T, V = logits.shape
+
+    shift_logits = logits[:, :-1, :].reshape(-1, V)   # [B*(T-1), V]
+    shift_targets = batch_seqs[:, 1:].reshape(-1)      # [B*(T-1)]
+
+    ce_per_token = mx_nn.losses.cross_entropy(shift_logits, shift_targets, reduction="none").reshape(B, T - 1)
+    loss = mx.mean(ce_per_token)
+    return loss, loss  # Return (loss, ce) — identical for AR baseline
 
 
 def get_sys_mem_str() -> str:
@@ -38,15 +52,6 @@ def get_sys_mem_str() -> str:
         return f"Metal Unified GPU: {active_gb:.2f}GB (Peak: {peak_gb:.2f}GB) | Swap: {used_swap}"
     except Exception:
         return ""
-
-
-def build_special_token_lut(vocab_size: int, special_tokens=(0, 1, 2, 3)):
-    """Precomputes 1D boolean array for constant-time special token lookup."""
-    lut = [False] * vocab_size
-    for token_id in special_tokens:
-        if token_id < vocab_size:
-            lut[token_id] = True
-    return mx.array(lut, dtype=mx.bool_)
 
 
 def get_global_targets_contiguous(dataset_matrix, idx_ptr, total_batch, seq_len):
@@ -78,20 +83,18 @@ def cast_optimizer_moments_bf16(state_dict: dict) -> dict:
     return new_state
 
 
-class TelosMLXUNDLMTrainer:
-    """MLX-native Trainer orchestrator for UNDLM (Uniform Noise Diffusion)."""
+class TelosMLXARTrainer:
+    """MLX-native Trainer orchestrator for Autoregressive (AR) Causal Models."""
 
     def __init__(self, model, cfg):
         if not MLX_AVAILABLE:
-            raise ImportError("MLX is not installed. Cannot use TelosMLXUNDLMTrainer.")
+            raise ImportError("MLX is not installed. Cannot use TelosMLXARTrainer.")
         self.model = model
         self.cfg = cfg
         self.m_cfg = cfg["model"]
         self.t_cfg = cfg["training"]
         self.c_cfg = cfg.get("checkpoint", {})
-        self.special_lut = build_special_token_lut(self.m_cfg["vocab_size"])
-        
-        # Enable gradient checkpointing on model if requested in config
+
         if self.t_cfg.get("gradient_checkpointing", False) or self.m_cfg.get("use_grad_checkpoint", False):
             self.model.use_grad_checkpoint = True
             print("  [Memory] Gradient Checkpointing Enabled.")
@@ -116,7 +119,7 @@ class TelosMLXUNDLMTrainer:
         bs = self.t_cfg["batch_size"]
         grad_accum = self.t_cfg["gradient_accumulation"]
         idx_ptr = 0
-        
+
         if resume_step > 0:
             print(f"  Resuming from step {resume_step}. Fast-forwarding dataset...")
             seqs_consumed = resume_step * (bs * grad_accum)
@@ -130,19 +133,11 @@ class TelosMLXUNDLMTrainer:
 
         optimizer = mx_optim.AdamW(learning_rate=max_lr, weight_decay=weight_decay)
 
-        loss_and_grad_fn = mx_nn.value_and_grad(self.model, undlm_loss)
-        special_lut = self.special_lut
+        loss_and_grad_fn = mx_nn.value_and_grad(self.model, ar_loss_fn_mlx)
         vocab_size = self.m_cfg["vocab_size"]
-        
+
         def microbatch_step_uncompiled(batch_seqs):
-            # Apply uniform noise corruption (reversible token replacement)
-            noisy_ids, corrupt_mask, t_vals = apply_uniform_noise_mlx(
-                batch_seqs, vocab_size=vocab_size, special_token_lut=special_lut, strategy="beta"
-            )
-            # UNDLM loss: compute CE over ALL positions (not just corrupted ones)
-            (loss, ce), grads = loss_and_grad_fn(
-                self.model, noisy_ids, batch_seqs, t_vals, vocab_size
-            )
+            (loss, ce), grads = loss_and_grad_fn(self.model, batch_seqs, vocab_size)
             return loss, ce, grads
 
         # Graph trace warmup to compile kernel without polluting AdamW state
@@ -154,10 +149,10 @@ class TelosMLXUNDLMTrainer:
         state = [self.model.state]
         microbatch_step = mx.compile(microbatch_step_uncompiled, inputs=state, outputs=state)
 
-        base_dir_str = self.c_cfg.get("checkpoint_dir", self.c_cfg.get("dir", "checkpoints/uniform/25m/kappa_25m_1to35_mlx"))
+        base_dir_str = self.c_cfg.get("checkpoint_dir", self.c_cfg.get("dir", "checkpoints/ar/25m/kappa_25m_1to35_mlx"))
         ckpt_dir = Path(base_dir_str)
         ckpt_dir.mkdir(parents=True, exist_ok=True)
-        print(f"  Checkpoint Directory: {ckpt_dir} (UNDLM Canonical)")
+        print(f"  Checkpoint Directory: {ckpt_dir} (AR Canonical)")
 
         start_time = time.time()
 
@@ -166,7 +161,7 @@ class TelosMLXUNDLMTrainer:
             optimizer.learning_rate = lr
 
             global_targets, idx_ptr = get_global_targets_contiguous(dataset_matrix, idx_ptr, bs * grad_accum, self.m_cfg["seq_len"])
-            
+
             accum_grads = None
             accum_loss = mx.array(0.0, dtype=mx.float32)
             accum_ce = mx.array(0.0, dtype=mx.float32)
@@ -174,12 +169,12 @@ class TelosMLXUNDLMTrainer:
             for i in range(grad_accum):
                 batch_seqs = global_targets[i * bs : (i + 1) * bs]
                 loss, ce, grads = microbatch_step(batch_seqs)
-                
+
                 if accum_grads is None:
                     accum_grads = grads
                 else:
                     accum_grads = tree_map(lambda a, b: a + b, accum_grads, grads)
-                
+
                 accum_loss = accum_loss + loss
                 accum_ce = accum_ce + ce
 
@@ -187,10 +182,10 @@ class TelosMLXUNDLMTrainer:
 
             accum_grads = tree_map(lambda g: g / grad_accum, accum_grads)
             optimizer.update(self.model, accum_grads)
-            
+
             if step == resume_step + 1:
                 optimizer.state = cast_optimizer_moments_bf16(optimizer.state)
-                
+
             mx.eval(self.model.parameters(), optimizer.state)
 
             if step % 100 == 0:
@@ -206,11 +201,11 @@ class TelosMLXUNDLMTrainer:
                 steps_taken = step - resume_step
                 sps = steps_taken / elapsed if elapsed > 0 else 0
                 tps = sps * bs * grad_accum * self.m_cfg["seq_len"]
-                
+
                 eta_mins = (max_steps - step) / sps / 60.0 if sps > 0 else 0.0
                 mem_str = get_sys_mem_str()
 
-                log_msg = f"  [UNDLM] Step {step:>6d}/{max_steps} | ELBO Loss: {avg_loss_val:>6.2f} | CE: {avg_ce_val:>5.3f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s | {mem_str} | ETA: {eta_mins:>4.1f}m"
+                log_msg = f"  [AR Baseline] Step {step:>6d}/{max_steps} | Loss: {avg_loss_val:>6.2f} | CE: {avg_ce_val:>5.3f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s | {mem_str} | ETA: {eta_mins:>4.1f}m"
                 print(log_msg, flush=True)
                 try:
                     Path("logs").mkdir(exist_ok=True)
@@ -238,9 +233,9 @@ class TelosMLXUNDLMTrainer:
             shutil.copy(tok_source, ckpt_dir / "tokenizer.json")
 
         print("=" * 70)
-        print(f"  UNDLM Training Complete! Total time: {total_time/60.0:.2f} minutes.")
+        print(f"  AR Baseline Training Complete! Total time: {total_time/60.0:.2f} minutes.")
         print(f"  Saved standalone model artifact to {ckpt_dir}/")
         print("=" * 70)
 
-# Alias for drop-in compatibility
-TelosMLXTrainer = TelosMLXUNDLMTrainer
+# Alias for compatibility
+TelosMLXTrainer = TelosMLXARTrainer

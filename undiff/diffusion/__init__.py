@@ -1,9 +1,9 @@
-from .forward_process import apply_masking
-from .loss import mdlm_loss
-from .sampler import MDLMSampler
+from .forward_process import apply_uniform_noise_mlx
+from .loss import undlm_loss
+from .sampler import UNDLMSampler
 
 __all__ = [
-    "apply_masking",
-    "mdlm_loss",
-    "MDLMSampler",
+    "apply_uniform_noise_mlx",
+    "undlm_loss",
+    "UNDLMSampler",
 ]

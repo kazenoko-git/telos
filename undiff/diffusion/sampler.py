@@ -9,10 +9,10 @@ correct previous mistakes.
 import math, mlx.core as mx
 import mlx.nn as nn
 
-class UNDLMSapler:
-    # self corrective iterative denoising sampler for UNDLM
+class UNDLMSampler:
+    """Self-correcting iterative denoising sampler for Uniform Noise DLMs."""
 
-    def __init__(self, model, vocab_size:int, num_steps: int=64, temperature: float=0.8, schedule:str="linear"):
+    def __init__(self, model, vocab_size: int, num_steps: int = 64, temperature: float = 0.8, schedule: str = "linear"):
         self.model = model
         self.vocab_size = vocab_size
         self.num_steps = num_steps
@@ -20,14 +20,13 @@ class UNDLMSapler:
         self.schedule = schedule
         
     def _get_noise_level(self, step: int) -> float:
-        # return noise level t for given step (decreasing from 1 -> 0)
-
-        progress = step / self.num_steps # 0 -> 1 as step increases
-        if step.schedule == "cosine":
-            # cosine schedule: starts slow, accelerate and then slows at the end
+        """Returns the noise level t for a given step (decreasing from 1 -> 0)."""
+        progress = step / self.num_steps  # 0 -> 1 as step increases
+        if self.schedule == "cosine":
+            # Cosine schedule: starts slow, accelerates, then slows at the end
             return 1.0 - (1.0 - math.cos(math.pi * progress)) / 2.0
         else: 
-            # linear schedule: uniform decrease
+            # Linear schedule: uniform decrease
             return 1.0 - progress
 
     def sample(self, seq_len: int, prompt_ids=None) -> mx.array:

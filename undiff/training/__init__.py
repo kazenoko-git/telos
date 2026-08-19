@@ -1,7 +1,6 @@
-from .lr_schedule import WarmupCosineLR
-from .trainer import TelosTrainer
+from .trainer import TelosMLXUNDLMTrainer, TelosMLXTrainer
 
 __all__ = [
-    "WarmupCosineLR",
-    "TelosTrainer",
+    "TelosMLXUNDLMTrainer",
+    "TelosMLXTrainer",
 ]
