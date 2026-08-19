@@ -70,7 +70,8 @@ class MLXCausalBlock(nn.Module):
         k = mx.fast.rope(k, self.head_dim, traditional=False, base=10000.0, scale=1.0, offset=0)
 
         # Causal Attention Mask: lower-triangular mask (position i attends only to j <= i)
-        causal_mask = nn.MultiHeadAttention.create_additive_causal_mask(T)
+        # Cast to q's dtype so the mask is compatible with bfloat16 model weights
+        causal_mask = nn.MultiHeadAttention.create_additive_causal_mask(T).astype(q.dtype)
 
         scale = 1.0 / (self.head_dim ** 0.5)
         out = mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=causal_mask)
