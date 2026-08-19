@@ -71,29 +71,29 @@ def find_probe(filename: str) -> Path:
 # Complete Model definitions with all updated peak ratios
 ROPE_MODELS = {
     "12.5M": [
-        (1, find_probe("phase_b_12m_1to1_mlx_rope_ft_probes.txt")),
-        (5, find_probe("phase_b_12m_1to5_mlx_rope_ft_probes.txt")),
-        (10, find_probe("phase_b_12m_1to10_mlx_rope_ft_probes.txt")),
-        (15, find_probe("phase_b_12m_1to15_mlx_rope_ft_probes.txt")),
-        (20, find_probe("phase_b_12m_1to20_mlx_rope_ft_probes.txt")),
-        (25, find_probe("phase_b_12m_1to25_mlx_rope_ft_probes.txt")),
-        (30, find_probe("phase_b_12m_1to30_mlx_probes.txt")),
+        (1, find_probe("masked_telos_12m_r1_probes.txt")),
+        (5, find_probe("masked_telos_12m_r5_probes.txt")),
+        (10, find_probe("masked_telos_12m_r10_probes.txt")),
+        (15, find_probe("masked_telos_12m_r15_probes.txt")),
+        (20, find_probe("masked_telos_12m_r20_probes.txt")),
+        (25, find_probe("masked_telos_12m_r25_probes.txt")),
+        (30, find_probe("masked_telos_12m_r30_probes.txt")),
     ],
     "25M": [
-        (1, find_probe("phase_b_25m_1to1_mlx_rope_ft_probes.txt")),
-        (10, find_probe("phase_b_25m_1to10_mlx_rope_ft_probes.txt")),
-        (15, find_probe("phase_b_25m_1to15_mlx_rope_ft_probes.txt")),
-        (20, find_probe("phase_b_25m_1to20_mlx_rope_ft_probes.txt")),
-        (25, find_probe("phase_b_25m_1to25_mlx_rope_ft_probes.txt")),
-        (30, find_probe("phase_b_25m_1to30_mlx_rope_ft_probes.txt")),
-        (35, find_probe("phase_b_25m_1to35_mlx_20260816_223917_probes.txt")),
-        (40, find_probe("phase_b_25m_1to40_mlx_probes.txt")),
+        (1, find_probe("masked_telos_25m_r1_probes.txt")),
+        (10, find_probe("masked_telos_25m_r10_probes.txt")),
+        (15, find_probe("masked_telos_25m_r15_probes.txt")),
+        (20, find_probe("masked_telos_25m_r20_probes.txt")),
+        (25, find_probe("masked_telos_25m_r25_probes.txt")),
+        (30, find_probe("masked_telos_25m_r30_probes.txt")),
+        (35, find_probe("masked_telos_25m_r35_probes.txt")),
+        (40, find_probe("masked_telos_25m_r40_probes.txt")),
     ],
     "50M": [
-        (25, find_probe("phase_b_50m_1to25_mlx_rope_ft_probes.txt")),
-        (35, find_probe("phase_b_50m_1to35_mlx_rope_ft_probes.txt")),
-        (40, find_probe("phase_b_50m_1to40_mlx_rope_ft_probes.txt")),
-        (45, find_probe("phase_b_50m_1to45_mlx_rope_ft_probes.txt")),
+        (25, find_probe("masked_telos_50m_r25_probes.txt")),
+        (35, find_probe("masked_telos_50m_r35_probes.txt")),
+        (40, find_probe("masked_telos_50m_r40_probes.txt")),
+        (45, find_probe("masked_telos_50m_r45_probes.txt")),
     ]
 }
 

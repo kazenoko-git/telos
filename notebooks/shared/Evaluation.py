@@ -219,17 +219,44 @@ def run_mlx_probes(model, tokenizer, mask_token_id, model_name: str, save_to_dis
     print(divider)
 
     results = []
+    is_undlm = "uniform" in model_name.lower() or "undlm" in model_name.lower()
+    is_ar = "ar" in model_name.lower()
+    vocab_size = getattr(model, "vocab_size", 8192)
+
     for probe in PROBE_SUITE_100:
         prompt_ids = tokenizer.encode(probe["prompt"]).ids
-        seq_ids = prompt_ids + [mask_token_id]
-        seq_mx = mx.array([seq_ids], dtype=mx.int32)
 
-        logits = model(seq_mx)
-        raw = logits[0, -1].tolist()
-        raw[mask_token_id] = -1e9
-        probs_mx = nn.softmax(mx.array(raw), axis=-1)
-        mx.eval(probs_mx)
-        probs = probs_mx.tolist()
+        if is_undlm:
+            # Structurally-aligned protocol for UNDLM:
+            # Marginalize across uniform noise draws at the target position instead of an OOD [MASK] token
+            K = 32
+            rand_tokens = np.random.randint(0, vocab_size, size=K)
+            batch = [prompt_ids + [int(r)] for r in rand_tokens]
+            logits = model(mx.array(batch))[:, -1, :]  # [K, V]
+            probs_mx = mx.mean(nn.softmax(logits.astype(mx.float32), axis=-1), axis=0)
+            mx.eval(probs_mx)
+            probs = probs_mx.tolist()
+        elif is_ar:
+            # Structurally-aligned protocol for Autoregressive (AR):
+            # In causal LM, the representation at the end of prompt_ids predicts the next token.
+            # Do NOT append [MASK] because that shifts prediction 2 tokens ahead through an OOD token.
+            seq_mx = mx.array([prompt_ids], dtype=mx.int32)
+            logits = model(seq_mx)
+            raw = logits[0, -1].astype(mx.float32).tolist()
+            probs_mx = nn.softmax(mx.array(raw), axis=-1)
+            mx.eval(probs_mx)
+            probs = probs_mx.tolist()
+        else:
+            # MDLM: Infilling via absorbing [MASK] token
+            seq_ids = prompt_ids + [mask_token_id]
+            seq_mx = mx.array([seq_ids], dtype=mx.int32)
+
+            logits = model(seq_mx)
+            raw = logits[0, -1].astype(mx.float32).tolist()
+            raw[mask_token_id] = -1e9
+            probs_mx = nn.softmax(mx.array(raw), axis=-1)
+            mx.eval(probs_mx)
+            probs = probs_mx.tolist()
 
         # BPE leading-space token target resolution
         target_token_str = probe.get("target_bpe", probe["target"])
@@ -279,14 +306,14 @@ def run_mlx_probes(model, tokenizer, mask_token_id, model_name: str, save_to_dis
 
     ranks = [r["rank"] for r in results]
     ces = [r["ce"] for r in results]
-    top1_acc = sum(1 for r in ranks if r == 1) / len(ranks) * 100.0
-    top5_acc = sum(1 for r in ranks if r <= 5) / len(ranks) * 100.0
+    top1_acc = sum(1 for r in ranks if r == 1) / len(ranks)
+    top5_acc = sum(1 for r in ranks if r <= 5) / len(ranks)
 
     l1 = f"  Total Probes Evaluated : {len(results)}"
     l2 = f"  Overall Average Target CE : {np.mean(ces):.4f}"
     l3 = f"  Overall Average Rank      : {np.mean(ranks):.1f}"
-    l4 = f"  Top-1 Accuracy            : {top1_acc:.2f}% ({sum(1 for r in ranks if r == 1)}/{len(ranks)})"
-    l5 = f"  Top-5 Accuracy            : {top5_acc:.2f}% ({sum(1 for r in ranks if r <= 5)}/{len(ranks)})"
+    l4 = f"  Top-1 Accuracy            : {top1_acc * 100.0:.2f}% ({sum(1 for r in ranks if r == 1)}/{len(ranks)})"
+    l5 = f"  Top-5 Accuracy            : {top5_acc * 100.0:.2f}% ({sum(1 for r in ranks if r <= 5)}/{len(ranks)})"
 
     for l in [l1, l2, l3, l4, l5, div80]:
         print(l)
@@ -299,8 +326,8 @@ def run_mlx_probes(model, tokenizer, mask_token_id, model_name: str, save_to_dis
         cat_items = [r for r in results if r["category"] == cat]
         cat_ce = np.mean([r["ce"] for r in cat_items])
         cat_rank = np.mean([r["rank"] for r in cat_items])
-        cat_top5 = sum(1 for r in cat_items if r["rank"] <= 5) / len(cat_items) * 100.0
-        cat_line = f"    - {cat:<22} : Target CE = {cat_ce:.4f} | Avg Rank = {cat_rank:>5.1f} | Top-5 Acc = {cat_top5:.1f}%"
+        cat_top5 = sum(1 for r in cat_items if r["rank"] <= 5) / len(cat_items)
+        cat_line = f"    - {cat:<22} : Target CE = {cat_ce:.4f} | Avg Rank = {cat_rank:>5.1f} | Top-5 Acc = {cat_top5 * 100.0:.1f}%"
         print(cat_line)
         report_lines.append(cat_line)
 
@@ -340,15 +367,23 @@ def sample_mlx_model(ckpt_dir: Path, num_steps: int = 64, mode: str = "sample"):
         import json
         with open(cfg_path) as f:
             cfg = json.load(f)
-        model = MLXTelosTransformer(
-            vocab_size=cfg.get("vocab_size", 8192),
-            d_model=cfg.get("d_model", 512),
-            n_layers=cfg.get("n_layers", 8),
-            n_heads=cfg.get("n_heads", 8),
-            n_kv_heads=cfg.get("n_kv_heads", 8)
-        )
+        model_kwargs = {
+            "vocab_size": cfg.get("vocab_size", 8192),
+            "d_model": cfg.get("d_model", 512),
+            "n_layers": cfg.get("n_layers", 8),
+            "n_heads": cfg.get("n_heads", 8),
+            "n_kv_heads": cfg.get("n_kv_heads", 8)
+        }
     else:
-        model = MLXTelosTransformer(vocab_size=8192, d_model=512, n_layers=8, n_heads=8, n_kv_heads=8)
+        model_kwargs = {"vocab_size": 8192, "d_model": 512, "n_layers": 8, "n_heads": 8, "n_kv_heads": 8}
+
+    is_ar = "/ar/" in str(ckpt_dir).lower() or ckpt_dir.name.startswith("ar_")
+    if is_ar:
+        from ar.model.mlx_components import MLXCausalTransformer
+        model = MLXCausalTransformer(**model_kwargs)
+    else:
+        model = MLXTelosTransformer(**model_kwargs)
+
     model.load_weights(str(weights_path), strict=False)
     model.set_dtype(mx.bfloat16)
     mx.eval(model.parameters())
@@ -360,7 +395,7 @@ def sample_mlx_model(ckpt_dir: Path, num_steps: int = 64, mode: str = "sample"):
         run_top20_logits_inspection(model, tokenizer, mask_token_id, ckpt_dir.name, top_k=top_k)
 
     if mode in ("probes", "full"):
-        run_mlx_probes(model, tokenizer, mask_token_id, ckpt_dir.name)
+        run_mlx_probes(model, tokenizer, mask_token_id, f"{ckpt_dir.parent.parent.name}_{ckpt_dir.name}")
 
     if mode in ("sample", "full"):
         prompts = [
@@ -657,11 +692,11 @@ def run_comprehensive_benchmark_suite(save_to_disk: bool = True):
             "mean_rank": np.mean(m_ranks),
             "med_rank": np.median(m_ranks),
             "std_rank": np.std(m_ranks),
-            "top1": sum(1 for r in model_data[m] if r["top1"]) / n_probes * 100.0,
-            "top5": sum(1 for r in model_data[m] if r["top5"]) / n_probes * 100.0,
-            "top10": sum(1 for r in model_data[m] if r["top10"]) / n_probes * 100.0,
-            "top50": sum(1 for r in model_data[m] if r["top50"]) / n_probes * 100.0,
-            "top100": sum(1 for r in model_data[m] if r["top100"]) / n_probes * 100.0,
+            "top1": sum(1 for r in model_data[m] if r["top1"]) / n_probes,
+            "top5": sum(1 for r in model_data[m] if r["top5"]) / n_probes,
+            "top10": sum(1 for r in model_data[m] if r["top10"]) / n_probes,
+            "top50": sum(1 for r in model_data[m] if r["top50"]) / n_probes,
+            "top100": sum(1 for r in model_data[m] if r["top100"]) / n_probes,
         })
     leaderboard.sort(key=lambda x: (x["mean_ce"], x["mean_rank"]))
 
@@ -675,7 +710,7 @@ def run_comprehensive_benchmark_suite(save_to_disk: bool = True):
         mce, medce, stdce = l["mean_ce"], l["med_ce"], l["std_ce"]
         mr, medr, stdr = l["mean_rank"], l["med_rank"], l["std_rank"]
         t1, t5, t10, t100 = l["top1"], l["top5"], l["top10"], l["top100"]
-        row = f"#{pos:<3} | {m_name:<10} | {w:<5} | {mce:<8.4f} | {medce:<8.4f} | {stdce:<8.4f} | {mr:<9.1f} | {medr:<8.1f} | {stdr:<8.1f} | {t1:<5.1f}% | {t5:<5.1f}% | {t10:<6.1f}% | {t100:<7.1f}%"
+        row = f"#{pos:<3} | {m_name:<10} | {w:<5} | {mce:<8.4f} | {medce:<8.4f} | {stdce:<8.4f} | {mr:<9.1f} | {medr:<8.1f} | {stdr:<8.1f} | {t1 * 100.0:<5.1f}% | {t5 * 100.0:<5.1f}% | {t10 * 100.0:<6.1f}% | {t100 * 100.0:<7.1f}%"
         lines.append(row)
     lines.append(b80 + "\n")
 
@@ -693,10 +728,10 @@ def run_comprehensive_benchmark_suite(save_to_disk: bool = True):
             c_items = [model_data[m][i] for i in range(n_probes) if PROBE_SUITE_100[i]["category"] == cat]
             ces = [it["ce"] for it in c_items]
             ranks = [it["rank"] for it in c_items]
-            t10 = sum(1 for it in c_items if it["top10"]) / len(c_items) * 100.0
-            t100 = sum(1 for it in c_items if it["top100"]) / len(c_items) * 100.0
+            t10 = sum(1 for it in c_items if it["top10"]) / len(c_items)
+            t100 = sum(1 for it in c_items if it["top100"]) / len(c_items)
             cat_model_scores[m] = np.mean(ces)
-            crow = f"  {m:<20} | {np.mean(ces):<8.4f} | {np.median(ces):<8.4f} | {np.std(ces):<8.4f} | {np.mean(ranks):<9.1f} | {np.median(ranks):<8.1f} | {np.std(ranks):<8.1f} | {t10:<6.1f}% | {t100:<7.1f}%"
+            crow = f"  {m:<20} | {np.mean(ces):<8.4f} | {np.median(ces):<8.4f} | {np.std(ces):<8.4f} | {np.mean(ranks):<9.1f} | {np.median(ranks):<8.1f} | {np.std(ranks):<8.1f} | {t10 * 100:<6.1f}% | {t100 * 100:<7.1f}%"
             lines.append(crow)
         category_bests[cat] = min(cat_model_scores.keys(), key=lambda k: cat_model_scores[k])
         lines.append("-" * 135)
