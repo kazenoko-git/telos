@@ -3,9 +3,9 @@
 import tempfile
 from pathlib import Path
 import torch
-from telos.model.transformer import TelosTransformer, TelosConfig
-from telos.training.trainer import TelosTrainer
-from telos.data.dataset import create_dataloader
+from mdiff.model.transformer import TelosTransformer, TelosConfig
+from mdiff.training.trainer import TelosTrainer
+from mdiff.data.dataset import create_dataloader
 
 
 def test_checkpoint_save_and_resume():

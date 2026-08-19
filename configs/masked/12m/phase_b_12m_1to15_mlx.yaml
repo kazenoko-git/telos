@@ -1,0 +1,25 @@
+# Phase B — 12.5M Parameter Model 1:15 Ratio (188.1M Tokens) MLX Training Config
+# Architecture: 12.5M Parameters (d_model=256, n_layers=13, n_heads=4, seq_len=512)
+# Token Budget: 188,110,080 tokens (1,435 steps with effective batch size 256)
+
+model:
+  vocab_size: 8192
+  d_model: 256
+  n_layers: 13
+  n_heads: 4
+  n_kv_heads: 4
+  seq_len: 512
+
+training:
+  batch_size: 32
+  gradient_accumulation: 8  # Effective batch = 256 sequences (131,072 tokens/step)
+  max_steps: 1435          # 1435 steps * 131,072 tokens/step = 188,088,320 tokens (~188.1M tokens)
+  max_lr: 4e-4
+  min_lr: 4e-5
+  warmup_steps: 100
+  weight_decay: 0.1
+  precision: bf16
+
+checkpoint:
+  dir: checkpoints/masked/12m/kappa_12m_1to15_mlx
+  save_every_steps: 300

@@ -1,6 +1,6 @@
-# DEPLOYMENT — télos (τέλος) MDLM
+# DEPLOYMENT — télos (τέλος) MDLM & UNDLM
 
-This document details how to set up, reproduce, train, evaluate, and deploy **télos (τέλος)** — a Masked Diffusion Language Model for Python code autocomplete and non-monotonic generation.
+This document details how to set up, reproduce, train, evaluate, and deploy **télos (τέλος)** — a Discrete Diffusion Language Model for Python code autocomplete and non-monotonic generation (supporting both Masked Discrete Diffusion and Uniform Noise Diffusion paradigms).
 
 ---
 
@@ -40,36 +40,33 @@ Prepare the tokenized dataset matrix before executing training runs:
 
 ```bash
 # 1. Prepare raw python corpus
-uv run python scripts/prepare_data.py --config configs/phase_b_50m_1to40_mlx.yaml
+uv run python scripts/shared/prepare_data.py --config configs/masked/25m/phase_b_25m_1to40_mlx.yaml
 
-# 2. Train BPE Tokenizer (if creating custom vocabulary)
-uv run python scripts/train_tokenizer.py --config configs/phase_b_50m_1to40_mlx.yaml
+# 2. Generate publication-quality probe scaling curves
+uv run python scripts/shared/generate_probe_graphs.py
 ```
 
 ---
 
 ## 4. Training Pipelines
 
-### Option A: Apple MLX Scaling Suites (Jupyter Notebook / Script)
+### Option A: Masked Diffusion (MDLM) Local Training
 To train the 12M, 25M, or 50M parameter scaling suites locally on Apple Silicon Metal GPU:
 
 ```bash
 # Open and run the master training notebook
-jupyter notebook notebooks/Training_Suites.ipynb
+jupyter notebook notebooks/masked/Training_Suites.ipynb
 
-# Or execute RoPE adaptation & fine-tuning across all 15 models
-jupyter notebook notebooks/RoPE_Finetune_Suite.ipynb
-```
-Or execute via script entry points:
-```bash
-uv run python scripts/train_mlx.py --config configs/phase_b_50m_1to40_mlx.yaml
+# Or execute RoPE adaptation & fine-tuning across models
+jupyter notebook notebooks/masked/RoPE_Finetune_Suite.ipynb
 ```
 
-### Option B: TPU Scaling Suites (PyTorch-XLA)
-For training on Google Cloud TPU / Kaggle TPU:
+### Option B: Uniform Noise Diffusion (UNDLM) Training
+To train using the uniform noise diffusion paradigm:
 
 ```bash
-uv run python scripts/train_tpu_50m_suite.py
+# Uniform noise pipelines reside in undiff/
+jupyter notebook notebooks/uniform/Training_Suites.ipynb
 ```
 
 ---
@@ -80,13 +77,13 @@ Run the 101 contextual probes benchmark (measuring rank, target cross-entropy, t
 
 ```bash
 # Run probes on an MLX checkpoint
-uv run python notebooks/Evaluation.py --checkpoint checkpoints/phase_b_50m_1to40_mlx --mode probes
+uv run python evals/masked/Evaluation.py --checkpoint checkpoints/masked/25m/kappa_25m_1to40_mlx --mode probes
 
 # Run qualitative code generation samples
-uv run python notebooks/Evaluation.py --checkpoint checkpoints/phase_b_50m_1to40_mlx --mode sample
+uv run python evals/masked/Evaluation.py --checkpoint checkpoints/masked/25m/kappa_25m_1to40_mlx --mode sample
 ```
 
-Outputs will be automatically saved to `probes_output/`.
+Outputs will be automatically saved to `evals/masked/probes/`.
 
 ---
 
@@ -95,10 +92,10 @@ Outputs will be automatically saved to `probes_output/`.
 ### Standalone Python Inference
 
 ```python
-from telos.hub import TelosModel
+from mdiff.hub import TelosModel
 
-# Load model pipeline
-model = TelosModel.from_pretrained("checkpoints/phase_b_50m_1to35_mlx_20260811_231951")
+# Load model pipeline from canonical checkpoint
+model = TelosModel.from_pretrained("checkpoints/masked/50m/kappa_50m_1to35_mlx")
 
 # Generate code completion
 completion = model.complete(
@@ -109,20 +106,4 @@ completion = model.complete(
     schedule="linear"
 )
 print(completion)
-```
-
-### Interactive Gradio Application
-
-Launch the local web application for live interactive code completions:
-
-```bash
-uv run python telos/hub/gradio_app.py
-```
-
-### HuggingFace Hub Publishing
-
-Upload trained checkpoint assets to the HuggingFace Hub:
-
-```bash
-python -m telos.hub.upload --model-dir checkpoints/phase_b_50m_1to40_mlx --repo-id kazenoko/telos-50m-coder
 ```

@@ -1,0 +1,173 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+</script>
+<style>
+body { font-family: 'Times New Roman', serif; max-width: 800px; margin: 0 auto; padding: 2em; line-height: 1.5; font-size: 14px; }
+h1, h2, h3 { color: #333; }
+h1 { text-align: center; }
+img { max-width: 100%; height: auto; display: block; margin: 20px auto; }
+table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+th { background-color: #f4f4f4; }
+code { font-family: monospace; background: #f4f4f4; padding: 2px 4px; border-radius: 4px; }
+pre { background: #f4f4f4; padding: 10px; overflow-x: auto; }
+.mermaid { margin: 20px 0; display: flex; justify-content: center; }
+</style>
+</head>
+<body>
+<h1>télos (τέλος): Preliminary Evidence on Token-Budget Scaling in Masked Diffusion Language Models for Code Autocomplete</h1>
+<h2>Abstract</h2>
+<p>Autoregressive language models currently dominate code generation, yet they are fundamentally constrained by strict left-to-right generation. Masked Diffusion Language Models (MDLMs) offer a compelling alternative via bidirectional context and non-monotonic iterative decoding. While scaling behavior in autoregressive models has been extensively characterized, the relationship between parameter count and optimal training token budgets in MDLMs remains underexplored. We introduce <strong>télos (τέλος)</strong>, a narrow-domain MDLM for Python code autocomplete, and investigate its capability formation using a suite of targeted contextual probes. Evaluating models at 12.5M and 25M parameters under a Beta(1.5, 1.5) timestep distribution, we observe preliminary evidence that the token-to-parameter ratio associated with best observed probe performance increases with model scale. Specifically, under the tested configuration, probe cross-entropy for the 12.5M model reached a minimum at a 1:15 ratio (~187.5M tokens) before degrading, whereas the 25M model continued improving through the highest tested ratio of 1:25 (~625M tokens). Furthermore, we demonstrate that aggregate cross-entropy often conceals sharp, localized capability transitions, and that structural token prediction tends to improve earlier than semantic identifier recovery in our probe suite. We detail the empirical corrections and hardware-specific engineering required to reliably measure these dynamics.</p>
+<hr />
+<h2>1. Introduction</h2>
+<p>Autoregressive (AR) language models have established the paradigm for modern code generation. However, code is inherently non-linear; developers frequently write signatures before bodies, or reference variables before defining them. Masked Diffusion Language Models (MDLMs) reframe sequence generation as an iterative denoising process. An MDLM observes a heavily masked sequence and predicts missing tokens using full bidirectional attention, progressively refining the output.</p>
+<p>The scaling laws of AR models—most notably formalised by Hoffmann et al. (Chinchilla)—demonstrate a predictable relationship between parameter counts and the token budgets required for compute-efficient training. Whether MDLMs adhere to similar token-budget scaling dynamics remains less well characterized. Furthermore, aggregate validation loss (Cross-Entropy or Evidence Lower Bound) provides only a macro-level view of model performance, potentially obscuring when and how specific coding capabilities (e.g., syntax closure vs. variable binding) emerge.</p>
+<p>In this paper, we present <strong>télos</strong>, an open-source, narrow-domain Python MDLM. We focus our empirical investigation on the following research questions:
+* <strong>RQ1</strong>: How does contextual code prediction evolve with additional training tokens?
+* <strong>RQ2</strong>: Do different code-token categories exhibit different learning trajectories?
+* <strong>RQ3</strong>: Can target rank and probability reveal capability transitions hidden by aggregate Cross-Entropy?
+* <strong>RQ4</strong>: Does the token-to-parameter ratio associated with best observed MDLM performance increase with model size?
+* <strong>RQ5</strong>: What engineering techniques make MDLM experimentation practical on constrained hardware?</p>
+<hr />
+<h2>2. Background and Related Work</h2>
+<p><strong>Masked Diffusion Language Models.</strong> Continuous-time diffusion models have recently been adapted for discrete categorical data. Sahoo et al. (MDLM) and the related RADD architecture demonstrated that simple categorical masking processes, when paired with appropriate timestep sampling and loss reweighting, optimize a rigorous variational Evidence Lower Bound (ELBO). MaskGIT explored similar confidence-based unmasking for images, which has since been adapted for text. Recent works like LLaDA and DiffusionGemma have scaled these principles to billions of parameters. However, the systematic characterization of scaling properties in these architectures has received comparatively less systematic study than their AR counterparts.</p>
+<p><strong>Scaling Laws.</strong> The Chinchilla scaling laws describe compute-efficient training for AR models, identifying a constant optimal parameter-to-token ratio under a specific training and compute envelope. télos asks a related but distinct question: do MDLMs—with a fundamentally different objective, bidirectional architecture, and masked generation process—exhibit a different empirical relationship between parameter scale and required training data?</p>
+<hr />
+<h2>3. Model Architecture</h2>
+<p>We treat the repo-grounded implementation of télos as the authoritative architecture. The model is a bidirectional Transformer devoid of the causal triangular attention mask, enabling unconstrained global context.</p>
+<div class="mermaid" style="text-align: center;">
+graph TD
+    A1[Clean Code Sequence] --> B1[ByteLevel BPE Tokenization]
+    B1 --> C1["Beta(1.5, 1.5) Masking"]
+    C1 --> D1[Bidirectional Transformer]
+    D1 --> E1[Full Sequence Logits]
+    style C1 fill:#f9f,stroke:#333,stroke-width:2px
+    style D1 fill:#bbf,stroke:#333,stroke-width:2px
+</div>
+<p style="text-align: center;"><em>Figure 1: The télos MDLM architecture. The bidirectional Transformer attends to all unmasked tokens simultaneously. No timestep embeddings are provided.</em></p>
+
+<p><strong>Core Components:</strong>
+* <strong>Normalization:</strong> Root Mean Square Layer Normalization (RMSNorm).
+* <strong>Positional Encoding:</strong> Rotary Positional Embeddings (RoPE).
+* <strong>Feed-Forward:</strong> SwiGLU activation (expansion factor $\approx 2.67$, aligned to multiples of 64).
+* <strong>Attention:</strong> Bidirectional multi-head self-attention, with an implementation supporting GQA.
+* <strong>Embeddings:</strong> Tied input token embeddings and output projection matrices.
+* <strong>Time-Agnosticism:</strong> The architecture omits explicit timestep ($t$) embeddings, conforming to findings that time-agnostic models achieve near-optimal ELBO for categorical diffusion.</p>
+<p><strong>Configurations:</strong> Parameter configurations were selected via a grid search to target specific scale classes. Notably, depth and width vary across scales, representing an inherent confound in pure parameter scaling:
+* <strong>12.5M:</strong> $d_{\text{model}} = 256$, Layers = 13, Heads = 4, KV Heads = 4, Seq Len = 512.
+* <strong>25M:</strong> $d_{\text{model}} = 512$, Layers = 8, Heads = 8, KV Heads = 8, Seq Len = 512.
+* <strong>50M:</strong> $d_{\text{model}} = 768$, Layers = 8, Heads = 12, KV Heads = 12, Seq Len = 512.</p>
+<p><strong>Net2Net Initialization:</strong> To scale efficiently, larger models were initialized from smaller checkpoints (e.g., 12.5M $\to$ 25M) via Net2Net-style zero-padding and layer mapping. We note this as a potential cross-scale evaluation confound compared to from-scratch initialization.</p>
+<hr />
+<h2>4. Diffusion Objective</h2>
+<p>The forward process independently replaces tokens with a <code>[MASK]</code> token with probability $t$. Special structural tokens (<code>[PAD]</code>, <code>[BOS]</code>, <code>[EOS]</code>) are explicitly excluded from masking.</p>
+<div class="mermaid" style="text-align: center;">
+graph TD
+    A2[Partially Masked Sequence] --> B2[Parallel Model Prediction]
+    B2 --> C2[Confidence-Based Selection]
+    C2 --> D2[Permanent Unmasking of Top Tokens]
+    D2 --> E2[Next Step]
+    E2 -->|Iterate| B2
+    style B2 fill:#bbf,stroke:#333,stroke-width:2px
+    style C2 fill:#bfb,stroke:#333,stroke-width:2px
+</div>
+<p style="text-align: center;"><em>Figure 2: Inference via confidence-based unmasking. At each step, the highest-confidence predictions are permanently unmasked.</em></p>
+
+<p>The model is trained to predict the original tokens exclusively at the masked positions. Following the continuous-time ELBO derivation, the training objective utilizes a reweighted cross-entropy loss:
+$$ \mathcal{L} = \frac{1}{t} \cdot \text{CE}_{\text{masked}} $$
+The timestep $t$ is clamped (e.g., $t \in [1e-3, 1.0]$) to maintain numerical stability against exploding gradients as $t \to 0$.</p>
+<hr />
+<h2>5. Data and Tokenization</h2>
+<p><strong>Dataset:</strong> Training relies on the <code>CodeParrot-Clean</code> corpus, restricted to Python source code. Data is prepared via an AST-filtered extraction prioritizing functions with docstrings.
+<strong>Tokenization:</strong> A custom ByteLevel BPE tokenizer with a vocabulary of 8,192 is used. Byte-level pre-tokenization preserves critical Python indentation.
+<strong>Storage:</strong> Pre-tokenized sequences are stored as contiguous memory-mapped arrays utilizing <code>int32</code> token IDs.</p>
+<hr />
+<h2>6. Experimental Setup and Corrections</h2>
+<h3>6.1 The Timestep Distribution Correction</h3>
+<p>A critical reproducibility correction in this work involves the timestep sampling distribution. A historical implementation sampled $t$ via a cosine transform: $t = 0.5 - 0.5 \cos(\pi u), u \sim U(0,1)$. This yields a Beta(0.5, 0.5) (arcsine) distribution, heavily sampling $t \approx 0$ and $t \approx 1$. </p>
+<p>The current, valid experiments utilize the Beta(1.5, 1.5) distribution used by the reference MDLM formulation, which concentrates sampling mass around $t \approx 0.5$. All primary 12.5M and 25M models were fully trained under this corrected regime. Historical arcsine experiments are excluded from the primary scaling results.</p>
+<p><img alt="Figure 3: Training Timestep Distributions" src="file:///Users/ivansamuel/Documents/Projects/telos/paper/fig3_distributions.png" /></p>
+<h3>6.2 Dtype and Pipeline Corrections</h3>
+<p>Early experiments suffered from datatype inconsistencies across backends (e.g., <code>uint16</code> vs <code>int32</code>), causing incorrect numerical behavior in specific backend configurations. The current pipeline enforces strict <code>int32</code> casting, resolving these historical artifacts.</p>
+<hr />
+<h2>7. Systems and Hardware Implementation</h2>
+<p>Practical MDLM research requires careful hardware engineering. 
+* <strong>Apple Silicon (MLX):</strong> Native MLX implementation required microbatch gradient accumulation and memory-aware graph evaluation (<code>mx.eval</code>) to prevent memory exhaustion. We observed that fusing the SwiGLU gate and up-projections, followed by <code>mx.split()</code>, caused an 8.7–11.5% throughput regression due to non-contiguous strided outputs. Reverting to separate linear layers resolved this on the Metal backend.</p>
+<p><img alt="Figure 9: MLX/Metal Throughput Optimization" src="file:///Users/ivansamuel/Documents/Projects/telos/paper/fig9_throughput.png" /></p>
+<ul>
+<li><strong>TPU v6e-1 (PyTorch-XLA):</strong> Dynamic random masking disrupts static graph tracing. We found that strategically placing <code>xm.mark_step()</code> immediately following masking operations successfully forced graph materialization, preventing windowing compilation crashes. Furthermore, special token exclusions were explicitly sorted to ensure deterministic graph tracing.</li>
+</ul>
+<hr />
+<h2>8. Contextual Probe Benchmark</h2>
+<p>To measure localized capability formation, we developed a benchmark of ~100 contextual Python probes. Each probe consists of a fixed context, a target token, and a semantic category. Examples include:
+* <em>Identifiers:</em> <code>return a + [MASK]</code> $\to$ <code>b</code>
+* <em>Class Names:</em> <code>class Model([MASK])</code> $\to$ <code>object</code>
+* <em>Imports:</em> <code>import [MASK]</code> $\to$ <code>os</code></p>
+<p>We evaluate the target token's probability, cross-entropy, and vocabulary rank. This methodology is designed to unmask capabilities that aggregate sequence-level loss obscures.</p>
+<hr />
+<h2>9. Results</h2>
+<h3>9.1 Capability Transitions</h3>
+<p>We observe that aggregate Cross-Entropy can change gradually while individual contextual probes exhibit dramatic phase transitions. For example, in a historical capability-formation case study using the 85M model, the target token rank for an identifier recovery probe rapidly progressed through vocabulary ranks as training advanced: $2815 \to 283 \to 177 \to 135 \to 77$. Another probe demonstrated an even sharper transition: $6239 \to 36 \to 78 \to 31 \to 11 \to 9$. This demonstrates that aggregate CE alone is insufficient for tracking the discrete onset of logical capabilities.</p>
+<p><img alt="Figure 7: Capability Transition Trajectories" src="file:///Users/ivansamuel/Documents/Projects/telos/paper/fig7_capability.png" /></p>
+<h3>9.2 Structural vs. Semantic Prediction</h3>
+<p>Probe categories exhibit distinctly different learning trajectories. Structural tokens (Operators, Keywords, Indentation) achieve low CE and low target ranks early in training. Conversely, semantic tokens (Identifiers, Class Names, Function Names) remain difficult, requiring deeper contextual integration and greater token budgets to resolve.</p>
+<p><img alt="Figure 8: Category-Level Probe Difficulty" src="file:///Users/ivansamuel/Documents/Projects/telos/paper/fig8_category_difficulty.png" />
+<em>Data source: Historical token breakdown report (85M TPU baseline, arcsine distribution), presented here for illustrative category structure pending current Beta evaluation.</em></p>
+<h3>9.3 Token-Budget Scaling Observations</h3>
+<p>The primary scaling investigation evaluates Beta(1.5,1.5) trained models across scaling ratios from 1:1 up to 1:25.</p>
+<p><img alt="Figure 4 and 5: 12.5M and 25M Probe CE" src="file:///Users/ivansamuel/Documents/Projects/telos/paper/fig4_5_scaling.png" /></p>
+<ul>
+<li><strong>12.5M Saturation and Reversal:</strong> At 12.5M parameters, mean probe CE reached its minimum at the 1:15 ratio (187.5M tokens, CE $\approx$ 7.5604). Extended training to 1:20 and 1:25 resulted in degradation (CE rising to 7.8470). This reversal may reflect representational limitations, optimization dynamics, overtraining, or probe-specific effects.</li>
+<li><strong>25M Continued Improvement:</strong> The 25M model improved monotonically through the highest tested ratio of 1:25 (625M tokens, CE $\approx$ 7.4361). We observed no saturation within the tested range.</li>
+</ul>
+<p>These results provide preliminary evidence that the token-to-parameter ratio associated with best observed probe performance shifts toward higher token-to-parameter ratios as model size increases.</p>
+<p><img alt="Figure 6: Cross-Scale Token-Budget Behavior" src="file:///Users/ivansamuel/Documents/Projects/telos/paper/fig6_cross_scale.png" /></p>
+<hr />
+<h2>10. Discussion and Scaling Hypothesis</h2>
+<p>The observed behavior motivates a preliminary empirical hypothesis: the optimal training-token budget for an MDLM may not follow a constant token-to-parameter ratio across scales. The delayed capability formation of identifiers suggests that as models grow, exposing them to proportionally more code is necessary to fully resolve long-range semantic dependencies. With only two completed model scales, we cannot yet determine whether this relationship is linear, super-linear, or follows another functional form.</p>
+<hr />
+<h2>11. Limitations</h2>
+<p>This study has several notable limitations:
+1. <strong>Probe Sparsity:</strong> The benchmark contains ~100 static probes. 
+2. <strong>Sparse Scale:</strong> We evaluate only two completed model scales (12.5M and 25M) with varying depths/widths.
+3. <strong>Confounding Variables:</strong> Net2Net initialization and architectural variances across parameter counts may confound pure scaling observations.
+4. <strong>Proxy Metric:</strong> Single-pass target rank is a proxy metric and does not perfectly equate to iterative sampling generation quality.
+5. <strong>Incomplete 50M Suite:</strong> The 50M Beta(1.5,1.5) experiments are not yet complete to verify the continuation of the trend.</p>
+<hr />
+<h2>12. Conclusion</h2>
+<p>télos demonstrates the viability of narrow-domain MDLM code autocomplete. Through targeted contextual probing and corrected experimental regimes, we observe that code capability formation occurs in categorical phases. Crucially, preliminary scaling evidence suggests that larger MDLMs may benefit from proportionally larger token budgets to achieve comparable contextual prediction performance.</p>
+<h2>13. Future Work</h2>
+<p>Future work will complete the 50M parameter evaluation suite to test the continuity of the scaling hypothesis. Additionally, expanding the contextual probe dataset and analyzing the correlation between single-pass probe accuracy and multi-step iterative generation quality remain critical next steps.</p>
+<hr />
+<h2>References</h2>
+<p>[1] Sahoo, S., et al. (2024). Masked Diffusion Language Models.
+[2] Hoffmann, J., et al. (2022). Training Compute-Optimal Large Language Models (Chinchilla).
+[3] Chang, H., et al. (2022). MaskGIT: Masked Generative Image Transformer.
+[4] [Additional Pending Bibliographic Verification for RADD, LLaDA, DiffusionGemma]</p>
+<hr />
+<h2>Appendix A: Historical Experiments</h2>
+<p>Early explorations utilizing TPU hardware evaluated 85M, 125M, and 250M parameter models. These models were trained under the invalidated Uniform-Cosine (arcsine) timestep distribution and encountered severe gradient explosion issues at depth (250M) due to unclipped $1/t$ scaling. While these experiments provided critical systems engineering insights (e.g., XLA graph breaks), historical arcsine-trained models are excluded from the primary scaling comparison because their training objective differs from the corrected experimental regime.</p>
+<div class="mermaid" style="text-align: center;">
+graph LR
+    A10[Initial Arcsine Runs] --> B10[Gradient Explosion Discovery]
+    B10 --> C10[Beta 1.5, 1.5 Correction]
+    C10 --> D10[Current Validated Epoch]
+    style A10 fill:#ffcccc,stroke:#333
+    style C10 fill:#ccffcc,stroke:#333
+    style D10 fill:#ccffcc,stroke:#333,stroke-width:2px
+</div>
+<p style="text-align: center;"><em>Figure 10: Project validity timeline. Historical experiments utilizing the uncorrected timestep distribution are excluded from the primary scaling results.</em></p>
+<script>
+// Small delay to ensure mermaid renders before Chrome prints
+setTimeout(() => {
+    document.title = 'paper_ready';
+}, 2000);
+</script>
+</body>
+</html>

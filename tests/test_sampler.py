@@ -1,12 +1,12 @@
-"""Unit test suite for consolidated iterative unmasking samplers."""
+"""Unit test suite for iterative unmasking samplers."""
 
 import torch
-from telos.model.transformer import TelosTransformer, TelosConfig
-from telos.diffusion.sampler import MDLMSampler, NonMonotonicMDLMSampler, WindowedMDLMSampler
+from mdiff.model.transformer import TelosTransformer, TelosConfig
+from mdiff.diffusion.sampler import MDLMSampler
 
 
-def test_standard_mdlm_sampler():
-    """Verifies MDLMSampler unmasks all tokens."""
+def test_standard_mdlm_sampler_cosine():
+    """Verifies MDLMSampler unmasks all tokens with cosine schedule."""
     config = TelosConfig(vocab_size=50, d_model=32, n_layers=2, n_heads=2, max_seq_len=16)
     model = TelosTransformer(config)
 
@@ -17,25 +17,27 @@ def test_standard_mdlm_sampler():
     assert sampled.shape == (1, 16)
 
 
-def test_non_monotonic_sampler():
-    """Verifies NonMonotonicMDLMSampler unmasks all tokens."""
+def test_standard_mdlm_sampler_linear():
+    """Verifies MDLMSampler unmasks all tokens with linear schedule."""
     config = TelosConfig(vocab_size=50, d_model=32, n_layers=2, n_heads=2, max_seq_len=16)
     model = TelosTransformer(config)
 
-    sampler = NonMonotonicMDLMSampler(model, mask_token_id=1, num_steps=5, schedule="cosine")
+    sampler = MDLMSampler(model, mask_token_id=1, num_steps=5, schedule="linear")
     sampled = sampler.sample(seq_len=16)
 
-    assert (sampled != 1).all(), "NonMonotonicMDLMSampler left unmasked [MASK] tokens!"
+    assert (sampled != 1).all(), "MDLMSampler left unmasked [MASK] tokens!"
     assert sampled.shape == (1, 16)
 
 
-def test_windowed_sampler():
-    """Verifies WindowedMDLMSampler infills target tokens properly."""
-    config = TelosConfig(vocab_size=50, d_model=32, n_layers=2, n_heads=2, max_seq_len=32)
+def test_mdlm_sampler_with_prompt():
+    """Verifies MDLMSampler respects prefix prompt tokens during generation."""
+    config = TelosConfig(vocab_size=50, d_model=32, n_layers=2, n_heads=2, max_seq_len=16)
     model = TelosTransformer(config)
 
-    sampler = WindowedMDLMSampler(model, mask_token_id=1, window_size=8, num_steps_per_window=4)
-    sampled = sampler.sample(target_tokens=16)
+    prompt = torch.tensor([[10, 20, 30]], dtype=torch.long)
+    sampler = MDLMSampler(model, mask_token_id=1, num_steps=4, schedule="linear")
+    sampled = sampler.sample(seq_len=16, prompt_ids=prompt)
 
-    assert (sampled != 1).all(), "WindowedMDLMSampler left unmasked [MASK] tokens!"
+    assert (sampled[:, :3] == prompt).all(), "Prompt prefix was overwritten during sampling!"
+    assert (sampled != 1).all(), "Unmasked tokens remained in sequence!"
     assert sampled.shape == (1, 16)

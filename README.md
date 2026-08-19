@@ -73,7 +73,7 @@ pip install mlx tokenizers torch pyyaml
 ### High-Level Standalone Inference
 
 ```python
-from telos.hub import TelosModel
+from mdiff.hub import TelosModel
 
 # Load model from local checkpoint directory or HuggingFace Hub
 model = TelosModel.from_pretrained("checkpoints/phase_b_50m_1to35_mlx_20260811_231951")

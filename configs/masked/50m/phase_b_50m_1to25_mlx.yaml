@@ -1,0 +1,28 @@
+# Phase B — 50M Parameter Model 1:25 Ratio (1.25B Tokens) Local MLX Config
+# Initialized via Net2Net upscaling from 25M 1:25 checkpoint
+model:
+  vocab_size: 8192
+  d_model: 768
+  n_layers: 8
+  n_heads: 12
+  n_kv_heads: 12
+  seq_len: 512
+
+training:
+  tokenizer_path: configs/tokenizer_mac.json
+  dataset_path: data/python_corpus_mac.bin
+  vocab_size: 8192
+  seq_len: 512
+  batch_size: 16
+  gradient_accumulation: 16  # Effective batch = 256 sequences (131,072 tokens/step)
+  max_steps: 9536          # 9,536 steps * 131,072 tokens/step = 1.25B tokens
+  max_lr: 3e-4
+  min_lr: 3e-5
+  warmup_steps: 300
+  weight_decay: 0.1
+  precision: bf16
+
+checkpoint:
+  checkpoint_dir: checkpoints/masked/50m/kappa_50m_1to25_mlx
+  save_every_steps: 1000
+
