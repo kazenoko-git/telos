@@ -1,108 +1,96 @@
-# télos (τέλος) — Small Masked Diffusion Language Model for Code Autocomplete
+# τέλος (télos) — Exploring Language Modeling Paradigms at Scale
 
-**télos** (or **τέλος**) is a Masked Diffusion Language Model (MDLM) built and trained from scratch, specialized for narrow-domain Python code autocomplete. Unlike traditional autoregressive (AR) language models that generate code left-to-right with causal attention, télos utilizes full **bidirectional self-attention** and an iterative absorbing-state diffusion process with **Beta(1.5, 1.5)** schedule masking to complete code blocks in parallel.
+<p align="center">
+  <a href="https://telos.research.wingit.tech"><strong> Research Page & Demos: telos.research.wingit.tech</strong></a>
+</p>
 
----
+**τέλος** (or **telos**) is an open-source AI research... thing... by me, designed to systematically evaluate, optimize, and compare foundational language modeling paradigms:
+1. **Autoregressive Language Models (AR)** — Standard causal left-to-right next-token prediction.
+2. **Masked Diffusion Language Models (MDLM)** — Non-autoregressive generation via continuous absorbing-state ($[\text{MASK}]$) diffusion.
+3. **Uniform Noise Diffusion Language Models (UNDLM)** — Non-autoregressive generation via discrete uniform vocabulary corruption with **reversible self-correction**.
+
+All architectures are built from scratch (with help of Opus 4.6, and a lot of research papers), sharing identical transformer backbones (RoPE, SwiGLU, RMSNorm, Weight Tying) and trained under controlled token-to-parameter scaling ratios on Apple Silicon (**Apple MLX / Metal**) and Google Cloud TPUs (**PyTorch-XLA**).
+
+
+## Core Research Questions
+
+**τέλος** (or **telos**) is a group of AI models trained for Research purposes to figure out what types of models are truly the best.
+
+## Current Research includes
+
+1. How well do Masked Diffusion Language Models scale with increase in tokens per parameter?
+2. How can we increase the training performance with negligible model quality on MLX *(Apple M series Architecture)* and XLA *(Google TPU Architecture)*?
+3. How do AR, MD and UND models compare with each other?
+4. How well do Uniform Noise Diffusion Language Models scale with increase in tokens per paramater?
+5. How to bring Diffusion Models to a level of Autoregressive models?
+
+
+## Empirical Scaling Benchmark (12.5M Scale)
+
+Below are the benchmark results evaluated across 12 models trained under identical architectures at the 12.5M scale across token over-training multipliers ($1:1$ up to $1:15$):
+
+| Model Paradigm | Token Multiplier | Total Tokens Trained | Target CE (nats) ↓ | Avg Prediction Rank (/8192) ↓ | Top-1 Accuracy (%) ↑ | Top-5 Accuracy (%) ↑ |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **AR** | **1:1** | 12.58M | 8.1410 | 1341.7 | 0.00% | 0.99% |
+| **AR** | **1:5** | 62.65M | 7.6211 | 1580.8 | 1.98% | 13.86% |
+| **AR** | **1:10** | 125.3M | 7.3242 | 1436.5 | **5.94%** | 14.85% |
+| **AR** | **1:15** | 188.0M | **7.0781** | **1135.0** | **5.94%** | **16.83%** |
+| **MDLM** | **1:1** | 12.58M | 8.0734 | **831.5** | 0.00% | 0.00% |
+| **MDLM** | **1:5** | 62.65M | 8.1652 | 1261.4 | 0.99% | 1.98% |
+| **MDLM** | **1:10** | 125.3M | 8.0160 | 965.2 | 0.00% | 0.99% |
+| **MDLM** | **1:15** | 188.0M | 7.8588 | 1176.5 | 0.99% | 5.94% |
+| **UNDLM** | **1:1** | 12.58M | 9.0167 | 3240.1 | 0.00% | 0.00% |
+| **UNDLM** | **1:5** | 62.65M | 8.5228 | 2018.5 | 0.00% | 0.00% |
+| **UNDLM** | **1:10** | 125.3M | 8.3288 | 1999.6 | 0.00% | 2.97% |
+| **UNDLM** | **1:15** | 188.0M | 8.3147 | 1750.3 | 0.00% | 0.99% |
+
+### Cross Entropy Scaling
+![Cross Entropy Scaling](figures/scaling_cross_entropy.png)
+
+### Average Rank Scaling
+![Average Rank Scaling](figures/scaling_average_rank.png)
+
+### Top 5% Accuracy
+![Scaling Top 5% Accuracy](figures/scaling_top5_accuracy.png)
+
+### Key Research Insights
+
+- **Autoregressive (AR)** excel at low-entropy directional continuations: leads on **Imports** (4.52 nats, #68 rank), **Operators** (5.25 nats, #92 rank), **Class Names** (6.13 nats, #100 rank), and **Literals** (4.99 nats, #43 rank).
+- **Masked Diffusion (MDLM)** excels at structural and bidirectional syntactic constraints: leads on **Keywords** (#233 rank), **Function signatures** (#625 rank), and **Attribute definitions** (#646 rank).
+- **Uniform Noise Diffusion (UNDLM)** exhibits continuous monotonic learning across all categories when evaluated with Monte Carlo noise marginalization, achieving the lowest cross-entropy in **Identifier recovery** (7.96 nats at 1:15).
+
 
 ## Technical Highlights
 
-- **Architecture**: Decoder-style Transformer with full bidirectional self-attention (no causal mask).
-- **Framework Support**: Dual backend support for **PyTorch / PyTorch-XLA (TPU)** and **Apple MLX (Metal GPU)** optimized training & inference.
-- **Positional Encoding**: Rotary Positional Embeddings (RoPE).
-- **Activation & Norm**: SwiGLU ($\approx 2.67\times$ expansion) with RMSNorm.
-- **Embeddings**: Weight-tied input/output token embeddings.
-- **Masking Schedule**: Flexible **Beta($\alpha, \beta$)** continuous masking schedule (default $\text{Beta}(1.5, 1.5)$) alongside standard linear/cosine schedules.
-- **Objective**: Masked Cross-Entropy reweighted by $1/t$ where $t \sim \text{Uniform}(0, 1)$ or $t \sim \text{Beta}(1.5, 1.5)$ (ELBO-consistent weighting).
-- **Sampling**: Confidence-based iterative unmasking over configurable denoising steps (16–128 steps) with Gumbel noise temperature control and repetition penalties.
-- **Evaluation Suite**: 101 contextual probes across 8 categories (Imports, Keywords, Operators, Literals, Function Names, Class Names, Attribute Names, Identifier Recovery) measuring rank and cross-entropy metrics.
+- **Unified Transformer Core**: Pre-LayerNorm architecture with **RMSNorm**, **SwiGLU** feed-forward activation, **Rotary Position Embeddings (RoPE)**, and weight-tied embeddings.
+- **Continuous Noise Schedules**: Continuous timestep diffusion $t \sim \text{Beta}(\alpha, \beta)$ (default $\text{Beta}(1.5, 1.5)$) ensuring balanced noise allocation between global structure and fine token details.
+- **ELBO-Consistent Loss**: Reweighted cross-entropy with $1/t$ timestep weighting matching discrete variational lower bounds.
+- **Iterative Inference Samplers**:
+  - *MDLM*: Confidence-based iterative unmasking over 16–128 steps with Gumbel noise temperature annealing.
+  - *UNDLM*: Self-correcting reverse diffusion with dynamic re-noising and categorical sampling.
+- **101 Contextual Probe Suite**: Standardized probing framework evaluating prediction rank, target cross-entropy, Top-1, and Top-5 accuracies across 8 code syntax categories.
+
+## Publications
+
+- **Research and Interactive Demo**: [telos.research.wingit.tech](https://telos.research.wingit.tech)
+- **Deployment & Reproduction Guide**: [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ---
 
-## Model Scaling Suites & Configs
+## Citation
 
-The repository includes pre-configured scaling study definitions across model sizes and parameter-to-token ratios:
-
-| Model Suite | Parameters | Target Ratios ($N:D$) | Framework | Config Location |
-| :--- | :--- | :--- | :--- | :--- |
-| **12M Suite** | ~12.5M | 1:1, 1:5, 1:10, 1:15, 1:20, 1:25 | MLX / Metal | `configs/phase_b_12m_*_mlx.yaml` |
-| **25M Suite** | ~25M | 1:1, 1:3, 1:5, 1:10, 1:15, 1:20, 1:25, 1:30 | MLX / Metal | `configs/phase_b_25m_*_mlx.yaml` |
-| **50M Suite** | ~50M | 1:1, 1:10, 1:15, 1:20, 1:25, 1:30, 1:35, 1:40, 1:45 | MLX / TPU | `configs/phase_b_50m_*_mlx.yaml` |
-
----
-
-## Project Structure
-
-```
-telos/
-├── DEPLOYMENT.md                  # Comprehensive reproduction and deployment guide
-├── pyproject.toml                 # Dependencies and build configuration
-├── configs/                       # YAML configurations for 12M, 25M, and 50M parameter scaling suites
-├── notebooks/                     # Interactive Jupyter notebooks for training and evaluation
-│   ├── Training_Suites.ipynb      # Main execution notebook for 50M/25M training pipelines
-│   ├── Evaluation.py              # CLI and module for running the 101-probe benchmark suite
-│   ├── Evaluation.ipynb           # Notebook version of evaluation and probing benchmarks
-│   └── Benchmarking.ipynb         # Throughput & latency benchmarking
-├── telos/
-│   ├── model/                     # PyTorch & MLX bidirectional transformers (RoPE, RMSNorm, SwiGLU)
-│   ├── diffusion/                 # Forward masking, loss functions, confidence-based MDLMSampler
-│   ├── data/                      # BPE tokenizer, dataset preparation scripts, dataset matrix loader
-│   ├── training/                  # Unified PyTorch, PyTorch-XLA (TPU), and MLX trainers
-│   ├── eval/                      # Metrics computation and qualitative sampling scripts
-│   └── hub/                       # Standalone inference API (`TelosModel.from_pretrained`)
-├── probes_output/                 # Benchmark scorecards and detailed probe analysis outputs
-└── scripts/                       # Command-line entry points for training, sampling, and data preparation
-```
-
----
-
-## Quick Start
-
-### Installation
-
-```bash
-git clone https://github.com/kazenoko/telos.git
-cd telos
-pip install -e .
-```
-
-For Apple Silicon MLX GPU support:
-```bash
-pip install mlx tokenizers torch pyyaml
-```
-
-### High-Level Standalone Inference
-
-```python
-from mdiff.hub import TelosModel
-
-# Load model from local checkpoint directory or HuggingFace Hub
-model = TelosModel.from_pretrained("checkpoints/phase_b_50m_1to35_mlx_20260811_231951")
-
-prompt = """def binary_search(arr: list[int], target: int) -> int:
-    \"\"\"Perform binary search on a sorted list.\"\"\"
-"""
-
-# Execute iterative unmasking completion
-completion = model.complete(
-    prompt=prompt,
-    max_tokens=128,
-    num_steps=64,
-    temperature=0.3,
-    schedule="linear"
-)
-print(completion)
-```
-
-### Running Evaluation & Probes
-
-To evaluate a trained checkpoint against the 101 contextual probes suite:
-
-```bash
-python notebooks/Evaluation.py --checkpoint checkpoints/phase_b_50m_1to40_mlx --mode probes
+```bibtex
+@article{samuel2026telos,
+  title   = {télos: Exploring Scaling Laws, Hardware Optimizations, and Paradigm Trade-offs in Discrete Diffusion and Autoregressive Language Models},
+  author  = {Ivan Samuel},
+  journal = {telos Research},
+  year    = {2026},
+  url     = {https://telos.research.wingit.tech}
+}
 ```
 
 ---
 
 ## License
 
-Apache-2.0
+Apache-2.0 License. See [LICENSE](LICENSE) for details.

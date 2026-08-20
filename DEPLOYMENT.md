@@ -1,6 +1,6 @@
 # DEPLOYMENT — télos (τέλος) MDLM & UNDLM
 
-This document details how to set up, reproduce, train, evaluate, and deploy **télos (τέλος)** — a Discrete Diffusion Language Model for Python code autocomplete and non-monotonic generation (supporting both Masked Discrete Diffusion and Uniform Noise Diffusion paradigms).
+This document details how to set up, reproduce, train, evaluate, and deploy **τέλος** — a Discrete Diffusion Language Model for Python code autocomplete and non-monotonic generation (supporting both Masked Discrete Diffusion and Uniform Noise Diffusion paradigms).
 
 ---
 
@@ -89,13 +89,16 @@ Outputs will be automatically saved to `evals/masked/probes/`.
 
 ## 6. Inference Deployment & Web Interface
 
-### Standalone Python Inference
+All three paradigms provide a high-level standalone **`TelosModel.from_pretrained()`** API within their respective Model Hub modules.
+
+### A. Masked Diffusion Language Models (MDLM)
+Generates code via confidence-based iterative unmasking:
 
 ```python
 from mdiff.hub import TelosModel
 
-# Load model pipeline from canonical checkpoint
-model = TelosModel.from_pretrained("checkpoints/masked/50m/kappa_50m_1to35_mlx")
+# Load pretrained MDLM checkpoint
+model = TelosModel.from_pretrained("checkpoints/masked/12m/telos_12m_r15")
 
 # Generate code completion
 completion = model.complete(
@@ -103,7 +106,51 @@ completion = model.complete(
     max_tokens=64,
     num_steps=64,
     temperature=0.3,
-    schedule="linear"
+    schedule="linear"  # Options: "linear" or "cosine"
 )
 print(completion)
 ```
+
+### B. Uniform Noise Diffusion Models (UNDLM)
+Generates code via iterative reversible denoising with self-correction:
+
+```python
+from undiff.hub import TelosModel
+
+# Load pretrained UNDLM checkpoint
+model = TelosModel.from_pretrained("checkpoints/uniform/12m/telos_12m_r15")
+
+# Generate code completion
+completion = model.complete(
+    prompt="def fibonacci(n: int) -> int:\n",
+    max_tokens=64,
+    num_steps=64,
+    temperature=0.8,
+    schedule="linear"  # Options: "linear" or "cosine"
+)
+print(completion)
+```
+
+### C. Autoregressive Baseline Models (AR)
+Generates code via causal left-to-right next-token prediction:
+
+```python
+from ar.hub import TelosModel
+
+# Load pretrained AR checkpoint
+model = TelosModel.from_pretrained("checkpoints/ar/12m/telos_12m_r15")
+
+# Generate code completion
+completion = model.complete(
+    prompt="import os\ndef get_current_directory():\n",
+    max_tokens=64,
+    temperature=0.7
+)
+print(completion)
+```
+
+### D. Interactive Research Web Interface
+For live interactive generation and diffusion step inspections:
+- **Interactive Research Demo**: [https://telos.research.wingit.tech](https://telos.research.wingit.tech)
+
+
