@@ -1,8 +1,8 @@
 """
-Standalone high-level Model Hub inference API for télos Uniform Noise Diffusion Models (UNDLM).
+Standalone high-level Model Hub inference API for télos Autoregressive Language Models (AR).
 
 Provides the TelosModel.from_pretrained() API for loading checkpoints and performing
-iterative reversible diffusion code completion with self-correction.
+causal next-token code completion.
 """
 
 from pathlib import Path
@@ -13,15 +13,14 @@ from tokenizers import Tokenizer
 try:
     import mlx.core as mx
     import mlx.nn as nn
-    from mdiff.model.mlx_components import MLXTelosTransformer
-    from undiff.diffusion.sampler import UNDLMSampler
+    from ar.model.mlx_components import MLXCausalTransformer
     MLX_AVAILABLE = True
 except ImportError:
     MLX_AVAILABLE = False
 
 
 class TelosModel:
-    """High-level standalone inference wrapper for Uniform Noise Diffusion (UNDLM) models."""
+    """High-level standalone inference wrapper for Autoregressive (AR) causal language models."""
 
     def __init__(self, model, tokenizer: Tokenizer, config: dict):
         self.model = model
@@ -30,7 +29,7 @@ class TelosModel:
 
     @classmethod
     def from_pretrained(cls, model_path_or_repo: str | Path):
-        """Loads a pretrained UNDLM model, tokenizer, and config from a local checkpoint directory."""
+        """Loads a pretrained AR model, tokenizer, and config from a local checkpoint directory."""
         model_path = Path(model_path_or_repo)
         assert model_path.exists(), f"Model path not found: {model_path}"
 
@@ -53,9 +52,9 @@ class TelosModel:
 
         # 3. Load model weights
         if not MLX_AVAILABLE:
-            raise ImportError("MLX is required for Apple Silicon UNDLM standalone inference.")
+            raise ImportError("MLX is required for Apple Silicon AR standalone inference.")
 
-        model = MLXTelosTransformer(
+        model = MLXCausalTransformer(
             vocab_size=config.get("vocab_size", 8192),
             d_model=config.get("d_model", 256),
             n_layers=config.get("n_layers", 13),
@@ -84,30 +83,31 @@ class TelosModel:
         self,
         prompt: str,
         max_tokens: int = 64,
-        num_steps: int = 64,
-        temperature: float = 0.8,
-        schedule: str = "linear"
+        temperature: float = 0.7,
+        top_p: float = 0.95
     ) -> str:
-        """Executes iterative reversible uniform diffusion code completion with prefix clamping."""
-        encoded = self.tokenizer.encode(prompt)
-        prompt_ids = mx.array([encoded.ids], dtype=mx.int32)
-        total_seq_len = len(encoded.ids) + max_tokens
+        """Executes causal autoregressive next-token code generation."""
+        tokens = self.tokenizer.encode(prompt).ids
+        prompt_len = len(tokens)
+        eos_id = self.tokenizer.token_to_id("<|endoftext|>") or 3
 
-        sampler = UNDLMSampler(
-            model=self.model,
-            vocab_size=self.config.get("vocab_size", 8192),
-            num_steps=num_steps,
-            temperature=temperature,
-            schedule=schedule
-        )
+        for _ in range(max_tokens):
+            seq_mx = mx.array([tokens], dtype=mx.int32)
+            logits = self.model(seq_mx)[0, -1]  # [V]
 
-        sampled_tokens = sampler.sample(seq_len=total_seq_len, prompt_ids=prompt_ids)
-        mx.eval(sampled_tokens)
+            if temperature > 0:
+                scaled_logits = logits.astype(mx.float32) / temperature
+                probs = nn.softmax(scaled_logits, axis=-1)
+                next_token = int(mx.random.categorical(scaled_logits))
+            else:
+                next_token = int(mx.argmax(logits))
 
-        # Slice completion tokens after the prompt
-        prompt_len = prompt_ids.shape[1]
-        completion_ids = sampled_tokens[0, prompt_len:].tolist()
-        full_text = self.tokenizer.decode(completion_ids, skip_special_tokens=True)
+            tokens.append(next_token)
+            if next_token == eos_id or next_token == 0:
+                break
+
+        completion_tokens = tokens[prompt_len:]
+        full_text = self.tokenizer.decode(completion_tokens, skip_special_tokens=True)
 
         for stop_str in ["[EOS]", "[PAD]", "<|endoftext|>"]:
             if stop_str in full_text:
