@@ -73,9 +73,45 @@ Below are the benchmark results evaluated across 12 models trained under identic
 ## Publications
 
 - **Research and Interactive Demo**: [telos.research.wingit.tech](https://telos.research.wingit.tech)
-- **Deployment & Reproduction Guide**: [DEPLOYMENT.md](DEPLOYMENT.md)
+- **Detailed Deployment Guide**: [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ---
+
+## Reproduction (Quickstart)
+
+### 1. Installation
+```bash
+git clone https://github.com/kazenoko-git/telos.git
+cd telos
+uv sync  # or: pip install -e . && pip install mlx tokenizers torch pyyaml matplotlib
+```
+
+### 2. Training (AR, MDLM, UNDLM)
+Train all three paradigms under identical configurations:
+```bash
+jupyter notebook notebooks/shared/Unified_Training_Suite.ipynb
+```
+
+### 3. Evaluate Contextual Probes
+Evaluate any trained model checkpoint against the 101-probe suite:
+```bash
+uv run python notebooks/shared/Evaluation.py --checkpoint checkpoints/masked/12m/telos_12m_r15 --mode probes
+```
+
+### 4. Generate Graphs & Visualizations
+```bash
+uv run python scripts/shared/generate_3paradigm_probe_graphs.py
+```
+
+### 5. Quick Inference
+```python
+from mdiff.hub import TelosModel
+
+model = TelosModel.from_pretrained("checkpoints/masked/12m/telos_12m_r15")
+print(model.complete("def fibonacci(n: int) -> int:\n", max_tokens=64))
+```
+
+For advanced cluster setups, dataset tokenization, and TPU training, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Citation
 
