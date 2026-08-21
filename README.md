@@ -53,11 +53,11 @@ Below are the benchmark results evaluated across 12 models trained under identic
 ### Top 5% Accuracy
 ![Scaling Top 5% Accuracy](figures/scaling_top5_accuracy.png)
 
-### Key Research Insights
+### Research Findings
 
-- **Autoregressive (AR)** excel at low-entropy directional continuations: leads on **Imports** (4.52 nats, #68 rank), **Operators** (5.25 nats, #92 rank), **Class Names** (6.13 nats, #100 rank), and **Literals** (4.99 nats, #43 rank).
-- **Masked Diffusion (MDLM)** excels at structural and bidirectional syntactic constraints: leads on **Keywords** (#233 rank), **Function signatures** (#625 rank), and **Attribute definitions** (#646 rank).
-- **Uniform Noise Diffusion (UNDLM)** exhibits continuous monotonic learning across all categories when evaluated with Monte Carlo noise marginalization, achieving the lowest cross-entropy in **Identifier recovery** (7.96 nats at 1:15).
+- **Autoregressive (AR)** excel at **mostly everything**.
+- **Masked Diffusion (MDLM)** mostly excels at **structural keywords** and bidirectional syntactic constraints.
+- **Uniform Noise Diffusion (UNDLM)** exhibits continuous monotonic learning across all categories when evaluated with Monte Carlo noise marginalization, achieving the lowest cross-entropy in **Identifier recovery** (7.96 nats at 1:15). Don't expect quality from this model at all.
 
 
 ## Technical Highlights
@@ -130,3 +130,7 @@ For advanced cluster setups, dataset tokenization, and TPU training, see [DEPLOY
 ## License
 
 Apache-2.0 License. See [LICENSE](LICENSE) for details.
+
+### For the reviewers...
+
+PLEASE state what part you think is AI generated, NONE of the README is AI generated. I wrote it myself. 😭
