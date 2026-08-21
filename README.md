@@ -12,10 +12,6 @@
 All architectures are built from scratch (with help of Opus 4.6, and a lot of research papers), sharing identical transformer backbones (RoPE, SwiGLU, RMSNorm, Weight Tying) and trained under controlled token-to-parameter scaling ratios on Apple Silicon (**Apple MLX / Metal**) and Google Cloud TPUs (**PyTorch-XLA**).
 
 
-## Core Research Questions
-
-**τέλος** (or **telos**) is a group of AI models trained for Research purposes to figure out what types of models are truly the best.
-
 ## Current Research includes
 
 1. How well do Masked Diffusion Language Models scale with increase in tokens per parameter?
@@ -28,21 +24,6 @@ All architectures are built from scratch (with help of Opus 4.6, and a lot of re
 ## Empirical Scaling Benchmark (12.5M Scale)
 
 Below are the benchmark results evaluated across 12 models trained under identical architectures at the 12.5M scale across token over-training multipliers ($1:1$ up to $1:15$):
-
-| Model Paradigm | Token Multiplier | Total Tokens Trained | Target CE (nats) ↓ | Avg Prediction Rank (/8192) ↓ | Top-1 Accuracy (%) ↑ | Top-5 Accuracy (%) ↑ |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **AR** | **1:1** | 12.58M | 8.1410 | 1341.7 | 0.00% | 0.99% |
-| **AR** | **1:5** | 62.65M | 7.6211 | 1580.8 | 1.98% | 13.86% |
-| **AR** | **1:10** | 125.3M | 7.3242 | 1436.5 | **5.94%** | 14.85% |
-| **AR** | **1:15** | 188.0M | **7.0781** | **1135.0** | **5.94%** | **16.83%** |
-| **MDLM** | **1:1** | 12.58M | 8.0734 | **831.5** | 0.00% | 0.00% |
-| **MDLM** | **1:5** | 62.65M | 8.1652 | 1261.4 | 0.99% | 1.98% |
-| **MDLM** | **1:10** | 125.3M | 8.0160 | 965.2 | 0.00% | 0.99% |
-| **MDLM** | **1:15** | 188.0M | 7.8588 | 1176.5 | 0.99% | 5.94% |
-| **UNDLM** | **1:1** | 12.58M | 9.0167 | 3240.1 | 0.00% | 0.00% |
-| **UNDLM** | **1:5** | 62.65M | 8.5228 | 2018.5 | 0.00% | 0.00% |
-| **UNDLM** | **1:10** | 125.3M | 8.3288 | 1999.6 | 0.00% | 2.97% |
-| **UNDLM** | **1:15** | 188.0M | 8.3147 | 1750.3 | 0.00% | 0.99% |
 
 ### Cross Entropy Scaling
 ![Cross Entropy Scaling](figures/scaling_cross_entropy.png)
