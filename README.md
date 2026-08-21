@@ -112,6 +112,6 @@ For advanced cluster setups, dataset tokenization, and TPU training, see [DEPLOY
 
 Apache-2.0 License. See [LICENSE](LICENSE) for details.
 
-### For the reviewers...
+## For the reviewers...
 
-PLEASE state what part you think is AI generated, NONE of the README is AI generated. I wrote it myself. 😭
+PLEASE state what part you think is AI generated, and why does it look AI generated. NONE of the README is AI generated. I wrote it myself. 😭
