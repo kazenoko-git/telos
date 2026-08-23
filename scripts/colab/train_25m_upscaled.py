@@ -290,8 +290,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
             drop_last=True
         )
         base_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], sampler=sampler, num_workers=0, drop_last=True)
-        para_loader = pl.ParallelLoader(base_loader, [device])
-        train_loader = para_loader.per_device_loader(device)
+        train_loader = pl.MpDeviceLoader(base_loader, device)
     else:
         train_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], shuffle=True, drop_last=True)
         
