@@ -179,14 +179,26 @@ def load_upscaled_weights_pytorch(tgt_model: nn.Module, tgt_cfg: dict, src_ckpt_
     print("  [PyTorch Upscaling] Success: Target model weights initialized with zero-shock RMSNorm parity.", flush=True)
 
 
-def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "12m", device_type: str = "tpu", num_cores: int = 1):
+def get_xla_rank_and_world_size():
+    try:
+        import torch_xla.runtime as xr
+        return xr.process_index(), xr.world_size()
+    except Exception:
+        pass
+    try:
+        import torch_xla.core.xla_model as xm
+        return xm.get_ordinal(), xm.xrt_world_size()
+    except Exception:
+        return 0, 1
+
+
+def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "12m", device_type: str = "tpu"):
     """Worker function for single-core or multi-core training."""
     if device_type == "tpu":
         import torch_xla.core.xla_model as xm
         import torch_xla
         device = xm.xla_device()
-        world_size = xm.xrt_world_size() if num_cores > 1 else 1
-        rank = xm.get_ordinal() if num_cores > 1 else 0
+        rank, world_size = get_xla_rank_and_world_size()
     elif device_type == "cuda":
         device = torch.device("cuda")
         world_size = 1
@@ -364,24 +376,24 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     gc.collect()
 
 
-def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m", device_arg: str | None = None, num_cores: int = 8):
+def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m", device_arg: str | None = None, multi_core: bool = True):
     device, device_type = resolve_device(device_arg)
     
-    if device_type == "tpu" and num_cores > 1:
+    if device_type == "tpu" and multi_core:
         try:
             import torch_xla.distributed.xla_multiprocessing as xmp
-            print(f"  [TPU Multiprocessing] Spawning across all {num_cores} TPU cores...", flush=True)
+            print(f"  [TPU Multiprocessing] Spawning across all available TPU cores...", flush=True)
             xmp.spawn(
                 _train_worker,
-                args=(paradigm, config_path, src_tier, device_type, num_cores),
-                nprocs=num_cores,
+                args=(paradigm, config_path, src_tier, device_type),
+                nprocs=None,
                 start_method="spawn"
             )
             return
         except Exception as e:
             print(f"  [TPU Multiprocessing Notice] Fallback to single-core: {e}", flush=True)
             
-    _train_worker(0, paradigm, config_path, src_tier, device_type, 1)
+    _train_worker(0, paradigm, config_path, src_tier, device_type)
 
 
 def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", device: str | None = None, num_cores: int = 8):
