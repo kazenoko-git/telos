@@ -361,15 +361,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
 
 def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m", device_arg: str | None = None):
     device_type = resolve_device(device_arg)
-    if device_type == "tpu":
-        import torch_xla.distributed.xla_multiprocessing as xmp
-        xmp.spawn(
-            _train_worker,
-            args=(paradigm, config_path, src_tier, device_type),
-            start_method="spawn"
-        )
-    else:
-        _train_worker(0, paradigm, config_path, src_tier, device_type)
+    _train_worker(0, paradigm, config_path, src_tier, device_type)
 
 
 def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", device: str | None = None):
