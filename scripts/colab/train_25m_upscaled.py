@@ -185,7 +185,6 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         import torch_xla.core.xla_model as xm
         import torch_xla.runtime as xr
         import torch_xla
-        import torch_xla.distributed.parallel_loader as pl
         device = xm.xla_device()
         rank = xr.global_ordinal()
         world_size = xr.world_size()
@@ -289,8 +288,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
             shuffle=True,
             drop_last=True
         )
-        base_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], sampler=sampler, num_workers=0, drop_last=True)
-        train_loader = pl.MpDeviceLoader(base_loader, device)
+        train_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], sampler=sampler, num_workers=0, drop_last=True)
     else:
         train_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], shuffle=True, drop_last=True)
         
@@ -372,7 +370,7 @@ def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m
         xmp.spawn(
             _train_worker,
             args=(paradigm, config_path, src_tier, device_type),
-            start_method="spawn"
+            start_method="fork"
         )
     else:
         _train_worker(0, paradigm, config_path, src_tier, device_type)
