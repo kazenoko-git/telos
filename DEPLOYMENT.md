@@ -48,15 +48,40 @@ uv run python scripts/shared/generate_probe_graphs.py
 
 ---
 
+---
+
 ## 4. Training Pipelines & Benchmarking
 
-### Option A: 3-Paradigm Unified Training (AR vs MDLM vs UNDLM)
-To train all three paradigms under identical configurations sequentially:
+### Option A: Google Colab Cloud TPU (v5e-1 / v6e-1 PyTorch-XLA)
+To train 25M upscaled or 12.5M models on Google Cloud TPUs:
+1. **Provision TPU Session via Colab CLI**:
+   ```bash
+   uv run colab --auth adc new -s Untitled1_TPU --tpu v5e1
+   ```
+2. **Execute Full 3-Paradigm 25M Retraining on TPU**:
+   ```bash
+   uv run colab --auth adc exec -s Untitled1_TPU --timeout 86400 -f scripts/colab/run_tpu_direct.py
+   ```
+
+### Option B: Google Colab / Cloud GPU Training (PyTorch CUDA with SSH)
+To train on cloud NVIDIA GPUs (T4 / A100):
+1. **Upload weights, tokenizer & dataset to Hugging Face**:
+   ```bash
+   python scripts/shared/upload_to_hf.py --repo-id Kazenowoko/telos
+   ```
+2. **Execute in Google Colab**:
+   Open [`notebooks/colab/Unified_25M_Upscaling_Colab.ipynb`](notebooks/colab/Unified_25M_Upscaling_Colab.ipynb) or run via Colab SSH:
+   ```bash
+   python scripts/colab/train_25m_upscaled.py --ratios r1 r10 r20 r25 --hf-repo kazenoko/telos
+   ```
+
+### Option B: Local Apple Silicon Unified Training (MLX)
+To train all three paradigms under identical configurations locally via MLX:
 ```bash
 jupyter notebook notebooks/shared/Unified_Training_Suite.ipynb
 ```
 
-### Option B: Throughput & Optimization Benchmark Suite
+### Option C: Throughput & Optimization Benchmark Suite
 To test steps/sec, tokens/sec, and memory footprint across model scales (5M–100M) and batch sizes:
 ```bash
 jupyter notebook notebooks/shared/Optimization_Test_Suite.ipynb
@@ -64,10 +89,11 @@ jupyter notebook notebooks/shared/Optimization_Test_Suite.ipynb
 python scripts/shared/run_optimization_suite.py
 ```
 
-### Option C: Paradigm-Specific Notebooks
+### Option D: Paradigm-Specific Local Notebooks
 - **Masked Discrete Diffusion (MDLM)**: `notebooks/masked/Training_Suites.ipynb`
 - **Uniform Noise Diffusion (UNDLM)**: `notebooks/uniform/Training_Suites.ipynb`
 - **Autoregressive Baseline (AR)**: `notebooks/ar/Training_Suites.ipynb`
+
 
 ---
 

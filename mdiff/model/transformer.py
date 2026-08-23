@@ -30,6 +30,7 @@ class TelosConfig:
     mlp_type: str = "swiglu"     # MLP activation type ("swiglu" or "standard")
     tied_embeddings: bool = True # Tie input embeddings with output linear projection
     no_timestep_embed: bool = True # Omit timestep embedding (per RADD/MDLM paper)
+    is_causal: bool = False      # Causal autoregressive mask vs bidirectional diffusion
 
     def __post_init__(self):
         if self.seq_len is not None:
@@ -37,14 +38,14 @@ class TelosConfig:
 
 
 class TransformerBlock(nn.Module):
-    """single transformer block with Pre-RMSNorm and Bidirectional attention."""
+    """single transformer block with Pre-RMSNorm and Bidirectional/Causal attention."""
 
     def __init__(self, config: TelosConfig):
         super().__init__()
         # pre-attention RMSNorm
         self.attn_norm = RMSNorm(config.d_model)
-        # bidirectional Multi-Head / Grouped-Query Self-Attention
-        self.attn = BidirectionalAttention(config.d_model, config.n_heads, config.n_kv_heads, config.dropout)
+        # Multi-Head / Grouped-Query Self-Attention (Bidirectional or Causal)
+        self.attn = BidirectionalAttention(config.d_model, config.n_heads, config.n_kv_heads, config.dropout, is_causal=config.is_causal)
         
         # pre-MLP RMSNorm
         self.mlp_norm = RMSNorm(config.d_model)

@@ -116,19 +116,20 @@ class SwiGLU(nn.Module):
 
 
 class BidirectionalAttention(nn.Module):
-    """Multi-Head Self-Attention WITHOUT causal mask (Full Bidirectional).
+    """Multi-Head Self-Attention with configurable causal masking (Full Bidirectional or Causal AR).
     
     Supports:
     - Multi-Head Attention (MHA): n_kv_heads == n_heads
     - Grouped-Query Attention (GQA): n_kv_heads < n_heads (e.g. 8 query heads, 2 KV heads)
     - Multi-Query Attention (MQA): n_kv_heads == 1
     """
-    def __init__(self, d_model: int, n_heads: int, n_kv_heads: int | None = None, dropout: float = 0.0):
+    def __init__(self, d_model: int, n_heads: int, n_kv_heads: int | None = None, dropout: float = 0.0, is_causal: bool = False):
         super().__init__()
         assert d_model % n_heads == 0, f"d_model ({d_model}) must be divisible by n_heads ({n_heads})"
         self.d_model = d_model
         self.n_heads = n_heads
         self.n_kv_heads = n_heads if n_kv_heads is None else n_kv_heads
+        self.is_causal = is_causal
         assert n_heads % self.n_kv_heads == 0, f"n_heads ({n_heads}) must be divisible by n_kv_heads ({self.n_kv_heads})"
         
         self.num_queries_per_kv = n_heads // self.n_kv_heads
@@ -144,7 +145,6 @@ class BidirectionalAttention(nn.Module):
         # Output projection: d_model -> d_model
         self.out_proj = nn.Linear(d_model, d_model, bias=False)
 
-    # thank you claude
     def forward(self, x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.Tensor:
         batch, seq_len, _ = x.shape
 
@@ -161,12 +161,12 @@ class BidirectionalAttention(nn.Module):
             k = k.repeat_interleave(self.num_queries_per_kv, dim=1)
             v = v.repeat_interleave(self.num_queries_per_kv, dim=1)
 
-        # Compute scaled dot-product attention WITHOUT causal mask
+        # Compute scaled dot-product attention
         out = F.scaled_dot_product_attention(
             q, k, v,
             attn_mask=None,
             dropout_p=self.dropout if self.training else 0.0,
-            is_causal=False  # Full bidirectional attention for MDLM
+            is_causal=self.is_causal
         )
 
         # Reshape back to [batch, seq_len, d_model] and apply output projection
