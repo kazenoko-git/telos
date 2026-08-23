@@ -57,7 +57,10 @@ class WarmupCosineLR(_LRSchedulerBase):
             decay_ratio = (step - self.warmup_steps) / max(1, self.max_steps - self.warmup_steps)
             coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
             lr = self.min_lr + coeff * (self.max_lr - self.min_lr)
-        return [lr for _ in self.base_lrs]
+        # XLA Recompilation Fix: return LR as a device tensor so XLA doesn't bake it as a changing constant
+        device = self.optimizer.param_groups[0]['params'][0].device
+        tensor_lr = torch.tensor(lr, dtype=torch.float32, device=device)
+        return [tensor_lr for _ in self.base_lrs]
 
 
 def mdlm_loss_pytorch(model, clean_targets, mask_token_id=4, vocab_size=8192):
