@@ -275,7 +275,7 @@ def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m
                 loader_iter = iter(train_loader)
                 raw_batch = next(loader_iter)
                 
-            x = torch.as_tensor(raw_batch, dtype=torch.long, device=device)
+            x = torch.from_numpy(np.array(raw_batch, copy=True)).long().to(device)
             
             if paradigm == "ar":
                 logits = model(x)
@@ -308,10 +308,8 @@ def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m
         if step % 5 == 0 or step == max_steps or step <= 3:
             lr_curr = scheduler.get_last_lr()[0]
             toks_done = step * train_cfg["batch_size"] * grad_accum * model_cfg["seq_len"]
-            elapsed = max(1e-3, time.time() - start_time)
-            toks_sec = toks_done / elapsed
             step_loss = loss.item() * grad_accum
-            print(f"Step {step:>5}/{max_steps} | Loss: {step_loss:.4f} | LR: {lr_curr:.2e} | Speed: {toks_sec/1000.0:.1f}k tok/s | Tokens: {toks_done/1e6:.1f}M", flush=True)
+            print(f"Step {step:>5}/{max_steps} | Loss: {step_loss:.4f} | LR: {lr_curr:.2e} | Tokens: {toks_done/1e6:.1f}M", flush=True)
             
         if step % int(cfg["checkpoint"].get("save_every_steps", 20)) == 0 or step == max_steps:
             ckpt_file = save_dir / f"checkpoint_step_{step}.safetensors"
@@ -334,12 +332,16 @@ def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", dev
     Downloads prerequisites from HuggingFace, trains 25M upscaled models, and uploads checkpoints.
     """
     print("=" * 85, flush=True)
-    print(f"DOWNLOADING 12.5M SOURCE WEIGHTS & DATASET FROM HUGGINGFACE ({hf_repo})...", flush=True)
-    print("=" * 85, flush=True)
     snapshot_download(
         repo_id=hf_repo,
         local_dir="./",
-        allow_patterns=["checkpoints/ar/12m/*", "checkpoints/masked/12m/*", "checkpoints/uniform/12m/*", "data/*", "tokenizer*"]
+        allow_patterns=[
+            "checkpoints/ar/12m/*",
+            "checkpoints/masked/12m/*",
+            "checkpoints/uniform/12m/*",
+            "data/python_corpus_1.7b.bin",
+            "tokenizer*"
+        ]
     )
     
     from huggingface_hub import HfApi
