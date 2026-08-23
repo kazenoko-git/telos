@@ -1,0 +1,366 @@
+"""
+Google Colab TPU & Cloud GPU Training Script for 25M Upscaled Suite.
+
+Executes 3-paradigm training (AR, MDLM, UNDLM) for 25M upscaled models:
+- Hardware targets: Google Cloud TPU (v5e-1 / v6e-1) and NVIDIA CUDA GPUs
+- 25M 1:1  (191 steps, 25M tokens, max_lr=1e-4)
+- 25M 1:10 (1910 steps, 250M tokens, max_lr=1e-4)
+- 25M 1:20 (3820 steps, 500M tokens, max_lr=1e-4)
+- 25M 1:25 (4775 steps, 625M tokens, max_lr=1e-4)
+"""
+
+import os
+import sys
+import time
+import math
+import gc
+import yaml
+import argparse
+from pathlib import Path
+import numpy as np
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
+from safetensors.torch import load_file, save_file
+from huggingface_hub import snapshot_download, HfApi
+
+# Ensure repo root is on PATH
+project_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(project_root))
+
+from mdiff.model.transformer import TelosTransformer, TelosConfig
+
+
+class WarmupCosineLR(torch.optim.lr_scheduler._LRScheduler):
+    """Cosine learning rate schedule with linear warmup."""
+    def __init__(self, optimizer, warmup_steps: int, max_steps: int, max_lr: float, min_lr: float = 1e-5, last_epoch: int = -1):
+        self.warmup_steps = warmup_steps
+        self.max_steps = max_steps
+        self.max_lr = max_lr
+        self.min_lr = min_lr
+        super().__init__(optimizer, last_epoch)
+
+    def get_lr(self):
+        step = self.last_epoch
+        if step < self.warmup_steps:
+            lr = self.max_lr * (step + 1) / max(1, self.warmup_steps)
+        elif step > self.max_steps:
+            lr = self.min_lr
+        else:
+            decay_ratio = (step - self.warmup_steps) / max(1, self.max_steps - self.warmup_steps)
+            coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
+            lr = self.min_lr + coeff * (self.max_lr - self.min_lr)
+        return [lr for _ in self.base_lrs]
+
+
+def mdlm_loss_pytorch(model, clean_targets, mask_token_id=4, vocab_size=8192):
+    """Absorbing discrete diffusion ELBO loss for PyTorch & TPU."""
+    B, T = clean_targets.shape
+    device = clean_targets.device
+    
+    t_values = torch.rand((B, 1), device=device)
+    mask_matrix = torch.rand((B, T), device=device) < t_values
+    mask_token_tensor = torch.full((B, T), mask_token_id, dtype=torch.long, device=device)
+    masked_ids = torch.where(mask_matrix, mask_token_tensor, clean_targets)
+    
+    logits = model(masked_ids)
+    
+    ce_per_token = nn.functional.cross_entropy(
+        logits.view(-1, vocab_size).float(),
+        clean_targets.view(-1),
+        reduction="none"
+    ).view(B, T)
+    
+    masked_ce = ce_per_token * mask_matrix.float()
+    masked_counts = torch.clamp(torch.sum(mask_matrix.float(), dim=1), min=1.0, max=float(T))
+    per_example_ce = torch.sum(masked_ce, dim=1) / masked_counts
+    
+    t_weights = 1.0 / torch.clamp(t_values.squeeze(-1), min=1e-3, max=1.0)
+    return torch.mean(per_example_ce * t_weights)
+
+
+def undlm_loss_pytorch(model, clean_targets, vocab_size=8192):
+    """Uniform noise discrete diffusion ELBO loss for PyTorch & TPU."""
+    B, T = clean_targets.shape
+    device = clean_targets.device
+    
+    t_values = torch.rand((B, 1), device=device)
+    rand_noise = torch.randint(0, vocab_size, size=(B, T), device=device)
+    corrupt_mask = torch.rand((B, T), device=device) < t_values
+    noisy_ids = torch.where(corrupt_mask, rand_noise, clean_targets)
+    
+    logits = model(noisy_ids)
+    
+    ce_per_token = nn.functional.cross_entropy(
+        logits.view(-1, vocab_size).float(),
+        clean_targets.view(-1),
+        reduction="none"
+    ).view(B, T)
+    
+    per_example_ce = torch.mean(ce_per_token, dim=1)
+    t_weights = 1.0 / torch.clamp(t_values.squeeze(-1), min=1e-3, max=1.0)
+    return torch.mean(per_example_ce * t_weights)
+
+
+def resolve_device(device_str: str | None = None):
+    """Detects and returns optimal execution device (TPU XLA, CUDA GPU, or CPU)."""
+    if device_str:
+        if device_str.lower() in ("tpu", "xla"):
+            import torch_xla.core.xla_model as xm
+            return xm.xla_device(), "tpu"
+        elif "cuda" in device_str.lower():
+            return torch.device("cuda"), "cuda"
+        else:
+            return torch.device("cpu"), "cpu"
+            
+    try:
+        import torch_xla.core.xla_model as xm
+        return xm.xla_device(), "tpu"
+    except Exception:
+        if torch.cuda.is_available():
+            return torch.device("cuda"), "cuda"
+        elif torch.backends.mps.is_available():
+            return torch.device("mps"), "mps"
+        else:
+            return torch.device("cpu"), "cpu"
+
+
+def get_upscaled_layer_mapping(src_layers: int, tgt_layers: int) -> list[int]:
+    """Maps target layer indices to source layer indices via linear depth interpolation."""
+    return list(np.round(np.linspace(0, src_layers - 1, tgt_layers)).astype(int))
+
+
+def load_upscaled_weights_pytorch(tgt_model: nn.Module, tgt_cfg: dict, src_ckpt_path: str, src_cfg_path: str):
+    """
+    Initializes PyTorch 25M model weights by mapping depths and zero-padding dimensions from 12.5M weights.
+    """
+    with open(src_cfg_path) as f:
+        src_cfg = yaml.safe_load(f)["model"]
+        
+    src_layers = src_cfg["n_layers"]
+    tgt_layers = tgt_cfg["n_layers"]
+    layer_map = get_upscaled_layer_mapping(src_layers, tgt_layers)
+    print(f"  [PyTorch Upscaling] Depth Mapping (Target <- Source): {layer_map}", flush=True)
+    
+    src_state = load_file(src_ckpt_path) if src_ckpt_path.endswith(".safetensors") else torch.load(src_ckpt_path, map_location="cpu")
+    if "model_state_dict" in src_state:
+        src_state = src_state["model_state_dict"]
+        
+    tgt_state = tgt_model.state_dict()
+    for k, tgt_tensor in tgt_state.items():
+        if "layers." in k:
+            parts = k.split(".")
+            tgt_idx = int(parts[1])
+            src_idx = layer_map[tgt_idx]
+            src_key = ".".join([parts[0], str(src_idx)] + parts[2:])
+        else:
+            src_key = k
+            
+        if src_key in src_state:
+            src_tensor = src_state[src_key]
+            if tgt_tensor.shape == src_tensor.shape:
+                tgt_tensor.copy_(src_tensor)
+            else:
+                if "norm" in src_key and len(src_tensor.shape) == 1:
+                    # Scale RMSNorm weights by sqrt(d_old / d_new) to preserve activation scale across expanded hidden dim
+                    scale_factor = math.sqrt(src_tensor.shape[0] / tgt_tensor.shape[0])
+                    padded = torch.ones_like(tgt_tensor)
+                    padded[:src_tensor.shape[0]] = src_tensor * scale_factor
+                    tgt_tensor.copy_(padded)
+                else:
+                    padded = torch.zeros_like(tgt_tensor)
+                    slices = tuple(slice(0, min(s, t)) for s, t in zip(src_tensor.shape, tgt_tensor.shape))
+                    padded[slices] = src_tensor[slices]
+                    tgt_tensor.copy_(padded)
+                
+    tgt_model.load_state_dict(tgt_state)
+    print("  [PyTorch Upscaling] Success: Target model weights initialized with zero-shock RMSNorm parity.", flush=True)
+
+
+def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m", device_arg: str | None = None):
+    device, device_type = resolve_device(device_arg)
+    
+    with open(config_path) as f:
+        cfg = yaml.safe_load(f)
+        
+    stem = Path(config_path).stem
+    tier = "25m" if "25m" in stem else "12m"
+    model_cfg = cfg["model"]
+    train_cfg = cfg["training"]
+    
+    print("\n" + "=" * 80, flush=True)
+    print(f"STARTING {paradigm.upper()} TRAINING FOR {stem} (Device: {device} [{device_type}])", flush=True)
+    print(f"Steps: {train_cfg['max_steps']} | Batch: {train_cfg['batch_size']} | Grad Accum: {train_cfg['gradient_accumulation']} | LR: {train_cfg['max_lr']}", flush=True)
+    print("=" * 80, flush=True)
+    
+    is_causal = (paradigm.lower() == "ar")
+    telos_cfg = TelosConfig(
+        vocab_size=model_cfg["vocab_size"],
+        d_model=model_cfg["d_model"],
+        n_layers=model_cfg["n_layers"],
+        n_heads=model_cfg["n_heads"],
+        n_kv_heads=model_cfg["n_kv_heads"],
+        seq_len=model_cfg["seq_len"],
+        is_causal=is_causal
+    )
+    model = TelosTransformer(telos_cfg).to(device)
+    
+    if src_tier:
+        src_stem = stem.replace(tier, src_tier)
+        p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else "ar")
+        src_ckpt = f"checkpoints/{p_dir}/{src_tier}/{src_stem}/model.safetensors"
+        src_cfg_path = f"configs/unified/{src_tier}/{src_stem}.yaml"
+        load_upscaled_weights_pytorch(model, model_cfg, src_ckpt, src_cfg_path)
+        
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=float(train_cfg["max_lr"]),
+        weight_decay=float(train_cfg.get("weight_decay", 0.1)),
+        betas=(0.9, 0.95)
+    )
+    scheduler = WarmupCosineLR(
+        optimizer,
+        warmup_steps=int(train_cfg.get("warmup_steps", 100)),
+        max_steps=int(train_cfg["max_steps"]),
+        max_lr=float(train_cfg["max_lr"]),
+        min_lr=float(train_cfg.get("min_lr", 1e-5))
+    )
+    
+    dataset_path = Path("data/python_corpus_1.7b.bin")
+    if not dataset_path.exists():
+        dataset_path = Path("data/python_corpus_mac.bin")
+    if not dataset_path.exists():
+        dataset_path = list(Path("data").glob("*.bin"))[0] if list(Path("data").glob("*.bin")) else Path("data/python_corpus_1.7b.bin")
+
+    seq_len = model_cfg["seq_len"]
+    if dataset_path.exists():
+        num_samples = dataset_path.stat().st_size // (seq_len * 4)
+        print(f"  [Dataset] Memory-mapping {dataset_path} ({num_samples:,} samples)...", flush=True)
+        dataset = np.memmap(dataset_path, dtype=np.uint32, mode="r", shape=(num_samples, seq_len))
+    else:
+        print("  [Dataset] Warning: Binary dataset not found locally; generating synthetic dummy batch.", flush=True)
+        dataset = np.random.randint(0, model_cfg["vocab_size"], size=(1000, seq_len), dtype=np.uint32)
+
+    train_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], shuffle=True, drop_last=True)
+    loader_iter = iter(train_loader)
+    
+    model.train()
+    grad_accum = int(train_cfg["gradient_accumulation"])
+    max_steps = int(train_cfg["max_steps"])
+    save_dir = Path(f"checkpoints/{'masked' if paradigm=='mdlm' else ('uniform' if paradigm=='undlm' else 'ar')}/{tier}/{stem}")
+    save_dir.mkdir(parents=True, exist_ok=True)
+    
+    start_time = time.time()
+    for step in range(1, max_steps + 1):
+        optimizer.zero_grad()
+        accum_loss = 0.0
+        
+        for mb in range(grad_accum):
+            try:
+                raw_batch = next(loader_iter)
+            except StopIteration:
+                loader_iter = iter(train_loader)
+                raw_batch = next(loader_iter)
+                
+            x = torch.from_numpy(np.array(raw_batch)).long().to(device)
+            
+            if paradigm == "ar":
+                logits = model(x)
+                shift_logits = logits[:, :-1, :].contiguous()
+                shift_labels = x[:, 1:].contiguous()
+                loss = nn.functional.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+            elif paradigm == "mdlm":
+                loss = mdlm_loss_pytorch(model, x, mask_token_id=4, vocab_size=model_cfg["vocab_size"])
+            else:
+                loss = undlm_loss_pytorch(model, x, vocab_size=model_cfg["vocab_size"])
+                
+            loss = loss / grad_accum
+            loss.backward()
+            accum_loss += loss.item() * grad_accum
+            
+            if device_type == "tpu":
+                import torch_xla.core.xla_model as xm
+                xm.mark_step()
+                
+            if (mb + 1) % 4 == 0 or (mb + 1) == grad_accum:
+                print(f"  [Step {step:>3}/{max_steps} | Microbatch {mb+1:>2}/{grad_accum}] loss: {loss.item()*grad_accum:.4f}", flush=True)
+                
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        if device_type == "tpu":
+            import torch_xla.core.xla_model as xm
+            xm.optimizer_step(optimizer)
+            xm.mark_step()
+        else:
+            optimizer.step()
+            
+        scheduler.step()
+        
+        if step % 2 == 0 or step == max_steps or step <= 5:
+            lr_curr = scheduler.get_last_lr()[0]
+            toks_done = step * train_cfg["batch_size"] * grad_accum * model_cfg["seq_len"]
+            print(f"Step {step:>5}/{max_steps} | Loss: {accum_loss:.4f} | LR: {lr_curr:.2e} | Tokens: {toks_done/1e6:.1f}M", flush=True)
+            
+        if step % int(cfg["checkpoint"].get("save_every_steps", 20)) == 0 or step == max_steps:
+            ckpt_file = save_dir / f"checkpoint_step_{step}.safetensors"
+            cpu_state = {k: v.detach().cpu().contiguous() for k, v in model.state_dict().items()}
+            save_file(cpu_state, str(ckpt_file))
+            
+    # Save final model
+    cpu_state = {k: v.detach().cpu().contiguous() for k, v in model.state_dict().items()}
+    save_file(cpu_state, str(save_dir / "model.safetensors"))
+    with open(save_dir / "config.json", "w") as f:
+        yaml.dump(model_cfg, f)
+        
+    print(f"FINISHED {paradigm.upper()} {stem} IN {(time.time() - start_time)/3600.0:.2f} HOURS!", flush=True)
+    del model, optimizer, scheduler
+    gc.collect()
+
+
+def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", device: str | None = None):
+    """
+    Downloads prerequisites from HuggingFace, trains 25M upscaled models, and uploads checkpoints.
+    """
+    print("=" * 85, flush=True)
+    print(f"DOWNLOADING 12.5M SOURCE WEIGHTS & DATASET FROM HUGGINGFACE ({hf_repo})...", flush=True)
+    print("=" * 85, flush=True)
+    snapshot_download(repo_id=hf_repo, local_dir="./", allow_patterns=["configs/*", "checkpoints/*", "data/python_corpus_1.7b.bin"])
+    
+    from huggingface_hub import HfApi
+    api = HfApi(token=os.environ.get("HF_TOKEN"))
+    
+    for r in ratios:
+        cfg_path = f"configs/unified/25m/telos_25m_{r}.yaml"
+        print(f"\n>>>> EXECUTING UNIFIED 25M RUN FOR RATIO: {r} <<<<", flush=True)
+        for paradigm in ["ar", "mdlm", "undlm"]:
+            train_paradigm_pytorch(paradigm=paradigm, config_path=cfg_path, src_tier="12m", device_arg=device)
+            
+            # Instantly upload individual model to Hugging Face
+            p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else "ar")
+            model_dir = Path(f"checkpoints/{p_dir}/25m/telos_25m_{r}")
+            if model_dir.exists():
+                print(f"\n[Instant HF Export] Uploading {model_dir} to {hf_repo}...", flush=True)
+                try:
+                    api.upload_folder(
+                        folder_path=str(model_dir),
+                        path_in_repo=f"checkpoints/{p_dir}/25m/telos_25m_{r}",
+                        repo_id=hf_repo,
+                        repo_type="model",
+                        allow_patterns=["*.safetensors", "*.json"]
+                    )
+                    print(f"[Instant HF Export] Success: {p_dir} telos_25m_{r} is now live on HuggingFace!", flush=True)
+                except Exception as e:
+                    print(f"[Instant HF Export] Upload warning: {e}", flush=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="25M Upscaling Suite Runner on TPU / Cloud GPU")
+    parser.add_argument("--ratios", nargs="+", default=["r1", "r10", "r20", "r25"], help="Ratios to train (e.g. r1 r10 r20 r25)")
+    parser.add_argument("--hf-repo", type=str, default="Kazenowoko/telos", help="Hugging Face Model Repository")
+    parser.add_argument("--device", type=str, default="tpu", help="Device to use ('tpu', 'cuda', 'cpu')")
+    args = parser.parse_args()
+    
+    run_full_25m_suite(ratios=args.ratios, hf_repo=args.hf_repo, device=args.device)
+
+
+if __name__ == "__main__":
+    main()
