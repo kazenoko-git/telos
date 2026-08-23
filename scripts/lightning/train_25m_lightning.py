@@ -221,13 +221,17 @@ def load_upscaled_weights_pytorch(tgt_model: nn.Module, tgt_cfg: dict, src_ckpt_
 
 def probe_and_adjust_batch_size(model: nn.Module, paradigm: str, dataset: np.ndarray, initial_batch_size: int, initial_grad_accum: int, seq_len: int, device: torch.device, is_tpu: bool, vocab_size: int) -> tuple[int, int]:
     """
-    Executes a trial forward and backward pass.
-    If an OOM (Out-Of-Memory) RuntimeError occurs, halves batch_size and doubles grad_accum.
+    Executes a trial forward and backward pass to validate memory capacity.
+    If an OOM RuntimeError occurs, halves batch_size and doubles grad_accum.
     Repeats until stable or reaches batch_size=32 floor.
+    
+    NOTE: After OOM on XLA, device state may be corrupted. The caller should
+    re-create the model after this function returns if a fallback occurred.
     """
     curr_batch = initial_batch_size
     curr_accum = initial_grad_accum
     amp_device = "xla" if is_tpu else "cpu"
+    fell_back = False
 
     print(f"  [Memory Probe] Testing batch_size={curr_batch} (grad_accum={curr_accum}) on TPU v6e...", flush=True)
 
@@ -249,20 +253,31 @@ def probe_and_adjust_batch_size(model: nn.Module, paradigm: str, dataset: np.nda
 
             loss.backward()
 
+            # Force XLA graph execution to surface any deferred OOM errors
             if is_tpu:
                 import torch_xla.core.xla_model as xm
                 xm.mark_step()
 
             model.zero_grad(set_to_none=True)
-            print(f"  [Memory Probe] Verified: batch_size={curr_batch} runs with zero memory pressure!", flush=True)
+            print(f"  [Memory Probe] Verified: batch_size={curr_batch} fits in HBM!", flush=True)
             return curr_batch, curr_accum
 
         except RuntimeError as e:
-            if "out of memory" in str(e).lower() or "resource exhausted" in str(e).lower():
-                print(f"  [Memory Probe Alert] OOM caught at batch_size={curr_batch}. Halving to {curr_batch // 2}...", flush=True)
+            err_msg = str(e).lower()
+            # Catch standard OOM, XLA resource exhaustion, and RESOURCE_EXHAUSTED gRPC errors
+            if any(pattern in err_msg for pattern in ("out of memory", "resource exhausted", "oom", "alloc")):
+                print(f"  [Memory Probe Alert] OOM at batch_size={curr_batch}. Halving to {curr_batch // 2}, doubling grad_accum to {curr_accum * 2}...", flush=True)
                 curr_batch = curr_batch // 2
                 curr_accum = curr_accum * 2
+                fell_back = True
                 gc.collect()
+                if is_tpu:
+                    # Attempt to clear XLA device memory after OOM
+                    try:
+                        import torch_xla.core.xla_model as xm
+                        xm.mark_step()
+                    except Exception:
+                        pass
             else:
                 raise e
 
