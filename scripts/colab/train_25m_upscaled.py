@@ -330,9 +330,6 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
                 
             loss = loss / grad_accum
             loss.backward()
-            if device_type == "tpu":
-                import torch_xla.core.xla_model as xm
-                xm.mark_step()
             
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         if device_type == "tpu":
