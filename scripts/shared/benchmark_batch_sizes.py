@@ -1,8 +1,8 @@
 """
-télos Hardware Throughput & Batch Size Benchmark.
+télos 8-Core Hardware Throughput & Batch Size Benchmark.
 
-Empirically benchmarks different batch sizes (32, 64, 128)
-across all available TPU cores (PJRT) or GPU to measure tokens/sec.
+Measures throughput (tokens/sec) across all 8 TPU cores (or GPU/CPU)
+using native PyTorch XLA multiprocessing (xmp.spawn).
 """
 
 import os
@@ -22,43 +22,19 @@ if str(project_root) not in sys.path:
 from mdiff.model.transformer import TelosTransformer, TelosConfig
 
 
-def resolve_device():
-    """Detects device type in parent process without initializing XLA runtime."""
-    if os.environ.get("PJRT_DEVICE") == "TPU":
-        return "tpu"
-    try:
-        import torch_xla
-        return "tpu"
-    except Exception:
-        pass
-    if torch.cuda.is_available():
-        return "cuda"
-    if torch.backends.mps.is_available():
-        return "mps"
-    return "cpu"
-
-
-def get_xla_rank_and_world_size():
-    try:
-        import torch_xla.runtime as xr
-        return xr.process_index(), xr.world_size()
-    except Exception:
-        pass
-    try:
-        import torch_xla.core.xla_model as xm
-        return xm.get_ordinal(), xm.xrt_world_size()
-    except Exception:
-        return 0, 1
-
-
-def _worker_benchmark(index: int, batch_size: int, seq_len: int, warmup_steps: int, timed_steps: int, device_type: str, return_dict):
+def _worker_benchmark(index: int, batch_size: int, seq_len: int, warmup_steps: int, timed_steps: int, device_type: str):
     if device_type == "tpu":
         import torch_xla.core.xla_model as xm
         import torch_xla
         device = xm.xla_device()
-        rank, world_size = get_xla_rank_and_world_size()
+        rank = xm.get_ordinal()
+        world_size = xm.xrt_world_size()
+    elif device_type == "cuda":
+        device = torch.device("cuda")
+        rank = 0
+        world_size = 1
     else:
-        device = torch.device("cuda" if device_type == "cuda" else ("mps" if device_type == "mps" else "cpu"))
+        device = torch.device("cpu")
         rank = 0
         world_size = 1
 
@@ -124,61 +100,43 @@ def _worker_benchmark(index: int, batch_size: int, seq_len: int, warmup_steps: i
     steps_per_sec = timed_steps / elapsed
     
     if rank == 0:
-        return_dict["tokens_per_sec"] = tokens_per_sec
-        return_dict["steps_per_sec"] = steps_per_sec
-        return_dict["elapsed"] = elapsed
-        return_dict["world_size"] = world_size
+        print(f"  ✓ {tokens_per_sec:>12,.0f} tok/s | {steps_per_sec:>6.2f} steps/s | Aggregate across {world_size} cores", flush=True)
 
 
-def benchmark_batch_size(batch_size: int, device_type: str, seq_len: int = 512):
-    return_dict = {}
-    _worker_benchmark(0, batch_size, seq_len, 5, 15, device_type, return_dict)
-    return return_dict
-
-
-def run_benchmark_suite(batch_sizes=[32, 64, 128]):
-    device_type = resolve_device()
-    print("=" * 80)
-    print(f"STARTING THROUGHPUT BENCHMARK ON: {device_type.upper()}")
-    print(f"Architecture: 25M Parameters (d=384, L=13, seq=512)")
-    print("=" * 80)
-    
-    results = []
-    for bs in batch_sizes:
-        print(f"\nEvaluating Batch Size: {bs} (per core)...", flush=True)
-        try:
-            res = benchmark_batch_size(bs, device_type)
-            toks = res.get("tokens_per_sec", 0)
-            steps = res.get("steps_per_sec", 0)
-            cores = res.get("world_size", 1)
-            results.append({"batch_size": bs, "tokens_per_sec": toks, "steps_per_sec": steps, "cores": cores})
-            print(f"  ✓ {toks:,.0f} tok/s ({steps:.2f} steps/s across {cores} cores)")
-        except Exception as e:
-            print(f"  ✗ Failed / OOM with Batch Size {bs}: {e}")
-            break
-            
-    print("\n" + "=" * 80)
-    print(f"{'BATCH / CORE':<14} | {'TOKENS / SEC':<16} | {'STEPS / SEC':<14} | {'CORES'}")
-    print("-" * 80)
-    best_bs = None
-    best_toks = 0
-    for r in results:
-        toks = r["tokens_per_sec"]
-        if toks > best_toks:
-            best_toks = toks
-            best_bs = r["batch_size"]
-        print(f"{r['batch_size']:<14} | {toks:>14,.0f} | {r['steps_per_sec']:>12.2f} | {r['cores']}")
-    print("=" * 80)
-    print(f"★ HIGHEST THROUGHPUT: Batch Size = {best_bs} ({best_toks:,.0f} tokens/sec aggregate)")
-    print("=" * 80)
+def run_benchmark_for_batch(batch_size: int, device_type: str, seq_len: int = 512):
+    print(f"\nEvaluating Batch Size {batch_size} (per core)...", flush=True)
+    if device_type == "tpu":
+        import torch_xla.distributed.xla_multiprocessing as xmp
+        xmp.spawn(
+            _worker_benchmark,
+            args=(batch_size, seq_len, 5, 15, device_type),
+            start_method="spawn"
+        )
+    else:
+        _worker_benchmark(0, batch_size, seq_len, 5, 15, device_type)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="télos TPU / GPU Throughput Benchmark")
-    parser.add_argument("--batch-sizes", nargs="+", type=int, default=[32, 64, 128], help="Batch sizes to evaluate")
-    parser.add_argument("--cores", type=int, default=8, help="Number of TPU cores")
-    args, _ = parser.parse_known_args()
-    run_benchmark_suite(batch_sizes=args.batch_sizes)
+    parser = argparse.ArgumentParser(description="télos 8-Core TPU Throughput Benchmark")
+    parser.add_argument("--batch-sizes", nargs="+", type=int, default=[32, 64], help="Batch sizes to evaluate")
+    args = parser.parse_args()
+    
+    device_type = "tpu" if os.environ.get("PJRT_DEVICE") == "TPU" or "torch_xla" in sys.modules or os.path.exists("/dev/accel0") else ("cuda" if torch.cuda.is_available() else "cpu")
+    
+    print("=" * 80)
+    print(f"STARTING 8-CORE THROUGHPUT BENCHMARK ON: {device_type.upper()}")
+    print(f"Architecture: 25M Parameters (d=384, L=13, seq=512)")
+    print("=" * 80)
+    
+    for bs in args.batch_sizes:
+        try:
+            run_benchmark_for_batch(bs, device_type)
+        except Exception as e:
+            print(f"  ✗ Failed / OOM with Batch Size {bs}: {e}")
+            
+    print("\n" + "=" * 80)
+    print("Benchmark Complete!")
+    print("=" * 80)
 
 
 if __name__ == "__main__":
