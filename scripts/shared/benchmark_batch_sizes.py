@@ -1,8 +1,8 @@
 """
-télos 8-Core Hardware Throughput & Batch Size Benchmark.
+télos Single-Process TPU Throughput & Batch Size Benchmark.
 
-Measures throughput (tokens/sec) across all 8 TPU cores (or GPU/CPU)
-using native PyTorch XLA multiprocessing (xmp.spawn).
+Empirically benchmarks granular batch sizes (32, 48, 64, 80, 96, 112)
+on Kaggle TPU v5e to find the absolute maximum throughput before OOM.
 """
 
 import os
@@ -22,22 +22,20 @@ if str(project_root) not in sys.path:
 from mdiff.model.transformer import TelosTransformer, TelosConfig
 
 
-def _worker_benchmark(index: int, batch_size: int, seq_len: int, warmup_steps: int, timed_steps: int, device_type: str):
-    if device_type == "tpu":
+def resolve_device():
+    try:
         import torch_xla.core.xla_model as xm
-        import torch_xla
-        device = xm.xla_device()
-        rank = xm.get_ordinal()
-        world_size = xm.xrt_world_size()
-    elif device_type == "cuda":
-        device = torch.device("cuda")
-        rank = 0
-        world_size = 1
-    else:
-        device = torch.device("cpu")
-        rank = 0
-        world_size = 1
+        return xm.xla_device(), "tpu"
+    except Exception:
+        pass
+    if torch.cuda.is_available():
+        return torch.device("cuda"), "cuda"
+    if torch.backends.mps.is_available():
+        return torch.device("mps"), "mps"
+    return torch.device("cpu"), "cpu"
 
+
+def benchmark_single_batch(batch_size: int, device, device_type: str, seq_len: int = 512, warmup_steps: int = 5, timed_steps: int = 15):
     telos_cfg = TelosConfig(
         vocab_size=8192,
         d_model=384,
@@ -95,48 +93,54 @@ def _worker_benchmark(index: int, batch_size: int, seq_len: int, warmup_steps: i
         torch_xla.sync()
         
     elapsed = time.perf_counter() - start_time
-    total_tokens = batch_size * seq_len * timed_steps * world_size
+    total_tokens = batch_size * seq_len * timed_steps
     tokens_per_sec = total_tokens / elapsed
     steps_per_sec = timed_steps / elapsed
     
-    if rank == 0:
-        print(f"  ✓ {tokens_per_sec:>12,.0f} tok/s | {steps_per_sec:>6.2f} steps/s | Aggregate across {world_size} cores", flush=True)
+    del model, optimizer, x
+    return {"batch_size": batch_size, "tokens_per_sec": tokens_per_sec, "steps_per_sec": steps_per_sec}
 
 
-def run_benchmark_for_batch(batch_size: int, device_type: str, seq_len: int = 512):
-    print(f"\nEvaluating Batch Size {batch_size} (per core)...", flush=True)
-    if device_type == "tpu":
-        import torch_xla.distributed.xla_multiprocessing as xmp
-        xmp.spawn(
-            _worker_benchmark,
-            args=(batch_size, seq_len, 5, 15, device_type),
-            start_method="spawn"
-        )
-    else:
-        _worker_benchmark(0, batch_size, seq_len, 5, 15, device_type)
-
-
-def main():
-    parser = argparse.ArgumentParser(description="télos 8-Core TPU Throughput Benchmark")
-    parser.add_argument("--batch-sizes", nargs="+", type=int, default=[32, 64], help="Batch sizes to evaluate")
-    args = parser.parse_args()
-    
-    device_type = "tpu" if os.environ.get("PJRT_DEVICE") == "TPU" or "torch_xla" in sys.modules or os.path.exists("/dev/accel0") else ("cuda" if torch.cuda.is_available() else "cpu")
-    
+def run_benchmark(batch_sizes=[32, 48, 64, 80, 96]):
+    device, device_type = resolve_device()
     print("=" * 80)
-    print(f"STARTING 8-CORE THROUGHPUT BENCHMARK ON: {device_type.upper()}")
+    print(f"STARTING TPU HARDWARE BENCHMARK ON: {device} ({device_type.upper()})")
     print(f"Architecture: 25M Parameters (d=384, L=13, seq=512)")
     print("=" * 80)
     
-    for bs in args.batch_sizes:
+    results = []
+    for bs in batch_sizes:
+        print(f"\nEvaluating Batch Size: {bs}...", flush=True)
         try:
-            run_benchmark_for_batch(bs, device_type)
+            res = benchmark_single_batch(bs, device, device_type)
+            results.append(res)
+            print(f"  ✓ {res['tokens_per_sec']:>12,.0f} tok/s | {res['steps_per_sec']:>6.2f} steps/s")
         except Exception as e:
             print(f"  ✗ Failed / OOM with Batch Size {bs}: {e}")
+            break
             
     print("\n" + "=" * 80)
-    print("Benchmark Complete!")
+    print(f"{'BATCH SIZE':<14} | {'TOKENS / SEC':<16} | {'STEPS / SEC':<14} | {'STATUS'}")
+    print("-" * 80)
+    best_bs = None
+    best_toks = 0
+    for r in results:
+        toks = r["tokens_per_sec"]
+        status = "Optimal" if toks > best_toks else "Valid"
+        if toks > best_toks:
+            best_toks = toks
+            best_bs = r["batch_size"]
+        print(f"{r['batch_size']:<14} | {toks:>14,.0f} | {r['steps_per_sec']:>12.2f} | {status}")
     print("=" * 80)
+    print(f"★ ABSOLUTE HIGHEST THROUGHPUT: Batch Size = {best_bs} ({best_toks:,.0f} tokens/sec)")
+    print("=" * 80)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="télos TPU Granular Throughput Benchmark")
+    parser.add_argument("--batch-sizes", nargs="+", type=int, default=[32, 48, 64, 80, 96], help="Batch sizes to evaluate")
+    args = parser.parse_args()
+    run_benchmark(batch_sizes=args.batch_sizes)
 
 
 if __name__ == "__main__":
