@@ -106,26 +106,29 @@ def undlm_loss_pytorch(model, clean_targets, vocab_size=8192):
 
 
 def resolve_device(device_str: str | None = None):
-    """Detects device type in parent process without initializing XLA runtime."""
+    """Detects and returns (device, device_type)."""
     if device_str:
         if device_str.lower() in ("tpu", "xla"):
-            return "tpu"
+            import torch_xla.core.xla_model as xm
+            return xm.xla_device(), "tpu"
         elif "cuda" in device_str.lower():
-            return "cuda"
+            return torch.device("cuda"), "cuda"
         elif "mps" in device_str.lower():
-            return "mps"
+            return torch.device("mps"), "mps"
         else:
-            return "cpu"
-            
+            return torch.device("cpu"), "cpu"
+
     if os.environ.get("PJRT_DEVICE") == "TPU":
-        return "tpu"
+        import torch_xla.core.xla_model as xm
+        return xm.xla_device(), "tpu"
     if "torch_xla" in sys.modules or os.path.exists("/dev/accel0"):
-        return "tpu"
+        import torch_xla.core.xla_model as xm
+        return xm.xla_device(), "tpu"
     if torch.cuda.is_available():
-        return "cuda"
+        return torch.device("cuda"), "cuda"
     if torch.backends.mps.is_available():
-        return "mps"
-    return "cpu"
+        return torch.device("mps"), "mps"
+    return torch.device("cpu"), "cpu"
 
 
 def get_upscaled_layer_mapping(src_layers: int, tgt_layers: int) -> list[int]:
@@ -178,18 +181,10 @@ def load_upscaled_weights_pytorch(tgt_model: nn.Module, tgt_cfg: dict, src_ckpt_
     tgt_model.load_state_dict(tgt_state)
 
 
-def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "12m", device_type: str = "tpu"):
+def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "12m", device=None, device_type: str = "tpu"):
     """Worker function executed inside single core process."""
-    if device_type == "tpu":
-        import torch_xla.core.xla_model as xm
-        import torch_xla
-        device = xm.xla_device()
-    elif device_type == "cuda":
-        device = torch.device("cuda")
-    elif device_type == "mps":
-        device = torch.device("mps")
-    else:
-        device = torch.device("cpu")
+    if device is None:
+        device, device_type = resolve_device(device_type)
 
     rank = 0
     world_size = 1
@@ -349,15 +344,17 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     gc.collect()
 
 
-def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m", device_arg: str | None = None):
-    device_type = resolve_device(device_arg)
-    _train_worker(0, paradigm, config_path, src_tier, device_type)
+def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m", device=None, device_type: str = "tpu"):
+    _train_worker(0, paradigm, config_path, src_tier, device=device, device_type=device_type)
 
 
 def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", device: str | None = None):
     """
     Downloads prerequisites from HuggingFace, trains 25M upscaled models, and uploads checkpoints.
     """
+    dev_obj, dev_type = resolve_device(device)
+    print(f"Hardware initialization: Device = {dev_obj} ({dev_type.upper()})", flush=True)
+
     print("=" * 85, flush=True)
     print(f"SYNCING 12.5M SOURCE WEIGHTS & DATASET FROM HUGGINGFACE ({hf_repo})...", flush=True)
     print("=" * 85, flush=True)
@@ -380,7 +377,7 @@ def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", dev
         cfg_path = f"configs/unified/25m/telos_25m_{r}.yaml"
         print(f"\n>>>> EXECUTING UNIFIED 25M RUN FOR RATIO: {r} <<<<", flush=True)
         for paradigm in ["ar", "mdlm", "undlm"]:
-            train_paradigm_pytorch(paradigm=paradigm, config_path=cfg_path, src_tier="12m", device_arg=device)
+            train_paradigm_pytorch(paradigm=paradigm, config_path=cfg_path, src_tier="12m", device=dev_obj, device_type=dev_type)
             
             # Instantly upload individual model to Hugging Face
             p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else "ar")
