@@ -274,19 +274,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
             print("  [Dataset] Warning: Binary dataset not found; using random samples.", flush=True)
         dataset = np.random.randint(0, model_cfg["vocab_size"], size=(1000, seq_len), dtype=np.uint32)
 
-    if device_type == "tpu" and world_size > 1:
-        sampler = torch.utils.data.distributed.DistributedSampler(
-            dataset,
-            num_replicas=world_size,
-            rank=rank,
-            shuffle=True,
-            drop_last=True
-        )
-        base_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], sampler=sampler, num_workers=0, drop_last=True)
-        para_loader = pl.ParallelLoader(base_loader, [device])
-        train_loader = para_loader.per_device_loader(device)
-    else:
-        train_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], shuffle=True, drop_last=True)
+    train_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], shuffle=True, drop_last=True)
         
     loader_iter = iter(train_loader)
     
