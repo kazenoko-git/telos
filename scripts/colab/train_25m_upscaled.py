@@ -115,11 +115,8 @@ def resolve_device(device_str: str | None = None):
             
     if os.environ.get("PJRT_DEVICE") == "TPU":
         return "tpu"
-    try:
-        import torch_xla
+    if "torch_xla" in sys.modules or os.path.exists("/dev/accel0"):
         return "tpu"
-    except Exception:
-        pass
     if torch.cuda.is_available():
         return "cuda"
     if torch.backends.mps.is_available():

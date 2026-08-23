@@ -38,11 +38,9 @@ def resolve_device(device_arg: str | None = None):
         import torch_xla.core.xla_model as xm
         return xm.xla_device(), "tpu"
         
-    try:
+    if "torch_xla" in sys.modules or os.path.exists("/dev/accel0"):
         import torch_xla.core.xla_model as xm
         return xm.xla_device(), "tpu"
-    except Exception:
-        pass
         
     if torch.cuda.is_available():
         return torch.device("cuda"), "cuda"
