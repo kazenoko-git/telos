@@ -372,7 +372,7 @@ def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m
         xmp.spawn(
             _train_worker,
             args=(paradigm, config_path, src_tier, device_type),
-            start_method="fork"
+            start_method="spawn"
         )
     else:
         _train_worker(0, paradigm, config_path, src_tier, device_type)
