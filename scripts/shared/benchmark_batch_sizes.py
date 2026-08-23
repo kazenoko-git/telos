@@ -22,12 +22,28 @@ if str(project_root) not in sys.path:
 from mdiff.model.transformer import TelosTransformer, TelosConfig
 
 
-def resolve_device():
+def resolve_device(device_arg: str | None = None):
+    if device_arg:
+        if device_arg.lower() in ("tpu", "xla"):
+            import torch_xla.core.xla_model as xm
+            return xm.xla_device(), "tpu"
+        elif "cuda" in device_arg.lower():
+            return torch.device("cuda"), "cuda"
+        elif "mps" in device_arg.lower():
+            return torch.device("mps"), "mps"
+        else:
+            return torch.device("cpu"), "cpu"
+
+    if os.environ.get("PJRT_DEVICE") == "TPU":
+        import torch_xla.core.xla_model as xm
+        return xm.xla_device(), "tpu"
+        
     try:
         import torch_xla.core.xla_model as xm
         return xm.xla_device(), "tpu"
     except Exception:
         pass
+        
     if torch.cuda.is_available():
         return torch.device("cuda"), "cuda"
     if torch.backends.mps.is_available():

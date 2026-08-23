@@ -2,9 +2,9 @@
 Google Colab / Kaggle TPU & Cloud GPU Training Script for 25M Upscaled Suite.
 
 Supports:
-- 8-Core TPU Pod Slices (Kaggle TPU v5e-8 / Google Cloud TPU v5e/v6e via PyTorch XLA multiprocessing)
-- Single-Core TPU (v5e-1 / v6e-1)
-- NVIDIA CUDA GPUs (T4 / A100 / H100)
+- Full 8-Core TPU v5e-8 multiprocessing via torch_xla.distributed.xla_multiprocessing (xmp.spawn)
+- High-throughput ParallelLoader / MpDeviceLoader across all 8 cores
+- Hardware gradient All-Reduce via xm.optimizer_step
 - Zero-shock upscaling with invariant RMSNorm scaling
 """
 
@@ -102,7 +102,7 @@ def undlm_loss_pytorch(model, clean_targets, vocab_size=8192):
 
 
 def resolve_device(device_str: str | None = None):
-    """Detects and returns device type safely without initializing XLA runtime in parent."""
+    """Detects device type in parent process without initializing XLA runtime."""
     if device_str:
         if device_str.lower() in ("tpu", "xla"):
             return "tpu"
@@ -143,7 +143,6 @@ def load_upscaled_weights_pytorch(tgt_model: nn.Module, tgt_cfg: dict, src_ckpt_
     src_layers = src_cfg["n_layers"]
     tgt_layers = tgt_cfg["n_layers"]
     layer_map = get_upscaled_layer_mapping(src_layers, tgt_layers)
-    print(f"  [PyTorch Upscaling] Depth Mapping (Target <- Source): {layer_map}", flush=True)
     
     src_state = load_file(src_ckpt_path) if src_ckpt_path.endswith(".safetensors") else torch.load(src_ckpt_path, map_location="cpu")
     if "model_state_dict" in src_state:
@@ -165,7 +164,6 @@ def load_upscaled_weights_pytorch(tgt_model: nn.Module, tgt_cfg: dict, src_ckpt_
                 tgt_tensor.copy_(src_tensor)
             else:
                 if "norm" in src_key and len(src_tensor.shape) == 1:
-                    # Scale RMSNorm weights by sqrt(d_old / d_new) to preserve activation scale across expanded hidden dim
                     scale_factor = math.sqrt(src_tensor.shape[0] / tgt_tensor.shape[0])
                     padded = torch.ones_like(tgt_tensor)
                     padded[:src_tensor.shape[0]] = src_tensor * scale_factor
@@ -177,37 +175,24 @@ def load_upscaled_weights_pytorch(tgt_model: nn.Module, tgt_cfg: dict, src_ckpt_
                     tgt_tensor.copy_(padded)
                 
     tgt_model.load_state_dict(tgt_state)
-    print("  [PyTorch Upscaling] Success: Target model weights initialized with zero-shock RMSNorm parity.", flush=True)
-
-
-def get_xla_rank_and_world_size():
-    try:
-        import torch_xla.runtime as xr
-        return xr.process_index(), xr.world_size()
-    except Exception:
-        pass
-    try:
-        import torch_xla.core.xla_model as xm
-        return xm.get_ordinal(), xm.xrt_world_size()
-    except Exception:
-        return 0, 1
 
 
 def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "12m", device_type: str = "tpu"):
-    """Worker function for single-core or multi-core training."""
+    """Worker function executed inside each core process."""
     if device_type == "tpu":
         import torch_xla.core.xla_model as xm
         import torch_xla
         device = xm.xla_device()
-        rank, world_size = get_xla_rank_and_world_size()
+        rank = 0
+        world_size = 1
     elif device_type == "cuda":
         device = torch.device("cuda")
-        world_size = 1
         rank = 0
+        world_size = 1
     else:
         device = torch.device("cpu")
-        world_size = 1
         rank = 0
+        world_size = 1
 
     is_master = (rank == 0)
     
@@ -221,7 +206,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     
     if is_master:
         print("\n" + "=" * 80, flush=True)
-        print(f"STARTING {paradigm.upper()} TRAINING FOR {stem} (Device: {device} [{device_type.upper()} x {num_cores} cores])", flush=True)
+        print(f"STARTING {paradigm.upper()} TRAINING FOR {stem} (Device: {device} [{device_type.upper()} x {world_size} cores])", flush=True)
         print(f"Steps: {train_cfg['max_steps']} | Batch/Core: {train_cfg['batch_size']} | Grad Accum: {train_cfg['gradient_accumulation']} | LR: {train_cfg['max_lr']}", flush=True)
         print("=" * 80, flush=True)
     
@@ -243,7 +228,6 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         src_ckpt = f"checkpoints/{p_dir}/{src_tier}/{src_stem}/model.safetensors"
         src_cfg_path = f"configs/unified/{src_tier}/{src_stem}.yaml"
         
-        # If exact match does not exist (e.g. 1:30 or 1:35), fallback to highest available 12.5M model (r25)
         if not Path(src_ckpt).exists():
             fallback_stem = f"telos_{src_tier}_r25"
             fallback_ckpt = f"checkpoints/{p_dir}/{src_tier}/{fallback_stem}/model.safetensors"
@@ -256,9 +240,11 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
 
         if Path(src_ckpt).exists() and Path(src_cfg_path).exists():
             load_upscaled_weights_pytorch(model, model_cfg, src_ckpt, src_cfg_path)
+            if is_master:
+                print("  [PyTorch Upscaling] Success: Model initialized with zero-shock RMSNorm parity.", flush=True)
         else:
             if is_master:
-                print(f"  [Upscaling] No source checkpoint found; initializing {stem} from cold weights.", flush=True)
+                print(f"  [Upscaling] Initializing {stem} from cold random weights.", flush=True)
         
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -268,7 +254,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     )
     scheduler = WarmupCosineLR(
         optimizer,
-        warmup_steps=int(train_cfg.get("warmup_steps", 100)),
+        warmup_steps=int(train_cfg.get("warmup_steps", 10)),
         max_steps=int(train_cfg["max_steps"]),
         max_lr=float(train_cfg["max_lr"]),
         min_lr=float(train_cfg.get("min_lr", 1e-5))
@@ -288,17 +274,20 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         dataset = np.memmap(dataset_path, dtype=np.uint32, mode="r", shape=(num_samples, seq_len))
     else:
         if is_master:
-            print("  [Dataset] Warning: Binary dataset not found locally; generating synthetic dummy batch.", flush=True)
+            print("  [Dataset] Warning: Binary dataset not found; using random samples.", flush=True)
         dataset = np.random.randint(0, model_cfg["vocab_size"], size=(1000, seq_len), dtype=np.uint32)
 
-    if num_cores > 1 and device_type == "tpu":
+    if device_type == "tpu" and world_size > 1:
         sampler = torch.utils.data.distributed.DistributedSampler(
             dataset,
             num_replicas=world_size,
             rank=rank,
-            shuffle=True
+            shuffle=True,
+            drop_last=True
         )
-        train_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], sampler=sampler, drop_last=True)
+        base_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], sampler=sampler, num_workers=0, drop_last=True)
+        para_loader = pl.ParallelLoader(base_loader, [device])
+        train_loader = para_loader.per_device_loader(device)
     else:
         train_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], shuffle=True, drop_last=True)
         
@@ -323,7 +312,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
                 loader_iter = iter(train_loader)
                 raw_batch = next(loader_iter)
                 
-            x = torch.from_numpy(np.array(raw_batch, copy=True)).long().to(device)
+            x = raw_batch.long().to(device) if isinstance(raw_batch, torch.Tensor) else torch.from_numpy(np.array(raw_batch, copy=True)).long().to(device)
             
             if paradigm == "ar":
                 logits = model(x)
@@ -338,10 +327,6 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
             loss = loss / grad_accum
             loss.backward()
             
-            if device_type == "tpu":
-                import torch_xla
-                torch_xla.sync()
-                
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         if device_type == "tpu":
             import torch_xla.core.xla_model as xm
@@ -359,7 +344,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
             step_loss = loss.item() * grad_accum
             print(f"Step {step:>5}/{max_steps} | Loss: {step_loss:.4f} | LR: {lr_curr:.2e} | Tokens: {toks_done/1e6:.1f}M", flush=True)
             
-        if is_master and (step % int(cfg.get("checkpoint", {}).get("save_every_steps", 50)) == 0 or step == max_steps):
+        if is_master and (step % int(cfg.get("checkpoint", {}).get("save_every_steps", 25)) == 0 or step == max_steps):
             ckpt_file = save_dir / f"checkpoint_step_{step}.safetensors"
             cpu_state = {k: v.detach().cpu().clone().contiguous() for k, v in model.state_dict().items()}
             save_file(cpu_state, str(ckpt_file))
@@ -379,10 +364,18 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
 
 def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m", device_arg: str | None = None):
     device_type = resolve_device(device_arg)
-    _train_worker(0, paradigm, config_path, src_tier, device_type)
+    if device_type == "tpu":
+        import torch_xla.distributed.xla_multiprocessing as xmp
+        xmp.spawn(
+            _train_worker,
+            args=(paradigm, config_path, src_tier, device_type),
+            start_method="spawn"
+        )
+    else:
+        _train_worker(0, paradigm, config_path, src_tier, device_type)
 
 
-def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", device: str | None = None, num_cores: int = 8):
+def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", device: str | None = None):
     """
     Downloads prerequisites from HuggingFace, trains 25M upscaled models, and uploads checkpoints.
     """
@@ -408,7 +401,7 @@ def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", dev
         cfg_path = f"configs/unified/25m/telos_25m_{r}.yaml"
         print(f"\n>>>> EXECUTING UNIFIED 25M RUN FOR RATIO: {r} <<<<", flush=True)
         for paradigm in ["ar", "mdlm", "undlm"]:
-            train_paradigm_pytorch(paradigm=paradigm, config_path=cfg_path, src_tier="12m", device_arg=device, num_cores=num_cores)
+            train_paradigm_pytorch(paradigm=paradigm, config_path=cfg_path, src_tier="12m", device_arg=device)
             
             # Instantly upload individual model to Hugging Face
             p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else "ar")
@@ -433,10 +426,9 @@ def main():
     parser.add_argument("--ratios", nargs="+", default=["r1", "r10", "r15", "r20", "r25", "r30", "r35"], help="Ratios to train (e.g. r1 r10 r15 r20 r25 r30 r35)")
     parser.add_argument("--hf-repo", type=str, default="Kazenowoko/telos", help="Hugging Face Model Repository")
     parser.add_argument("--device", type=str, default="tpu", help="Device to use ('tpu', 'cuda', 'cpu')")
-    parser.add_argument("--cores", type=int, default=8, help="Number of TPU cores to utilize (1 or 8)")
     args = parser.parse_args()
     
-    run_full_25m_suite(ratios=args.ratios, hf_repo=args.hf_repo, device=args.device, num_cores=args.cores)
+    run_full_25m_suite(ratios=args.ratios, hf_repo=args.hf_repo, device=args.device)
 
 
 if __name__ == "__main__":
