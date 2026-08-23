@@ -90,7 +90,21 @@ jupyter notebook notebooks/shared/Optimization_Test_Suite.ipynb
 python scripts/shared/run_optimization_suite.py
 ```
 
-### Option D: Paradigm-Specific Local Notebooks
+### Option D: Lightning AI TPU v6e-1 Trillium (PyTorch-XLA Single-Chip 32GB HBM)
+To train 25M upscaled models on Lightning AI single-chip TPU v6e:
+1. **Connect via SSH to Lightning AI Studio and run bootstrap**:
+   ```bash
+   git clone https://github.com/kazenoko-git/telos.git
+   cd telos
+   bash scripts/lightning/setup.sh
+   ```
+2. **Execute 25M 3-Paradigm Training Pipeline**:
+   ```bash
+   export HF_TOKEN="your_huggingface_token"
+   python scripts/lightning/train_25m_lightning.py --ratios r15 r20 r25 r30 r35 --hf_repo Kazenowoko/telos
+   ```
+
+### Option E: Paradigm-Specific Local Notebooks
 - **Masked Discrete Diffusion (MDLM)**: `notebooks/masked/Training_Suites.ipynb`
 - **Uniform Noise Diffusion (UNDLM)**: `notebooks/uniform/Training_Suites.ipynb`
 - **Autoregressive Baseline (AR)**: `notebooks/ar/Training_Suites.ipynb`
