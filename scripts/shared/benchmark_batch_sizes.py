@@ -132,22 +132,6 @@ def _worker_benchmark(index: int, batch_size: int, seq_len: int, warmup_steps: i
 
 def benchmark_batch_size(batch_size: int, device_type: str, seq_len: int = 512):
     return_dict = {}
-    if device_type == "tpu":
-        try:
-            import torch_xla.distributed.xla_multiprocessing as xmp
-            import multiprocessing
-            manager = multiprocessing.Manager()
-            shared_dict = manager.dict()
-            xmp.spawn(
-                _worker_benchmark,
-                args=(batch_size, seq_len, 5, 15, device_type, shared_dict),
-                nprocs=None,
-                start_method="spawn"
-            )
-            return dict(shared_dict)
-        except Exception as e:
-            print(f"    (Multi-core fallback: {e})")
-            
     _worker_benchmark(0, batch_size, seq_len, 5, 15, device_type, return_dict)
     return return_dict
 

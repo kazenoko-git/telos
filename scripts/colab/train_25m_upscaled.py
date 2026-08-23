@@ -377,23 +377,8 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     gc.collect()
 
 
-def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m", device_arg: str | None = None, multi_core: bool = True):
+def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m", device_arg: str | None = None):
     device_type = resolve_device(device_arg)
-    
-    if device_type == "tpu" and multi_core:
-        try:
-            import torch_xla.distributed.xla_multiprocessing as xmp
-            print(f"  [TPU Multiprocessing] Spawning across all available TPU cores...", flush=True)
-            xmp.spawn(
-                _train_worker,
-                args=(paradigm, config_path, src_tier, device_type),
-                nprocs=None,
-                start_method="spawn"
-            )
-            return
-        except Exception as e:
-            print(f"  [TPU Multiprocessing Notice] Fallback to single-core: {e}", flush=True)
-            
     _train_worker(0, paradigm, config_path, src_tier, device_type)
 
 
