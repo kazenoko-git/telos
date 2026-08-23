@@ -302,11 +302,11 @@ def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m
             
         if step % int(cfg["checkpoint"].get("save_every_steps", 20)) == 0 or step == max_steps:
             ckpt_file = save_dir / f"checkpoint_step_{step}.safetensors"
-            cpu_state = {k: v.detach().cpu().contiguous() for k, v in model.state_dict().items()}
+            cpu_state = {k: v.detach().cpu().clone().contiguous() for k, v in model.state_dict().items()}
             save_file(cpu_state, str(ckpt_file))
             
     # Save final model
-    cpu_state = {k: v.detach().cpu().contiguous() for k, v in model.state_dict().items()}
+    cpu_state = {k: v.detach().cpu().clone().contiguous() for k, v in model.state_dict().items()}
     save_file(cpu_state, str(save_dir / "model.safetensors"))
     with open(save_dir / "config.json", "w") as f:
         yaml.dump(model_cfg, f)
