@@ -11,7 +11,7 @@ model:
 
 training:
   batch_size: 64
-  gradient_accumulation: 16  # 64 * 16 * 512 = 524,288 tokens/step
+  gradient_accumulation: 2  # 64 * 16 * 512 = 524,288 tokens/step
   max_steps: 1247            # 1247 * 524,288 = 653,787,136 tokens (~653.8M tokens)
   max_lr: 1e-4               # Fine-tuning / zero-shock upscaling learning rate
   min_lr: 1e-5
