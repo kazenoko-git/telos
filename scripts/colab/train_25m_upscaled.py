@@ -102,28 +102,29 @@ def undlm_loss_pytorch(model, clean_targets, vocab_size=8192):
 
 
 def resolve_device(device_str: str | None = None):
-    """Detects and returns optimal execution device (TPU XLA, CUDA GPU, or CPU)."""
+    """Detects and returns device type safely without initializing XLA runtime in parent."""
     if device_str:
         if device_str.lower() in ("tpu", "xla"):
-            import torch_xla.core.xla_model as xm
-            return xm.xla_device(), "tpu"
+            return "tpu"
         elif "cuda" in device_str.lower():
-            return torch.device("cuda"), "cuda"
+            return "cuda"
         elif "mps" in device_str.lower():
-            return torch.device("mps"), "mps"
+            return "mps"
         else:
-            return torch.device("cpu"), "cpu"
+            return "cpu"
             
+    if os.environ.get("PJRT_DEVICE") == "TPU":
+        return "tpu"
     try:
-        import torch_xla.core.xla_model as xm
-        return xm.xla_device(), "tpu"
+        import torch_xla
+        return "tpu"
     except Exception:
-        if torch.cuda.is_available():
-            return torch.device("cuda"), "cuda"
-        elif torch.backends.mps.is_available():
-            return torch.device("mps"), "mps"
-        else:
-            return torch.device("cpu"), "cpu"
+        pass
+    if torch.cuda.is_available():
+        return "cuda"
+    if torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
 
 
 def get_upscaled_layer_mapping(src_layers: int, tgt_layers: int) -> list[int]:
@@ -377,7 +378,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
 
 
 def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m", device_arg: str | None = None, multi_core: bool = True):
-    device, device_type = resolve_device(device_arg)
+    device_type = resolve_device(device_arg)
     
     if device_type == "tpu" and multi_core:
         try:

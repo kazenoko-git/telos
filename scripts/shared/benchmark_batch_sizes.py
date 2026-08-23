@@ -23,16 +23,19 @@ from mdiff.model.transformer import TelosTransformer, TelosConfig
 
 
 def resolve_device():
+    """Detects device type in parent process without initializing XLA runtime."""
+    if os.environ.get("PJRT_DEVICE") == "TPU":
+        return "tpu"
     try:
-        import torch_xla.core.xla_model as xm
-        return xm.xla_device(), "tpu"
+        import torch_xla
+        return "tpu"
     except Exception:
         pass
     if torch.cuda.is_available():
-        return torch.device("cuda"), "cuda"
+        return "cuda"
     if torch.backends.mps.is_available():
-        return torch.device("mps"), "mps"
-    return torch.device("cpu"), "cpu"
+        return "mps"
+    return "cpu"
 
 
 def get_xla_rank_and_world_size():
@@ -150,7 +153,7 @@ def benchmark_batch_size(batch_size: int, device_type: str, seq_len: int = 512):
 
 
 def run_benchmark_suite(batch_sizes=[32, 64, 128]):
-    device, device_type = resolve_device()
+    device_type = resolve_device()
     print("=" * 80)
     print(f"STARTING THROUGHPUT BENCHMARK ON: {device_type.upper()}")
     print(f"Architecture: 25M Parameters (d=384, L=13, seq=512)")
