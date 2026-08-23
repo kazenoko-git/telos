@@ -325,10 +325,13 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
             print("  [Dataset] Warning: Binary dataset not found; using random samples.", flush=True)
         dataset = np.random.randint(0, model_cfg["vocab_size"], size=(1000, seq_len), dtype=np.uint32)
 
-    train_loader = DataLoader(dataset, batch_size=dl_batch_size, shuffle=True, drop_last=True)
-        
-    loader_iter = iter(train_loader)
+    num_samples = len(dataset)
     
+    # Configure hardware automatic mixed precision (AMP) for TPU/GPU acceleration
+    amp_device = "xla" if device_type == "tpu" else ("cuda" if device_type == "cuda" else "cpu")
+    use_amp = (train_cfg.get("precision", "bf16") == "bf16") and (device_type in ("tpu", "cuda"))
+    amp_dtype = torch.bfloat16 if train_cfg.get("precision", "bf16") == "bf16" else torch.float16
+
     model.train()
     grad_accum = int(train_cfg["gradient_accumulation"])
     max_steps = int(train_cfg["max_steps"])
@@ -342,30 +345,31 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         optimizer.zero_grad()
         
         for mb in range(grad_accum):
-            try:
-                raw_batch = next(loader_iter)
-            except StopIteration:
-                loader_iter = iter(train_loader)
-                raw_batch = next(loader_iter)
-                
-            x = raw_batch.long().to(device) if isinstance(raw_batch, torch.Tensor) else torch.from_numpy(np.array(raw_batch, copy=True)).long().to(device)
+            # Vectorized batch indexing in RAM (instantaneous C-level slicing, 0ms overhead)
+            batch_indices = np.random.randint(0, num_samples, size=dl_batch_size)
+            raw_batch = dataset[batch_indices]
+            
+            x = torch.from_numpy(raw_batch).long().to(device)
             
             # SPMD: shard batch dimension across TPU chips for data parallelism
             if mesh is not None:
                 import torch_xla.distributed.spmd as xs
                 xs.mark_sharding(x, mesh, ('data', None))
             
-            if paradigm == "ar":
-                logits = model(x)
-                shift_logits = logits[:, :-1, :].contiguous()
-                shift_labels = x[:, 1:].contiguous()
-                loss = nn.functional.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
-            elif paradigm == "mdlm":
-                loss = mdlm_loss_pytorch(model, x, mask_token_id=4, vocab_size=model_cfg["vocab_size"])
-            else:
-                loss = undlm_loss_pytorch(model, x, vocab_size=model_cfg["vocab_size"])
+            # Forward pass wrapped in hardware autocast to utilize TPU Matrix Multiply Units (MXUs)
+            with torch.autocast(device_type=amp_device, dtype=amp_dtype, enabled=use_amp):
+                if paradigm == "ar":
+                    logits = model(x)
+                    shift_logits = logits[:, :-1, :].contiguous()
+                    shift_labels = x[:, 1:].contiguous()
+                    loss = nn.functional.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+                elif paradigm == "mdlm":
+                    loss = mdlm_loss_pytorch(model, x, mask_token_id=4, vocab_size=model_cfg["vocab_size"])
+                else:
+                    loss = undlm_loss_pytorch(model, x, vocab_size=model_cfg["vocab_size"])
+                    
+                loss = loss / grad_accum
                 
-            loss = loss / grad_accum
             loss.backward()
             
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
