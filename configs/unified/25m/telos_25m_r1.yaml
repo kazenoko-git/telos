@@ -10,9 +10,9 @@ model:
   seq_len: 512
 
 training:
-  batch_size: 64             # Empirically measured optimal TPU throughput sweet spot (141k tok/s)
-  gradient_accumulation: 2  # 64 * 16 * 512 = 524,288 tokens/step
-  max_steps: 50              # 50 * 524,288 = 26,214,400 tokens (~26.2M tokens)
+  batch_size: 48
+  gradient_accumulation: 2  # 48 * 2 * 8 * 512 = 393,216 tokens/step (on 8 cores)
+  max_steps: 67            # 67 * 393,216 tokens/step
   max_lr: 1e-4               # Fine-tuning / zero-shock upscaling learning rate
   min_lr: 1e-5
   warmup_steps: 10
