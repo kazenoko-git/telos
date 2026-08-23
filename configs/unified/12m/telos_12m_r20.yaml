@@ -10,14 +10,26 @@ model:
   seq_len: 512
 
 training:
-  batch_size: 32
-  gradient_accumulation: 8  # Effective batch = 256 sequences (131,072 tokens/step)
-  max_steps: 1913          # 1,913 steps * 131,072 = 250,740,736 tokens (~250.8M tokens)
+  total_tokens: 250740736    # ~250.8M tokens (1:20 ratio)
   max_lr: 4e-4
   min_lr: 4e-5
-  warmup_steps: 100
+  warmup_ratio: 0.05
   weight_decay: 0.1
   precision: bf16
+
+  # Device-specific hardware execution profiles
+  tpu:
+    batch_size: 32
+    gradient_accumulation: 1
+    num_devices: 8
+  mac:
+    batch_size: 32
+    gradient_accumulation: 8
+    num_devices: 1
+  gpu:
+    batch_size: 32
+    gradient_accumulation: 8
+    num_devices: 1
 
 checkpoint:
   dir: checkpoints/12m/telos_12m_r20
