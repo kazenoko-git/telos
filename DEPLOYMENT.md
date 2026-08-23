@@ -8,9 +8,9 @@ This document details how to set up, reproduce, train, evaluate, and deploy **τ
 
 | Suite | Model Size | Architecture | Vocab / Context | Backend | Hardware Target |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **12M Suite** | **~12.5 Million** | 6L, $d=256$, 8 Heads | 8,192 BPE / 512 | Apple MLX | Apple Silicon (MPS/Metal GPU) |
-| **25M Suite** | **~25 Million** | 8L, $d=512$, 8 Heads | 8,192 BPE / 512 | Apple MLX | Apple Silicon (MPS/Metal GPU) |
-| **50M Suite** | **~50 Million** | 8L, $d=768$, 12 Heads | 8,192 BPE / 512 | MLX / PyTorch-XLA | Apple Silicon / TPU v4/v5/v6e |
+| **12M Suite** | **~12.5 Million** | 13L, $d=256$, 4 Heads | 8,192 BPE / 512 | MLX / PyTorch-XLA / CUDA | Apple Silicon / TPU / CUDA GPU |
+| **25M Suite** | **~26.1 Million** | 13L, $d=384$, 6 Heads | 8,192 BPE / 512 | MLX / PyTorch-XLA / CUDA | Apple Silicon / TPU / CUDA GPU |
+| **50M Suite** | **~50 Million** | 13L, $d=512$, 8 Heads | 8,192 BPE / 512 | MLX / PyTorch-XLA / CUDA | Apple Silicon / TPU / CUDA GPU |
 
 ---
 
@@ -26,6 +26,9 @@ git clone https://github.com/kazenoko-git/telos.git
 cd telos
 uv sync
 ```
+
+For Universal Training via Notebooks:
+Open [`notebooks/shared/Unified_Training_Suite.ipynb`](notebooks/shared/Unified_Training_Suite.ipynb) which automatically detects MLX (Apple Silicon), PyTorch XLA (Google Cloud/Kaggle TPU v5e/v6e), or PyTorch CUDA (NVIDIA GPUs), syncing dataset/tokenizer and weights from Hugging Face automatically.
 
 For Apple Silicon (MLX Metal GPU acceleration):
 ```bash
