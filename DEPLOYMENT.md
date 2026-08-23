@@ -55,16 +55,14 @@ uv run python scripts/shared/generate_probe_graphs.py
 
 ## 4. Training Pipelines & Benchmarking
 
-### Option A: Google Colab Cloud TPU (v5e-1 / v6e-1 PyTorch-XLA)
-To train 25M upscaled or 12.5M models on Google Cloud TPUs:
-1. **Provision TPU Session via Colab CLI**:
+### Option A: Google Cloud / Kaggle TPU v5e-8 (PyTorch-XLA SPMD)
+To train 25M upscaled or 12.5M models across all 8 TPU cores using single-process SPMD data-parallel sharding:
+1. **Execute Full 3-Paradigm 25M Suite via Script**:
    ```bash
-   uv run colab --auth adc new -s Untitled1_TPU --tpu v5e1
+   python scripts/colab/train_25m_upscaled.py --ratios r1 r10 r15 r20 r25 r30 r35 --hf-repo Kazenowoko/telos --device tpu
    ```
-2. **Execute Full 3-Paradigm 25M Retraining on TPU**:
-   ```bash
-   uv run colab --auth adc exec -s Untitled1_TPU --timeout 86400 -f scripts/colab/run_tpu_direct.py
-   ```
+2. **Or Execute Interactively in Kaggle / Colab**:
+   Open [`notebooks/shared/Unified_Training_Suite.ipynb`](notebooks/shared/Unified_Training_Suite.ipynb) which automatically detects the TPU environment, initializes the SPMD 8-chip mesh, and distributes global batches without multi-process forking.
 
 ### Option B: Google Colab / Cloud GPU Training (PyTorch CUDA with SSH)
 To train on cloud NVIDIA GPUs (T4 / A100):
