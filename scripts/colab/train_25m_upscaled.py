@@ -105,30 +105,31 @@ def undlm_loss_pytorch(model, clean_targets, vocab_size=8192):
     return torch.mean(per_example_ce * t_weights)
 
 
-def resolve_device(device_str: str | None = None):
-    """Detects and returns (device, device_type)."""
+def detect_device_type(device_str: str | None = None) -> str:
+    """Detects hardware type WITHOUT creating any device (safe for SPMD init ordering)."""
     if device_str:
-        if device_str.lower() in ("tpu", "xla"):
-            import torch_xla.core.xla_model as xm
-            return xm.xla_device(), "tpu"
-        elif "cuda" in device_str.lower():
-            return torch.device("cuda"), "cuda"
-        elif "mps" in device_str.lower():
-            return torch.device("mps"), "mps"
-        else:
-            return torch.device("cpu"), "cpu"
+        d = device_str.lower()
+        if d in ("tpu", "xla"): return "tpu"
+        if "cuda" in d: return "cuda"
+        if "mps" in d: return "mps"
+        return "cpu"
+    if os.environ.get("PJRT_DEVICE") == "TPU": return "tpu"
+    if os.path.exists("/dev/accel0"): return "tpu"
+    if torch.cuda.is_available(): return "cuda"
+    if torch.backends.mps.is_available(): return "mps"
+    return "cpu"
 
-    if os.environ.get("PJRT_DEVICE") == "TPU":
+
+def create_device(device_type: str):
+    """Creates a torch device after SPMD has been initialized (if TPU)."""
+    if device_type == "tpu":
         import torch_xla.core.xla_model as xm
-        return xm.xla_device(), "tpu"
-    if "torch_xla" in sys.modules or os.path.exists("/dev/accel0"):
-        import torch_xla.core.xla_model as xm
-        return xm.xla_device(), "tpu"
-    if torch.cuda.is_available():
-        return torch.device("cuda"), "cuda"
-    if torch.backends.mps.is_available():
-        return torch.device("mps"), "mps"
-    return torch.device("cpu"), "cpu"
+        return xm.xla_device()
+    elif device_type == "cuda":
+        return torch.device("cuda")
+    elif device_type == "mps":
+        return torch.device("mps")
+    return torch.device("cpu")
 
 
 def resolve_training_params(cfg: dict, device_type: str = "tpu") -> dict:
@@ -225,13 +226,13 @@ def load_upscaled_weights_pytorch(tgt_model: nn.Module, tgt_cfg: dict, src_ckpt_
     tgt_model.load_state_dict(tgt_state)
 
 
-def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "12m", device=None, device_type: str = "tpu"):
-    """Worker function executed inside single core process."""
+def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "12m", device=None, device_type: str = "tpu", mesh=None):
+    """Worker function for single-process training. Supports SPMD data-parallel across TPU chips."""
     if device is None:
-        device, device_type = resolve_device(device_type)
+        device = create_device(device_type)
 
-    rank = 0
-    world_size = 1
+    # SPMD mesh means data-parallel across all chips; otherwise single-device
+    num_devices = mesh.shape()[0] if mesh is not None else 1
     is_master = True
     
     with open(config_path) as f:
@@ -242,10 +243,14 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     model_cfg = cfg["model"]
     train_cfg = resolve_training_params(cfg, device_type)
     
+    # For SPMD: DataLoader produces global batch = per_device_batch * num_devices
+    dl_batch_size = train_cfg["batch_size"] * num_devices if mesh is not None else train_cfg["batch_size"]
+    
     if is_master:
         print("\n" + "=" * 80, flush=True)
-        print(f"STARTING {paradigm.upper()} TRAINING FOR {stem} (Device: {device} [{device_type.upper()} x {world_size} cores])", flush=True)
-        print(f"Steps: {train_cfg['max_steps']} | Batch/Core: {train_cfg['batch_size']} | Grad Accum: {train_cfg['gradient_accumulation']} | LR: {train_cfg['max_lr']} | Warmup: {train_cfg['warmup_steps']}", flush=True)
+        spmd_tag = f" SPMD {num_devices}-chip" if mesh is not None else ""
+        print(f"STARTING {paradigm.upper()} TRAINING FOR {stem} (Device: {device} [{device_type.upper()}{spmd_tag}])", flush=True)
+        print(f"Steps: {train_cfg['max_steps']} | Global Batch: {dl_batch_size} (={train_cfg['batch_size']}x{num_devices}) | Grad Accum: {train_cfg['gradient_accumulation']} | LR: {train_cfg['max_lr']} | Warmup: {train_cfg['warmup_steps']}", flush=True)
         print("=" * 80, flush=True)
     
     is_causal = (paradigm.lower() == "ar")
@@ -315,7 +320,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
             print("  [Dataset] Warning: Binary dataset not found; using random samples.", flush=True)
         dataset = np.random.randint(0, model_cfg["vocab_size"], size=(1000, seq_len), dtype=np.uint32)
 
-    train_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], shuffle=True, drop_last=True)
+    train_loader = DataLoader(dataset, batch_size=dl_batch_size, shuffle=True, drop_last=True)
         
     loader_iter = iter(train_loader)
     
@@ -339,6 +344,11 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
                 raw_batch = next(loader_iter)
                 
             x = raw_batch.long().to(device) if isinstance(raw_batch, torch.Tensor) else torch.from_numpy(np.array(raw_batch, copy=True)).long().to(device)
+            
+            # SPMD: shard batch dimension across TPU chips for data parallelism
+            if mesh is not None:
+                import torch_xla.distributed.spmd as xs
+                xs.mark_sharding(x, mesh, ('data', None))
             
             if paradigm == "ar":
                 logits = model(x)
@@ -366,7 +376,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         
         if is_master and (step % 5 == 0 or step == max_steps or step <= 3):
             lr_curr = scheduler.get_last_lr()[0]
-            toks_done = step * train_cfg["batch_size"] * grad_accum * model_cfg["seq_len"] * world_size
+            toks_done = step * dl_batch_size * grad_accum * model_cfg["seq_len"]
             step_loss = loss.item() * grad_accum
             print(f"Step {step:>5}/{max_steps} | Loss: {step_loss:.4f} | LR: {lr_curr:.2e} | Tokens: {toks_done/1e6:.1f}M", flush=True)
             
@@ -388,15 +398,34 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     gc.collect()
 
 
-def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m", device=None, device_type: str = "tpu"):
-    _train_worker(0, paradigm, config_path, src_tier, device=device, device_type=device_type)
+def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m", device=None, device_type: str = "tpu", mesh=None):
+    _train_worker(0, paradigm, config_path, src_tier, device=device, device_type=device_type, mesh=mesh)
 
 
 def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", device: str | None = None):
     """
     Downloads prerequisites from HuggingFace, trains 25M upscaled models, and uploads checkpoints.
+    Uses SPMD data-parallel sharding on TPU for full 8-chip utilization.
     """
-    dev_obj, dev_type = resolve_device(device)
+    # Step 1: Detect device type WITHOUT creating any device (critical for SPMD ordering)
+    dev_type = detect_device_type(device)
+    
+    # Step 2: Initialize SPMD BEFORE creating any XLA device
+    mesh = None
+    if dev_type == "tpu":
+        import torch_xla.runtime as xr
+        import torch_xla.core.xla_model as xm
+        import torch_xla.distributed.spmd as xs
+        from torch_xla.distributed.spmd import Mesh
+        
+        xr.use_spmd()
+        dev_obj = xm.xla_device()
+        num_chips = xr.global_runtime_device_count()
+        mesh = Mesh(np.arange(num_chips), ('data',))
+        print(f"[TPU SPMD] {num_chips}-chip data-parallel mesh initialized on {dev_obj}", flush=True)
+    else:
+        dev_obj = create_device(dev_type)
+    
     print(f"Hardware initialization: Device = {dev_obj} ({dev_type.upper()})", flush=True)
 
     print("=" * 85, flush=True)
@@ -421,7 +450,7 @@ def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", dev
         cfg_path = f"configs/unified/25m/telos_25m_{r}.yaml"
         print(f"\n>>>> EXECUTING UNIFIED 25M RUN FOR RATIO: {r} <<<<", flush=True)
         for paradigm in ["ar", "mdlm", "undlm"]:
-            train_paradigm_pytorch(paradigm=paradigm, config_path=cfg_path, src_tier="12m", device=dev_obj, device_type=dev_type)
+            train_paradigm_pytorch(paradigm=paradigm, config_path=cfg_path, src_tier="12m", device=dev_obj, device_type=dev_type, mesh=mesh)
             
             # Instantly upload individual model to Hugging Face
             p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else "ar")
