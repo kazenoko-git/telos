@@ -185,6 +185,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         import torch_xla.core.xla_model as xm
         import torch_xla.runtime as xr
         import torch_xla
+        import torch_xla.distributed.parallel_loader as pl
         device = xm.xla_device()
         rank = xr.global_ordinal()
         world_size = xr.world_size()
