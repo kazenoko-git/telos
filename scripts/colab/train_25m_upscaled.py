@@ -317,8 +317,9 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     if dataset_path.exists():
         num_samples = dataset_path.stat().st_size // (seq_len * 4)
         if is_master:
-            print(f"  [Dataset] Memory-mapping {dataset_path} ({num_samples:,} samples)...", flush=True)
-        dataset = np.memmap(dataset_path, dtype=np.uint32, mode="r", shape=(num_samples, seq_len))
+            print(f"  [Dataset] Loading {dataset_path} entirely into RAM ({num_samples:,} samples) to prevent I/O thrashing...", flush=True)
+        # Load entirely into RAM to prevent massive disk thrashing with DataLoader(shuffle=True)
+        dataset = np.fromfile(dataset_path, dtype=np.uint32).reshape(num_samples, seq_len)
     else:
         if is_master:
             print("  [Dataset] Warning: Binary dataset not found; using random samples.", flush=True)
