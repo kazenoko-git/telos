@@ -210,7 +210,21 @@ def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m
         p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else "ar")
         src_ckpt = f"checkpoints/{p_dir}/{src_tier}/{src_stem}/model.safetensors"
         src_cfg_path = f"configs/unified/{src_tier}/{src_stem}.yaml"
-        load_upscaled_weights_pytorch(model, model_cfg, src_ckpt, src_cfg_path)
+        
+        # If exact match does not exist (e.g. 1:30 or 1:35), fallback to highest available 12.5M model (r25)
+        if not Path(src_ckpt).exists():
+            fallback_stem = f"telos_{src_tier}_r25"
+            fallback_ckpt = f"checkpoints/{p_dir}/{src_tier}/{fallback_stem}/model.safetensors"
+            fallback_cfg = f"configs/unified/{src_tier}/{fallback_stem}.yaml"
+            if Path(fallback_ckpt).exists() and Path(fallback_cfg).exists():
+                print(f"  [Upscaling] {src_stem} not found; using highest available source: {fallback_stem}", flush=True)
+                src_ckpt = fallback_ckpt
+                src_cfg_path = fallback_cfg
+
+        if Path(src_ckpt).exists() and Path(src_cfg_path).exists():
+            load_upscaled_weights_pytorch(model, model_cfg, src_ckpt, src_cfg_path)
+        else:
+            print(f"  [Upscaling] No source checkpoint found; initializing {stem} from cold weights.", flush=True)
         
     optimizer = torch.optim.AdamW(
         model.parameters(),
