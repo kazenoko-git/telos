@@ -5,10 +5,12 @@ echo "==========================================================================
 echo "  télos (τέλος) - Lightning AI TPU v6e-1 Environment Bootstrap"
 echo "==============================================================================="
 
+# Export miniconda PATH if not already in PATH
+export PATH="/system/conda/miniconda3/envs/cloudspace/bin:/system/conda/miniconda3/bin:$PATH"
+
 # 1. Install PyTorch & PyTorch-XLA for TPU v6e (Trillium architecture)
 echo "[1/4] Installing PyTorch and PyTorch/XLA (TPU wheels)..."
-pip install --upgrade pip
-pip install torch~=2.6.0 torch_xla[tpu]~=2.6.0 -f https://storage.googleapis.com/libtpu-releases/index.html
+pip install "torch==2.8.0" "torch_xla[tpu]==2.8.0" -f https://storage.googleapis.com/libtpu-releases/index.html
 
 # 2. Install essential dependencies for télos
 echo "[2/4] Installing supporting dependencies (safetensors, huggingface_hub, pyyaml, numpy)..."

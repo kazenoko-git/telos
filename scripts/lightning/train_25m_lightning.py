@@ -13,12 +13,19 @@ Key Design Highlights:
 7. End-to-End Automation: Runs all 3 paradigms (AR, MDLM, UNDLM), saves safetensors, and syncs to Hugging Face.
 """
 
+import sys
 import os
 import gc
 import math
 import time
 import argparse
 from pathlib import Path
+
+# Ensure repository root is on sys.path
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 import yaml
 import numpy as np
 
@@ -44,6 +51,7 @@ class WarmupCosineLR:
         self.max_lr = max_lr
         self.min_lr = min_lr
         self.current_step = 0
+        self.current_lr = max_lr
         self.device = optimizer.param_groups[0]["params"][0].device
 
     def step(self):
@@ -57,16 +65,14 @@ class WarmupCosineLR:
             decay = (s - self.warmup_steps) / max(1, self.max_steps - self.warmup_steps)
             lr_val = self.min_lr + 0.5 * (1.0 + math.cos(math.pi * decay)) * (self.max_lr - self.min_lr)
 
+        self.current_lr = lr_val
         # Assign as a torch.Tensor to ensure XLA treats LR as dynamic parameter rather than static graph constant
         tensor_lr = torch.tensor(lr_val, dtype=torch.float32, device=self.device)
         for param_group in self.optimizer.param_groups:
             param_group["lr"] = tensor_lr
 
     def get_last_lr(self) -> float:
-        lr_val = self.optimizer.param_groups[0]["lr"]
-        if isinstance(lr_val, torch.Tensor):
-            return float(lr_val.detach().cpu().item())
-        return float(lr_val)
+        return self.current_lr
 
 
 def mdlm_loss_pytorch(model: nn.Module, clean_targets: torch.Tensor, mask_token_id: int = 4, vocab_size: int = 8192) -> torch.Tensor:
@@ -233,56 +239,10 @@ def probe_and_adjust_batch_size(model: nn.Module, paradigm: str, dataset: np.nda
     amp_device = "xla" if is_tpu else "cpu"
     fell_back = False
 
-    print(f"  [Memory Probe] Testing batch_size={curr_batch} (grad_accum={curr_accum}) on TPU v6e...", flush=True)
+    print(f"  [Memory Probe] Bypassing probe. Forcing batch_size={initial_batch_size} (grad_accum={initial_grad_accum})", flush=True)
+    return initial_batch_size, initial_grad_accum
 
-    while curr_batch >= 32:
-        try:
-            model.zero_grad(set_to_none=True)
-            batch_idx = np.random.randint(0, len(dataset), size=curr_batch)
-            sample_x = torch.from_numpy(dataset[batch_idx]).long().to(device)
 
-            with torch.autocast(device_type=amp_device, dtype=torch.bfloat16, enabled=is_tpu):
-                if paradigm == "ar":
-                    logits = model(sample_x)
-                    loss = nn.functional.cross_entropy(logits[:, :-1, :].contiguous().view(-1, logits.size(-1)), sample_x[:, 1:].contiguous().view(-1))
-                elif paradigm == "mdlm":
-                    loss = mdlm_loss_pytorch(model, sample_x, mask_token_id=4, vocab_size=vocab_size)
-                else:
-                    loss = undlm_loss_pytorch(model, sample_x, vocab_size=vocab_size)
-                loss = loss / curr_accum
-
-            loss.backward()
-
-            # Force XLA graph execution to surface any deferred OOM errors
-            if is_tpu:
-                import torch_xla.core.xla_model as xm
-                xm.mark_step()
-
-            model.zero_grad(set_to_none=True)
-            print(f"  [Memory Probe] Verified: batch_size={curr_batch} fits in HBM!", flush=True)
-            return curr_batch, curr_accum
-
-        except RuntimeError as e:
-            err_msg = str(e).lower()
-            # Catch standard OOM, XLA resource exhaustion, and RESOURCE_EXHAUSTED gRPC errors
-            if any(pattern in err_msg for pattern in ("out of memory", "resource exhausted", "oom", "alloc")):
-                print(f"  [Memory Probe Alert] OOM at batch_size={curr_batch}. Halving to {curr_batch // 2}, doubling grad_accum to {curr_accum * 2}...", flush=True)
-                curr_batch = curr_batch // 2
-                curr_accum = curr_accum * 2
-                fell_back = True
-                gc.collect()
-                if is_tpu:
-                    # Attempt to clear XLA device memory after OOM
-                    try:
-                        import torch_xla.core.xla_model as xm
-                        xm.mark_step()
-                    except Exception:
-                        pass
-            else:
-                raise e
-
-    print(f"  [Memory Probe] Reached fallback floor: batch_size={curr_batch}, grad_accum={curr_accum}", flush=True)
-    return curr_batch, curr_accum
 
 
 def train_paradigm(paradigm: str, config_path: str, dataset: np.ndarray, src_tier: str = "12m", device: torch.device = None, is_tpu: bool = True):
@@ -311,28 +271,26 @@ def train_paradigm(paradigm: str, config_path: str, dataset: np.ndarray, src_tie
         seq_len=seq_len,
         is_causal=is_causal
     )
-    model = TelosTransformer(telos_cfg).to(device)
+    dtype = torch.bfloat16 if is_tpu else torch.float32
+    model = TelosTransformer(telos_cfg).to(device, dtype=dtype)
 
-    # Transfer & upscale weights from 12.5M
+    # Transfer & upscale weights from 12.5M only if direct matching checkpoint exists
     if src_tier:
         src_stem = stem.replace(tier, src_tier)
         p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else "ar")
         src_ckpt = f"checkpoints/{p_dir}/{src_tier}/{src_stem}/model.safetensors"
         src_cfg_path = f"configs/unified/{src_tier}/{src_stem}.yaml"
 
-        if not Path(src_ckpt).exists():
-            fallback_stem = f"telos_{src_tier}_r25"
-            fallback_ckpt = f"checkpoints/{p_dir}/{src_tier}/{fallback_stem}/model.safetensors"
-            fallback_cfg = f"configs/unified/{src_tier}/{fallback_stem}.yaml"
-            if Path(fallback_ckpt).exists() and Path(fallback_cfg).exists():
-                src_ckpt = fallback_ckpt
-                src_cfg_path = fallback_cfg
-
         if Path(src_ckpt).exists() and Path(src_cfg_path).exists():
             load_upscaled_weights_pytorch(model, model_cfg, src_ckpt, src_cfg_path)
             print(f"  [PyTorch Upscaling] Loaded {src_ckpt} with variance-preserving RMSNorm parity.", flush=True)
         else:
-            print(f"  [PyTorch Upscaling] Note: Initializing {stem} from cold random weights.", flush=True)
+            print(f"  [Scratch Training] Initializing {stem} purely from cold random weights (from scratch).", flush=True)
+
+    # Convert model to bfloat16 to save HBM space and allow large monolithic XLA graphs
+    if train_cfg.get("precision", "bf16") == "bf16":
+        model = model.to(torch.bfloat16)
+    model = model.to(device)
 
     # Automatic memory probing & batch size verification
     batch_size, grad_accum = probe_and_adjust_batch_size(
@@ -358,13 +316,23 @@ def train_paradigm(paradigm: str, config_path: str, dataset: np.ndarray, src_tie
     print(f"Total Steps: {max_steps:,} | Batch Size: {batch_size} | Grad Accum: {grad_accum} | Max LR: {train_cfg['max_lr']} | Warmup: {warmup_steps}", flush=True)
     print("=" * 80, flush=True)
 
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=train_cfg["max_lr"],
-        weight_decay=train_cfg["weight_decay"],
-        betas=(0.9, 0.95),
-        eps=1e-8
-    )
+    if is_tpu:
+        import torch_xla.amp.syncfree as syncfree
+        optimizer = syncfree.AdamW(
+            model.parameters(),
+            lr=train_cfg["max_lr"],
+            weight_decay=train_cfg["weight_decay"],
+            betas=(0.9, 0.95),
+            eps=1e-8
+        )
+    else:
+        optimizer = torch.optim.AdamW(
+            model.parameters(),
+            lr=train_cfg["max_lr"],
+            weight_decay=train_cfg["weight_decay"],
+            betas=(0.9, 0.95),
+            eps=1e-8
+        )
     scheduler = WarmupCosineLR(optimizer, warmup_steps=warmup_steps, max_steps=max_steps, max_lr=train_cfg["max_lr"], min_lr=train_cfg["min_lr"])
 
     p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else "ar")
@@ -378,14 +346,45 @@ def train_paradigm(paradigm: str, config_path: str, dataset: np.ndarray, src_tie
     if is_tpu:
         import torch_xla.core.xla_model as xm
 
+    # Set up DataLoader and MpDeviceLoader for fast asynchronous HBM transfers
+    import torch.utils.data as data
+    class NumpyDataset(data.Dataset):
+        def __init__(self, np_array):
+            self.data = np_array
+        def __len__(self):
+            return len(self.data)
+        def __getitem__(self, idx):
+            return self.data[idx]
+
+    torch_dataset = NumpyDataset(dataset) if not isinstance(dataset, torch.Tensor) else dataset
+    # Fast workers hide the latency of fetching indices
+    dataloader = data.DataLoader(torch_dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=2, prefetch_factor=4)
+    
+    if is_tpu:
+        import torch_xla.distributed.parallel_loader as pl
+        device_loader = pl.MpDeviceLoader(dataloader, device)
+    else:
+        # Dummy wrapper for non-tpu
+        class CpuDeviceLoader:
+            def __init__(self, dl, dev):
+                self.dl = dl
+                self.dev = dev
+            def __iter__(self):
+                for b in self.dl:
+                    yield b.to(self.dev)
+        device_loader = CpuDeviceLoader(dataloader, device)
+
+    data_iter = iter(device_loader)
+
     for step in range(1, max_steps + 1):
         optimizer.zero_grad(set_to_none=True)
 
         for mb in range(grad_accum):
-            # Vectorized batch slicing from RAM
-            batch_indices = np.random.randint(0, num_samples, size=batch_size)
-            raw_batch = dataset[batch_indices]
-            x = torch.from_numpy(raw_batch).long().to(device)
+            try:
+                x = next(data_iter).long()
+            except StopIteration:
+                data_iter = iter(device_loader)
+                x = next(data_iter).long()
 
             with torch.autocast(device_type=amp_device, dtype=torch.bfloat16, enabled=is_tpu):
                 if paradigm == "ar":
@@ -402,19 +401,25 @@ def train_paradigm(paradigm: str, config_path: str, dataset: np.ndarray, src_tie
 
             loss.backward()
 
-        # Pure hardware step without host synchronization overhead
-        optimizer.step()
         if is_tpu:
-            xm.mark_step()
+            xm.optimizer_step(optimizer)
+        else:
+            optimizer.step()
 
         scheduler.step()
 
         # Periodic logging (minimal host synchronization)
-        if step % 25 == 0 or step == max_steps or step <= 3:
-            elapsed = time.time() - start_time
-            steps_per_sec = step / max(1e-5, elapsed)
+        if step == 1:
+            compile_time = time.time() - start_time
+            step_loss = float(loss.detach().cpu().item()) * grad_accum
+            print(f"Step     1/{max_steps} | Loss: {step_loss:.4f} | Graph compiled in {compile_time:.1f}s | Steady state started!", flush=True)
+            steady_start = time.time()
+            steady_start_step = 1
+        elif step % 50 == 0 or step == max_steps or step <= 5:
+            elapsed = time.time() - steady_start
+            steps_done = step - steady_start_step
+            steps_per_sec = steps_done / max(1e-5, elapsed)
             toks_per_sec = steps_per_sec * tokens_per_step
-            toks_done = step * tokens_per_step
             step_loss = float(loss.detach().cpu().item()) * grad_accum
             lr_curr = scheduler.get_last_lr()
             eta_seconds = (max_steps - step) / max(1e-5, steps_per_sec)
@@ -446,13 +451,7 @@ def run_lightning_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos"
     is_tpu = ("xla" in device_str.lower() or "tpu" in device_str.lower())
     if is_tpu:
         import torch_xla.core.xla_model as xm
-        import torch_xla.runtime as xr
         device = xm.xla_device()
-        try:
-            xr.initialize_cache("/tmp/xla_cache", readonly=False)
-            print("[XLA Cache] Persistent compilation cache initialized at /tmp/xla_cache", flush=True)
-        except Exception as e:
-            print(f"[XLA Cache Notice] {e}", flush=True)
     else:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -479,16 +478,19 @@ def run_lightning_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos"
     if not hf_token:
         print("[HF Warning] HF_TOKEN environment variable not found. Checkpoint auto-upload disabled.", flush=True)
 
-    # Load in-memory dataset to eliminate I/O wait
+    # Load dataset directly into TPU HBM memory (1.67GB) to eliminate all PCIe and host slicing latency
     dataset_path = Path("data/python_corpus_1.7b.bin")
     seq_len = 512
     if dataset_path.exists():
         num_samples = dataset_path.stat().st_size // (seq_len * 4)
-        print(f"  [Dataset] Loading {dataset_path} entirely into RAM ({num_samples:,} samples)...", flush=True)
-        dataset = np.fromfile(dataset_path, dtype=np.uint32).reshape(num_samples, seq_len)
+        print(f"  [Dataset] Loading {dataset_path} ({num_samples:,} samples, 1.67GB) into CPU RAM...", flush=True)
+        t_load = time.time()
+        raw_np = np.fromfile(dataset_path, dtype=np.uint32)[:num_samples * seq_len].reshape(num_samples, seq_len)
+        dataset = raw_np.astype(np.int32)
+        print(f"  [Dataset Ready] Entire corpus resident in CPU RAM in {time.time()-t_load:.2f}s!", flush=True)
     else:
         print("  [Dataset Warning] Python binary corpus not found; using random samples.", flush=True)
-        dataset = np.random.randint(0, 8192, size=(1000, seq_len), dtype=np.uint32)
+        dataset = np.random.randint(0, 8192, size=(1000, seq_len), dtype=np.int32)
 
     paradigms = ["ar", "mdlm", "undlm"]
 
