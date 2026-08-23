@@ -1,19 +1,19 @@
-# télos Unified 3-Paradigm Config: 25M Model, 1:25 Ratio (~625M tokens)
-# Architecture: 25M Parameters (d_model=512, n_layers=8, n_heads=8, n_kv_heads=8, seq_len=512)
+# télos Unified 3-Paradigm Config: 25M Model, 1:25 Ratio (~653.8M tokens)
+# Architecture: 25M Parameters (d_model=384, n_layers=13, n_heads=6, n_kv_heads=6, seq_len=512)
 
 model:
   vocab_size: 8192
-  d_model: 512
-  n_layers: 8
-  n_heads: 8
-  n_kv_heads: 8
+  d_model: 384
+  n_layers: 13
+  n_heads: 6
+  n_kv_heads: 6
   seq_len: 512
 
 training:
   batch_size: 32
   gradient_accumulation: 16  # Effective batch = 512 sequences (262,144 tokens/step)
-  max_steps: 2384            # 2384 steps * 262,144 = 624,951,296 tokens (~625M tokens)
-  max_lr: 1e-4              # Fine-tuning / upscaling learning rate to preserve pretrained representations
+  max_steps: 2494            # 2494 steps * 262,144 = 653,787,136 tokens (~653.8M tokens)
+  max_lr: 1e-4               # Fine-tuning / zero-shock upscaling learning rate
   min_lr: 1e-5
   warmup_steps: 100
   weight_decay: 0.1
@@ -21,4 +21,4 @@ training:
 
 checkpoint:
   dir: checkpoints/25m/telos_25m_r25
-  save_every_steps: 400
+  save_every_steps: 300
