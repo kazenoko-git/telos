@@ -183,10 +183,11 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     """Worker function executed inside each core process."""
     if device_type == "tpu":
         import torch_xla.core.xla_model as xm
+        import torch_xla.runtime as xr
         import torch_xla
         device = xm.xla_device()
-        rank = xm.get_ordinal()
-        world_size = xm.xrt_world_size()
+        rank = xr.global_ordinal()
+        world_size = xr.world_size()
     elif device_type == "cuda":
         device = torch.device("cuda")
         rank = 0
