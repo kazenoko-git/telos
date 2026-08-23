@@ -227,19 +227,28 @@ def run_mlx_probes(model, tokenizer, mask_token_id, model_name: str, save_to_dis
         prompt_ids = tokenizer.encode(probe["prompt"]).ids
 
         if is_undlm:
-            # Structurally-aligned protocol for UNDLM:
-            # Marginalize across uniform noise draws at the target position instead of an OOD [MASK] token
+            # Distribution-aligned protocol for UNDLM:
+            # Pad to 512 tokens with uniform random vocab tokens (matching training distribution)
+            # and marginalize over K=32 independent noise draws.
             K = 32
-            rand_tokens = np.random.randint(0, vocab_size, size=K)
-            batch = [prompt_ids + [int(r)] for r in rand_tokens]
-            logits = model(mx.array(batch))[:, -1, :]  # [K, V]
-            probs_mx = mx.mean(nn.softmax(logits.astype(mx.float32), axis=-1), axis=0)
+            SEQ_LEN = 512
+            target_pos = len(prompt_ids)  # Position right after prompt
+            all_probs = []
+            for _ in range(K):
+                # Build a 512-token sequence: prompt + random tokens filling the rest
+                seq = list(prompt_ids) + [int(x) for x in np.random.randint(0, vocab_size, size=SEQ_LEN - len(prompt_ids))]
+                seq = seq[:SEQ_LEN]  # Truncate if prompt is very long
+                logits = model(mx.array([seq], dtype=mx.int32))
+                p = nn.softmax(logits[0, target_pos].astype(mx.float32), axis=-1)
+                mx.eval(p)
+                all_probs.append(p)
+            # Average probabilities across all noise draws
+            probs_mx = mx.mean(mx.stack(all_probs), axis=0)
             mx.eval(probs_mx)
             probs = probs_mx.tolist()
         elif is_ar:
-            # Structurally-aligned protocol for Autoregressive (AR):
-            # In causal LM, the representation at the end of prompt_ids predicts the next token.
-            # Do NOT append [MASK] because that shifts prediction 2 tokens ahead through an OOD token.
+            # Autoregressive (AR) protocol: causal model, no padding needed.
+            # The representation at position -1 of prompt_ids predicts the next token.
             seq_mx = mx.array([prompt_ids], dtype=mx.int32)
             logits = model(seq_mx)
             raw = logits[0, -1].astype(mx.float32).tolist()
@@ -247,13 +256,20 @@ def run_mlx_probes(model, tokenizer, mask_token_id, model_name: str, save_to_dis
             mx.eval(probs_mx)
             probs = probs_mx.tolist()
         else:
-            # MDLM: Infilling via absorbing [MASK] token
-            seq_ids = prompt_ids + [mask_token_id]
+            # Distribution-aligned protocol for MDLM:
+            # Pad to 512 tokens with [MASK] tokens to match the training distribution.
+            # During training, the model sees 512-token sequences with distributed masks.
+            # A bare 5-token probe is out-of-distribution and causes misleading CE regression.
+            SEQ_LEN = 512
+            target_pos = len(prompt_ids)  # Position where [MASK] replaces the target
+            # Build: prompt_ids + [MASK at target] + [MASK padding to 512]
+            seq_ids = list(prompt_ids) + [mask_token_id] * (SEQ_LEN - len(prompt_ids))
+            seq_ids = seq_ids[:SEQ_LEN]  # Truncate if prompt exceeds 512
             seq_mx = mx.array([seq_ids], dtype=mx.int32)
 
             logits = model(seq_mx)
-            raw = logits[0, -1].astype(mx.float32).tolist()
-            raw[mask_token_id] = -1e9
+            raw = logits[0, target_pos].astype(mx.float32).tolist()
+            raw[mask_token_id] = -1e9  # Suppress [MASK] token from predictions
             probs_mx = nn.softmax(mx.array(raw), axis=-1)
             mx.eval(probs_mx)
             probs = probs_mx.tolist()
