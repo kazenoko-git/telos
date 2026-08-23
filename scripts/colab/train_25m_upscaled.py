@@ -131,6 +131,50 @@ def resolve_device(device_str: str | None = None):
     return torch.device("cpu"), "cpu"
 
 
+def resolve_training_params(cfg: dict, device_type: str = "tpu") -> dict:
+    """
+    Dynamically computes batch size, gradient accumulation, max steps, and warmup steps
+    from device-independent total_tokens and hardware execution profiles.
+    """
+    t_cfg = cfg["training"]
+    m_cfg = cfg["model"]
+    seq_len = m_cfg.get("seq_len", 512)
+
+    dev_key = "tpu" if device_type in ("tpu", "xla") else ("mac" if device_type in ("mac", "mps", "metal", "mlx") else ("gpu" if "cuda" in str(device_type).lower() else "mac"))
+
+    if dev_key in t_cfg and isinstance(t_cfg[dev_key], dict):
+        dev_profile = t_cfg[dev_key]
+        batch_size = int(dev_profile.get("batch_size", 32))
+        grad_accum = int(dev_profile.get("gradient_accumulation", 1))
+        num_devices = int(dev_profile.get("num_devices", 1))
+    else:
+        batch_size = int(t_cfg.get("batch_size", 32))
+        grad_accum = int(t_cfg.get("gradient_accumulation", 1))
+        num_devices = int(t_cfg.get("num_devices", 1))
+
+    if "total_tokens" in t_cfg:
+        total_tokens = int(t_cfg["total_tokens"])
+        tokens_per_step = batch_size * grad_accum * num_devices * seq_len
+        max_steps = max(1, math.ceil(total_tokens / tokens_per_step))
+        warmup_ratio = float(t_cfg.get("warmup_ratio", 0.05))
+        warmup_steps = max(1, int(max_steps * warmup_ratio))
+    else:
+        max_steps = int(t_cfg.get("max_steps", 100))
+        warmup_steps = int(t_cfg.get("warmup_steps", 10))
+
+    resolved = dict(t_cfg)
+    resolved["batch_size"] = batch_size
+    resolved["gradient_accumulation"] = grad_accum
+    resolved["num_devices"] = num_devices
+    resolved["max_steps"] = max_steps
+    resolved["warmup_steps"] = warmup_steps
+    resolved["max_lr"] = float(t_cfg.get("max_lr", 1e-4))
+    resolved["min_lr"] = float(t_cfg.get("min_lr", 1e-5))
+    resolved["weight_decay"] = float(t_cfg.get("weight_decay", 0.1))
+    resolved["precision"] = t_cfg.get("precision", "bf16")
+    return resolved
+
+
 def get_upscaled_layer_mapping(src_layers: int, tgt_layers: int) -> list[int]:
     ratio = src_layers / tgt_layers
     return [min(int(i * ratio), src_layers - 1) for i in range(tgt_layers)]
@@ -196,12 +240,12 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     stem = Path(config_path).stem
     tier = "25m" if "25m" in stem else "12m"
     model_cfg = cfg["model"]
-    train_cfg = cfg["training"]
+    train_cfg = resolve_training_params(cfg, device_type)
     
     if is_master:
         print("\n" + "=" * 80, flush=True)
         print(f"STARTING {paradigm.upper()} TRAINING FOR {stem} (Device: {device} [{device_type.upper()} x {world_size} cores])", flush=True)
-        print(f"Steps: {train_cfg['max_steps']} | Batch/Core: {train_cfg['batch_size']} | Grad Accum: {train_cfg['gradient_accumulation']} | LR: {train_cfg['max_lr']}", flush=True)
+        print(f"Steps: {train_cfg['max_steps']} | Batch/Core: {train_cfg['batch_size']} | Grad Accum: {train_cfg['gradient_accumulation']} | LR: {train_cfg['max_lr']} | Warmup: {train_cfg['warmup_steps']}", flush=True)
         print("=" * 80, flush=True)
     
     is_causal = (paradigm.lower() == "ar")
