@@ -235,10 +235,6 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     if device is None:
         device = create_device(device_type)
 
-    # SPMD mesh means data-parallel across all chips; otherwise single-device
-    num_devices = mesh.shape()[0] if mesh is not None else 1
-    is_master = True
-    
     with open(config_path) as f:
         cfg = yaml.safe_load(f)
         
@@ -246,6 +242,10 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     tier = "25m" if "25m" in stem else "12m"
     model_cfg = cfg["model"]
     train_cfg = resolve_training_params(cfg, device_type)
+    
+    # SPMD mesh means data-parallel across all chips; otherwise single-device
+    num_devices = train_cfg["num_devices"] if mesh is not None else 1
+    is_master = True
     
     # For SPMD: DataLoader produces global batch = per_device_batch * num_devices
     dl_batch_size = train_cfg["batch_size"] * num_devices if mesh is not None else train_cfg["batch_size"]
