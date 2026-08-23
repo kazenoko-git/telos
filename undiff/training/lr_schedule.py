@@ -7,10 +7,13 @@ i believe this is standard schedule
 """
 
 import math
-from torch.optim.lr_scheduler import _LRScheduler
+try:
+    from torch.optim.lr_scheduler import LRScheduler as _LRSchedulerBase
+except ImportError:
+    from torch.optim.lr_scheduler import _LRScheduler as _LRSchedulerBase
 
 
-class WarmupCosineLR(_LRScheduler):
+class WarmupCosineLR(_LRSchedulerBase):
     """Linear Warmup followed by Cosine Annealing decay."""
 
     def __init__(
