@@ -1,3 +1,4 @@
+import math
 import mlx.core as mx
 import mlx.nn as nn
 import yaml
@@ -106,8 +107,18 @@ def get_upscaled_layer_mapping(src_layers, tgt_layers):
         mapping.append(min(int(i * ratio), src_layers - 1))
     return mapping
 
-def pad_weight(src_weight, tgt_shape):
+def pad_weight(src_weight, tgt_shape, is_norm=False):
+    """
+    Pads weight tensors from source shape to target shape.
+    For RMSNorm (is_norm=True), scales the active elements by sqrt(d_old / d_new)
+    so that activation variance across the expanded dimension remains invariant.
+    """
     if src_weight.shape == tgt_shape: return src_weight
+    if is_norm and len(tgt_shape) == 1:
+        scale = math.sqrt(src_weight.shape[0] / tgt_shape[0])
+        padded = mx.ones(tgt_shape, dtype=src_weight.dtype)
+        padded[:src_weight.shape[0]] = src_weight * scale
+        return padded
     padded = mx.zeros(tgt_shape, dtype=src_weight.dtype)
     if len(tgt_shape) == 1:
         padded[:src_weight.shape[0]] = src_weight
@@ -128,7 +139,7 @@ def load_upscaled_weights(tgt_model, tgt_cfg, src_ckpt_path, src_cfg_path):
     if not tgt_cfg.get("tied_embeddings", True):
         head_w = src_weights.get("head.weight", src_weights["emb.weight"])
         tgt_weights["head.weight"] = pad_weight(head_w, (tgt_cfg["vocab_size"], tgt_cfg["d_model"]))
-    tgt_weights["norm.weight"] = pad_weight(src_weights["norm.weight"], (tgt_cfg["d_model"],))
+    tgt_weights["norm.weight"] = pad_weight(src_weights["norm.weight"], (tgt_cfg["d_model"],), is_norm=True)
     
     layer_map = get_upscaled_layer_mapping(src_cfg["n_layers"], tgt_cfg["n_layers"])
     print(f"  [Upscaling] Depth mapping (Target <- Source): {layer_map}")
@@ -137,8 +148,8 @@ def load_upscaled_weights(tgt_model, tgt_cfg, src_ckpt_path, src_cfg_path):
         prefix_src = f"layers.{src_i}."
         prefix_tgt = f"layers.{tgt_i}."
         
-        tgt_weights[prefix_tgt + "norm1.weight"] = pad_weight(src_weights[prefix_src + "norm1.weight"], (tgt_cfg["d_model"],))
-        tgt_weights[prefix_tgt + "norm2.weight"] = pad_weight(src_weights[prefix_src + "norm2.weight"], (tgt_cfg["d_model"],))
+        tgt_weights[prefix_tgt + "norm1.weight"] = pad_weight(src_weights[prefix_src + "norm1.weight"], (tgt_cfg["d_model"],), is_norm=True)
+        tgt_weights[prefix_tgt + "norm2.weight"] = pad_weight(src_weights[prefix_src + "norm2.weight"], (tgt_cfg["d_model"],), is_norm=True)
         
         tgt_weights[prefix_tgt + "q_proj.weight"] = pad_weight(src_weights[prefix_src + "q_proj.weight"], (tgt_cfg["n_heads"] * (tgt_cfg["d_model"] // tgt_cfg["n_heads"]), tgt_cfg["d_model"]))
         tgt_weights[prefix_tgt + "k_proj.weight"] = pad_weight(src_weights[prefix_src + "k_proj.weight"], (tgt_cfg["n_kv_heads"] * (tgt_cfg["d_model"] // tgt_cfg["n_heads"]), tgt_cfg["d_model"]))
