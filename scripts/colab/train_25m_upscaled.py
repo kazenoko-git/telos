@@ -34,7 +34,11 @@ sys.path.insert(0, str(project_root))
 from mdiff.model.transformer import TelosTransformer, TelosConfig
 
 
-class WarmupCosineLR(torch.optim.lr_scheduler._LRScheduler):
+# In PyTorch 2.x+, LRScheduler is the public API; fall back to _LRScheduler on older versions
+_LRSchedulerBase = getattr(torch.optim.lr_scheduler, "LRScheduler", getattr(torch.optim.lr_scheduler, "_LRScheduler", object))
+
+
+class WarmupCosineLR(_LRSchedulerBase):
     """Cosine learning rate schedule with linear warmup."""
     def __init__(self, optimizer, warmup_steps: int, max_steps: int, max_lr: float, min_lr: float = 1e-5, last_epoch: int = -1):
         self.warmup_steps = warmup_steps
@@ -366,9 +370,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         if device_type == "tpu":
             import torch_xla.core.xla_model as xm
-            import torch_xla
             xm.optimizer_step(optimizer)
-            torch_xla.sync()
         else:
             optimizer.step()
             
@@ -421,7 +423,7 @@ def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", dev
         xr.use_spmd()
         dev_obj = xm.xla_device()
         num_chips = xr.global_runtime_device_count()
-        mesh = Mesh(np.arange(num_chips), ('data',))
+        mesh = Mesh(np.arange(num_chips), (num_chips,), ('data',))
         print(f"[TPU SPMD] {num_chips}-chip data-parallel mesh initialized on {dev_obj}", flush=True)
     else:
         dev_obj = create_device(dev_type)
