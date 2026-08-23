@@ -1,12 +1,11 @@
 """
-Google Colab TPU & Cloud GPU Training Script for 25M Upscaled Suite.
+Google Colab / Kaggle TPU & Cloud GPU Training Script for 25M Upscaled Suite.
 
-Executes 3-paradigm training (AR, MDLM, UNDLM) for 25M upscaled models:
-- Hardware targets: Google Cloud TPU (v5e-1 / v6e-1) and NVIDIA CUDA GPUs
-- 25M 1:1  (191 steps, 25M tokens, max_lr=1e-4)
-- 25M 1:10 (1910 steps, 250M tokens, max_lr=1e-4)
-- 25M 1:20 (3820 steps, 500M tokens, max_lr=1e-4)
-- 25M 1:25 (4775 steps, 625M tokens, max_lr=1e-4)
+Supports:
+- 8-Core TPU Pod Slices (Kaggle TPU v5e-8 / Google Cloud TPU v5e/v6e via PyTorch XLA multiprocessing)
+- Single-Core TPU (v5e-1 / v6e-1)
+- NVIDIA CUDA GPUs (T4 / A100 / H100)
+- Zero-shock upscaling with invariant RMSNorm scaling
 """
 
 import os
@@ -110,6 +109,8 @@ def resolve_device(device_str: str | None = None):
             return xm.xla_device(), "tpu"
         elif "cuda" in device_str.lower():
             return torch.device("cuda"), "cuda"
+        elif "mps" in device_str.lower():
+            return torch.device("mps"), "mps"
         else:
             return torch.device("cpu"), "cpu"
             
@@ -126,13 +127,14 @@ def resolve_device(device_str: str | None = None):
 
 
 def get_upscaled_layer_mapping(src_layers: int, tgt_layers: int) -> list[int]:
-    """Maps target layer indices to source layer indices via linear depth interpolation."""
-    return list(np.round(np.linspace(0, src_layers - 1, tgt_layers)).astype(int))
+    ratio = src_layers / tgt_layers
+    return [min(int(i * ratio), src_layers - 1) for i in range(tgt_layers)]
 
 
 def load_upscaled_weights_pytorch(tgt_model: nn.Module, tgt_cfg: dict, src_ckpt_path: str, src_cfg_path: str):
     """
     Initializes PyTorch 25M model weights by mapping depths and zero-padding dimensions from 12.5M weights.
+    Applies exact variance-preserving RMSNorm scaling sqrt(d_old / d_new).
     """
     with open(src_cfg_path) as f:
         src_cfg = yaml.safe_load(f)["model"]
@@ -177,8 +179,24 @@ def load_upscaled_weights_pytorch(tgt_model: nn.Module, tgt_cfg: dict, src_ckpt_
     print("  [PyTorch Upscaling] Success: Target model weights initialized with zero-shock RMSNorm parity.", flush=True)
 
 
-def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m", device_arg: str | None = None):
-    device, device_type = resolve_device(device_arg)
+def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "12m", device_type: str = "tpu", num_cores: int = 1):
+    """Worker function for single-core or multi-core training."""
+    if device_type == "tpu":
+        import torch_xla.core.xla_model as xm
+        import torch_xla
+        device = xm.xla_device()
+        world_size = xm.xrt_world_size() if num_cores > 1 else 1
+        rank = xm.get_ordinal() if num_cores > 1 else 0
+    elif device_type == "cuda":
+        device = torch.device("cuda")
+        world_size = 1
+        rank = 0
+    else:
+        device = torch.device("cpu")
+        world_size = 1
+        rank = 0
+
+    is_master = (rank == 0)
     
     with open(config_path) as f:
         cfg = yaml.safe_load(f)
@@ -188,10 +206,11 @@ def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m
     model_cfg = cfg["model"]
     train_cfg = cfg["training"]
     
-    print("\n" + "=" * 80, flush=True)
-    print(f"STARTING {paradigm.upper()} TRAINING FOR {stem} (Device: {device} [{device_type}])", flush=True)
-    print(f"Steps: {train_cfg['max_steps']} | Batch: {train_cfg['batch_size']} | Grad Accum: {train_cfg['gradient_accumulation']} | LR: {train_cfg['max_lr']}", flush=True)
-    print("=" * 80, flush=True)
+    if is_master:
+        print("\n" + "=" * 80, flush=True)
+        print(f"STARTING {paradigm.upper()} TRAINING FOR {stem} (Device: {device} [{device_type.upper()} x {num_cores} cores])", flush=True)
+        print(f"Steps: {train_cfg['max_steps']} | Batch/Core: {train_cfg['batch_size']} | Grad Accum: {train_cfg['gradient_accumulation']} | LR: {train_cfg['max_lr']}", flush=True)
+        print("=" * 80, flush=True)
     
     is_causal = (paradigm.lower() == "ar")
     telos_cfg = TelosConfig(
@@ -217,14 +236,16 @@ def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m
             fallback_ckpt = f"checkpoints/{p_dir}/{src_tier}/{fallback_stem}/model.safetensors"
             fallback_cfg = f"configs/unified/{src_tier}/{fallback_stem}.yaml"
             if Path(fallback_ckpt).exists() and Path(fallback_cfg).exists():
-                print(f"  [Upscaling] {src_stem} not found; using highest available source: {fallback_stem}", flush=True)
+                if is_master:
+                    print(f"  [Upscaling] {src_stem} not found; using highest available source: {fallback_stem}", flush=True)
                 src_ckpt = fallback_ckpt
                 src_cfg_path = fallback_cfg
 
         if Path(src_ckpt).exists() and Path(src_cfg_path).exists():
             load_upscaled_weights_pytorch(model, model_cfg, src_ckpt, src_cfg_path)
         else:
-            print(f"  [Upscaling] No source checkpoint found; initializing {stem} from cold weights.", flush=True)
+            if is_master:
+                print(f"  [Upscaling] No source checkpoint found; initializing {stem} from cold weights.", flush=True)
         
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -249,20 +270,34 @@ def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m
     seq_len = model_cfg["seq_len"]
     if dataset_path.exists():
         num_samples = dataset_path.stat().st_size // (seq_len * 4)
-        print(f"  [Dataset] Memory-mapping {dataset_path} ({num_samples:,} samples)...", flush=True)
+        if is_master:
+            print(f"  [Dataset] Memory-mapping {dataset_path} ({num_samples:,} samples)...", flush=True)
         dataset = np.memmap(dataset_path, dtype=np.uint32, mode="r", shape=(num_samples, seq_len))
     else:
-        print("  [Dataset] Warning: Binary dataset not found locally; generating synthetic dummy batch.", flush=True)
+        if is_master:
+            print("  [Dataset] Warning: Binary dataset not found locally; generating synthetic dummy batch.", flush=True)
         dataset = np.random.randint(0, model_cfg["vocab_size"], size=(1000, seq_len), dtype=np.uint32)
 
-    train_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], shuffle=True, drop_last=True)
+    if num_cores > 1 and device_type == "tpu":
+        sampler = torch.utils.data.distributed.DistributedSampler(
+            dataset,
+            num_replicas=world_size,
+            rank=rank,
+            shuffle=True
+        )
+        train_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], sampler=sampler, drop_last=True)
+    else:
+        train_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], shuffle=True, drop_last=True)
+        
     loader_iter = iter(train_loader)
     
     model.train()
     grad_accum = int(train_cfg["gradient_accumulation"])
     max_steps = int(train_cfg["max_steps"])
-    save_dir = Path(f"checkpoints/{'masked' if paradigm=='mdlm' else ('uniform' if paradigm=='undlm' else 'ar')}/{tier}/{stem}")
-    save_dir.mkdir(parents=True, exist_ok=True)
+    p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else "ar")
+    save_dir = Path(f"checkpoints/{p_dir}/{tier}/{stem}")
+    if is_master:
+        save_dir.mkdir(parents=True, exist_ok=True)
     
     start_time = time.time()
     for step in range(1, max_steps + 1):
@@ -305,32 +340,56 @@ def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m
             
         scheduler.step()
         
-        if step % 5 == 0 or step == max_steps or step <= 3:
+        if is_master and (step % 5 == 0 or step == max_steps or step <= 3):
             lr_curr = scheduler.get_last_lr()[0]
-            toks_done = step * train_cfg["batch_size"] * grad_accum * model_cfg["seq_len"]
+            toks_done = step * train_cfg["batch_size"] * grad_accum * model_cfg["seq_len"] * world_size
             step_loss = loss.item() * grad_accum
             print(f"Step {step:>5}/{max_steps} | Loss: {step_loss:.4f} | LR: {lr_curr:.2e} | Tokens: {toks_done/1e6:.1f}M", flush=True)
             
-        if step % int(cfg["checkpoint"].get("save_every_steps", 20)) == 0 or step == max_steps:
+        if is_master and (step % int(cfg.get("checkpoint", {}).get("save_every_steps", 50)) == 0 or step == max_steps):
             ckpt_file = save_dir / f"checkpoint_step_{step}.safetensors"
             cpu_state = {k: v.detach().cpu().clone().contiguous() for k, v in model.state_dict().items()}
             save_file(cpu_state, str(ckpt_file))
             
     # Save final model
-    cpu_state = {k: v.detach().cpu().clone().contiguous() for k, v in model.state_dict().items()}
-    save_file(cpu_state, str(save_dir / "model.safetensors"))
-    with open(save_dir / "config.json", "w") as f:
-        yaml.dump(model_cfg, f)
+    if is_master:
+        cpu_state = {k: v.detach().cpu().clone().contiguous() for k, v in model.state_dict().items()}
+        save_file(cpu_state, str(save_dir / "model.safetensors"))
+        with open(save_dir / "config.json", "w") as f:
+            yaml.dump(model_cfg, f)
+            
+        print(f"FINISHED {paradigm.upper()} {stem} IN {(time.time() - start_time)/60.0:.2f} MINUTES!", flush=True)
         
-    print(f"FINISHED {paradigm.upper()} {stem} IN {(time.time() - start_time)/3600.0:.2f} HOURS!", flush=True)
     del model, optimizer, scheduler
     gc.collect()
 
 
-def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", device: str | None = None):
+def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m", device_arg: str | None = None, num_cores: int = 8):
+    device, device_type = resolve_device(device_arg)
+    
+    if device_type == "tpu" and num_cores > 1:
+        try:
+            import torch_xla.distributed.xla_multiprocessing as xmp
+            print(f"  [TPU Multiprocessing] Spawning across all {num_cores} TPU cores...", flush=True)
+            xmp.spawn(
+                _train_worker,
+                args=(paradigm, config_path, src_tier, device_type, num_cores),
+                nprocs=num_cores,
+                start_method="spawn"
+            )
+            return
+        except Exception as e:
+            print(f"  [TPU Multiprocessing Notice] Fallback to single-core: {e}", flush=True)
+            
+    _train_worker(0, paradigm, config_path, src_tier, device_type, 1)
+
+
+def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", device: str | None = None, num_cores: int = 8):
     """
     Downloads prerequisites from HuggingFace, trains 25M upscaled models, and uploads checkpoints.
     """
+    print("=" * 85, flush=True)
+    print(f"SYNCING 12.5M SOURCE WEIGHTS & DATASET FROM HUGGINGFACE ({hf_repo})...", flush=True)
     print("=" * 85, flush=True)
     snapshot_download(
         repo_id=hf_repo,
@@ -351,12 +410,12 @@ def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", dev
         cfg_path = f"configs/unified/25m/telos_25m_{r}.yaml"
         print(f"\n>>>> EXECUTING UNIFIED 25M RUN FOR RATIO: {r} <<<<", flush=True)
         for paradigm in ["ar", "mdlm", "undlm"]:
-            train_paradigm_pytorch(paradigm=paradigm, config_path=cfg_path, src_tier="12m", device_arg=device)
+            train_paradigm_pytorch(paradigm=paradigm, config_path=cfg_path, src_tier="12m", device_arg=device, num_cores=num_cores)
             
             # Instantly upload individual model to Hugging Face
             p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else "ar")
             model_dir = Path(f"checkpoints/{p_dir}/25m/telos_25m_{r}")
-            if model_dir.exists():
+            if model_dir.exists() and os.environ.get("HF_TOKEN"):
                 print(f"\n[Instant HF Export] Uploading {model_dir} to {hf_repo}...", flush=True)
                 try:
                     api.upload_folder(
@@ -373,12 +432,13 @@ def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", dev
 
 def main():
     parser = argparse.ArgumentParser(description="25M Upscaling Suite Runner on TPU / Cloud GPU")
-    parser.add_argument("--ratios", nargs="+", default=["r1", "r10", "r20", "r25"], help="Ratios to train (e.g. r1 r10 r20 r25)")
+    parser.add_argument("--ratios", nargs="+", default=["r1", "r10", "r15", "r20", "r25", "r30", "r35"], help="Ratios to train (e.g. r1 r10 r15 r20 r25 r30 r35)")
     parser.add_argument("--hf-repo", type=str, default="Kazenowoko/telos", help="Hugging Face Model Repository")
     parser.add_argument("--device", type=str, default="tpu", help="Device to use ('tpu', 'cuda', 'cpu')")
+    parser.add_argument("--cores", type=int, default=8, help="Number of TPU cores to utilize (1 or 8)")
     args = parser.parse_args()
     
-    run_full_25m_suite(ratios=args.ratios, hf_repo=args.hf_repo, device=args.device)
+    run_full_25m_suite(ratios=args.ratios, hf_repo=args.hf_repo, device=args.device, num_cores=args.cores)
 
 
 if __name__ == "__main__":
