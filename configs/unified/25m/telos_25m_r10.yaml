@@ -10,15 +10,15 @@ model:
   seq_len: 512
 
 training:
-  batch_size: 32
-  gradient_accumulation: 16  # Effective batch = 512 sequences (262,144 tokens/step)
-  max_steps: 998             # 998 steps * 262,144 = 261,619,712 tokens (~261.6M tokens)
+  batch_size: 128
+  gradient_accumulation: 16  # 128 * 16 * 512 = 1,048,576 tokens/step
+  max_steps: 250             # 250 * 1,048,576 = 262,144,000 tokens (~262.1M tokens)
   max_lr: 1e-4               # Fine-tuning / zero-shock upscaling learning rate
   min_lr: 1e-5
-  warmup_steps: 100
+  warmup_steps: 25
   weight_decay: 0.1
   precision: bf16
 
 checkpoint:
   dir: checkpoints/25m/telos_25m_r10
-  save_every_steps: 200
+  save_every_steps: 50

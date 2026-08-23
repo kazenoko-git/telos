@@ -267,7 +267,6 @@ def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m
     start_time = time.time()
     for step in range(1, max_steps + 1):
         optimizer.zero_grad()
-        accum_loss = 0.0
         
         for mb in range(grad_accum):
             try:
@@ -276,7 +275,7 @@ def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m
                 loader_iter = iter(train_loader)
                 raw_batch = next(loader_iter)
                 
-            x = torch.from_numpy(np.array(raw_batch)).long().to(device)
+            x = torch.from_numpy(np.array(raw_batch, copy=True)).long().to(device)
             
             if paradigm == "ar":
                 logits = model(x)
@@ -290,29 +289,27 @@ def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m
                 
             loss = loss / grad_accum
             loss.backward()
-            accum_loss += loss.item() * grad_accum
             
             if device_type == "tpu":
-                import torch_xla.core.xla_model as xm
-                xm.mark_step()
-                
-            if (mb + 1) % 4 == 0 or (mb + 1) == grad_accum:
-                print(f"  [Step {step:>3}/{max_steps} | Microbatch {mb+1:>2}/{grad_accum}] loss: {loss.item()*grad_accum:.4f}", flush=True)
+                import torch_xla
+                torch_xla.sync()
                 
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         if device_type == "tpu":
             import torch_xla.core.xla_model as xm
+            import torch_xla
             xm.optimizer_step(optimizer)
-            xm.mark_step()
+            torch_xla.sync()
         else:
             optimizer.step()
             
         scheduler.step()
         
-        if step % 2 == 0 or step == max_steps or step <= 5:
+        if step % 5 == 0 or step == max_steps or step <= 3:
             lr_curr = scheduler.get_last_lr()[0]
             toks_done = step * train_cfg["batch_size"] * grad_accum * model_cfg["seq_len"]
-            print(f"Step {step:>5}/{max_steps} | Loss: {accum_loss:.4f} | LR: {lr_curr:.2e} | Tokens: {toks_done/1e6:.1f}M", flush=True)
+            step_loss = loss.item() * grad_accum
+            print(f"Step {step:>5}/{max_steps} | Loss: {step_loss:.4f} | LR: {lr_curr:.2e} | Tokens: {toks_done/1e6:.1f}M", flush=True)
             
         if step % int(cfg["checkpoint"].get("save_every_steps", 20)) == 0 or step == max_steps:
             ckpt_file = save_dir / f"checkpoint_step_{step}.safetensors"
