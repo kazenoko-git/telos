@@ -2,9 +2,8 @@
 Google Colab / Kaggle TPU & Cloud GPU Training Script for 25M Upscaled Suite.
 
 Supports:
-- Full 8-Core TPU v5e-8 multiprocessing via torch_xla.distributed.xla_multiprocessing (xmp.spawn)
-- High-throughput ParallelLoader / MpDeviceLoader across all 8 cores
-- Hardware gradient All-Reduce via xm.optimizer_step
+- Direct Single-Process TPU execution (matching benchmark setup)
+- Standard PyTorch DataLoader with hardware sync via torch_xla.sync()
 - Zero-shock upscaling with invariant RMSNorm scaling
 """
 
@@ -180,24 +179,21 @@ def load_upscaled_weights_pytorch(tgt_model: nn.Module, tgt_cfg: dict, src_ckpt_
 
 
 def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "12m", device_type: str = "tpu"):
-    """Worker function executed inside each core process."""
+    """Worker function executed inside single core process."""
     if device_type == "tpu":
         import torch_xla.core.xla_model as xm
-        import torch_xla.runtime as xr
         import torch_xla
         device = xm.xla_device()
-        rank = xr.global_ordinal()
-        world_size = xr.world_size()
     elif device_type == "cuda":
         device = torch.device("cuda")
-        rank = 0
-        world_size = 1
+    elif device_type == "mps":
+        device = torch.device("mps")
     else:
         device = torch.device("cpu")
-        rank = 0
-        world_size = 1
 
-    is_master = (rank == 0)
+    rank = 0
+    world_size = 1
+    is_master = True
     
     with open(config_path) as f:
         cfg = yaml.safe_load(f)
@@ -280,17 +276,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
             print("  [Dataset] Warning: Binary dataset not found; using random samples.", flush=True)
         dataset = np.random.randint(0, model_cfg["vocab_size"], size=(1000, seq_len), dtype=np.uint32)
 
-    if device_type == "tpu" and world_size > 1:
-        sampler = torch.utils.data.distributed.DistributedSampler(
-            dataset,
-            num_replicas=world_size,
-            rank=rank,
-            shuffle=True,
-            drop_last=True
-        )
-        train_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], sampler=sampler, num_workers=0, drop_last=True)
-    else:
-        train_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], shuffle=True, drop_last=True)
+    train_loader = DataLoader(dataset, batch_size=train_cfg["batch_size"], shuffle=True, drop_last=True)
         
     loader_iter = iter(train_loader)
     
@@ -365,15 +351,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
 
 def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m", device_arg: str | None = None):
     device_type = resolve_device(device_arg)
-    if device_type == "tpu":
-        import torch_xla.distributed.xla_multiprocessing as xmp
-        xmp.spawn(
-            _train_worker,
-            args=(paradigm, config_path, src_tier, device_type),
-            start_method="fork"
-        )
-    else:
-        _train_worker(0, paradigm, config_path, src_tier, device_type)
+    _train_worker(0, paradigm, config_path, src_tier, device_type)
 
 
 def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", device: str | None = None):
