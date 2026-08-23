@@ -9,6 +9,11 @@ Supports:
 """
 
 import os
+if "TPU_PROCESS_ADDRESSES" in os.environ:
+    os.environ.pop("TPU_PROCESS_ADDRESSES")
+if "CLOUD_TPU_TASK_ID" in os.environ:
+    os.environ.pop("CLOUD_TPU_TASK_ID")
+
 import sys
 import time
 import math
@@ -366,7 +371,7 @@ def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m
         xmp.spawn(
             _train_worker,
             args=(paradigm, config_path, src_tier, device_type),
-            start_method="spawn"
+            start_method="fork"
         )
     else:
         _train_worker(0, paradigm, config_path, src_tier, device_type)

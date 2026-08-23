@@ -6,6 +6,11 @@ on Kaggle TPU v5e to find the absolute maximum throughput before OOM.
 """
 
 import os
+if "TPU_PROCESS_ADDRESSES" in os.environ:
+    os.environ.pop("TPU_PROCESS_ADDRESSES")
+if "CLOUD_TPU_TASK_ID" in os.environ:
+    os.environ.pop("CLOUD_TPU_TASK_ID")
+
 import sys
 import time
 import argparse
