@@ -185,8 +185,8 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         import torch_xla.core.xla_model as xm
         import torch_xla
         device = xm.xla_device()
-        rank = 0
-        world_size = 1
+        rank = xm.get_ordinal()
+        world_size = xm.xrt_world_size()
     elif device_type == "cuda":
         device = torch.device("cuda")
         rank = 0
