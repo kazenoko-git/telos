@@ -189,7 +189,8 @@ def run_benchmark_suite(batch_sizes=[32, 64, 128]):
 def main():
     parser = argparse.ArgumentParser(description="télos TPU / GPU Throughput Benchmark")
     parser.add_argument("--batch-sizes", nargs="+", type=int, default=[32, 64, 128], help="Batch sizes to evaluate")
-    args = parser.parse_args()
+    parser.add_argument("--cores", type=int, default=8, help="Number of TPU cores")
+    args, _ = parser.parse_known_args()
     run_benchmark_suite(batch_sizes=args.batch_sizes)
 
 
