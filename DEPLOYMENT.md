@@ -61,6 +61,7 @@ To train 25M upscaled or 12.5M models across all 8 TPU cores using single-proces
    ```bash
    python scripts/colab/train_25m_upscaled.py --ratios r1 r10 r15 r20 r25 r30 r35 --hf-repo Kazenowoko/telos --device tpu
    ```
+   *Performance Note*: The training engine automatically stages the dataset directly into TPU HBM (`~1.6 GB`), eliminating CPU-side gather bottlenecks. Logging and step synchronization use asynchronous step closures (`xm.add_step_closure`) to maintain continuous MXU pipeline saturation.
 2. **Or Execute Interactively in Kaggle / Colab**:
    Open [`notebooks/shared/Unified_Training_Suite.ipynb`](notebooks/shared/Unified_Training_Suite.ipynb) which automatically detects the TPU environment, initializes the SPMD 8-chip mesh, and distributes global batches without multi-process forking.
 
