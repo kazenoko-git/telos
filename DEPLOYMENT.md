@@ -64,17 +64,17 @@ To train 25M upscaled or 12.5M models across all 8 TPU cores using single-proces
 2. **Or Execute Interactively in Kaggle / Colab**:
    Open [`notebooks/shared/Unified_Training_Suite.ipynb`](notebooks/shared/Unified_Training_Suite.ipynb) which automatically detects the TPU environment, initializes the SPMD 8-chip mesh, and distributes global batches without multi-process forking.
 
-### Option B: Google Colab / Cloud GPU Training (PyTorch CUDA with SSH)
-To train on cloud NVIDIA GPUs (T4 / A100):
-1. **Upload weights, tokenizer & dataset to Hugging Face**:
+### Option B: Kaggle & Cloud Multi-GPU Training (2x Tesla T4 / CUDA DataParallel)
+To train on Kaggle (GPU T4 x2) or cloud NVIDIA GPUs with multi-GPU parallelization:
+1. **Set Accelerator to `GPU T4 x2` and toggle Internet ON** in Kaggle notebook settings.
+2. **Execute via CLI**:
    ```bash
-   python scripts/shared/upload_to_hf.py --repo-id Kazenowoko/telos
+   git clone https://github.com/kazenoko-git/telos.git
+   cd telos
+   pip install -q safetensors huggingface_hub pyyaml einops tokenizers
+   python scripts/colab/train_25m_upscaled.py --device cuda --ratios r1 r10 --hf-repo Kazenowoko/telos
    ```
-2. **Execute in Google Colab**:
-   Open [`notebooks/colab/Unified_25M_Upscaling_Colab.ipynb`](notebooks/colab/Unified_25M_Upscaling_Colab.ipynb) or run via Colab SSH:
-   ```bash
-   python scripts/colab/train_25m_upscaled.py --ratios r1 r10 r20 r25 --hf-repo kazenoko/telos
-   ```
+   *Note*: The training engine automatically detects `2x T4 GPUs`, scales the global batch size, wraps the model in `torch.nn.DataParallel`, and uses `FP16` + `GradScaler` for maximum Turing Tensor Core throughput.
 
 ### Option B: Local Apple Silicon Unified Training (MLX)
 To train all three paradigms under identical configurations locally via MLX:
