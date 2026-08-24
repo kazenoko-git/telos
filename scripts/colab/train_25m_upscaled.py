@@ -150,8 +150,7 @@ def resolve_training_params(cfg: dict, device_type: str = "tpu") -> dict:
 
     dev_key = "tpu" if device_type in ("tpu", "xla") else ("mac" if device_type in ("mac", "mps", "metal", "mlx") else ("gpu" if "cuda" in str(device_type).lower() else "mac"))
 
-    # dynamically detect available CUDA devices
-
+    # Dynamically detect available CUDA devices on GPU systems
     if dev_key == "gpu" and torch.cuda.is_available():
         num_devices = torch.cuda.device_count()
     elif dev_key in t_cfg and isinstance(t_cfg[dev_key], dict):
@@ -163,7 +162,6 @@ def resolve_training_params(cfg: dict, device_type: str = "tpu") -> dict:
         dev_profile = t_cfg[dev_key]
         batch_size = int(dev_profile.get("batch_size", 32))
         grad_accum = int(dev_profile.get("gradient_accumulation", 1))
-        num_devices = int(dev_profile.get("num_devices", 1))
     else:
         batch_size = int(t_cfg.get("batch_size", 32))
         grad_accum = int(t_cfg.get("gradient_accumulation", 1))
@@ -286,23 +284,14 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         src_ckpt = f"checkpoints/{p_dir}/{src_tier}/{src_stem}/model.safetensors"
         src_cfg_path = f"configs/unified/{src_tier}/{src_stem}.yaml"
         
-        if not Path(src_ckpt).exists():
-            fallback_stem = f"telos_{src_tier}_r25"
-            fallback_ckpt = f"checkpoints/{p_dir}/{src_tier}/{fallback_stem}/model.safetensors"
-            fallback_cfg = f"configs/unified/{src_tier}/{fallback_stem}.yaml"
-            if Path(fallback_ckpt).exists() and Path(fallback_cfg).exists():
-                if is_master:
-                    print(f"  [Upscaling] {src_stem} not found; using highest available source: {fallback_stem}", flush=True)
-                src_ckpt = fallback_ckpt
-                src_cfg_path = fallback_cfg
-
+        # Only upscale from the EXACT corresponding source model; if missing, train strictly from scratch
         if Path(src_ckpt).exists() and Path(src_cfg_path).exists():
             load_upscaled_weights_pytorch(model, model_cfg, src_ckpt, src_cfg_path)
             if is_master:
-                print("  [PyTorch Upscaling] Success: Model initialized with zero-shock RMSNorm parity.", flush=True)
+                print(f"  [PyTorch Upscaling] Success: Initialized from exact source {src_stem} with zero-shock RMSNorm parity.", flush=True)
         else:
             if is_master:
-                print(f"  [Upscaling] Initializing {stem} from cold random weights.", flush=True)
+                print(f"  [Training From Scratch] Exact matching source {src_stem} not found; initializing {stem} with cold random weights.", flush=True)
 
     # Multi-GPU DataParallel for 2x T4 or cloud multi-GPU
     if device_type == "cuda" and torch.cuda.device_count() > 1:
