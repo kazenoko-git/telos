@@ -150,6 +150,15 @@ def resolve_training_params(cfg: dict, device_type: str = "tpu") -> dict:
 
     dev_key = "tpu" if device_type in ("tpu", "xla") else ("mac" if device_type in ("mac", "mps", "metal", "mlx") else ("gpu" if "cuda" in str(device_type).lower() else "mac"))
 
+    # dynamically detect available CUDA devices
+
+    if dev_key == "gpu" and torch.cuda.is_available():
+        num_devices = torch.cuda.device_count()
+    elif dev_key in t_cfg and isinstance(t_cfg[dev_key], dict):
+        num_devices = int(t_cfg[dev_key].get("num_devices", 1))
+    else:
+        num_devices = int(t_cfg.get("num_devices", 1))
+
     if dev_key in t_cfg and isinstance(t_cfg[dev_key], dict):
         dev_profile = t_cfg[dev_key]
         batch_size = int(dev_profile.get("batch_size", 32))
@@ -158,7 +167,6 @@ def resolve_training_params(cfg: dict, device_type: str = "tpu") -> dict:
     else:
         batch_size = int(t_cfg.get("batch_size", 32))
         grad_accum = int(t_cfg.get("gradient_accumulation", 1))
-        num_devices = int(t_cfg.get("num_devices", 1))
 
     if "total_tokens" in t_cfg:
         total_tokens = int(t_cfg["total_tokens"])
@@ -246,16 +254,16 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     model_cfg = cfg["model"]
     train_cfg = resolve_training_params(cfg, device_type)
     
-    # SPMD mesh means data-parallel across all chips; otherwise single-device
-    num_devices = train_cfg["num_devices"] if mesh is not None else 1
+    # SPMD mesh means data-parallel across all chips; otherwise detect CUDA multi-GPU
+    num_devices = train_cfg["num_devices"] if (mesh is not None or (device_type == "cuda" and torch.cuda.device_count() > 1)) else 1
     is_master = True
     
-    # For SPMD: DataLoader produces global batch = per_device_batch * num_devices
-    dl_batch_size = train_cfg["batch_size"] * num_devices if mesh is not None else train_cfg["batch_size"]
+    # Global batch size: scales with TPU SPMD mesh or multi-GPU CUDA count
+    dl_batch_size = train_cfg["batch_size"] * num_devices if (mesh is not None or (device_type == "cuda" and num_devices > 1)) else train_cfg["batch_size"]
     
     if is_master:
         print("\n" + "=" * 80, flush=True)
-        spmd_tag = f" SPMD {num_devices}-chip" if mesh is not None else ""
+        spmd_tag = f" SPMD {num_devices}-chip" if mesh is not None else (f" DataParallel ({num_devices}x GPUs)" if device_type == "cuda" and num_devices > 1 else "")
         print(f"STARTING {paradigm.upper()} TRAINING FOR {stem} (Device: {device} [{device_type.upper()}{spmd_tag}])", flush=True)
         print(f"Steps: {train_cfg['max_steps']} | Global Batch: {dl_batch_size} (={train_cfg['batch_size']}x{num_devices}) | Grad Accum: {train_cfg['gradient_accumulation']} | LR: {train_cfg['max_lr']} | Warmup: {train_cfg['warmup_steps']}", flush=True)
         print("=" * 80, flush=True)
@@ -295,6 +303,10 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         else:
             if is_master:
                 print(f"  [Upscaling] Initializing {stem} from cold random weights.", flush=True)
+
+    # Multi-GPU DataParallel for 2x T4 or cloud multi-GPU
+    if device_type == "cuda" and torch.cuda.device_count() > 1:
+        model = torch.nn.DataParallel(model)
         
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -330,10 +342,13 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
 
     num_samples = len(dataset)
     
-    # Configure hardware automatic mixed precision (AMP) for TPU/GPU acceleration
+    # Configure automatic mixed precision (AMP) & GradScaler (supports native BF16 or FP16 on T4)
     amp_device = "xla" if device_type == "tpu" else ("cuda" if device_type == "cuda" else "cpu")
-    use_amp = (train_cfg.get("precision", "bf16") == "bf16") and (device_type in ("tpu", "cuda"))
-    amp_dtype = torch.bfloat16 if train_cfg.get("precision", "bf16") == "bf16" else torch.float16
+    supports_bf16 = (torch.cuda.is_bf16_supported() if hasattr(torch.cuda, "is_bf16_supported") and device_type == "cuda" else (device_type == "tpu"))
+    use_bf16 = (train_cfg.get("precision", "bf16") == "bf16") and supports_bf16
+    amp_dtype = torch.bfloat16 if use_bf16 else torch.float16
+    use_amp = device_type in ("tpu", "cuda")
+    scaler = torch.amp.GradScaler("cuda", enabled=(device_type == "cuda" and amp_dtype == torch.float16))
 
     model.train()
     grad_accum = int(train_cfg["gradient_accumulation"])
@@ -359,7 +374,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
                 import torch_xla.distributed.spmd as xs
                 xs.mark_sharding(x, mesh, ('data', None))
             
-            # Forward pass wrapped in hardware autocast to utilize TPU Matrix Multiply Units (MXUs)
+            # Forward pass wrapped in hardware autocast to utilize TPU Matrix Multiply Units (MXUs) or CUDA Tensor Cores
             with torch.autocast(device_type=amp_device, dtype=amp_dtype, enabled=use_amp):
                 if paradigm == "ar":
                     logits = model(x)
@@ -373,13 +388,21 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
                     
                 loss = loss / grad_accum
                 
-            loss.backward()
-            
+            if scaler.is_enabled():
+                scaler.scale(loss).backward()
+            else:
+                loss.backward()
+                
         if device_type != "tpu":
+            if scaler.is_enabled():
+                scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         if device_type == "tpu":
             import torch_xla.core.xla_model as xm
             xm.optimizer_step(optimizer)
+        elif scaler.is_enabled():
+            scaler.step(optimizer)
+            scaler.update()
         else:
             optimizer.step()
             
@@ -393,12 +416,14 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
             
         if is_master and (step % int(cfg.get("checkpoint", {}).get("save_every_steps", 25)) == 0 or step == max_steps):
             ckpt_file = save_dir / f"checkpoint_step_{step}.safetensors"
-            cpu_state = {k: v.detach().cpu().clone().contiguous() for k, v in model.state_dict().items()}
+            raw_model = model.module if isinstance(model, torch.nn.DataParallel) else model
+            cpu_state = {k: v.detach().cpu().clone().contiguous() for k, v in raw_model.state_dict().items()}
             save_file(cpu_state, str(ckpt_file))
             
-    # Save final model
+    # Save final model (unwrapped clean weights)
     if is_master:
-        cpu_state = {k: v.detach().cpu().clone().contiguous() for k, v in model.state_dict().items()}
+        raw_model = model.module if isinstance(model, torch.nn.DataParallel) else model
+        cpu_state = {k: v.detach().cpu().clone().contiguous() for k, v in raw_model.state_dict().items()}
         save_file(cpu_state, str(save_dir / "model.safetensors"))
         with open(save_dir / "config.json", "w") as f:
             yaml.dump(model_cfg, f)
@@ -407,6 +432,8 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         
     del model, optimizer, scheduler
     gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
 
 def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m", device=None, device_type: str = "tpu", mesh=None):
