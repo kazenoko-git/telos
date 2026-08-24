@@ -57,10 +57,8 @@ class WarmupCosineLR(_LRSchedulerBase):
             decay_ratio = (step - self.warmup_steps) / max(1, self.max_steps - self.warmup_steps)
             coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
             lr = self.min_lr + coeff * (self.max_lr - self.min_lr)
-        # XLA Recompilation Fix: return LR as a device tensor so XLA doesn't bake it as a changing constant
-        device = self.optimizer.param_groups[0]['params'][0].device
-        tensor_lr = torch.tensor(lr, dtype=torch.float32, device=device)
-        return [tensor_lr for _ in self.base_lrs]
+        # Return Python float: standard PyTorch LR update without creating on-device XLA graph constants
+        return [float(lr) for _ in self.base_lrs]
 
 
 def mdlm_loss_pytorch(model, clean_targets, mask_token_id=4, vocab_size=8192):
@@ -296,6 +294,14 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     # Multi-GPU DataParallel for 2x T4 or cloud multi-GPU
     if device_type == "cuda" and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
+    elif device_type == "tpu" and hasattr(torch, "compile"):
+        try:
+            model = torch.compile(model, backend="openxla")
+            if is_master:
+                print("  [OpenXLA] torch.compile(model, backend='openxla') activated for graph fusion.", flush=True)
+        except Exception as e:
+            if is_master:
+                print(f"  [OpenXLA] Info: Native XLA execution active ({e}).", flush=True)
         
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -321,15 +327,31 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     if dataset_path.exists():
         num_samples = dataset_path.stat().st_size // (seq_len * 4)
         if is_master:
-            print(f"  [Dataset] Loading {dataset_path} entirely into RAM ({num_samples:,} samples) to prevent I/O thrashing...", flush=True)
-        # Load entirely into RAM to prevent massive disk thrashing with DataLoader(shuffle=True)
-        dataset = np.fromfile(dataset_path, dtype=np.uint32).reshape(num_samples, seq_len)
+            print(f"  [Dataset] Loading {dataset_path} into memory ({num_samples:,} samples)...", flush=True)
+        dataset_np = np.fromfile(dataset_path, dtype=np.uint32).reshape(num_samples, seq_len)
     else:
         if is_master:
             print("  [Dataset] Warning: Binary dataset not found; using random samples.", flush=True)
-        dataset = np.random.randint(0, model_cfg["vocab_size"], size=(1000, seq_len), dtype=np.uint32)
+        dataset_np = np.random.randint(0, model_cfg["vocab_size"], size=(1000, seq_len), dtype=np.uint32)
 
-    num_samples = len(dataset)
+    num_samples = len(dataset_np)
+    
+    # On TPU, stage the dataset tensor directly into HBM to eliminate CPU host indexing & PCIe communication bottleneck
+    use_hbm_dataset = (device_type == "tpu")
+    dataset_hbm = None
+    if use_hbm_dataset:
+        try:
+            if is_master:
+                print(f"  [TPU HBM Staging] Moving dataset directly to TPU HBM ({num_samples * seq_len * 4 / (1024**3):.2f} GB) to eliminate CPU host bottleneck...", flush=True)
+            dataset_hbm = torch.from_numpy(dataset_np.astype(np.int32)).to(device)
+            if mesh is not None:
+                import torch_xla.distributed.spmd as xs
+                xs.mark_sharding(dataset_hbm, mesh, (None, None))  # Fully replicated across all TPU chips
+        except Exception as e:
+            if is_master:
+                print(f"  [TPU HBM Staging] Warning: Could not stage full dataset to HBM ({e}). Falling back to CPU RAM gather.", flush=True)
+            use_hbm_dataset = False
+            dataset_hbm = None
     
     # Configure automatic mixed precision (AMP) & GradScaler (supports native BF16 or FP16 on T4)
     amp_device = "xla" if device_type == "tpu" else ("cuda" if device_type == "cuda" else "cpu")
@@ -352,11 +374,15 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         optimizer.zero_grad()
         
         for mb in range(grad_accum):
-            # Vectorized batch indexing in RAM (instantaneous C-level slicing, 0ms overhead)
-            batch_indices = np.random.randint(0, num_samples, size=dl_batch_size)
-            raw_batch = dataset[batch_indices]
-            
-            x = torch.from_numpy(raw_batch).long().to(device)
+            if use_hbm_dataset and dataset_hbm is not None:
+                # 100% On-Chip TPU Gather: 0 CPU overhead, 0 PCIe transfer
+                batch_indices = torch.randint(0, num_samples, (dl_batch_size,), device=device)
+                x = dataset_hbm[batch_indices].long()
+            else:
+                # Vectorized batch indexing in RAM (instantaneous C-level slicing, 0ms overhead)
+                batch_indices = np.random.randint(0, num_samples, size=dl_batch_size)
+                raw_batch = dataset_np[batch_indices]
+                x = torch.from_numpy(raw_batch).long().to(device)
             
             # SPMD: shard batch dimension across TPU chips for data parallelism
             if mesh is not None:
@@ -382,13 +408,20 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
             else:
                 loss.backward()
                 
+            # Bound graph compilation per microbatch on TPU
+            if device_type == "tpu" and grad_accum > 1:
+                import torch_xla.core.xla_model as xm
+                xm.mark_step()
+                
         if device_type != "tpu":
             if scaler.is_enabled():
                 scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            
         if device_type == "tpu":
             import torch_xla.core.xla_model as xm
             xm.optimizer_step(optimizer)
+            xm.mark_step()
         elif scaler.is_enabled():
             scaler.step(optimizer)
             scaler.update()
@@ -397,11 +430,20 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
             
         scheduler.step()
         
+        # Asynchronous non-blocking loss logging (zero pipeline stalls on TPU)
         if is_master and (step % 5 == 0 or step == max_steps or step <= 3):
             lr_curr = scheduler.get_last_lr()[0]
             toks_done = step * dl_batch_size * grad_accum * model_cfg["seq_len"]
-            step_loss = loss.item() * grad_accum
-            print(f"Step {step:>5}/{max_steps} | Loss: {step_loss:.4f} | LR: {lr_curr:.2e} | Tokens: {toks_done/1e6:.1f}M", flush=True)
+            
+            if device_type == "tpu":
+                import torch_xla.core.xla_model as xm
+                def _log_closure(step_idx, max_s, loss_val, lr, toks):
+                    print(f"Step {step_idx:>5}/{max_s} | Loss: {loss_val.item():.4f} | LR: {lr:.2e} | Tokens: {toks/1e6:.1f}M", flush=True)
+                loss_scaled = (loss * grad_accum).detach()
+                xm.add_step_closure(_log_closure, (step, max_steps, loss_scaled, lr_curr, toks_done))
+            else:
+                step_loss = loss.item() * grad_accum
+                print(f"Step {step:>5}/{max_steps} | Loss: {step_loss:.4f} | LR: {lr_curr:.2e} | Tokens: {toks_done/1e6:.1f}M", flush=True)
             
         if is_master and (step % int(cfg.get("checkpoint", {}).get("save_every_steps", 25)) == 0 or step == max_steps):
             ckpt_file = save_dir / f"checkpoint_step_{step}.safetensors"
