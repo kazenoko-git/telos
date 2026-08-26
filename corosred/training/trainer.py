@@ -1,4 +1,4 @@
-# Trainer for COROSred
+# Trainer for COROSred (Confidence Routed Selective Re-Diffusion)
 
 import time, math
 import numpy as np
