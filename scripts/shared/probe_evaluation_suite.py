@@ -574,19 +574,42 @@ def main():
             ratios = sorted(checkpoints[scale][paradigm].keys())
             print(f"    {scale.upper()} {paradigm}: ratios {ratios}")
 
+    results_dir = PROJECT_ROOT / "evals" / "probe_results"
+    results_dir.mkdir(parents=True, exist_ok=True)
+    results_path = results_dir / "comprehensive_probe_results.json"
+
     # Results container: {scale: {paradigm: {ratio: {single_step: {...}, multi_step: {...}}}}}
     all_results = {}
+    if results_path.exists():
+        try:
+            with open(results_path) as f:
+                loaded = json.load(f)
+            for s, s_dict in loaded.items():
+                all_results[s] = {}
+                for p, p_dict in s_dict.items():
+                    all_results[s][p] = {int(k): v for k, v in p_dict.items()}
+        except Exception:
+            all_results = {}
+
     total_models = sum(len(ratios) for scale in checkpoints.values() for ratios in scale.values())
     model_idx = 0
 
     for scale in sorted(checkpoints.keys()):
-        all_results[scale] = {}
+        if scale not in all_results:
+            all_results[scale] = {}
         for paradigm in sorted(checkpoints[scale].keys()):
-            all_results[scale][paradigm] = {}
+            if paradigm not in all_results[scale]:
+                all_results[scale][paradigm] = {}
             for ratio in sorted(checkpoints[scale][paradigm].keys()):
                 model_idx += 1
                 ckpt_dir = checkpoints[scale][paradigm][ratio]
                 model_tag = f"{scale.upper()} {paradigm.upper()} 1:{ratio}"
+
+                # Check if already cached
+                if ratio in all_results[scale][paradigm]:
+                    print(f"\n  [{model_idx}/{total_models}] {model_tag} already evaluated (cached).")
+                    continue
+
                 print(f"\n  [{model_idx}/{total_models}] Evaluating {model_tag}...")
                 print(f"    Checkpoint: {ckpt_dir}")
 
@@ -613,7 +636,7 @@ def main():
 
                 # Free model memory before loading next
                 del model
-                mx.metal.clear_cache() if hasattr(mx, "metal") else None
+                mx.clear_cache() if hasattr(mx, "clear_cache") else None
 
     # Save raw JSON results
     results_dir = PROJECT_ROOT / "evals" / "probe_results"

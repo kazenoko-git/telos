@@ -38,7 +38,7 @@ def ar_loss_fn_mlx(model, batch_seqs, vocab_size, special_token_lut=None):
     B, T, V = logits.shape
 
     # Upcast logits to float32 for numerically stable log-softmax in cross entropy
-    shift_logits = logits[:, :-1, :].astype(mx.float32).reshape(-1, V)   # [B*(T-1), V]
+    shift_logits = logits[:, :-1, :].reshape(-1, V)   # [B*(T-1), V]
     shift_targets = batch_seqs[:, 1:].reshape(-1)                        # [B*(T-1)]
 
     ce_per_token = mx_nn.losses.cross_entropy(shift_logits, shift_targets, reduction="none").reshape(B, T - 1)
@@ -118,8 +118,8 @@ class TelosMLXARTrainer:
             idx_ptr = seqs_consumed % len(dataset_matrix)
 
         def get_lr(step):
-            if step < warmup_steps:
-                return max_lr * (step + 1) / warmup_steps
+            if step <= warmup_steps:
+                return max_lr * step / warmup_steps
             progress = (step - warmup_steps) / max(1, max_steps - warmup_steps)
             return min_lr + 0.5 * (max_lr - min_lr) * (1.0 + math.cos(math.pi * progress))
 
@@ -175,7 +175,7 @@ class TelosMLXARTrainer:
                 is_first_step=(step == resume_step + 1)
             )
 
-            if step % 100 == 0:
+            if True:
                 mx.clear_cache()
                 import gc
                 gc.collect()

@@ -22,14 +22,22 @@ def compute_roc_auc(scores: np.ndarray, labels: np.ndarray) -> float:
     n_neg = np.sum(sorted_labels == 0)
 
     if n_pos == 0 or n_neg == 0:
-        return 0.5  # Degenerate case when all labels are identical (kinda pointless)
+        return 0.5  # Degenerate case when all labels are identical
 
     # Calculate cumulative true positive and false positive rates
     tpr = np.cumsum(sorted_labels == 1) / n_pos
     fpr = np.cumsum(sorted_labels == 0) / n_neg
 
-    # Numerical integration using trapezoidal rule
-    return float(np.trapz(tpr, fpr))
+    # Prepend (0, 0) origin for full ROC curve integration
+    tpr = np.concatenate(([0.0], tpr))
+    fpr = np.concatenate(([0.0], fpr))
+
+    # Version-agnostic trapezoid integration across numpy versions
+    if hasattr(np, "trapezoid"):
+        return float(np.trapezoid(tpr, fpr))
+    elif hasattr(np, "trapz"):
+        return float(np.trapz(tpr, fpr))
+    return float(np.sum((fpr[1:] - fpr[:-1]) * (tpr[1:] + tpr[:-1])) / 2.0)
 
 
 class COROSredExperiment0Evaluator:

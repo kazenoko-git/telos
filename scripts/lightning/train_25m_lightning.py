@@ -75,7 +75,7 @@ class WarmupCosineLR:
         return self.current_lr
 
 
-def mdlm_loss_pytorch(model: nn.Module, clean_targets: torch.Tensor, mask_token_id: int = 4, vocab_size: int = 8192) -> torch.Tensor:
+def mdlm_loss_pytorch(model: nn.Module, clean_targets: torch.Tensor, mask_token_id: int = 1, vocab_size: int = 8192) -> torch.Tensor:
     """
     Continuous-time ELBO loss for Masked Discrete Diffusion (MDLM).
     Samples random timesteps t ~ U(0, 1), masks tokens accordingly, and evaluates cross-entropy.
@@ -316,20 +316,32 @@ def train_paradigm(paradigm: str, config_path: str, dataset: np.ndarray, src_tie
     print(f"Total Steps: {max_steps:,} | Batch Size: {batch_size} | Grad Accum: {grad_accum} | Max LR: {train_cfg['max_lr']} | Warmup: {warmup_steps}", flush=True)
     print("=" * 80, flush=True)
 
+    decay_params = []
+    nodecay_params = []
+    for n, p in model.named_parameters():
+        if p.requires_grad:
+            if p.dim() >= 2:
+                decay_params.append(p)
+            else:
+                nodecay_params.append(p)
+                
+    optim_groups = [
+        {"params": decay_params, "weight_decay": float(train_cfg.get("weight_decay", 0.1))},
+        {"params": nodecay_params, "weight_decay": 0.0}
+    ]
+
     if is_tpu:
         import torch_xla.amp.syncfree as syncfree
         optimizer = syncfree.AdamW(
-            model.parameters(),
+            optim_groups,
             lr=train_cfg["max_lr"],
-            weight_decay=train_cfg["weight_decay"],
             betas=(0.9, 0.95),
             eps=1e-8
         )
     else:
         optimizer = torch.optim.AdamW(
-            model.parameters(),
+            optim_groups,
             lr=train_cfg["max_lr"],
-            weight_decay=train_cfg["weight_decay"],
             betas=(0.9, 0.95),
             eps=1e-8
         )
@@ -393,7 +405,7 @@ def train_paradigm(paradigm: str, config_path: str, dataset: np.ndarray, src_tie
                     shift_labels = x[:, 1:].contiguous()
                     loss = nn.functional.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
                 elif paradigm == "mdlm":
-                    loss = mdlm_loss_pytorch(model, x, mask_token_id=4, vocab_size=model_cfg["vocab_size"])
+                    loss = mdlm_loss_pytorch(model, x, mask_token_id=1, vocab_size=model_cfg["vocab_size"])
                 else:
                     loss = undlm_loss_pytorch(model, x, vocab_size=model_cfg["vocab_size"])
 

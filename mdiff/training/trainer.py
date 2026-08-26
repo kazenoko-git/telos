@@ -276,22 +276,14 @@ def sample_beta_timesteps_mlx(batch_size: int, alpha: float = 1.5, beta: float =
     t = np.random.beta(alpha, beta, size=(batch_size, 1)).astype(np.float32)
     return mx.clip(mx.array(t), eps, 1.0)
 
-def apply_masking_mlx(input_ids, mask_token_id=1, special_token_lut=None, strategy="beta"):
+def apply_masking_mlx(input_ids, t_values, rand_matrix, mask_token_id=1, special_token_lut=None):
     B, T = input_ids.shape
-    if strategy == "beta":
-        t_values = sample_beta_timesteps_mlx(B)
-    elif strategy == "cosine":
-        t_values = sample_cosine_timesteps_mlx(B)
-    else:
-        t_values = sample_uniform_timesteps_mlx(B)
-
-    rand_matrix = mx.random.uniform(0.0, 1.0, (B, T))
     raw_mask = rand_matrix < t_values
 
     if special_token_lut is not None:
         is_special = special_token_lut[input_ids]
     else:
-        is_special = (input_ids == 0) | (input_ids == 1) | (input_ids == 2) | (input_ids == 3)
+        is_special = input_ids < 4
 
     mask_positions = raw_mask & (~is_special)
     masked_input_ids = mx.where(mask_positions, mask_token_id, input_ids)
@@ -301,7 +293,7 @@ def loss_fn_mlx(model, masked_input_ids, targets, mask_positions, t_values, voca
     logits = model(masked_input_ids)
     B, T, V = logits.shape
     # Upcast logits to float32 for numerically stable log-softmax in cross entropy
-    logits_flat = logits.astype(mx.float32).reshape(-1, V)
+    logits_flat = logits.reshape(-1, V)
     targets_flat = targets.reshape(-1)
 
     ce_per_token = mx_nn.losses.cross_entropy(logits_flat, targets_flat, reduction="none").reshape(B, T)
@@ -376,8 +368,8 @@ class TelosMLXTrainer:
             idx_ptr = seqs_consumed % len(dataset_matrix)
 
         def get_lr(step):
-            if step < warmup_steps:
-                return max_lr * (step + 1) / warmup_steps
+            if step <= warmup_steps:
+                return max_lr * step / warmup_steps
             progress = (step - warmup_steps) / max(1, max_steps - warmup_steps)
             return min_lr + 0.5 * (max_lr - min_lr) * (1.0 + math.cos(math.pi * progress))
 
@@ -392,14 +384,16 @@ class TelosMLXTrainer:
         loss_and_grad_fn = mx_nn.value_and_grad(self.model, loss_fn_mlx)
         special_lut = self.special_lut
         
-        def microbatch_step_uncompiled(batch_seqs):
-            masked_ids, mask_pos, t_vals = apply_masking_mlx(batch_seqs, mask_token_id=1, special_token_lut=special_lut)
-            (loss, ce), grads = loss_and_grad_fn(self.model, masked_ids, batch_seqs, mask_pos, t_vals, self.m_cfg["vocab_size"])
+        def microbatch_step_uncompiled(batch_seqs, t_vals, rand_matrix):
+            masked_ids, mask_pos, t_vals_out = apply_masking_mlx(batch_seqs, t_vals, rand_matrix, mask_token_id=1, special_token_lut=special_lut)
+            (loss, ce), grads = loss_and_grad_fn(self.model, masked_ids, batch_seqs, mask_pos, t_vals_out, self.m_cfg["vocab_size"])
             return loss, ce, grads
             
         # Run graph trace once WITHOUT calling optimizer.update() to avoid synthetic AdamW moment pollution!
         dummy_seqs = mx.random.randint(0, self.m_cfg["vocab_size"], (self.t_cfg["batch_size"], self.m_cfg["seq_len"]))
-        dummy_loss, dummy_ce, dummy_grads = microbatch_step_uncompiled(dummy_seqs)
+        dummy_t_vals = sample_beta_timesteps_mlx(self.t_cfg["batch_size"])
+        dummy_rand = mx.random.uniform(0.0, 1.0, (self.t_cfg["batch_size"], self.m_cfg["seq_len"]))
+        dummy_loss, dummy_ce, dummy_grads = microbatch_step_uncompiled(dummy_seqs, dummy_t_vals, dummy_rand)
         mx.eval(dummy_loss, dummy_ce, dummy_grads)
         del dummy_loss, dummy_ce, dummy_grads
 
@@ -421,7 +415,10 @@ class TelosMLXTrainer:
             
             def batch_gen():
                 for i in range(grad_accum):
-                    yield global_targets[i * bs : (i + 1) * bs]
+                    batch_seqs = global_targets[i * bs : (i + 1) * bs]
+                    t_vals = sample_beta_timesteps_mlx(bs)
+                    rand_matrix = mx.random.uniform(0.0, 1.0, (bs, self.m_cfg["seq_len"]))
+                    yield (batch_seqs, t_vals, rand_matrix)
 
             accum_loss, accum_ce = execute_mlx_training_step(
                 model=self.model,
@@ -434,7 +431,7 @@ class TelosMLXTrainer:
             )
 
             # Periodic memory cache defragmentation
-            if step % 100 == 0:
+            if True:
                 mx.clear_cache()
                 import gc
                 gc.collect()

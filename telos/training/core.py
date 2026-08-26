@@ -81,8 +81,11 @@ def execute_mlx_training_step(
     accum_ce = mx.array(0.0, dtype=mx.float32)
 
     for i in range(grad_accum):
-        batch_seqs = next(batch_iterator)
-        loss, ce, grads = compiled_step_fn(batch_seqs)
+        batch_data = next(batch_iterator)
+        if isinstance(batch_data, tuple):
+            loss, ce, grads = compiled_step_fn(*batch_data)
+        else:
+            loss, ce, grads = compiled_step_fn(batch_data)
         
         if accum_grads is None:
             accum_grads = grads

@@ -13,7 +13,7 @@ def undlm_loss(model, noisy_ids, clean_targets, t_values, vocab_size, special_to
     B, T, V = logits.shape
 
     # Upcast logits to float32 for numerically stable log-softmax in cross entropy
-    logits_flat = logits.astype(mx.float32).reshape(-1, V) # (B*T, V)
+    logits_flat = logits.reshape(-1, V) # (B*T, V)
     targets_flat = clean_targets.reshape(-1) # (B*T,)
 
     # CE on every position in float32

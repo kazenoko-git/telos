@@ -61,7 +61,7 @@ class WarmupCosineLR(_LRSchedulerBase):
         return [float(lr) for _ in self.base_lrs]
 
 
-def mdlm_loss_pytorch(model, clean_targets, mask_token_id=4, vocab_size=8192):
+def mdlm_loss_pytorch(model, clean_targets, mask_token_id=1, vocab_size=8192):
     """Absorbing discrete diffusion ELBO loss for PyTorch & TPU."""
     B, T = clean_targets.shape
     device = clean_targets.device
@@ -303,10 +303,23 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
             if is_master:
                 print(f"  [OpenXLA] Info: Native XLA execution active ({e}).", flush=True)
         
+    decay_params = []
+    nodecay_params = []
+    for n, p in model.named_parameters():
+        if p.requires_grad:
+            if p.dim() >= 2:
+                decay_params.append(p)
+            else:
+                nodecay_params.append(p)
+                
+    optim_groups = [
+        {"params": decay_params, "weight_decay": float(train_cfg.get("weight_decay", 0.1))},
+        {"params": nodecay_params, "weight_decay": 0.0}
+    ]
+    
     optimizer = torch.optim.AdamW(
-        model.parameters(),
+        optim_groups,
         lr=float(train_cfg["max_lr"]),
-        weight_decay=float(train_cfg.get("weight_decay", 0.1)),
         betas=(0.9, 0.95)
     )
     scheduler = WarmupCosineLR(
@@ -397,7 +410,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
                     shift_labels = x[:, 1:].contiguous()
                     loss = nn.functional.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
                 elif paradigm == "mdlm":
-                    loss = mdlm_loss_pytorch(model, x, mask_token_id=4, vocab_size=model_cfg["vocab_size"])
+                    loss = mdlm_loss_pytorch(model, x, mask_token_id=1, vocab_size=model_cfg["vocab_size"])
                 else:
                     loss = undlm_loss_pytorch(model, x, vocab_size=model_cfg["vocab_size"])
                     

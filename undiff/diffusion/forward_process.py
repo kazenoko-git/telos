@@ -14,41 +14,22 @@ except ImportError:
 
 def apply_uniform_noise_mlx(
     input_ids,
+    t_values,
+    rand_matrix,
+    noise_tokens,
     vocab_size: int,
     special_token_lut=None,
-    strategy: str = "beta"
 ):
-    """Applies uniform noise corruption at sampled timestep t.
-
-    For each token independently:
-      - With probability (1 - t): token stays as the original clean token
-      - With probability t: token is replaced by a uniform random sample from [0, vocab_size)
-    """
     B, T = input_ids.shape
-    if strategy == "beta":
-        t_values = _sample_beta_timesteps(B)
-    elif strategy == "cosine":
-        t_values = _sample_cosine_timesteps(B)
-    else:
-        t_values = _sample_uniform_timesteps(B)
-    
-    # Sample uniform random replacement tokens from full vocabulary
-    random_tokens = mx.random.randint(0, vocab_size, shape=(B, T))
+    raw_corrupt_mask = rand_matrix < t_values
 
-    # Bernoulli corruption mask: True where we replace with random token
-    rand_matrix = mx.random.uniform(0.0, 1.0, (B, T))
-    corrupt_mask = rand_matrix < t_values  # broadcast [B, 1] over [B, T]
-
-    # Protect special tokens (PAD=0, MASK=1, BOS=2, EOS=3) from corruption
     if special_token_lut is not None:
         is_special = special_token_lut[input_ids]
     else:
-        is_special = (input_ids == 0) | (input_ids == 1) | (input_ids == 2) | (input_ids == 3)
-    corrupt_mask = corrupt_mask & (~is_special)
+        is_special = input_ids < 4
 
-    # Apply corruption: where corrupt_mask is True, use random token; else keep original
-    noisy_ids = mx.where(corrupt_mask, random_tokens, input_ids)
-
+    corrupt_mask = raw_corrupt_mask & (~is_special)
+    noisy_ids = mx.where(corrupt_mask, noise_tokens, input_ids)
     return noisy_ids, corrupt_mask, t_values
 
 # TIMESTEP SAMPLERS
