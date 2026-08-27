@@ -24,6 +24,7 @@ class MLXSwiGLU(nn.Module):
     def __call__(self, x):
         return self.w3(nn.silu(self.w1(x)) * self.w2(x))
 
+
 class MLXBlock(nn.Module):
     def __init__(self, d_model: int, n_heads: int, n_kv_heads: int):
         super().__init__()
@@ -34,19 +35,24 @@ class MLXBlock(nn.Module):
         self.n_kv_heads = n_kv_heads
         self.kv_groups = n_heads // n_kv_heads
 
-        self.q_proj = nn.Linear(d_model, n_heads * self.head_dim, bias=False)
-        self.k_proj = nn.Linear(d_model, n_kv_heads * self.head_dim, bias=False)
-        self.v_proj = nn.Linear(d_model, n_kv_heads * self.head_dim, bias=False)
+        self.qkv_proj = nn.Linear(d_model, (n_heads + 2 * n_kv_heads) * self.head_dim, bias=False)
         self.out = nn.Linear(d_model, d_model, bias=False)
         self.mlp = MLXSwiGLU(d_model)
+
+        # Precompute QKV split boundaries (static across all forward passes)
+        self._q_end = n_heads * self.head_dim
+        self._k_end = self._q_end + n_kv_heads * self.head_dim
 
     def __call__(self, x):
         B, T, D = x.shape
         h = self.norm1(x)
 
-        q = self.q_proj(h).reshape(B, T, self.n_heads, self.head_dim).transpose(0, 2, 1, 3)
-        k = self.k_proj(h).reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
-        v = self.v_proj(h).reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
+        qkv = self.qkv_proj(h)
+        # Split using precomputed static index boundaries
+        q, k, v = mx.split(qkv, [self._q_end, self._k_end], axis=-1)
+        q = q.reshape(B, T, self.n_heads, self.head_dim).transpose(0, 2, 1, 3)
+        k = k.reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
+        v = v.reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
 
         # Apply hardware-accelerated RoPE Metal kernel to Q and K
         q = mx.fast.rope(q, self.head_dim, traditional=False, base=10000.0, scale=1.0, offset=0)
