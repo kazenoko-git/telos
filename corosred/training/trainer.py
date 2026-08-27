@@ -38,8 +38,8 @@ def crsr_phase_a_loss_fn(model, batch_seqs, vocab_size, special_token_lut=None, 
     logits, raw_r_scores = model(batch_seqs, is_causal=True, return_reliability=True)
 
     # Shift indices: hidden state h[i] predicts token x[i+1]
-    shift_logits = logits[:, :-1, :].astype(mx.float32)
-    shift_r_scores = raw_r_scores[:, :-1].astype(mx.float32)
+    shift_logits = logits[:, :-1, :]
+    shift_r_scores = raw_r_scores[:, :-1]
     shift_targets = batch_seqs[:, 1:]
 
     # Check top-1 match
@@ -55,7 +55,7 @@ def crsr_phase_a_loss_fn(model, batch_seqs, vocab_size, special_token_lut=None, 
     labels = mx.where(is_exact_match, mx.ones_like(shift_r_scores), mx.zeros_like(shift_r_scores))
 
     # Numerically stable BCE loss formulation: max(x, 0) - x * y + log(1 + exp(-abs(x)))
-    bce_raw = mx.maximum(shift_r_scores, 0) - (shift_r_scores * labels) + mx.log1p(mx.exp(-mx.abs(shift_r_scores)))
+    bce_raw = mx_nn.losses.binary_cross_entropy(shift_r_scores, labels, with_logits=True)
 
     # Drop ambiguous tokens (in top-k, but not top-1) from training loss entirely
     is_ambiguous = mx.logical_and(is_target_in_top_k, mx.logical_not(is_exact_match))
@@ -65,7 +65,7 @@ def crsr_phase_a_loss_fn(model, batch_seqs, vocab_size, special_token_lut=None, 
         content_mask = ~special_token_lut[shift_targets]
         valid_mask = mx.logical_and(valid_mask, content_mask)
 
-    valid_mask_f32 = valid_mask.astype(mx.float32)
+    valid_mask_f32 = valid_mask
     masked_bce = bce_raw * valid_mask_f32
 
     # Avoid zero-division on heavily masked sequences
@@ -91,13 +91,13 @@ def crsr_phase_b_loss_fn(model, batch_seqs, vocab_size, mask_token_id: int, mask
 
     # Forward pass in Bidirectional Attention Mode
     logits = model(corrupted_seqs, is_causal=False, return_reliability=False)
-    logits_f32 = logits.astype(mx.float32).reshape(-1, vocab_size)
+    logits_f32 = logits.reshape(-1, vocab_size)
     targets_flat = batch_seqs.reshape(-1)
 
     ce_all = mx_nn.losses.cross_entropy(logits_f32, targets_flat, reduction="none").reshape(B, T)
-    masked_ce = ce_all * mask_positions.astype(mx.float32)
+    masked_ce = ce_all * mask_positions
 
-    denom = mx.clip(mx.sum(mask_positions.astype(mx.float32), axis=1), 1.0, float(T))
+    denom = mx.clip(mx.sum(mask_positions, axis=1), 1.0, float(T))
     loss = mx.mean(mx.sum(masked_ce, axis=1) / denom)
 
     return loss, loss
@@ -237,6 +237,10 @@ class TelosMLXCOROSredTrainer:
                 grad_clip=self.grad_clip,
                 is_first_step=(step == resume_step + 1),
             )
+            if step % 200 == 0:
+                mx.clear_cache()
+                import gc
+                gc.collect()
 
             if step % 50 == 0 or step == 1 or step == max_steps:
                 avg_loss_val = accum_loss.item() / grad_accum
