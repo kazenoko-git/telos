@@ -55,9 +55,7 @@ class COROSredSampler:
         return sorted_indices[sampled_idx_in_sorted].item()
 
     def draft(self, prompt_tokens: list[int], max_new_tokens: int) -> tuple[list[int], list[float]]:
-        """
-        Phase 1: Generates tokens autoregressively and stores pre-decision reliability scores.
-        """
+        """Phase 1: Generates tokens autoregressively and stores pre-decision reliability scores."""
         generated = list(prompt_tokens)
         # Gold prompt tokens are always marked reliable
         reliability_scores = [float("inf")] * len(prompt_tokens)
@@ -79,35 +77,32 @@ class COROSredSampler:
         return generated, reliability_scores
 
     def flag(self, scores: list[float]) -> list[int]:
-        """
-        Phase 2: Identifies token positions falling below the cost-quality threshold.
-        """
+        """Phase 2: Identifies token positions falling below the cost-quality threshold."""
         # Flag all positions where reliability falls below threshold
         return [idx for idx, score in enumerate(scores) if score < self.reliability_threshold]
 
     def refine(self, sequence: list[int], flagged_indices: list[int]) -> list[int]:
-        """
-        Phase 3: Selectively masks flagged tokens and performs bidirectional MDLM refinement passes.
-        """
+        """Phase 3: Selectively masks flagged tokens and performs bidirectional MDLM refinement passes."""
         if not flagged_indices:
             return sequence
 
         refined = list(sequence)
-        # Apply mask token to all flagged unreliable positions
         for idx in flagged_indices:
             refined[idx] = self.mask_token_id
 
-        # Perform iterative refinement passes with full bidirectional recomputation (no KV cache reuse)
+        flagged_mx = mx.array(flagged_indices)
+
         for _ in range(self.refine_steps):
             inp = mx.array([refined], dtype=mx.int32)
-            # Full bidirectional forward pass across entire sequence
             logits = self.model(inp, is_causal=False, return_reliability=False)
 
-            # Update only masked positions with new highest-confidence unmasking predictions
-            for idx in flagged_indices:
-                token_logits = logits[0, idx]
-                # Greedily replace masked token with model's bidirectional consensus
-                refined[idx] = mx.argmax(token_logits, axis=-1).item()
+            # Vectorized multi-position argmax in one single Metal call
+            flagged_logits = logits[0, flagged_mx]
+            best_tokens = mx.argmax(flagged_logits, axis=-1)
+            mx.eval(best_tokens)
+            best_np = mx.array(best_tokens)
+            for i, idx in enumerate(flagged_indices):
+                refined[idx] = int(best_np[i])
 
         return refined
 
