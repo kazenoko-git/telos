@@ -100,9 +100,9 @@ class COROSredSampler:
             flagged_logits = logits[0, flagged_mx]
             best_tokens = mx.argmax(flagged_logits, axis=-1)
             mx.eval(best_tokens)
-            best_np = mx.array(best_tokens)
+            best_list = best_tokens.tolist()
             for i, idx in enumerate(flagged_indices):
-                refined[idx] = int(best_np[i])
+                refined[idx] = best_list[i]
 
         return refined
 
