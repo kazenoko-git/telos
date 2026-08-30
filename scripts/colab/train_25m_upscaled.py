@@ -368,25 +368,6 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
 
     num_samples = len(dataset_np)
     
-    # On TPU, stage the dataset tensor directly into HBM to eliminate CPU host indexing & PCIe communication bottleneck
-    # Uses int16 (vocab_size=8192 fits in 16 bits) to halve HBM footprint: ~3.4 GB vs ~6.8 GB at int32
-    use_hbm_dataset = (device_type == "tpu")
-    dataset_hbm = None
-    if use_hbm_dataset:
-        try:
-            hbm_gb = num_samples * seq_len * 2 / (1024**3)  # 2 bytes per token (int16)
-            if is_master:
-                print(f"  [TPU HBM Staging] Moving dataset to TPU HBM as int16 ({hbm_gb:.2f} GB) to eliminate CPU host bottleneck...", flush=True)
-            dataset_hbm = torch.from_numpy(dataset_np.astype(np.int16)).to(device)
-            if mesh is not None:
-                import torch_xla.distributed.spmd as xs
-                xs.mark_sharding(dataset_hbm, mesh, (None, None))  # Fully replicated across all TPU chips
-        except Exception as e:
-            if is_master:
-                print(f"  [TPU HBM Staging] Warning: Could not stage full dataset to HBM ({e}). Falling back to CPU RAM gather.", flush=True)
-            use_hbm_dataset = False
-            dataset_hbm = None
-    
     # Configure automatic mixed precision (AMP) & GradScaler (supports native BF16 or FP16 on T4)
     amp_device = "xla" if device_type == "tpu" else ("cuda" if device_type == "cuda" else "cpu")
     supports_bf16 = (torch.cuda.is_bf16_supported() if hasattr(torch.cuda, "is_bf16_supported") and device_type == "cuda" else (device_type == "tpu"))
@@ -408,15 +389,10 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         optimizer.zero_grad()
         
         for mb in range(grad_accum):
-            if use_hbm_dataset and dataset_hbm is not None:
-                # 100% On-Chip TPU Gather: 0 CPU overhead, 0 PCIe transfer
-                batch_indices = torch.randint(0, num_samples, (dl_batch_size,), device=device)
-                x = dataset_hbm[batch_indices].long()
-            else:
-                # Vectorized batch indexing in RAM (instantaneous C-level slicing, 0ms overhead)
-                batch_indices = np.random.randint(0, num_samples, size=dl_batch_size)
-                raw_batch = dataset_np[batch_indices]
-                x = torch.from_numpy(raw_batch).long().to(device)
+            # Vectorized batch indexing in RAM (instantaneous C-level slicing, 0ms overhead)
+            batch_indices = np.random.randint(0, num_samples, size=dl_batch_size)
+            raw_batch = dataset_np[batch_indices]
+            x = torch.from_numpy(raw_batch).long().to(device)
             
             # SPMD: shard batch dimension across TPU chips for data parallelism
             if mesh is not None:
