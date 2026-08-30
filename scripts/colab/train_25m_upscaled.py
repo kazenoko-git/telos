@@ -8,6 +8,7 @@ Supports:
 """
 
 import os
+import shutil
 if "TPU_PROCESS_ADDRESSES" in os.environ:
     os.environ.pop("TPU_PROCESS_ADDRESSES")
 if "CLOUD_TPU_TASK_ID" in os.environ:
@@ -574,6 +575,9 @@ def run_upscaled_suite(ratios: list[str], tier: str = "25m", src_tier: str | Non
                         allow_patterns=["*.safetensors", "*.json"]
                     )
                     print(f"[Instant HF Export] Success: {p_dir} telos_{tier}_{r} is now live on HuggingFace!", flush=True)
+                    # Purge local checkpoint directory to free TPU disk storage for subsequent runs
+                    shutil.rmtree(str(model_dir), ignore_errors=True)
+                    print(f"[Storage Cleanup] Deleted {model_dir} to reclaim disk space.", flush=True)
                 except Exception as e:
                     print(f"[Instant HF Export] Upload warning: {e}", flush=True)
 

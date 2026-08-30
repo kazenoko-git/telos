@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 import time
 import math
 import gc
@@ -113,6 +114,9 @@ def upload_to_hf(model_dir, path_in_repo, hf_repo="Kazenowoko/telos"):
             api = HfApi(token=token)
             api.upload_folder(folder_path=str(model_dir), path_in_repo=path_in_repo, repo_id=hf_repo, repo_type="model", allow_patterns=["*.safetensors", "*.json", "*.yaml"])
             print(f"[HF Upload Success] {path_in_repo}")
+            # Purge local checkpoint directory to free TPU disk storage for subsequent runs
+            shutil.rmtree(str(model_dir), ignore_errors=True)
+            print(f"[Storage Cleanup] Deleted {model_dir} to reclaim disk space.")
         except Exception as e:
             print(f"[HF Upload Warning] {e}")
 

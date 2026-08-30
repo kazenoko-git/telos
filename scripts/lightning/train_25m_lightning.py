@@ -16,6 +16,7 @@ Key Design Highlights:
 import sys
 import os
 import gc
+import shutil
 import math
 import time
 import argparse
@@ -546,6 +547,9 @@ def run_lightning_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos"
                             allow_patterns=["*.safetensors", "*.json", "*.yaml"]
                         )
                         print(f"  [Hugging Face Upload Success] {save_dir.name} published!", flush=True)
+                        # Purge local checkpoint directory to free TPU disk storage for subsequent runs
+                        shutil.rmtree(str(save_dir), ignore_errors=True)
+                        print(f"  [Storage Cleanup] Deleted {save_dir} to reclaim disk space.", flush=True)
                     except Exception as e:
                         print(f"  [Hugging Face Upload Warning] Failed to upload {save_dir}: {e}", flush=True)
 
