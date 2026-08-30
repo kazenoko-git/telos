@@ -251,6 +251,12 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     model_cfg = cfg["model"]
     train_cfg = resolve_training_params(cfg, device_type)
     
+    # Scale LR down 10x for diffusion models to compensate for 1/t ELBO weighting
+    # which heavily inflates the loss & gradients relative to AR cross-entropy
+    if paradigm.lower() in ["mdlm", "undlm"]:
+        train_cfg["max_lr"] = float(train_cfg["max_lr"]) * 0.1
+        train_cfg["min_lr"] = float(train_cfg.get("min_lr", 0.0)) * 0.1
+    
     # SPMD mesh means data-parallel across all chips; otherwise detect CUDA multi-GPU
     num_devices = train_cfg["num_devices"] if (mesh is not None or (device_type == "cuda" and torch.cuda.device_count() > 1)) else 1
     is_master = True

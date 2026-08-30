@@ -230,6 +230,10 @@ def train_pytorch(paradigm, config_path, upscale_from_tier=None, device_type="cu
     tier = "25m" if "25m" in stem else ("50m" if "50m" in stem else "12m")
     m_cfg = cfg["model"]
     t_cfg = resolve_training_params(cfg, device_type)
+
+    if paradigm.lower() in ["mdlm", "undlm"]:
+        t_cfg["max_lr"] = float(t_cfg["max_lr"]) * 0.1
+        t_cfg["min_lr"] = float(t_cfg.get("min_lr", 0.0)) * 0.1
     p_dir = "masked" if paradigm.lower() == "mdlm" else ("uniform" if paradigm.lower() == "undlm" else "ar")
 
     # SPMD: DataLoader produces global batch (per_device * num_devices)
