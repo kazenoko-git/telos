@@ -610,7 +610,7 @@ def run_upscaled_suite(ratios: list[str], tier: str = "50m", src_tier: str = "25
 
 def main():
     parser = argparse.ArgumentParser(description="Universal Upscaling Suite Runner on TPU / Cloud GPU (25M / 50M)")
-    parser.add_argument("--tier", type=str, default="25m", choices=["12m", "25m", "50m"], help="Model parameter tier to train ('25m' or '50m')")
+    parser.add_argument("--tier", type=str, default="25m", choices=["12m", "25m", "50m", "100m"], help="Model parameter tier to train ('25m', '50m', or '100m')")
     parser.add_argument("--src-tier", type=str, default=None, help="Source tier to upscale from (defaults to '25m' for 50m, '12m' for 25m)")
     parser.add_argument("--ratios", nargs="+", default=None, help="Ratios to train (defaults to 'r1 r35 r40 r45 r50' for 50m, 'r1 r10 r15 r20 r25 r30 r35' for 25m)")
     parser.add_argument("--hf-repo", type=str, default="Kazenowoko/telos", help="Hugging Face Model Repository")
