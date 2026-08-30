@@ -87,6 +87,9 @@ class TelosTransformer(nn.Module):
 
         # output linear projection to vocabulary logits
         self.output_projection = nn.Linear(config.d_model, config.vocab_size, bias=False)
+        
+        # scalar reliability head (for COROSred)
+        self.reliability_head = nn.Linear(config.d_model, 1, bias=False)
 
         # weight tying: share weights between token embedding and output linear layer
         if config.tied_embeddings:
@@ -104,15 +107,17 @@ class TelosTransformer(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
+    def forward(self, input_ids: torch.Tensor, return_reliability: bool = False) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """forward pass.
         
         Args:
             input_ids: Tensor of shape [batch_size, seq_len] containing token IDs
                        (which may include [MASK] tokens).
+            return_reliability: Whether to return the (logits, reliability_scores) tuple.
                        
         Returns:
             logits: Unnormalized logits of shape [batch_size, seq_len, vocab_size].
+            r_scores: (Optional) Reliability scores of shape [batch_size, seq_len].
         """
         batch, seq_len = input_ids.shape
         assert seq_len <= self.config.max_seq_len, \
@@ -130,4 +135,9 @@ class TelosTransformer(nn.Module):
 
         h = self.final_norm(h)
         logits = self.output_projection(h)
+        
+        if return_reliability:
+            r_scores = self.reliability_head(h).squeeze(-1)
+            return logits, r_scores
+            
         return logits

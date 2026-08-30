@@ -111,6 +111,59 @@ def undlm_loss_pytorch(model, clean_targets, vocab_size=8192):
     return torch.mean(per_example_ce * t_weights)
 
 
+def corosred_loss_pytorch(model, clean_targets, vocab_size=8192, k_amb=5, r_weight=1.0):
+    """End-to-End PyTorch loss for COROSred: AR CrossEntropy + Reliability BCE."""
+    B, T = clean_targets.shape
+    device = clean_targets.device
+    
+    # Forward pass (model must return (logits, r_scores))
+    logits, raw_r_scores = model(clean_targets, return_reliability=True)
+    
+    # Shift for causal LM
+    shift_logits = logits[:, :-1, :].contiguous()
+    shift_r_scores = raw_r_scores[:, :-1].contiguous()
+    shift_targets = clean_targets[:, 1:].contiguous()
+    
+    # 1. AR Loss
+    ar_loss = nn.functional.cross_entropy(
+        shift_logits.view(-1, vocab_size).float(),
+        shift_targets.view(-1)
+    )
+    
+    # 2. Reliability Head Loss (BCE)
+    # Find exact matches (argmax)
+    argmax_indices = torch.argmax(shift_logits, dim=-1)
+    is_exact_match = (argmax_indices == shift_targets)
+    
+    # Find top-K
+    # topk returns (values, indices) -> indices is [B, T-1, K]
+    _, top_k_indices = torch.topk(shift_logits, k_amb, dim=-1)
+    expanded_targets = shift_targets.unsqueeze(-1)
+    is_target_in_top_k = (top_k_indices == expanded_targets).any(dim=-1)
+    
+    # Labels for BCE: 1.0 if top-1 matches target, 0.0 otherwise
+    bce_labels = is_exact_match.float()
+    
+    # BCE Loss
+    bce_raw = nn.functional.binary_cross_entropy_with_logits(
+        shift_r_scores, 
+        bce_labels, 
+        reduction="none"
+    )
+    
+    # Mask out ambiguous tokens (in top-K but not top-1)
+    is_ambiguous = is_target_in_top_k & ~is_exact_match
+    valid_mask = (~is_ambiguous).float()
+    
+    masked_bce = bce_raw * valid_mask
+    valid_count = torch.clamp(torch.sum(valid_mask, dim=1), min=1.0, max=float(T - 1))
+    per_example_r_loss = torch.sum(masked_bce, dim=1) / valid_count
+    
+    r_loss = torch.mean(per_example_r_loss)
+    
+    return ar_loss + r_weight * r_loss
+
+
 def detect_device_type(device_str: str | None = None) -> str:
     """Detects hardware type WITHOUT creating any device (safe for SPMD init ordering)."""
     if device_str:
@@ -263,15 +316,14 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     
     # Global batch size: scales with TPU SPMD mesh or multi-GPU CUDA count
     dl_batch_size = train_cfg["batch_size"] * num_devices if (mesh is not None or (device_type == "cuda" and num_devices > 1)) else train_cfg["batch_size"]
-    
+    spmd_tag = "" if mesh is None else " / SPMD"
     if is_master:
         print("\n" + "=" * 80, flush=True)
-        spmd_tag = f" SPMD {num_devices}-chip" if mesh is not None else (f" DataParallel ({num_devices}x GPUs)" if device_type == "cuda" and num_devices > 1 else "")
         print(f"STARTING {paradigm.upper()} TRAINING FOR {stem} (Device: {device} [{device_type.upper()}{spmd_tag}])", flush=True)
         print(f"Steps: {train_cfg['max_steps']} | Global Batch: {dl_batch_size} (={train_cfg['batch_size']}x{num_devices}) | Grad Accum: {train_cfg['gradient_accumulation']} | LR: {train_cfg['max_lr']} | Warmup: {train_cfg['warmup_steps']}", flush=True)
         print("=" * 80, flush=True)
     
-    is_causal = (paradigm.lower() == "ar")
+    is_causal = (paradigm.lower() in ["ar", "corosred"])
     telos_cfg = TelosConfig(
         vocab_size=model_cfg["vocab_size"],
         d_model=model_cfg["d_model"],
@@ -283,9 +335,8 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     )
     model = TelosTransformer(telos_cfg).to(device)
     
-    if src_tier:
-        src_stem = stem.replace(tier, src_tier)
-        p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else "ar")
+    def download_checkpoint():
+        p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else paradigm)
         src_ckpt = f"checkpoints/{p_dir}/{src_tier}/{src_stem}/model.safetensors"
         src_cfg_path = f"configs/unified/{src_tier}/{src_stem}.yaml"
         
@@ -297,6 +348,10 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         else:
             if is_master:
                 print(f"  [Training From Scratch] Source checkpoint not found; initializing {stem} with cold random weights.", flush=True)
+
+    if src_tier:
+        src_stem = stem.replace(tier, src_tier)
+        download_checkpoint()
 
     # Multi-GPU DataParallel for 2x T4 or cloud multi-GPU
     if device_type == "cuda" and torch.cuda.device_count() > 1:
@@ -373,7 +428,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     model.train()
     grad_accum = int(train_cfg["gradient_accumulation"])
     max_steps = int(train_cfg["max_steps"])
-    p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else "ar")
+    p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else paradigm)
     save_dir = Path(f"checkpoints/{p_dir}/{tier}/{stem}")
     if is_master:
         save_dir.mkdir(parents=True, exist_ok=True)
@@ -400,6 +455,8 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
                     shift_logits = logits[:, :-1, :].contiguous()
                     shift_labels = x[:, 1:].contiguous()
                     loss = nn.functional.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+                elif paradigm == "corosred":
+                    loss = corosred_loss_pytorch(model, x, vocab_size=model_cfg["vocab_size"], k_amb=5)
                 elif paradigm == "mdlm":
                     loss = mdlm_loss_pytorch(model, x, mask_token_id=1, vocab_size=model_cfg["vocab_size"])
                 else:
@@ -478,10 +535,10 @@ def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m
     _train_worker(0, paradigm, config_path, src_tier, device=device, device_type=device_type, mesh=mesh)
 
 
-def run_upscaled_suite(ratios: list[str], tier: str = "25m", src_tier: str | None = None, hf_repo: str = "Kazenowoko/telos", device: str | None = None):
+def run_upscaled_suite(ratios: list[str], tier: str = "50m", src_tier: str = "25m", hf_repo: str = "Kazenowoko/telos", device: str = "tpu", target_paradigm: str = "all"):
     """
-    Downloads prerequisites from HuggingFace, trains upscaled models (25M or 50M), and uploads checkpoints.
-    Uses SPMD data-parallel sharding on TPU for full 8-chip utilization.
+    Executes unified upscaling training pipeline across multiple ratios and paradigms, 
+    instantly pushing to Hugging Face when each finishes. Uses SPMD data-parallel sharding on TPU for full 8-chip utilization.
     """
     if src_tier is None:
         src_tier = "25m" if tier == "50m" else "12m"
@@ -524,14 +581,14 @@ def run_upscaled_suite(ratios: list[str], tier: str = "25m", src_tier: str | Non
     from huggingface_hub import HfApi
     api = HfApi(token=os.environ.get("HF_TOKEN"))
     
-    for r in ratios:
-        cfg_path = f"configs/unified/{tier}/telos_{tier}_{r}.yaml"
-        print(f"\n>>>> EXECUTING UNIFIED {tier.upper()} RUN FOR RATIO: {r} (Upscaling from {src_tier}) <<<<", flush=True)
-        for paradigm in ["ar", "mdlm", "undlm"]:
+    config_paths = [f"configs/unified/{tier}/telos_{tier}_{r}.yaml" for r in ratios]
+    for cfg_path in config_paths:
+        paradigms_to_run = ["ar", "corosred", "mdlm", "undlm"] if target_paradigm == "all" else [target_paradigm]
+        for paradigm in paradigms_to_run:
             train_paradigm_pytorch(paradigm=paradigm, config_path=cfg_path, src_tier=src_tier, device=dev_obj, device_type=dev_type, mesh=mesh)
             
-            # Instantly upload individual model to Hugging Face
-            p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else "ar")
+            # Wipe local disk after paradigm finishes to save space
+            p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else paradigm)
             model_dir = Path(f"checkpoints/{p_dir}/{tier}/telos_{tier}_{r}")
             if model_dir.exists() and os.environ.get("HF_TOKEN"):
                 print(f"\n[Instant HF Export] Uploading {model_dir} to {hf_repo}...", flush=True)
@@ -558,6 +615,7 @@ def main():
     parser.add_argument("--ratios", nargs="+", default=None, help="Ratios to train (defaults to 'r1 r35 r40 r45 r50' for 50m, 'r1 r10 r15 r20 r25 r30 r35' for 25m)")
     parser.add_argument("--hf-repo", type=str, default="Kazenowoko/telos", help="Hugging Face Model Repository")
     parser.add_argument("--device", type=str, default="tpu", help="Device to use ('tpu', 'cuda', 'cpu')")
+    parser.add_argument("--paradigm", type=str, default="all", help="Target specific paradigm to train ('all', 'ar', 'corosred', 'mdlm', 'undlm')")
     args = parser.parse_args()
     
     tier = args.tier
@@ -569,7 +627,7 @@ def main():
     if ratios is None:
         ratios = ["r1", "r35", "r40", "r45", "r50"] if tier == "50m" else ["r1", "r10", "r15", "r20", "r25", "r30", "r35"]
 
-    run_upscaled_suite(ratios=ratios, tier=tier, src_tier=src_tier, hf_repo=args.hf_repo, device=args.device)
+    run_upscaled_suite(ratios=ratios, tier=tier, src_tier=src_tier, hf_repo=args.hf_repo, device=args.device, target_paradigm=args.paradigm)
 
 
 if __name__ == "__main__":
