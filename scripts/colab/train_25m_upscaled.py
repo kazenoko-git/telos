@@ -282,14 +282,26 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         src_ckpt = f"checkpoints/{p_dir}/{src_tier}/{src_stem}/model.safetensors"
         src_cfg_path = f"configs/unified/{src_tier}/{src_stem}.yaml"
         
-        # Only upscale from the EXACT corresponding source model; if missing, train strictly from scratch
+        # If exact matching source checkpoint is missing, search for fallback
+        if not Path(src_ckpt).exists():
+            for fallback_r in ["r35", "r30", "r25", "r20", "r15", "r10", "r1"]:
+                fallback_stem = f"telos_{src_tier}_{fallback_r}"
+                fallback_ckpt = f"checkpoints/{p_dir}/{src_tier}/{fallback_stem}/model.safetensors"
+                fallback_cfg = f"configs/unified/{src_tier}/{fallback_stem}.yaml"
+                if Path(fallback_ckpt).exists() and Path(fallback_cfg).exists():
+                    if is_master:
+                        print(f"  [PyTorch Upscaling] {src_stem} not found; using highest available source: {fallback_stem}", flush=True)
+                    src_ckpt = fallback_ckpt
+                    src_cfg_path = fallback_cfg
+                    break
+
         if Path(src_ckpt).exists() and Path(src_cfg_path).exists():
             load_upscaled_weights_pytorch(model, model_cfg, src_ckpt, src_cfg_path)
             if is_master:
-                print(f"  [PyTorch Upscaling] Success: Initialized from exact source {src_stem} with zero-shock RMSNorm parity.", flush=True)
+                print(f"  [PyTorch Upscaling] Success: Initialized from {src_ckpt} with zero-shock RMSNorm parity.", flush=True)
         else:
             if is_master:
-                print(f"  [Training From Scratch] Exact matching source {src_stem} not found; initializing {stem} with cold random weights.", flush=True)
+                print(f"  [Training From Scratch] Source checkpoint not found; initializing {stem} with cold random weights.", flush=True)
 
     # Multi-GPU DataParallel for 2x T4 or cloud multi-GPU
     if device_type == "cuda" and torch.cuda.device_count() > 1:
@@ -326,18 +338,28 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         min_lr=float(train_cfg.get("min_lr", 1e-5))
     )
     
-    dataset_path = Path("data/python_corpus_1.7b.bin")
+    dataset_path = Path("data/python_corpus_2.5b.bin")
+    if not dataset_path.exists():
+        dataset_path = Path("data/python_corpus_1.7b.bin")
     if not dataset_path.exists():
         dataset_path = Path("data/python_corpus_mac.bin")
     if not dataset_path.exists():
-        dataset_path = list(Path("data").glob("*.bin"))[0] if list(Path("data").glob("*.bin")) else Path("data/python_corpus_1.7b.bin")
+        dataset_path = list(Path("data").glob("*.bin"))[0] if list(Path("data").glob("*.bin")) else Path("data/python_corpus_2.5b.bin")
 
     seq_len = model_cfg["seq_len"]
     if dataset_path.exists():
-        num_samples = dataset_path.stat().st_size // (seq_len * 4)
+        file_bytes = dataset_path.stat().st_size
+        if file_bytes % (seq_len * 4) == 0 and "2.5b" not in str(dataset_path):
+            bytes_per_elem = 4
+            np_dtype = np.uint32
+        else:
+            bytes_per_elem = 2
+            np_dtype = np.uint16
+            
+        num_samples = file_bytes // (seq_len * bytes_per_elem)
         if is_master:
-            print(f"  [Dataset] Loading {dataset_path} into memory ({num_samples:,} samples)...", flush=True)
-        dataset_np = np.fromfile(dataset_path, dtype=np.uint32).reshape(num_samples, seq_len)
+            print(f"  [Dataset] Loading {dataset_path} ({np_dtype.__name__}, {num_samples:,} sequences of len {seq_len})...", flush=True)
+        dataset_np = np.fromfile(dataset_path, dtype=np_dtype).reshape(num_samples, seq_len)
     else:
         if is_master:
             print("  [Dataset] Warning: Binary dataset not found; using random samples.", flush=True)
@@ -482,11 +504,14 @@ def train_paradigm_pytorch(paradigm: str, config_path: str, src_tier: str = "12m
     _train_worker(0, paradigm, config_path, src_tier, device=device, device_type=device_type, mesh=mesh)
 
 
-def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", device: str | None = None):
+def run_upscaled_suite(ratios: list[str], tier: str = "25m", src_tier: str | None = None, hf_repo: str = "Kazenowoko/telos", device: str | None = None):
     """
-    Downloads prerequisites from HuggingFace, trains 25M upscaled models, and uploads checkpoints.
+    Downloads prerequisites from HuggingFace, trains upscaled models (25M or 50M), and uploads checkpoints.
     Uses SPMD data-parallel sharding on TPU for full 8-chip utilization.
     """
+    if src_tier is None:
+        src_tier = "25m" if tier == "50m" else "12m"
+
     # Step 1: Detect device type WITHOUT creating any device (critical for SPMD ordering)
     dev_type = detect_device_type(device)
     
@@ -509,15 +534,15 @@ def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", dev
     print(f"Hardware initialization: Device = {dev_obj} ({dev_type.upper()})", flush=True)
 
     print("=" * 85, flush=True)
-    print(f"SYNCING 12.5M SOURCE WEIGHTS & DATASET FROM HUGGINGFACE ({hf_repo})...", flush=True)
+    print(f"SYNCING {src_tier.upper()} SOURCE WEIGHTS & DATASET FROM HUGGINGFACE ({hf_repo})...", flush=True)
     print("=" * 85, flush=True)
     snapshot_download(
         repo_id=hf_repo,
         local_dir="./",
         allow_patterns=[
-            "checkpoints/ar/12m/*",
-            "checkpoints/masked/12m/*",
-            "checkpoints/uniform/12m/*",
+            f"checkpoints/*/{src_tier}/*",
+            f"checkpoints/*/{tier}/*",
+            "data/python_corpus_*.bin",
             "data/python_corpus_1.7b.bin",
             "tokenizer*"
         ]
@@ -527,37 +552,48 @@ def run_full_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos", dev
     api = HfApi(token=os.environ.get("HF_TOKEN"))
     
     for r in ratios:
-        cfg_path = f"configs/unified/25m/telos_25m_{r}.yaml"
-        print(f"\n>>>> EXECUTING UNIFIED 25M RUN FOR RATIO: {r} <<<<", flush=True)
+        cfg_path = f"configs/unified/{tier}/telos_{tier}_{r}.yaml"
+        print(f"\n>>>> EXECUTING UNIFIED {tier.upper()} RUN FOR RATIO: {r} (Upscaling from {src_tier}) <<<<", flush=True)
         for paradigm in ["ar", "mdlm", "undlm"]:
-            train_paradigm_pytorch(paradigm=paradigm, config_path=cfg_path, src_tier="12m", device=dev_obj, device_type=dev_type, mesh=mesh)
+            train_paradigm_pytorch(paradigm=paradigm, config_path=cfg_path, src_tier=src_tier, device=dev_obj, device_type=dev_type, mesh=mesh)
             
             # Instantly upload individual model to Hugging Face
             p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else "ar")
-            model_dir = Path(f"checkpoints/{p_dir}/25m/telos_25m_{r}")
+            model_dir = Path(f"checkpoints/{p_dir}/{tier}/telos_{tier}_{r}")
             if model_dir.exists() and os.environ.get("HF_TOKEN"):
                 print(f"\n[Instant HF Export] Uploading {model_dir} to {hf_repo}...", flush=True)
                 try:
                     api.upload_folder(
                         folder_path=str(model_dir),
-                        path_in_repo=f"checkpoints/{p_dir}/25m/telos_25m_{r}",
+                        path_in_repo=f"checkpoints/{p_dir}/{tier}/telos_{tier}_{r}",
                         repo_id=hf_repo,
                         repo_type="model",
                         allow_patterns=["*.safetensors", "*.json"]
                     )
-                    print(f"[Instant HF Export] Success: {p_dir} telos_25m_{r} is now live on HuggingFace!", flush=True)
+                    print(f"[Instant HF Export] Success: {p_dir} telos_{tier}_{r} is now live on HuggingFace!", flush=True)
                 except Exception as e:
                     print(f"[Instant HF Export] Upload warning: {e}", flush=True)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="25M Upscaling Suite Runner on TPU / Cloud GPU")
-    parser.add_argument("--ratios", nargs="+", default=["r1", "r10", "r15", "r20", "r25", "r30", "r35"], help="Ratios to train (e.g. r1 r10 r15 r20 r25 r30 r35)")
+    parser = argparse.ArgumentParser(description="Universal Upscaling Suite Runner on TPU / Cloud GPU (25M / 50M)")
+    parser.add_argument("--tier", type=str, default="25m", choices=["12m", "25m", "50m"], help="Model parameter tier to train ('25m' or '50m')")
+    parser.add_argument("--src-tier", type=str, default=None, help="Source tier to upscale from (defaults to '25m' for 50m, '12m' for 25m)")
+    parser.add_argument("--ratios", nargs="+", default=None, help="Ratios to train (defaults to 'r1 r35 r40 r45 r50' for 50m, 'r1 r10 r15 r20 r25 r30 r35' for 25m)")
     parser.add_argument("--hf-repo", type=str, default="Kazenowoko/telos", help="Hugging Face Model Repository")
     parser.add_argument("--device", type=str, default="tpu", help="Device to use ('tpu', 'cuda', 'cpu')")
     args = parser.parse_args()
     
-    run_full_25m_suite(ratios=args.ratios, hf_repo=args.hf_repo, device=args.device)
+    tier = args.tier
+    src_tier = args.src_tier
+    if src_tier is None:
+        src_tier = "25m" if tier == "50m" else ("12m" if tier == "25m" else None)
+
+    ratios = args.ratios
+    if ratios is None:
+        ratios = ["r1", "r35", "r40", "r45", "r50"] if tier == "50m" else ["r1", "r10", "r15", "r20", "r25", "r30", "r35"]
+
+    run_upscaled_suite(ratios=ratios, tier=tier, src_tier=src_tier, hf_repo=args.hf_repo, device=args.device)
 
 
 if __name__ == "__main__":
