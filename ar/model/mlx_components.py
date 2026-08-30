@@ -51,33 +51,32 @@ class MLXCausalBlock(nn.Module):
         self.n_kv_heads = n_kv_heads
         self.kv_groups = n_heads // n_kv_heads
 
-        self.q_proj = nn.Linear(d_model, n_heads * self.head_dim, bias=False)
-        self.k_proj = nn.Linear(d_model, n_kv_heads * self.head_dim, bias=False)
-        self.v_proj = nn.Linear(d_model, n_kv_heads * self.head_dim, bias=False)
+        self.qkv_proj = nn.Linear(d_model, (n_heads + 2 * n_kv_heads) * self.head_dim, bias=False)
         self.out = nn.Linear(d_model, d_model, bias=False)
         self.mlp = MLXSwiGLU(d_model)
-        self._mask_cache = {}
+
+        # Precompute QKV split boundaries (static across all forward passes)
+        self._q_end = n_heads * self.head_dim
+        self._k_end = self._q_end + n_kv_heads * self.head_dim
 
     def __call__(self, x):
         B, T, D = x.shape
         h = self.norm1(x)
 
-        q = self.q_proj(h).reshape(B, T, self.n_heads, self.head_dim).transpose(0, 2, 1, 3)
-        k = self.k_proj(h).reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
-        v = self.v_proj(h).reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
+        qkv = self.qkv_proj(h)
+        # Split using precomputed static index boundaries
+        q, k, v = mx.split(qkv, [self._q_end, self._k_end], axis=-1)
+        q = q.reshape(B, T, self.n_heads, self.head_dim).transpose(0, 2, 1, 3)
+        k = k.reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
+        v = v.reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
 
         # Apply hardware-accelerated RoPE Metal kernel
-        q = mx.fast.rope(q, self.head_dim, traditional=False, base=10000.0, scale=1.0, offset=0)
-        k = mx.fast.rope(k, self.head_dim, traditional=False, base=10000.0, scale=1.0, offset=0)
-
-        # Causal Attention Mask: cached lower-triangular mask
-        cache_key = (T, str(q.dtype))
-        if cache_key not in self._mask_cache:
-            self._mask_cache[cache_key] = nn.MultiHeadAttention.create_additive_causal_mask(T).astype(q.dtype)
-        causal_mask = self._mask_cache[cache_key]
+        q = mx.fast.rope(q, self.head_dim, traditional=True, base=10000.0, scale=1.0, offset=0)
+        k = mx.fast.rope(k, self.head_dim, traditional=True, base=10000.0, scale=1.0, offset=0)
 
         scale = 1.0 / (self.head_dim ** 0.5)
-        out = mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=causal_mask)
+        # Native 'causal' string mask avoids materializing T×T attention masks on GPU
+        out = mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask="causal")
         out = out.transpose(0, 2, 1, 3).reshape(B, T, D)
 
         x = x + self.out(out)

@@ -77,7 +77,6 @@ class COROSredBlock(nn.Module):
         self.qkv_proj = nn.Linear(d_model, (n_heads + 2 * n_kv_heads) * self.head_dim, bias=False)
         self.out = nn.Linear(d_model, d_model, bias=False)
         self.mlp = MLXSwiGLU(d_model)
-        self._mask_cache = {}
 
         self._q_end = n_heads * self.head_dim
         self._k_end = self._q_end + n_kv_heads * self.head_dim
@@ -96,16 +95,10 @@ class COROSredBlock(nn.Module):
         q = mx.fast.rope(q, self.head_dim, traditional=False, base=10000.0, scale=1.0, offset=0)
         k = mx.fast.rope(k, self.head_dim, traditional=False, base=10000.0, scale=1.0, offset=0)
 
-        # Build or retrieve lower-triangular causal mask only when in draft mode
-        mask = None
-        if is_causal:
-            cache_key = (T, str(q.dtype))
-            if cache_key not in self._mask_cache:
-                self._mask_cache[cache_key] = nn.MultiHeadAttention.create_additive_causal_mask(T).astype(q.dtype)
-            mask = self._mask_cache[cache_key]
-
         scale = 1.0 / (self.head_dim ** 0.5)
-        out = mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
+        # Use native 'causal' string in draft mode, None (bidirectional) in refine mode
+        mask_arg = "causal" if is_causal else None
+        out = mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask_arg)
         out = out.transpose(0, 2, 1, 3).reshape(B, T, D)
 
         x = x + self.out(out)

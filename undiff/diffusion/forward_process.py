@@ -15,12 +15,12 @@ except ImportError:
 def apply_uniform_noise_mlx(
     input_ids,
     t_values,
-    rand_matrix,
-    noise_tokens,
     vocab_size: int,
     special_token_lut=None,
 ):
     B, T = input_ids.shape
+    rand_matrix = mx.random.uniform(0.0, 1.0, (B, T))
+    noise_tokens = mx.random.randint(0, vocab_size, (B, T))
     raw_corrupt_mask = rand_matrix < t_values
 
     if special_token_lut is not None:

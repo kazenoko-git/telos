@@ -47,8 +47,8 @@ def ar_loss_fn_mlx(model, batch_seqs, vocab_size, special_token_lut=None):
     if special_token_lut is not None:
         shift_target_2d = batch_seqs[:, 1:]
         content_mask = ~special_token_lut[shift_target_2d]
-        ce_per_token = ce_per_token * content_mask.astype(mx.float32)
-        content_count = mx.clip(mx.sum(content_mask.astype(mx.float32), axis=1), 1.0, float(T - 1))
+        ce_per_token = ce_per_token * content_mask
+        content_count = mx.clip(mx.sum(content_mask, axis=1), 1.0, float(T - 1))
         per_example_ce = mx.sum(ce_per_token, axis=1) / content_count
         loss = mx.mean(per_example_ce)
     else:
@@ -175,7 +175,7 @@ class TelosMLXARTrainer:
                 is_first_step=(step == resume_step + 1)
             )
 
-            if True:
+            if step % 50 == 0:
                 mx.clear_cache()
                 import gc
                 gc.collect()

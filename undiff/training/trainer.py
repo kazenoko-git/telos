@@ -114,9 +114,9 @@ class TelosMLXUNDLMTrainer:
         special_lut = self.special_lut
         vocab_size = self.m_cfg["vocab_size"]
         
-        def microbatch_step_uncompiled(batch_seqs, t_vals, rand_matrix, noise_tokens):
+        def microbatch_step_uncompiled(batch_seqs, t_vals):
             noisy_ids, corrupt_mask, t_vals_out = apply_uniform_noise_mlx(
-                batch_seqs, t_vals, rand_matrix, noise_tokens, vocab_size=vocab_size, special_token_lut=special_lut
+                batch_seqs, t_vals, vocab_size=vocab_size, special_token_lut=special_lut
             )
             (loss, ce), grads = loss_and_grad_fn(
                 self.model, noisy_ids, batch_seqs, t_vals_out, vocab_size, special_token_lut=special_lut
@@ -126,9 +126,7 @@ class TelosMLXUNDLMTrainer:
         # Graph trace warmup to compile kernel without polluting AdamW state
         dummy_seqs = mx.random.randint(0, self.m_cfg["vocab_size"], (self.t_cfg["batch_size"], self.m_cfg["seq_len"]))
         dummy_t_vals = mx.clip(mx.array(np.random.beta(1.5, 1.5, size=(self.t_cfg["batch_size"], 1)).astype(np.float32)), 1e-5, 1.0)
-        dummy_rand = mx.random.uniform(0.0, 1.0, (self.t_cfg["batch_size"], self.m_cfg["seq_len"]))
-        dummy_noise = mx.random.randint(0, self.m_cfg["vocab_size"], (self.t_cfg["batch_size"], self.m_cfg["seq_len"]))
-        dummy_loss, dummy_ce, dummy_grads = microbatch_step_uncompiled(dummy_seqs, dummy_t_vals, dummy_rand, dummy_noise)
+        dummy_loss, dummy_ce, dummy_grads = microbatch_step_uncompiled(dummy_seqs, dummy_t_vals)
         mx.eval(dummy_loss, dummy_ce, dummy_grads)
         del dummy_loss, dummy_ce, dummy_grads
 
@@ -152,9 +150,7 @@ class TelosMLXUNDLMTrainer:
                 for i in range(grad_accum):
                     batch_seqs = global_targets[i * bs : (i + 1) * bs]
                     t_vals = mx.clip(mx.array(np.random.beta(1.5, 1.5, size=(bs, 1)).astype(np.float32)), 1e-5, 1.0)
-                    rand_matrix = mx.random.uniform(0.0, 1.0, (bs, self.m_cfg["seq_len"]))
-                    noise_tokens = mx.random.randint(0, self.m_cfg["vocab_size"], (bs, self.m_cfg["seq_len"]))
-                    yield (batch_seqs, t_vals, rand_matrix, noise_tokens)
+                    yield (batch_seqs, t_vals)
 
             accum_loss, accum_ce = execute_mlx_training_step(
                 model=self.model,
@@ -166,7 +162,7 @@ class TelosMLXUNDLMTrainer:
                 is_first_step=(step == resume_step + 1)
             )
 
-            if True:
+            if step % 50 == 0:
                 mx.clear_cache()
                 import gc
                 gc.collect()

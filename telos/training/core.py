@@ -58,8 +58,6 @@ def cast_optimizer_moments_bf16(state_dict: dict) -> dict:
             new_state[k] = v
     return new_state
 
-_COMPILED_OPT_UPDATES = {}
-
 def execute_mlx_training_step(
     model,
     optimizer,
@@ -91,8 +89,6 @@ def execute_mlx_training_step(
         # Evaluate intermediate graph to prevent memory leak during accumulation
         mx.eval(accum_grads, accum_loss, accum_ce)
 
-    opt_id = id(optimizer)
-
     if is_first_step:
         # Fallback to eager update on the first step because we cast AdamW moments
         # to bfloat16 afterwards.
@@ -105,13 +101,14 @@ def execute_mlx_training_step(
         mx.eval(model.parameters(), optimizer.state, accum_loss, accum_ce)
         return accum_loss, accum_ce
 
-    if opt_id not in _COMPILED_OPT_UPDATES:
+    compiled_opt = getattr(optimizer, "_compiled_opt_update", None)
+    if compiled_opt is None:
         def update_fn(grads_inner):
             optimizer.update(model, grads_inner)
             return model.parameters(), optimizer.state
 
         compiled_opt = mx.compile(update_fn, inputs=[model.state, optimizer.state], outputs=[model.state, optimizer.state])
-        _COMPILED_OPT_UPDATES[opt_id] = compiled_opt
+        optimizer._compiled_opt_update = compiled_opt
 
     # Fused accumulation scaling and norm clipping
     if grad_clip > 0.0:
@@ -119,7 +116,7 @@ def execute_mlx_training_step(
     else:
         accum_grads = tree_map(lambda g: g / float(grad_accum), accum_grads)
 
-    _COMPILED_OPT_UPDATES[opt_id](accum_grads)
+    compiled_opt(accum_grads)
     mx.eval(model.parameters(), optimizer.state, accum_loss, accum_ce)
 
     return accum_loss, accum_ce

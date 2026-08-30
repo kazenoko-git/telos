@@ -151,6 +151,21 @@ def load_upscaled_weights(tgt_model, tgt_cfg, src_ckpt_path, src_cfg_path):
     layer_map = get_upscaled_layer_mapping(src_cfg["n_layers"], tgt_cfg["n_layers"])
     print(f"  [Upscaling] Depth mapping (Target <- Source): {layer_map}")
     
+    head_dim_src = src_cfg["d_model"] // src_cfg["n_heads"]
+    head_dim_tgt = tgt_cfg["d_model"] // tgt_cfg["n_heads"]
+    q_dim_src = src_cfg["n_heads"] * head_dim_src
+    k_dim_src = src_cfg["n_kv_heads"] * head_dim_src
+    v_dim_src = src_cfg["n_kv_heads"] * head_dim_src
+
+    q_dim_tgt = tgt_cfg["n_heads"] * head_dim_tgt
+    k_dim_tgt = tgt_cfg["n_kv_heads"] * head_dim_tgt
+    v_dim_tgt = tgt_cfg["n_kv_heads"] * head_dim_tgt
+
+    hidden_tgt = int(tgt_cfg["d_model"] * 8 / 3)
+    hidden_tgt = ((hidden_tgt + 63) // 64) * 64
+    hidden_src = int(src_cfg["d_model"] * 8 / 3)
+    hidden_src = ((hidden_src + 63) // 64) * 64
+
     for tgt_i, src_i in enumerate(layer_map):
         prefix_src = f"layers.{src_i}."
         prefix_tgt = f"layers.{tgt_i}."
@@ -158,19 +173,40 @@ def load_upscaled_weights(tgt_model, tgt_cfg, src_ckpt_path, src_cfg_path):
         tgt_weights[prefix_tgt + "norm1.weight"] = pad_weight(src_weights[prefix_src + "norm1.weight"], (tgt_cfg["d_model"],), is_norm=True)
         tgt_weights[prefix_tgt + "norm2.weight"] = pad_weight(src_weights[prefix_src + "norm2.weight"], (tgt_cfg["d_model"],), is_norm=True)
         
-        tgt_weights[prefix_tgt + "q_proj.weight"] = pad_weight(src_weights[prefix_src + "q_proj.weight"], (tgt_cfg["n_heads"] * (tgt_cfg["d_model"] // tgt_cfg["n_heads"]), tgt_cfg["d_model"]))
-        tgt_weights[prefix_tgt + "k_proj.weight"] = pad_weight(src_weights[prefix_src + "k_proj.weight"], (tgt_cfg["n_kv_heads"] * (tgt_cfg["d_model"] // tgt_cfg["n_heads"]), tgt_cfg["d_model"]))
-        tgt_weights[prefix_tgt + "v_proj.weight"] = pad_weight(src_weights[prefix_src + "v_proj.weight"], (tgt_cfg["n_kv_heads"] * (tgt_cfg["d_model"] // tgt_cfg["n_heads"]), tgt_cfg["d_model"]))
+        # Support both fused qkv_proj and legacy separate q_proj, k_proj, v_proj
+        if prefix_src + "qkv_proj.weight" in src_weights:
+            qkv_src = src_weights[prefix_src + "qkv_proj.weight"]
+            q_src = qkv_src[:q_dim_src, :]
+            k_src = qkv_src[q_dim_src : q_dim_src + k_dim_src, :]
+            v_src = qkv_src[q_dim_src + k_dim_src :, :]
+        else:
+            q_src = src_weights[prefix_src + "q_proj.weight"]
+            k_src = src_weights[prefix_src + "k_proj.weight"]
+            v_src = src_weights[prefix_src + "v_proj.weight"]
+
+        padded_q = pad_weight(q_src, (q_dim_tgt, tgt_cfg["d_model"]))
+        padded_k = pad_weight(k_src, (k_dim_tgt, tgt_cfg["d_model"]))
+        padded_v = pad_weight(v_src, (v_dim_tgt, tgt_cfg["d_model"]))
+        tgt_weights[prefix_tgt + "qkv_proj.weight"] = mx.concatenate([padded_q, padded_k, padded_v], axis=0)
+
         tgt_weights[prefix_tgt + "out.weight"] = pad_weight(src_weights[prefix_src + "out.weight"], (tgt_cfg["d_model"], tgt_cfg["d_model"]))
         
-        hidden_tgt = int(tgt_cfg["d_model"] * 8 / 3)
-        hidden_tgt = ((hidden_tgt + 63) // 64) * 64
-        hidden_src = int(src_cfg["d_model"] * 8 / 3)
-        hidden_src = ((hidden_src + 63) // 64) * 64
-        
-        tgt_weights[prefix_tgt + "mlp.w1.weight"] = pad_weight(src_weights[prefix_src + "mlp.w1.weight"], (hidden_tgt, tgt_cfg["d_model"]))
-        tgt_weights[prefix_tgt + "mlp.w2.weight"] = pad_weight(src_weights[prefix_src + "mlp.w2.weight"], (hidden_tgt, tgt_cfg["d_model"]))
+        if prefix_src + "mlp.w1.weight" in src_weights:
+            tgt_weights[prefix_tgt + "mlp.w1.weight"] = pad_weight(src_weights[prefix_src + "mlp.w1.weight"], (hidden_tgt, tgt_cfg["d_model"]))
+            tgt_weights[prefix_tgt + "mlp.w2.weight"] = pad_weight(src_weights[prefix_src + "mlp.w2.weight"], (hidden_tgt, tgt_cfg["d_model"]))
+        elif prefix_src + "mlp.gate_up.weight" in src_weights:
+            gate_up = src_weights[prefix_src + "mlp.gate_up.weight"]
+            tgt_weights[prefix_tgt + "mlp.w1.weight"] = pad_weight(gate_up[:hidden_src, :], (hidden_tgt, tgt_cfg["d_model"]))
+            tgt_weights[prefix_tgt + "mlp.w2.weight"] = pad_weight(gate_up[hidden_src:, :], (hidden_tgt, tgt_cfg["d_model"]))
+
         tgt_weights[prefix_tgt + "mlp.w3.weight"] = pad_weight(src_weights[prefix_src + "mlp.w3.weight"], (tgt_cfg["d_model"], hidden_tgt))
+
+    if hasattr(tgt_model, "reliability_head") and "reliability_head.net.0.weight" in src_weights:
+        r_hidden_tgt = tgt_cfg["d_model"]
+        tgt_weights["reliability_head.net.0.weight"] = pad_weight(src_weights["reliability_head.net.0.weight"], (r_hidden_tgt, tgt_cfg["d_model"]))
+        tgt_weights["reliability_head.net.0.bias"] = pad_weight(src_weights["reliability_head.net.0.bias"], (r_hidden_tgt,))
+        tgt_weights["reliability_head.net.2.weight"] = pad_weight(src_weights["reliability_head.net.2.weight"], (1, r_hidden_tgt))
+        tgt_weights["reliability_head.net.2.bias"] = src_weights["reliability_head.net.2.bias"]
 
     tgt_model.load_weights(list(tgt_weights.items()), strict=False)
     print("  [Upscaling] Success: Initialized model with upscaled weights.")
