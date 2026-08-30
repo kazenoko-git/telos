@@ -126,7 +126,7 @@ def corosred_loss_pytorch(model, clean_targets, vocab_size=8192, k_amb=5, r_weig
     
     # 1. AR Loss
     ar_loss = nn.functional.cross_entropy(
-        shift_logits.view(-1, vocab_size).float(),
+        shift_logits.view(-1, vocab_size),
         shift_targets.view(-1)
     )
     
