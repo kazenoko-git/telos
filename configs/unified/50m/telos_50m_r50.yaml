@@ -1,0 +1,41 @@
+# télos Unified 3-Paradigm Config: 50M Model, 1:50 Ratio (~2.46B tokens)
+# Architecture: 50M Parameters (d_model=512, n_layers=14, n_heads=8, n_kv_heads=8, seq_len=512)
+
+model:
+  vocab_size: 8192
+  d_model: 512
+  n_layers: 14
+  n_heads: 8
+  n_kv_heads: 8
+  seq_len: 512
+
+training:
+  total_tokens: 2458342400   # ~2.46B tokens (1:50 ratio)
+  max_lr: 8e-4
+  min_lr: 8e-5
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+  precision: bf16
+  gradient_checkpointing: true
+
+  # Device-specific hardware execution profiles
+  tpu:
+    batch_size: 32
+    gradient_accumulation: 1
+    num_devices: 8
+  mac:
+    batch_size: 16
+    gradient_accumulation: 16
+    num_devices: 1
+  gpu:
+    batch_size: 16
+    gradient_accumulation: 16
+    num_devices: 1
+  lightning:
+    batch_size: 32
+    gradient_accumulation: 4
+    num_devices: 1
+
+checkpoint:
+  dir: checkpoints/50m/telos_50m_r50
+  save_every_steps: 150
