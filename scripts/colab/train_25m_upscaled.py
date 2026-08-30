@@ -446,19 +446,22 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
                 import torch_xla.core.xla_model as xm
                 xm.mark_step()
                 
-        if device_type != "tpu":
-            if scaler.is_enabled():
-                scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            
+        # Perform gradient clipping and optimizer step across all device backends
         if device_type == "tpu":
             import torch_xla.core.xla_model as xm
+            # Reduce gradients across SPMD mesh / TPU replicas prior to norm clipping
+            xm.reduce_gradients(optimizer)
+            # Clip gradient norm to 1.0 to prevent training divergence & NaN weight explosion
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             xm.optimizer_step(optimizer)
             xm.mark_step()
         elif scaler.is_enabled():
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             scaler.step(optimizer)
             scaler.update()
         else:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             
         scheduler.step()
