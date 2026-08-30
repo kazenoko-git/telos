@@ -283,19 +283,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         src_ckpt = f"checkpoints/{p_dir}/{src_tier}/{src_stem}/model.safetensors"
         src_cfg_path = f"configs/unified/{src_tier}/{src_stem}.yaml"
         
-        # If exact matching source checkpoint is missing, search for fallback
-        if not Path(src_ckpt).exists():
-            for fallback_r in ["r35", "r30", "r25", "r20", "r15", "r10", "r1"]:
-                fallback_stem = f"telos_{src_tier}_{fallback_r}"
-                fallback_ckpt = f"checkpoints/{p_dir}/{src_tier}/{fallback_stem}/model.safetensors"
-                fallback_cfg = f"configs/unified/{src_tier}/{fallback_stem}.yaml"
-                if Path(fallback_ckpt).exists() and Path(fallback_cfg).exists():
-                    if is_master:
-                        print(f"  [PyTorch Upscaling] {src_stem} not found; using highest available source: {fallback_stem}", flush=True)
-                    src_ckpt = fallback_ckpt
-                    src_cfg_path = fallback_cfg
-                    break
-
+        # Strict matching enforced: no fallback to lower ratios.
         if Path(src_ckpt).exists() and Path(src_cfg_path).exists():
             load_upscaled_weights_pytorch(model, model_cfg, src_ckpt, src_cfg_path)
             if is_master:

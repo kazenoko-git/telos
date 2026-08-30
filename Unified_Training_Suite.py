@@ -246,13 +246,7 @@ def train_pytorch(paradigm, config_path, upscale_from_tier=None, device_type="cu
         src_ckpt = f"checkpoints/{p_dir}/{upscale_from_tier}/{src_stem}/model.safetensors"
         src_cfg = f"configs/unified/{upscale_from_tier}/{src_stem}.yaml"
         if not Path(src_ckpt).exists():
-            fallback_stem = f"telos_{upscale_from_tier}_r25"
-            fallback_ckpt = f"checkpoints/{p_dir}/{upscale_from_tier}/{fallback_stem}/model.safetensors"
-            fallback_cfg = f"configs/unified/{upscale_from_tier}/{fallback_stem}.yaml"
-            if Path(fallback_ckpt).exists() and Path(fallback_cfg).exists():
-                print(f"  [Upscaling] {src_stem} not found; using highest available source: {fallback_stem}")
-                src_ckpt = fallback_ckpt
-                src_cfg = fallback_cfg
+            print(f"  [Training From Scratch] Source {src_stem} not found. Initializing with cold random weights.")
         if Path(src_ckpt).exists():
             load_upscaled_pytorch(model, m_cfg, src_ckpt, src_cfg)
 
@@ -371,13 +365,7 @@ def train_mlx(paradigm, config_path, upscale_from_tier=None):
         src_ckpt = f"checkpoints/{p_dir}/{upscale_from_tier}/{src_stem}/model.safetensors"
         src_cfg = f"configs/unified/{upscale_from_tier}/{src_stem}.yaml"
         if not Path(src_ckpt).exists():
-            fallback_stem = f"telos_{upscale_from_tier}_r25"
-            fallback_ckpt = f"checkpoints/{p_dir}/{upscale_from_tier}/{fallback_stem}/model.safetensors"
-            fallback_cfg = f"configs/unified/{upscale_from_tier}/{fallback_stem}.yaml"
-            if Path(fallback_ckpt).exists() and Path(fallback_cfg).exists():
-                print(f"  [Upscaling] {src_stem} not found; using highest available source: {fallback_stem}")
-                src_ckpt = fallback_ckpt
-                src_cfg = fallback_cfg
+            print(f"  [Training From Scratch] Source {src_stem} not found. Initializing with cold random weights.")
         if Path(src_ckpt).exists():
             load_upscaled_weights(model, p_cfg["model"], src_ckpt, src_cfg)
 
