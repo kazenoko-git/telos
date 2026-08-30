@@ -544,10 +544,9 @@ def run_upscaled_suite(ratios: list[str], tier: str = "25m", src_tier: str | Non
         repo_id=hf_repo,
         local_dir="./",
         allow_patterns=[
-            f"checkpoints/*/{src_tier}/*",
-            f"checkpoints/*/{tier}/*",
+            f"checkpoints/*/{src_tier}/*/model.safetensors",
+            f"checkpoints/*/{src_tier}/*/config.json",
             "data/python_corpus_*.bin",
-            "data/python_corpus_1.7b.bin",
             "tokenizer*"
         ]
     )

@@ -101,7 +101,7 @@ def sync_hf_assets(hf_repo="Kazenowoko/telos"):
         print(f"Syncing prerequisites from Hugging Face ({hf_repo})...")
         try:
             from huggingface_hub import snapshot_download
-            snapshot_download(repo_id=hf_repo, local_dir="./", allow_patterns=["checkpoints/ar/12m/*", "checkpoints/masked/12m/*", "checkpoints/uniform/12m/*", "data/python_corpus_1.7b.bin", "tokenizer*"])
+            snapshot_download(repo_id=hf_repo, local_dir="./", allow_patterns=["checkpoints/ar/12m/*/model.safetensors", "checkpoints/ar/12m/*/config.json", "checkpoints/masked/12m/*/model.safetensors", "checkpoints/masked/12m/*/config.json", "checkpoints/uniform/12m/*/model.safetensors", "checkpoints/uniform/12m/*/config.json", "data/python_corpus_1.7b.bin", "tokenizer*"])
             print("HF sync complete!")
         except Exception as e:
             print(f"HF sync notice: {e}")

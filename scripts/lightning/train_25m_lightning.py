@@ -483,9 +483,12 @@ def run_lightning_25m_suite(ratios: list[str], hf_repo: str = "Kazenowoko/telos"
         repo_id=hf_repo,
         local_dir="./",
         allow_patterns=[
-            "checkpoints/ar/12m/*",
-            "checkpoints/masked/12m/*",
-            "checkpoints/uniform/12m/*",
+            "checkpoints/ar/12m/*/model.safetensors",
+            "checkpoints/ar/12m/*/config.json",
+            "checkpoints/masked/12m/*/model.safetensors",
+            "checkpoints/masked/12m/*/config.json",
+            "checkpoints/uniform/12m/*/model.safetensors",
+            "checkpoints/uniform/12m/*/config.json",
             "data/python_corpus_1.7b.bin",
             "tokenizer*"
         ]
