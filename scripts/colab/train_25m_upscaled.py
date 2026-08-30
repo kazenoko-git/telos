@@ -581,26 +581,27 @@ def run_upscaled_suite(ratios: list[str], tier: str = "50m", src_tier: str = "25
     from huggingface_hub import HfApi
     api = HfApi(token=os.environ.get("HF_TOKEN"))
     
-    config_paths = [f"configs/unified/{tier}/telos_{tier}_{r}.yaml" for r in ratios]
-    for cfg_path in config_paths:
+    for r in ratios:
+        cfg_path = f"configs/unified/{tier}/telos_{tier}_{r}.yaml"
+        stem = f"telos_{tier}_{r}"
         paradigms_to_run = ["ar", "corosred", "mdlm", "undlm"] if target_paradigm == "all" else [target_paradigm]
         for paradigm in paradigms_to_run:
             train_paradigm_pytorch(paradigm=paradigm, config_path=cfg_path, src_tier=src_tier, device=dev_obj, device_type=dev_type, mesh=mesh)
             
             # Wipe local disk after paradigm finishes to save space
             p_dir = "masked" if paradigm == "mdlm" else ("uniform" if paradigm == "undlm" else paradigm)
-            model_dir = Path(f"checkpoints/{p_dir}/{tier}/telos_{tier}_{r}")
+            model_dir = Path(f"checkpoints/{p_dir}/{tier}/{stem}")
             if model_dir.exists() and os.environ.get("HF_TOKEN"):
                 print(f"\n[Instant HF Export] Uploading {model_dir} to {hf_repo}...", flush=True)
                 try:
                     api.upload_folder(
                         folder_path=str(model_dir),
-                        path_in_repo=f"checkpoints/{p_dir}/{tier}/telos_{tier}_{r}",
+                        path_in_repo=f"checkpoints/{p_dir}/{tier}/{stem}",
                         repo_id=hf_repo,
                         repo_type="model",
                         allow_patterns=["*.safetensors", "*.json"]
                     )
-                    print(f"[Instant HF Export] Success: {p_dir} telos_{tier}_{r} is now live on HuggingFace!", flush=True)
+                    print(f"[Instant HF Export] Success: {p_dir} {stem} is now live on HuggingFace!", flush=True)
                     # Purge local checkpoint directory to free TPU disk storage for subsequent runs
                     shutil.rmtree(str(model_dir), ignore_errors=True)
                     print(f"[Storage Cleanup] Deleted {model_dir} to reclaim disk space.", flush=True)
