@@ -294,14 +294,10 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     # Multi-GPU DataParallel for 2x T4 or cloud multi-GPU
     if device_type == "cuda" and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
-    elif device_type == "tpu" and hasattr(torch, "compile"):
-        try:
-            model = torch.compile(model, backend="openxla")
-            if is_master:
-                print("  [OpenXLA] torch.compile(model, backend='openxla') activated for graph fusion.", flush=True)
-        except Exception as e:
-            if is_master:
-                print(f"  [OpenXLA] Info: Native XLA execution active ({e}).", flush=True)
+    # NOTE: torch.compile(backend='openxla') is intentionally NOT used.
+    # XLA lazy tensors already perform full graph tracing and fusion via xm.mark_step().
+    # Layering torch.compile on top creates redundant compiled graph buffers that
+    # consume ~2-4 GB extra HBM per chip, causing OOM on v5e (16GB HBM).
         
     decay_params = []
     nodecay_params = []
@@ -350,13 +346,15 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     num_samples = len(dataset_np)
     
     # On TPU, stage the dataset tensor directly into HBM to eliminate CPU host indexing & PCIe communication bottleneck
+    # Uses int16 (vocab_size=8192 fits in 16 bits) to halve HBM footprint: ~3.4 GB vs ~6.8 GB at int32
     use_hbm_dataset = (device_type == "tpu")
     dataset_hbm = None
     if use_hbm_dataset:
         try:
+            hbm_gb = num_samples * seq_len * 2 / (1024**3)  # 2 bytes per token (int16)
             if is_master:
-                print(f"  [TPU HBM Staging] Moving dataset directly to TPU HBM ({num_samples * seq_len * 4 / (1024**3):.2f} GB) to eliminate CPU host bottleneck...", flush=True)
-            dataset_hbm = torch.from_numpy(dataset_np.astype(np.int32)).to(device)
+                print(f"  [TPU HBM Staging] Moving dataset to TPU HBM as int16 ({hbm_gb:.2f} GB) to eliminate CPU host bottleneck...", flush=True)
+            dataset_hbm = torch.from_numpy(dataset_np.astype(np.int16)).to(device)
             if mesh is not None:
                 import torch_xla.distributed.spmd as xs
                 xs.mark_sharding(dataset_hbm, mesh, (None, None))  # Fully replicated across all TPU chips
