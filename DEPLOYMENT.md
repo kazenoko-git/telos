@@ -61,14 +61,23 @@ uv run python scripts/shared/generate_probe_graphs.py
 ## 4. Training Pipelines & Benchmarking
 
 ### Option A: Google Cloud / Kaggle TPU v5e-8 (PyTorch-XLA SPMD)
-To train 25M upscaled or 12.5M models across all 8 TPU cores using single-process SPMD data-parallel sharding:
-1. **Execute Full 3-Paradigm 25M Suite via Script**:
+To train upscaled models across all 8 TPU cores using single-process SPMD data-parallel sharding:
+
+1. **Build Large 2.5B Token Corpus (Single-Pass for 50M 1:50 Ratio)**:
    ```bash
-   python scripts/colab/train_25m_upscaled.py --ratios r1 r10 r15 r20 r25 r30 r35 --hf-repo Kazenowoko/telos --device tpu
+   python scripts/shared/build_tokenized_corpus.py --output data/python_corpus_2.5b.bin --tokens 2500000000 --dtype uint16
    ```
-   *Performance Note*: The training engine automatically stages the dataset directly into TPU HBM (`~1.6 GB`), eliminating CPU-side gather bottlenecks. Logging and step synchronization use asynchronous step closures (`xm.add_step_closure`) to maintain continuous MXU pipeline saturation.
-2. **Or Execute Interactively in Kaggle / Colab**:
-   Open [`notebooks/shared/Unified_Training_Suite.ipynb`](notebooks/shared/Unified_Training_Suite.ipynb) which automatically detects the TPU environment, initializes the SPMD 8-chip mesh, and distributes global batches without multi-process forking.
+
+2. **Execute Full 3-Paradigm 50M Upscaled Suite (1:1, 1:35, 1:40, 1:45, 1:50)**:
+   ```bash
+   python scripts/colab/train_25m_upscaled.py --tier 50m --src-tier 25m --device tpu --hf-repo Kazenowoko/telos
+   ```
+   *Performance Note*: The training engine automatically stages the dataset directly into TPU HBM (`~3.4 GB` in `uint16`), eliminating CPU-side gather bottlenecks. Logging and step synchronization use asynchronous step closures (`xm.add_step_closure`) to maintain continuous MXU pipeline saturation (>1,000,000 tok/s).
+
+3. **Execute Full 3-Paradigm 25M Upscaled Suite**:
+   ```bash
+   python scripts/colab/train_25m_upscaled.py --tier 25m --src-tier 12m --device tpu --hf-repo Kazenowoko/telos
+   ```
 
 ### Option B: Kaggle & Cloud Multi-GPU Training (2x Tesla T4 / CUDA DataParallel)
 To train on Kaggle (GPU T4 x2) or cloud NVIDIA GPUs with multi-GPU parallelization:
