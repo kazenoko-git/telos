@@ -306,11 +306,14 @@ def train_pytorch(paradigm, config_path, upscale_from_tier=None, device_type="cu
                     loss = undlm_loss_pytorch(model, x, vocab_size=m_cfg["vocab_size"])
                 loss = loss / grad_accum
             loss.backward()
-        if device_type != "tpu":
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         if device_type == "tpu":
+            # Reduce across TPU replicas and clip gradient norm to prevent explosion
+            xm.reduce_gradients(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             xm.optimizer_step(optimizer)
+            xm.mark_step()
         else:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
         scheduler.step()
         if step % 20 == 0 or step == max_steps or step <= 5:
