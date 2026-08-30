@@ -360,7 +360,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
         num_samples = file_bytes // (seq_len * bytes_per_elem)
         if is_master:
             print(f"  [Dataset] Loading {dataset_path} ({np_dtype.__name__}, {num_samples:,} sequences of len {seq_len})...", flush=True)
-        dataset_np = np.fromfile(dataset_path, dtype=np_dtype).reshape(num_samples, seq_len)
+        dataset_np = np.fromfile(dataset_path, dtype=np_dtype, count=num_samples * seq_len).reshape(num_samples, seq_len)
     else:
         if is_master:
             print("  [Dataset] Warning: Binary dataset not found; using random samples.", flush=True)
