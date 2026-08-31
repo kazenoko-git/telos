@@ -262,6 +262,36 @@ def load_upscaled_weights_pytorch(tgt_model: nn.Module, tgt_cfg: dict, src_ckpt_
     if "model_state_dict" in src_state:
         src_state = src_state["model_state_dict"]
         
+    # Adapt MLX naming conventions to PyTorch if source was trained in MLX
+    if any("norm1.weight" in k or "qkv_proj.weight" in k for k in src_state.keys()):
+        adapted_state = {}
+        for k, v in src_state.items():
+            if k == "emb.weight": adapted_state["tok_embeddings.weight"] = v
+            elif k == "norm.weight": adapted_state["final_norm.weight"] = v
+            elif k == "head.weight": adapted_state["output_projection.weight"] = v
+            elif ".norm1.weight" in k: adapted_state[k.replace(".norm1.weight", ".attn_norm.weight")] = v
+            elif ".norm2.weight" in k: adapted_state[k.replace(".norm2.weight", ".mlp_norm.weight")] = v
+            elif ".out.weight" in k: adapted_state[k.replace(".out.weight", ".attn.out_proj.weight")] = v
+            elif ".mlp.w1.weight" in k: adapted_state[k] = v
+            elif ".mlp.w2.weight" in k: adapted_state[k.replace(".mlp.w2.weight", ".mlp.v.weight")] = v
+            elif ".mlp.w3.weight" in k: adapted_state[k.replace(".mlp.w3.weight", ".mlp.w2.weight")] = v
+            elif ".qkv_proj.weight" in k:
+                # In Telos MLX, qkv_proj is concatenated [q, k, v]
+                # For 12M source: d_model=256, n_heads=4, n_kv_heads=4, d_head=64
+                d_head = 64
+                n_heads = v.shape[0] // d_head // 3  # Dynamically determine heads (e.g. 256/64/3 is roughly wrong if not 3 parts, wait. q=256, k=256, v=256 -> 768. 768/64/3 = 4).
+                q_dim = n_heads * d_head
+                q = v[:q_dim]
+                k = v[q_dim:q_dim*2]
+                v_proj = v[q_dim*2:]
+                prefix = k.replace(".qkv_proj.weight", ".attn")
+                adapted_state[f"{prefix}.q_proj.weight"] = q
+                adapted_state[f"{prefix}.k_proj.weight"] = k
+                adapted_state[f"{prefix}.v_proj.weight"] = v_proj
+            else:
+                adapted_state[k] = v
+        src_state = adapted_state
+        
     tgt_state = tgt_model.state_dict()
     for k, tgt_tensor in tgt_state.items():
         if "layers." in k:
