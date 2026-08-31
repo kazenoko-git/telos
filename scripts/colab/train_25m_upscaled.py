@@ -299,8 +299,9 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     with open(config_path) as f:
         cfg = yaml.safe_load(f)
         
-    stem = Path(config_path).stem
-    tier = "25m" if "25m" in stem else "12m"
+    cfg_p = Path(config_path)
+    stem = cfg_p.stem
+    tier = cfg_p.parent.name if cfg_p.parent.name in ["12m", "25m", "50m", "100m"] else ("100m" if "100m" in stem else ("50m" if "50m" in stem else ("25m" if "25m" in stem else "12m")))
     model_cfg = cfg["model"]
     train_cfg = resolve_training_params(cfg, device_type)
     
