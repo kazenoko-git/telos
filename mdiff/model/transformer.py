@@ -137,7 +137,7 @@ class TelosTransformer(nn.Module):
         logits = self.output_projection(h)
         
         if return_reliability:
-            r_scores = self.reliability_head(h).squeeze(-1)
+            r_scores = self.reliability_head(h.detach()).squeeze(-1)
             return logits, r_scores
             
         return logits
