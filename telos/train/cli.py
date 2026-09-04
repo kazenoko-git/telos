@@ -8,8 +8,8 @@ import argparse
 from pathlib import Path
 
 from telos.configs import build_config
-from telos.models import TelosTransformer, MLXTelosTransformer
-from telos.training import UnifiedMLXTrainer, UnifiedPyTorchTrainer
+from telos.models import TelosTransformer
+from telos.training import UnifiedPyTorchTrainer
 
 
 def train(
@@ -90,6 +90,10 @@ def train(
     print("=" * 76)
 
     if backend == "mlx":
+        # Defer MLX imports so non-Apple-Silicon environments don't resolve MLX
+        from telos.models import MLXTelosTransformer
+        from telos.training import UnifiedMLXTrainer
+
         model = MLXTelosTransformer(
             vocab_size=m_cfg.get("vocab_size", 8192),
             d_model=m_cfg.get("d_model", 512),
@@ -97,6 +101,7 @@ def train(
             n_heads=m_cfg.get("n_heads", 16),
             n_kv_heads=m_cfg.get("n_kv_heads", None),
             is_causal=is_causal,
+            use_reliability_head=bool(m_cfg.get("use_reliability_head", paradigm.lower() == "corosred")),
             use_grad_checkpoint=t_cfg.get("gradient_checkpointing", False) or m_cfg.get("use_grad_checkpoint", False)
         )
         trainer = UnifiedMLXTrainer(paradigm=paradigm, model=model, cfg=cfg, eval_policy=eval_policy)
