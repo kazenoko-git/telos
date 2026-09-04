@@ -65,7 +65,8 @@ def execute_mlx_training_step(
     batch_iterator,
     grad_accum: int,
     grad_clip: float,
-    is_first_step: bool
+    is_first_step: bool,
+    eval_every_microbatch: bool = False
 ):
     accum_grads = None
     accum_loss = mx.array(0.0, dtype=mx.float32)
@@ -86,8 +87,11 @@ def execute_mlx_training_step(
         accum_loss = accum_loss + loss
         accum_ce = accum_ce + ce
         
-        # Evaluate intermediate graph to prevent memory leak during accumulation
-        mx.eval(accum_grads, accum_loss, accum_ce)
+        # On memory-constrained devices (<24GB RAM), evaluate intermediate graph
+        # to prevent activation memory leak during gradient accumulation.
+        # On high-RAM devices (>=36GB RAM), skip intermediate eval to keep Metal pipeline saturated.
+        if eval_every_microbatch:
+            mx.eval(accum_grads, accum_loss, accum_ce)
 
     if is_first_step:
         # Fallback to eager update on the first step because we cast AdamW moments

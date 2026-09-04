@@ -58,71 +58,56 @@ uv run python scripts/shared/generate_probe_graphs.py
 
 ---
 
-## 4. Training Pipelines & Benchmarking
+## 4. Unified Training Pipelines & Hardware Modularity
 
-### Option A: Google Cloud / Kaggle TPU v5e-8 (PyTorch-XLA SPMD)
-To train upscaled models across all 8 TPU cores using single-process SPMD data-parallel sharding:
+The single entry point for all training, evaluation, and benchmarking is `scripts/train.py`. The engine automatically detects available hardware and scales execution.
 
-1. **Build Large 2.5B Token Corpus (Single-Pass for 50M 1:50 Ratio)**:
-   ```bash
-   python scripts/shared/build_tokenized_corpus.py --output data/python_corpus_2.5b.bin --tokens 2500000000 --dtype uint16
-   ```
+### Hardware Modularity & Auto-Scaling
 
-2. **Execute Full 3-Paradigm 50M Upscaled Suite (1:1, 1:35, 1:40, 1:45, 1:50)**:
-   ```bash
-   python scripts/colab/train_25m_upscaled.py --tier 50m --src-tier 25m --device tpu --hf-repo Kazenowoko/telos
-   ```
-   *Performance Note*: The training engine automatically stages the dataset directly into TPU HBM (`~3.4 GB` in `uint16`), eliminating CPU-side gather bottlenecks. Logging and step synchronization use asynchronous step closures (`xm.add_step_closure`) to maintain continuous MXU pipeline saturation (>1,000,000 tok/s).
+| Hardware Target | Examples | Auto-Detected Behaviors |
+| :--- | :--- | :--- |
+| **Apple Silicon (MLX)** | M1–M4/M5 (16GB, 24GB, 36GB, 64GB, 128GB+) | Dynamically adjusts `mx.eval()` frequency based on unified memory. Low RAM (<24GB) uses eager microbatch evaluation; High RAM (>=36GB) disables intermediate graph syncs for maximum Metal throughput. |
+| **NVIDIA CUDA Multi-GPU** | 1×–8× GPUs (2× T4, 4× RTX PRO 6000, 8× A100/H100) | Auto-detects device count, wraps model in multi-GPU parallelization, auto-selects `bf16` (Ampere/Ada/Hopper) or `fp16` + `GradScaler` (Turing/T4). |
+| **Google Cloud TPU (PyTorch-XLA)** | v3e-8, v5e-8, v6e-1, v6e-16 | Auto-detects `xm.xrt_world_size()`, shards dataset streaming across TPU cores, coordinates cross-core all-reduce via `xm.optimizer_step()`. |
 
-3. **Execute Full 3-Paradigm 25M Upscaled Suite**:
-   ```bash
-   python scripts/colab/train_25m_upscaled.py --tier 25m --src-tier 12m --device tpu --hf-repo Kazenowoko/telos
-   ```
+---
 
-### Option B: Kaggle & Cloud Multi-GPU Training (2x Tesla T4 / CUDA DataParallel)
-To train on Kaggle (GPU T4 x2) or cloud NVIDIA GPUs with multi-GPU parallelization:
-1. **Set Accelerator to `GPU T4 x2` and toggle Internet ON** in Kaggle notebook settings.
-2. **Execute via CLI**:
-   ```bash
-   git clone https://github.com/kazenoko-git/telos.git
-   cd telos
-   pip install -q safetensors huggingface_hub pyyaml einops tokenizers
-   python scripts/colab/train_25m_upscaled.py --device cuda --ratios r1 r10 --hf-repo Kazenowoko/telos
-   ```
-   *Note*: The training engine automatically detects `2x T4 GPUs`, scales the global batch size, wraps the model in `torch.nn.DataParallel`, and uses `FP16` + `GradScaler` for maximum Turing Tensor Core throughput.
+### Running Training via Unified CLI
 
-### Option B: Local Apple Silicon Unified Training (MLX)
-To train all three paradigms under identical configurations locally via MLX:
 ```bash
-jupyter notebook notebooks/shared/Unified_Training_Suite.ipynb
+# 1. Apple Silicon (MLX) - Local Training
+uv run python scripts/train.py --paradigm mdlm --backend mlx --config configs/unified/25m/telos_25m_r10.yaml
+
+# 2. NVIDIA Multi-GPU (CUDA) - e.g., 4x RTX PRO 6000 or 2x T4
+python scripts/train.py --paradigm undlm --backend pytorch --device cuda --config configs/unified/50m/telos_50m_r35.yaml
+
+# 3. Cloud TPU Pod (PyTorch-XLA) - e.g., v5e-8 or v6e-16
+python scripts/train.py --paradigm ar --backend pytorch --device xla --config configs/unified/100m/telos_100m_r1.yaml
+
+# 4. COROSred 2-Phase Training (Phase A: Reliability Head; Phase B: MDLM)
+python scripts/train.py --paradigm corosred --phase A --backend mlx --config configs/corosred/phase_a.yaml
+python scripts/train.py --paradigm corosred --phase B --backend mlx --config configs/corosred/phase_b.yaml
 ```
 
-### Option C: Throughput & Optimization Benchmark Suite
-To test steps/sec, tokens/sec, and memory footprint across model scales (5M–100M) and batch sizes:
+---
+
+### Hardware Throughput Benchmark Mode (--benchmark)
+
+Run an immediate throughput benchmark that automatically measures steps/second, tokens/second, step latency, and memory footprint:
+
 ```bash
-jupyter notebook notebooks/shared/Optimization_Test_Suite.ipynb
-# Or run standalone CLI:
-python scripts/shared/run_optimization_suite.py
+# Run a 5-minute benchmark on local Apple Silicon
+uv run python scripts/train.py --paradigm mdlm --backend mlx --config configs/unified/25m/telos_25m_r10.yaml --benchmark
+
+# Run a benchmark on multi-GPU CUDA or TPU
+python scripts/train.py --paradigm undlm --backend pytorch --device cuda --config configs/unified/50m/telos_50m_r35.yaml --benchmark
 ```
 
-### Option D: Lightning AI TPU v6e-1 Trillium (PyTorch-XLA Single-Chip 32GB HBM)
-To train 25M upscaled models on Lightning AI single-chip TPU v6e:
-1. **Connect via SSH to Lightning AI Studio and run bootstrap**:
-   ```bash
-   git clone https://github.com/kazenoko-git/telos.git
-   cd telos
-   bash scripts/lightning/setup.sh
-   ```
-2. **Execute 25M 3-Paradigm Training Pipeline**:
-   ```bash
-   export HF_TOKEN="your_huggingface_token"
-   python scripts/lightning/train_25m_lightning.py --ratios r15 r20 r25 r30 r35 --hf_repo Kazenowoko/telos
-   ```
+> **Benchmark Guarantees:**
+> - Runs for **at most 5 minutes** (300s) before terminating cleanly.
+> - Bypasses checkpoint disk I/O overhead.
+> - Automatically outputs a structured performance summary and saves metrics to `logs/benchmark_<paradigm>_<backend>.json`.
 
-### Option E: Paradigm-Specific Local Notebooks
-- **Masked Discrete Diffusion (MDLM)**: `notebooks/masked/Training_Suites.ipynb`
-- **Uniform Noise Diffusion (UNDLM)**: `notebooks/uniform/Training_Suites.ipynb`
-- **Autoregressive Baseline (AR)**: `notebooks/ar/Training_Suites.ipynb`
 
 
 ---
