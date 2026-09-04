@@ -106,7 +106,7 @@ class UnifiedMLXTrainer:
             if self.phase == "A":
                 k_amb = self.crsr_cfg.get("k_amb", 5)
                 loss_and_grad_fn = mx_nn.value_and_grad(self.model, crsr_phase_a_loss_fn_mlx)
-                compilation_targets = [self.model.reliability_head.state]
+                compilation_targets = [self.model.state]
                 
                 def microbatch_step_uncompiled(batch_seqs):
                     (loss, ce), grads = loss_and_grad_fn(self.model, batch_seqs, vocab_size, special_token_lut=special_lut, k_amb=k_amb)
@@ -190,14 +190,24 @@ class UnifiedMLXTrainer:
         print(f"  Saved benchmark metrics to {report_file}\n")
 
     def train(self, resume_step: int = 0, benchmark: bool = False, benchmark_duration: float = 300.0):
-        train_bin = Path("data/python_corpus_mac.bin")
-        if train_bin.exists():
+        d_cfg = self.cfg.get("data", {})
+        train_path = d_cfg.get("train_path", d_cfg.get("dataset_path", d_cfg.get("path", None)))
+        use_synthetic = d_cfg.get("synthetic", False)
+
+        train_bin = Path(train_path) if train_path else Path("data/python_corpus_mac.bin")
+        if not train_bin.exists() and train_path is None:
+            train_bin = Path("data/python_corpus.bin")
+        if not train_bin.exists() and train_path is None:
+            train_bin = Path("data/python_corpus_2.5b.bin")
+
+        if train_bin.exists() and not use_synthetic and (self.vocab_size >= 1024 or train_path is not None):
             print(f"  Loading pre-tokenized dataset from {train_bin}...")
-            raw_data = np.memmap(train_bin, dtype=np.int32, mode="r")
+            dtype = np.int32 if "mac" in str(train_bin) else np.uint16
+            raw_data = np.memmap(train_bin, dtype=dtype, mode="r")
             n_seqs = len(raw_data) // self.seq_len
             dataset_matrix = raw_data[:n_seqs * self.seq_len].reshape(n_seqs, self.seq_len)
         else:
-            print("  Notice: Pre-tokenized dataset file not found. Generating synthetic stream...")
+            print("  Notice: Using synthetic dataset stream...")
             dataset_matrix = np.random.randint(0, self.vocab_size, (10000, self.seq_len), dtype=np.uint16)
 
         max_steps = int(self.t_cfg.get("max_steps", 5000))
