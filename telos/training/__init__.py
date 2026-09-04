@@ -3,14 +3,17 @@ from .dataloader import (
     get_global_targets_contiguous,
     get_global_targets_contiguous_pytorch,
 )
-from .lr_schedule import WarmupCosineLR
-from .trainer_pytorch import UnifiedPyTorchTrainer
 from .hardware import (
     HardwareProfile,
     detect_apple_silicon_profile,
     detect_cuda_profile,
     detect_tpu_profile,
 )
+
+_TORCH_EXPORTS = {
+    "UnifiedPyTorchTrainer": ".trainer_pytorch",
+    "WarmupCosineLR": ".lr_schedule",
+}
 
 def __getattr__(name: str):
     if name == "UnifiedMLXTrainer":
@@ -21,6 +24,16 @@ def __getattr__(name: str):
             raise ImportError(
                 "UnifiedMLXTrainer requires 'mlx', which is not available in this environment. "
                 "Install it on Apple Silicon via `pip install 'telos[mlx]'`."
+            ) from err
+    if name in _TORCH_EXPORTS:
+        try:
+            import importlib
+            mod = importlib.import_module(_TORCH_EXPORTS[name], __package__)
+            return getattr(mod, name)
+        except ImportError as err:
+            raise ImportError(
+                f"{name} requires 'torch', which is not available in this environment. "
+                "Install it via `pip install torch`."
             ) from err
     if name in ("clip_grad_norm_mlx", "execute_mlx_training_step", "cast_optimizer_moments_bf16"):
         from . import core
