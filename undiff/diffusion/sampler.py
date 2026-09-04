@@ -5,9 +5,6 @@ Key Distinction from MDLM:
 - MDLM unmasks tokens monotonically (once unmasked, permanently locked).
 - UNDLM maintains full sequence representations and performs iterative 
   Self-Correction: at every denoising step, all positions are re-evaluated.
-  If a token chosen in an earlier step is inconsistent with newly resolved 
-  bidirectional context, its lower confidence allows the model to revise and
-  self-correct the token into the globally optimal syntax.
 """
 
 import math
@@ -22,7 +19,7 @@ except ImportError:
 
 
 class UNDLMSampler:
-    """Self-correcting iterative denoising sampler for Uniform Noise Discrete DLMs."""
+    # Self-correcting iterative denoising sampler for Uniform Noise Discrete DLMs.
 
     def __init__(
         self,
@@ -51,16 +48,6 @@ class UNDLMSampler:
             return 1.0 - progress
 
     def sample(self, seq_len: int, prompt_ids=None) -> "mx.array":
-        """
-        Generates a sequence via iterative self-corrective denoising.
-        
-        Args:
-            seq_len: Total length of the sequence to generate.
-            prompt_ids: Optional prefix prompt array [1, prompt_len].
-            
-        Returns:
-            mx.array of token IDs of shape [1, seq_len].
-        """
         if not MLX_AVAILABLE:
             raise ImportError("MLX is required for MLX UNDLMSampler.")
 
@@ -96,11 +83,7 @@ class UNDLMSampler:
             else:
                 if self.mode == "self_correction":
                     # --- Self-Correction Sampling ---
-                    # In self-correction, we dynamically determine which positions need revision.
-                    # As t decreases (t_next -> 0), the confidence threshold increases.
-                    # Positions whose confidence exceeds the threshold adopt their clean prediction.
-                    # Positions with low confidence or previous errors are re-sampled/self-corrected.
-                    
+                
                     # Confidence threshold evolves inversely with noise:
                     # At t=1.0, threshold is low (explore), at t=0, threshold is high (lock).
                     conf_threshold = (1.0 - t_next) * 0.85
