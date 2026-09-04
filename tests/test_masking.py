@@ -2,8 +2,7 @@
 
 import torch
 import pytest
-from mdiff.diffusion.forward_process import apply_masking
-from mdiff.diffusion.loss import mdlm_loss
+from telos.diffusion.mdlm import apply_masking, mdlm_loss
 
 
 def test_t_distribution_and_mask_ratio():

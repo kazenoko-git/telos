@@ -1,8 +1,8 @@
 """Unit tests for model parameter counting and architecture contracts."""
 
 import torch
-from mdiff.model.transformer import TelosTransformer, TelosConfig
-from mdiff.model.param_counter import count_parameters, verify_with_model
+from telos.models.transformer import TelosTransformer, TelosConfig
+from telos.models.param_counter import count_parameters, verify_with_model
 
 
 def test_parameter_count_matching():

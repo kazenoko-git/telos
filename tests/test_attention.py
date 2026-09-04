@@ -6,7 +6,7 @@ Directly tests that attention is NOT causal:
 """
 
 import torch
-from mdiff.model.transformer import TelosTransformer, TelosConfig
+from telos.models import TelosTransformer, TelosConfig
 
 
 def test_attention_is_bidirectional():

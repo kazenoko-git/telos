@@ -1,8 +1,8 @@
 """Unit test suite for iterative unmasking samplers."""
 
 import torch
-from mdiff.model.transformer import TelosTransformer, TelosConfig
-from mdiff.diffusion.sampler import MDLMSampler
+from telos.models import TelosTransformer, TelosConfig
+from telos.diffusion.sampler import MDLMSampler
 
 
 def test_standard_mdlm_sampler_cosine():
