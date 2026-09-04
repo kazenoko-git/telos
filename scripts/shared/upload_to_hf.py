@@ -48,20 +48,22 @@ def upload_telos_to_hub(repo_id: str, token: str | None = None, include_checkpoi
         )
         print("  Uploaded configs/unified/")
         
-    # 3. Upload 12.5M Source Checkpoints
+    # 3. Upload Local Checkpoints (across all paradigms: ar, masked, uniform, corosred, and tiers: 12m, 25m, 50m, 100m)
     if include_checkpoints:
-        print("\n[3/3] Uploading 12.5M Checkpoints across AR, MDLM, and UNDLM...")
-        for paradigm in ["ar", "masked", "uniform"]:
-            ckpt_12m_dir = project_root / "checkpoints" / paradigm / "12m"
-            if ckpt_12m_dir.exists():
-                print(f"  Uploading checkpoints/{paradigm}/12m/...")
-                api.upload_folder(
-                    folder_path=str(ckpt_12m_dir),
-                    path_in_repo=f"checkpoints/{paradigm}/12m",
-                    repo_id=repo_id,
-                    repo_type="model",
-                    allow_patterns=["*.safetensors", "*.json"]
-                )
+        print("\n[3/3] Uploading Checkpoints to Hugging Face...")
+        ckpt_root = project_root / "checkpoints"
+        if ckpt_root.exists():
+            for p in ["ar", "masked", "uniform", "corosred"]:
+                p_dir = ckpt_root / p
+                if p_dir.exists():
+                    print(f"  Scanning and uploading checkpoints/{p}/...")
+                    api.upload_folder(
+                        folder_path=str(p_dir),
+                        path_in_repo=f"checkpoints/{p}",
+                        repo_id=repo_id,
+                        repo_type="model",
+                        allow_patterns=["*.safetensors", "*.json"]
+                    )
                 
     # 4. Upload Model Card / README
     readme_content = f"""---

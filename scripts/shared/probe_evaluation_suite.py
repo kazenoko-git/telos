@@ -18,6 +18,7 @@ import sys
 import math
 import ast
 import json
+import yaml
 import time
 import difflib
 from pathlib import Path
@@ -85,6 +86,79 @@ def load_tokenizer_global():
     return load_tokenizer(str(tok_path))
 
 
+def adapt_weights_for_mlx(weights: dict, tied_embeddings: bool = True) -> dict:
+    """Adapts checkpoint state_dict from either PyTorch or MLX formats to MLX model structure."""
+    is_pytorch = any(".attn." in k or ".mlp.v." in k or "tok_embeddings" in k for k in weights.keys())
+    if not is_pytorch:
+        # Check if legacy q/k/v merging is needed (older MLX checkpoints)
+        merged = {}
+        qkv_cache = {}
+        for k, v in weights.items():
+            if ".q_proj." in k or ".k_proj." in k or ".v_proj." in k:
+                prefix = k.split(".q_proj.")[0] if ".q_proj." in k else (k.split(".k_proj.")[0] if ".k_proj." in k else k.split(".v_proj.")[0])
+                if prefix not in qkv_cache:
+                    qkv_cache[prefix] = {"q": None, "k": None, "v": None}
+                if ".q_proj." in k: qkv_cache[prefix]["q"] = v
+                if ".k_proj." in k: qkv_cache[prefix]["k"] = v
+                if ".v_proj." in k: qkv_cache[prefix]["v"] = v
+            else:
+                merged[k] = v
+        for prefix, proj in qkv_cache.items():
+            if proj["q"] is not None and proj["k"] is not None and proj["v"] is not None:
+                merged[f"{prefix}.qkv_proj.weight"] = mx.concatenate([proj["q"], proj["k"], proj["v"]], axis=0)
+        return merged
+
+    # PyTorch format translation
+    mlx_weights = {}
+    qkv_cache = {}
+    for k, v in weights.items():
+        if k == "tok_embeddings.weight":
+            mlx_weights["emb.weight"] = v
+        elif k == "final_norm.weight":
+            mlx_weights["norm.weight"] = v
+        elif k == "output_projection.weight":
+            if not tied_embeddings:
+                mlx_weights["head.weight"] = v
+        elif ".attn_norm.weight" in k:
+            layer_idx = k.split(".")[1]
+            mlx_weights[f"layers.{layer_idx}.norm1.weight"] = v
+        elif ".mlp_norm.weight" in k:
+            layer_idx = k.split(".")[1]
+            mlx_weights[f"layers.{layer_idx}.norm2.weight"] = v
+        elif ".attn.out_proj.weight" in k:
+            layer_idx = k.split(".")[1]
+            mlx_weights[f"layers.{layer_idx}.out.weight"] = v
+        elif ".attn.q_proj.weight" in k:
+            layer_idx = k.split(".")[1]
+            if layer_idx not in qkv_cache: qkv_cache[layer_idx] = {}
+            qkv_cache[layer_idx]["q"] = v
+        elif ".attn.k_proj.weight" in k:
+            layer_idx = k.split(".")[1]
+            if layer_idx not in qkv_cache: qkv_cache[layer_idx] = {}
+            qkv_cache[layer_idx]["k"] = v
+        elif ".attn.v_proj.weight" in k:
+            layer_idx = k.split(".")[1]
+            if layer_idx not in qkv_cache: qkv_cache[layer_idx] = {}
+            qkv_cache[layer_idx]["v"] = v
+        elif ".mlp.w1.weight" in k:
+            layer_idx = k.split(".")[1]
+            mlx_weights[f"layers.{layer_idx}.mlp.w1.weight"] = v
+        elif ".mlp.v.weight" in k:
+            layer_idx = k.split(".")[1]
+            mlx_weights[f"layers.{layer_idx}.mlp.w2.weight"] = v
+        elif ".mlp.w2.weight" in k:
+            layer_idx = k.split(".")[1]
+            mlx_weights[f"layers.{layer_idx}.mlp.w3.weight"] = v
+        else:
+            mlx_weights[k] = v
+
+    for layer_idx, proj in qkv_cache.items():
+        if "q" in proj and "k" in proj and "v" in proj:
+            mlx_weights[f"layers.{layer_idx}.qkv_proj.weight"] = mx.concatenate([proj["q"], proj["k"], proj["v"]], axis=0)
+
+    return mlx_weights
+
+
 def load_model(paradigm: str, ckpt_dir: Path):
     """Loads a model checkpoint for a given paradigm.
     
@@ -101,7 +175,11 @@ def load_model(paradigm: str, ckpt_dir: Path):
         raise FileNotFoundError(f"Model weights not found: {weights_path}")
     
     with open(config_path) as f:
-        cfg = json.load(f)
+        try:
+            cfg = json.load(f)
+        except Exception:
+            f.seek(0)
+            cfg = yaml.safe_load(f)
     
     if paradigm == "ar":
         model = MLXCausalTransformer(**cfg)
@@ -109,7 +187,12 @@ def load_model(paradigm: str, ckpt_dir: Path):
         # Both MDLM and UNDLM use the same bidirectional transformer architecture
         model = MLXTelosTransformer(**cfg)
     
-    model.load_weights(str(weights_path), strict=False)
+    # Load raw weights dictionary and adapt across PyTorch/MLX schemas
+    raw_weights = dict(mx.load(str(weights_path)))
+    tied_embeddings = cfg.get("tied_embeddings", True)
+    adapted_weights = adapt_weights_for_mlx(raw_weights, tied_embeddings=tied_embeddings)
+
+    model.load_weights(list(adapted_weights.items()), strict=False)
     model.set_dtype(mx.bfloat16)
     mx.eval(model.parameters())
     return model
@@ -159,45 +242,60 @@ def discover_checkpoints():
 # SINGLE-STEP DISTRIBUTION-ALIGNED PROBE EVALUATION
 # ============================================================================
 
+def get_probe_target_token_id(tokenizer, probe: dict) -> int:
+    """Accurately extracts the target token ID that immediately succeeds the prompt.
+    
+    Handles BPE leading space nuances, punctuation boundaries, and prefix continuations
+    without unconditionally prepending spaces.
+    """
+    prompt = probe["prompt"]
+    target = probe["target"]
+    target_bpe = probe.get("target_bpe", target)
+
+    # Determine continuation string based on whether BPE token expects leading whitespace
+    if target_bpe.startswith("Ġ") or target_bpe.startswith(" "):
+        full_text = prompt + " " + target.lstrip()
+    else:
+        full_text = prompt + target
+
+    prompt_ids = tokenizer.encode(prompt).ids
+    full_ids = tokenizer.encode(full_text).ids
+
+    # If full text encodings cleanly extend prompt tokens, take the exact next token
+    if len(full_ids) > len(prompt_ids) and full_ids[:len(prompt_ids)] == prompt_ids:
+        return full_ids[len(prompt_ids)]
+    else:
+        # Fallback to direct token encoding
+        raw_target_ids = tokenizer.encode(target if not target_bpe.startswith("Ġ") else " " + target).ids
+        if len(raw_target_ids) > 0:
+            return raw_target_ids[0]
+        return tokenizer.token_to_id(target) or 0
+
+
 def evaluate_single_step(model, tokenizer, paradigm: str):
     """Evaluates 100 single-step contextual probes with distribution-aligned protocols.
     
     Protocols:
-      - AR: Forward prompt_ids, read logits at position -1
-      - MDLM: Pad to 512 with [MASK], read logits at target_pos (right after prompt)
-      - UNDLM: Pad to 512 with random tokens, marginalize over K=32 noise draws
+      - AR: Forward prompt_ids, read causal logits at position -1
+      - MDLM: Forward prompt + [MASK], read predicted distribution at target_pos (avoiding 500 contiguous mask padding)
+      - UNDLM: Forward prompt + random token, marginalized over K=16 noise draws
     
     Returns:
         dict with overall_ce, overall_rank, top1_acc, top5_acc, categories
     """
     vocab_size = 8192
     mask_token_id = tokenizer.token_to_id("[MASK]") or 1
-    SEQ_LEN = 512
 
     ce_list, rank_list, top1_list, top5_list = [], [], [], []
     cat_metrics = {}
 
     for probe in PROBE_SUITE_100:
         prompt_ids = tokenizer.encode(probe["prompt"]).ids
-        target_pos = len(prompt_ids)  # Position of the target token
+        target_pos = len(prompt_ids)  # Target index to query logits
+        target_id = get_probe_target_token_id(tokenizer, probe)
 
-        if paradigm == "uniform":
-            # UNDLM: pad to 512 with random tokens, marginalize K=32 draws
-            K = 32
-            all_probs = []
-            for _ in range(K):
-                seq = list(prompt_ids) + [int(x) for x in np.random.randint(0, vocab_size, size=SEQ_LEN - len(prompt_ids))]
-                seq = seq[:SEQ_LEN]
-                logits = model(mx.array([seq], dtype=mx.int32))
-                p = nn.softmax(logits[0, target_pos].astype(mx.float32), axis=-1)
-                mx.eval(p)
-                all_probs.append(p)
-            probs_mx = mx.mean(mx.stack(all_probs), axis=0)
-            mx.eval(probs_mx)
-            probs = probs_mx.tolist()
-
-        elif paradigm == "ar":
-            # AR: causal, no padding needed
+        if paradigm == "ar":
+            # Autoregressive: causal next-token query at sequence end
             seq_mx = mx.array([prompt_ids], dtype=mx.int32)
             logits = model(seq_mx)
             raw = logits[0, -1].astype(mx.float32).tolist()
@@ -205,30 +303,41 @@ def evaluate_single_step(model, tokenizer, paradigm: str):
             mx.eval(probs_mx)
             probs = probs_mx.tolist()
 
-        else:
-            # MDLM: pad to 512 with [MASK] tokens
-            seq_ids = list(prompt_ids) + [mask_token_id] * (SEQ_LEN - len(prompt_ids))
-            seq_ids = seq_ids[:SEQ_LEN]
-            seq_mx = mx.array([seq_ids], dtype=mx.int32)
-            logits = model(seq_mx)
+        elif paradigm == "masked":
+            # MDLM: Query single mask token placed directly at target position
+            seq_ids = list(prompt_ids) + [mask_token_id]
+            logits = model(mx.array([seq_ids], dtype=mx.int32))
             raw = logits[0, target_pos].astype(mx.float32).tolist()
+            # Invalidate predicting [MASK] as actual token
             raw[mask_token_id] = -1e9
             probs_mx = nn.softmax(mx.array(raw), axis=-1)
             mx.eval(probs_mx)
             probs = probs_mx.tolist()
 
-        # Resolve target token ID (handles BPE leading-space tokens)
-        target_ids_space = tokenizer.encode(" " + probe["target"]).ids
-        target_id = target_ids_space[0] if len(target_ids_space) > 0 else tokenizer.token_to_id(probe.get("target_bpe", probe["target"]))
-        if target_id is None:
-            target_id = tokenizer.token_to_id(probe["target"])
+        else:
+            # UNDLM: Query single random noise token placed at target position, marginalized over K=16 draws
+            K = 16
+            all_probs = []
+            for _ in range(K):
+                rand_tok = int(np.random.randint(0, vocab_size))
+                seq = list(prompt_ids) + [rand_tok]
+                logits = model(mx.array([seq], dtype=mx.int32))
+                p = nn.softmax(logits[0, target_pos].astype(mx.float32), axis=-1)
+                all_probs.append(p)
+            probs_mx = mx.mean(mx.stack(all_probs), axis=0)
+            mx.eval(probs_mx)
+            probs = probs_mx.tolist()
 
-        # Compute rank and CE
-        sorted_ids = sorted(range(len(probs)), key=lambda i: probs[i], reverse=True)
+        # Compute rank and cross-entropy against true target token ID (with numerical safeguards)
+        sorted_ids = sorted(range(len(probs)), key=lambda i: (probs[i] if not (math.isnan(probs[i]) or math.isinf(probs[i])) else -1e9), reverse=True)
         if target_id is not None and target_id < len(probs):
             rank = sorted_ids.index(target_id) + 1
-            p_target = max(probs[target_id], 1e-9)
-            ce = -math.log(p_target)
+            p_target = probs[target_id]
+            if math.isnan(p_target) or math.isinf(p_target) or p_target <= 1e-9:
+                ce = 15.0
+                rank = 9999
+            else:
+                ce = -math.log(p_target)
         else:
             rank = 9999
             ce = 15.0
