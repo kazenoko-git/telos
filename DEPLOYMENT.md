@@ -1,197 +1,186 @@
-# DEPLOYMENT — télos (τέλος) MDLM & UNDLM
+# DEPLOYMENT — télos (τέλος) PyPI Package & CLI Guide
 
-This document details how to set up, reproduce, train, evaluate, and deploy **τέλος** — a Discrete Diffusion Language Model for Python code autocomplete and non-monotonic generation (supporting both Masked Discrete Diffusion and Uniform Noise Diffusion paradigms).
-
----
-
-## 1. Model Scaling & Hardware Specifications
-
-| Suite | Model Size | Architecture | Vocab / Context | Backend | Hardware Target |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **12M Suite** | **~12.5 Million** | 13L, $d=256$, 4 Heads | 8,192 BPE / 512 | MLX / PyTorch-XLA / CUDA | Apple Silicon / TPU / CUDA GPU |
-| **25M Suite** | **~26.1 Million** | 13L, $d=384$, 6 Heads | 8,192 BPE / 512 | MLX / PyTorch-XLA / CUDA | Apple Silicon / TPU / CUDA GPU |
-| **50M Suite** | **~50 Million** | 13L, $d=512$, 8 Heads | 8,192 BPE / 512 | MLX / PyTorch-XLA / CUDA | Apple Silicon / TPU / CUDA GPU |
+This document details how to install, prepare data, train, evaluate, benchmark, and deploy **τέλος** — a Discrete Diffusion & Autoregressive Language Modeling package for Python code autocomplete and non-monotonic generation.
 
 ---
 
-## 2. Environment Setup
+## 1. Installation
 
-### Prerequisites
-- Python >= 3.10
-- `uv` package manager (`curl -LsSf https://ast.sh/uv/install.sh | sh`)
+Install Télos directly via `pip` or `uv`:
 
-### Installation & Dependencies
+```bash
+# Install from source (or PyPI wheel)
+pip install telos
+
+# Or with uv
+uv pip install telos
+```
+
+For local development in editable mode:
 ```bash
 git clone https://github.com/kazenoko-git/telos.git
 cd telos
 uv sync
+uv pip install -e .
 ```
 
-For Universal Training via Notebooks:
-Open [`notebooks/shared/Unified_Training_Suite.ipynb`](notebooks/shared/Unified_Training_Suite.ipynb) which automatically detects MLX (Apple Silicon), PyTorch XLA (Google Cloud/Kaggle TPU v5e/v6e), or PyTorch CUDA (NVIDIA GPUs), syncing dataset/tokenizer and weights from Hugging Face automatically.
-
-### For Apple Silicon (MLX Metal GPU Acceleration & Unified Memory)
+Verify installation:
 ```bash
-uv pip install mlx tokenizers torch pyyaml
-```
-
-> **Memory Footprint & Unified Memory Optimization (< 6GB Target):**
-> - **12.5M Suite**: Runs natively in `~4.9–5.3 GB` peak memory without gradient checkpointing (`~87k tok/s`).
-> - **25M Suite**: Set `gradient_checkpointing: true` (or `use_grad_checkpoint: true` under `model:`) in config YAMLs. This reduces transient activation memory from `~7.0–7.4 GB` down to `~1.75–2.34 GB` peak (`~49k tok/s`), guaranteeing safe execution well within 6GB Unified Memory limits.
-> - **Inference**: Samplers execute confidence margin and top-$k$ unmasking directly in Metal kernels, avoiding high-bandwidth host-to-device transfers.
-
----
-
-## 3. Data Preparation & Tokenization
-
-Prepare the tokenized dataset matrix before executing training runs:
-
-```bash
-# 1. Prepare raw python corpus
-uv run python scripts/shared/prepare_data.py --config configs/masked/25m/phase_b_25m_1to40_mlx.yaml
-
-# 2. Generate publication-quality probe scaling curves
-uv run python scripts/shared/generate_probe_graphs.py
+telos --help
 ```
 
 ---
 
----
+## 2. Master CLI Overview (`telos <command>`)
 
-## 4. Unified Training Pipelines & Hardware Modularity
+Télos provides a unified command line interface with 5 core commands:
 
-The single entry point for all training, evaluation, and benchmarking is `scripts/train.py`. The engine automatically detects available hardware and scales execution.
-
-### Hardware Modularity & Auto-Scaling
-
-| Hardware Target | Examples | Auto-Detected Behaviors |
+| Command | Module | Description |
 | :--- | :--- | :--- |
-| **Apple Silicon (MLX)** | M1–M4/M5 (16GB, 24GB, 36GB, 64GB, 128GB+) | Dynamically adjusts `mx.eval()` frequency based on unified memory. Low RAM (<24GB) uses eager microbatch evaluation; High RAM (>=36GB) disables intermediate graph syncs for maximum Metal throughput. |
-| **NVIDIA CUDA Multi-GPU** | 1×–8× GPUs (2× T4, 4× RTX PRO 6000, 8× A100/H100) | Auto-detects device count, wraps model in multi-GPU parallelization, auto-selects `bf16` (Ampere/Ada/Hopper) or `fp16` + `GradScaler` (Turing/T4). |
-| **Google Cloud TPU (PyTorch-XLA)** | v3e-8, v5e-8, v6e-1, v6e-16 | Auto-detects `xm.xrt_world_size()`, shards dataset streaming across TPU cores, coordinates cross-core all-reduce via `xm.optimizer_step()`. |
+| **`telos dataprep`** | `telos.dataprep` | High-efficiency data processing for raw text, code directories, JSONL, or Hugging Face datasets into chunked binary memory-mapped arrays (`.bin`). |
+| **`telos train`** | `telos.train` | Zero-config dimensional model trainer (AR, MDLM, UNDLM, COROSred Phase A & B, custom). No YAML config required. |
+| **`telos eval`** | `telos.eval` | High-end evaluation suite with 100 contextual probes across 8 categories, target CE, average rank, and qualitative code sampling. |
+| **`telos bench`** | `telos.bench` | Dedicated throughput, latency, and memory benchmark engine strictly capped at at most 5 minutes. |
+| **`telos test`** | `telos.testing` | Unified test suite verifying model contracts, causality, losses, and samplers. |
 
 ---
 
-### Running Training via Unified CLI
+## 3. Zero-Config Dimensional Training (`telos train`)
+
+**No YAML configs required.** The user directly specifies the fundamental training dimensions from the command line:
+
+### The 6 Fundamental Training Dimensions
+
+1. **Amount of Parameters**: `--params` (e.g. `12M`, `25M`, `50M`, `100M`, `500M`, or raw integer). An analytical geometry solver automatically computes optimal $(d_{\text{model}}, n_{\text{layers}}, n_{\text{heads}})$.
+2. **Amount of Training Tokens**: `--tokens` (e.g. `2.5B`, `300M`, `50M`). Total steps are automatically calculated from effective batch tokens per step (or pass `--max-steps`).
+3. **Batch Size**: `--effective-batch` (sequences or token count) with automatic gradient accumulation calculation, OR direct `--batch-size` + `--grad-accum`.
+4. **Tokenizer**: `--tokenizer` (path to custom JSON, Hugging Face model, or default) with automatic `--vocab-size` inference.
+5. **Hardware Target**: `--hardware` (`auto`, `mlx`, `cuda`, `mps`, `xla`, `cpu`). Auto-detects Apple Silicon Metal, NVIDIA GPUs, or Cloud TPUs.
+6. **Hardware Count**: `--devices` (e.g. `1`, `4`, `8`, or `auto` for all available devices).
+
+### Automatic Training Dynamics
+- **Max LR**: Auto-scaled with model width: $\text{max\_lr} = 6.0 \times 10^{-4} \times \sqrt{256 / d_{\text{model}}}$.
+- **Min LR**: Auto-calculated as $0.1 \times \text{max\_lr}$ (standard cosine floor).
+- **Warmup Steps**: Auto-calculated as $\max(50, \min(2000, 0.02 \times \text{max\_steps}))$.
+- **Weight Decay**: Default $0.1$.
+*(All overridable via `--max-lr`, `--min-lr`, `--warmup-steps`, `--weight-decay`)*
+
+### Checkpoint Controls
+- `--checkpoint-dir`: Storage directory (default: `checkpoints/<paradigm>`).
+- `--save-every`: Save checkpoint cadence in steps (default: auto-calculated as $10\%$ of steps).
+
+### CLI Training Examples
 
 ```bash
-# 1. Apple Silicon (MLX) - Local Training
-uv run python scripts/train.py --paradigm mdlm --backend mlx --config configs/unified/25m/telos_25m_r10.yaml
+# 1. Train a 25M MDLM model on 300M tokens on Apple Silicon (MLX)
+telos train --paradigm mdlm --params 25M --tokens 300M --effective-batch 32
 
-# 2. NVIDIA Multi-GPU (CUDA) - e.g., 4x RTX PRO 6000 or 2x T4
-python scripts/train.py --paradigm undlm --backend pytorch --device cuda --config configs/unified/50m/telos_50m_r35.yaml
+# 2. Train a 50M UNDLM model on 4x NVIDIA GPUs (CUDA)
+telos train --paradigm undlm --params 50M --tokens 500M --hardware cuda --devices 4
 
-# 3. Cloud TPU Pod (PyTorch-XLA) - e.g., v5e-8 or v6e-16
-python scripts/train.py --paradigm ar --backend pytorch --device xla --config configs/unified/100m/telos_100m_r1.yaml
+# 3. Train COROSred 2-Phase Model
+telos train --paradigm corosred --phase A --params 12M --tokens 50M
+telos train --paradigm corosred --phase B --params 12M --tokens 100M
 
-# 4. COROSred 2-Phase Training (Phase A: Reliability Head; Phase B: MDLM)
-python scripts/train.py --paradigm corosred --phase A --backend mlx --config configs/corosred/phase_a.yaml
-python scripts/train.py --paradigm corosred --phase B --backend mlx --config configs/corosred/phase_b.yaml
+# 4. Train AR Baseline on Cloud TPU Pod (PyTorch-XLA)
+telos train --paradigm ar --params 100M --tokens 2.5B --hardware xla --devices 8
+
+# 5. Config File Bypass (for legacy experiments or reproducibility)
+telos train --config configs/unified/25m/telos_25m_r10.yaml
 ```
 
 ---
 
-### Hardware Throughput Benchmark Mode (--benchmark)
+## 4. High-Efficiency Data Preparation (`telos dataprep`)
 
-Run an immediate throughput benchmark that automatically measures steps/second, tokens/second, step latency, and memory footprint:
+Converts any source corpus into contiguous, memory-mapped binary token arrays (`.bin`) with constant low RAM usage:
 
 ```bash
-# Run a 5-minute benchmark on local Apple Silicon
-uv run python scripts/train.py --paradigm mdlm --backend mlx --config configs/unified/25m/telos_25m_r10.yaml --benchmark
+# 1. Process a directory of source code files recursively
+telos dataprep --corpus src/ --output data/python_corpus.bin
 
-# Run a benchmark on multi-GPU CUDA or TPU
-python scripts/train.py --paradigm undlm --backend pytorch --device cuda --config configs/unified/50m/telos_50m_r35.yaml --benchmark
+# 2. Process a JSONL file
+telos dataprep --corpus data/train.jsonl --text-key content --output data/corpus.bin
+
+# 3. Stream from a Hugging Face dataset
+telos dataprep --dataset codeparrot/codeparrot-clean --output data/python_corpus.bin
+
+# 4. Train a new ByteLevel BPE tokenizer on the corpus
+telos dataprep --corpus src/ --train-tokenizer --vocab-size 8192 --output data/corpus.bin
+
+# 5. Generate a synthetic stream for testing
+telos dataprep --synthetic --tokens 100000 --output data/synthetic_corpus.bin
 ```
-
-> **Benchmark Guarantees:**
-> - Runs for **at most 5 minutes** (300s) before terminating cleanly.
-> - Bypasses checkpoint disk I/O overhead.
-> - Automatically outputs a structured performance summary and saves metrics to `logs/benchmark_<paradigm>_<backend>.json`.
-
-
 
 ---
 
-## 5. Evaluation & Contextual Probes Benchmark
+## 5. Model Evaluation Suite (`telos eval`)
 
-Run the 101 contextual probes benchmark (measuring rank, target cross-entropy, top-1/5 accuracies across 8 syntactic categories):
+Runs the comprehensive 101 contextual probes benchmark or qualitative generation sampling on any MLX (`.safetensors`) or PyTorch (`.pt`) checkpoint:
 
 ```bash
-# Run probes on an MLX checkpoint
-uv run python evals/masked/Evaluation.py --checkpoint checkpoints/masked/25m/kappa_25m_1to40_mlx --mode probes
+# 1. Run 100 contextual probes benchmark (across 8 syntactic categories)
+telos eval --checkpoint checkpoints/mdlm/model.safetensors --mode probes
 
-# Run qualitative code generation samples
-uv run python evals/masked/Evaluation.py --checkpoint checkpoints/masked/25m/kappa_25m_1to40_mlx --mode sample
+# 2. Run qualitative code completion sampling
+telos eval --checkpoint checkpoints/12m/telos_12m_r1/model.safetensors --mode sample
 ```
 
-Outputs will be automatically saved to `evals/masked/probes/`.
+The probes suite outputs category breakdowns for Top-1 (%), Top-5 (%), Average Rank, and Target Cross-Entropy, saving a detailed JSON report to `logs/`.
 
 ---
 
-## 6. Inference Deployment & Web Interface
+## 6. Hardware Throughput Benchmarks (`telos bench`)
 
-All three paradigms provide a high-level standalone **`TelosModel.from_pretrained()`** API within their respective Model Hub modules.
+Measures steps/sec, tokens/sec, step latency percentiles (mean, p50, p95), and unified memory usage.
+**Guaranteed to run for at most 5 minutes (300 seconds):**
 
-### A. Masked Diffusion Language Models (MDLM)
-Generates code via confidence-based iterative unmasking:
+```bash
+# 1. Benchmark MDLM on Apple Silicon
+telos bench --paradigm mdlm --params 25M --duration 30
 
-```python
-from mdiff.hub import TelosModel
-
-# Load pretrained MDLM checkpoint
-model = TelosModel.from_pretrained("checkpoints/masked/12m/telos_12m_r15")
-
-# Generate code completion
-completion = model.complete(
-    prompt="def sort_array(arr: list[int]) -> list[int]:\n",
-    max_tokens=64,
-    num_steps=64,
-    temperature=0.3,
-    schedule="linear"  # Options: "linear" or "cosine"
-)
-print(completion)
+# 2. Benchmark on multi-GPU CUDA
+telos bench --paradigm undlm --params 50M --hardware cuda --devices 4 --duration 60
 ```
 
-### B. Uniform Noise Diffusion Models (UNDLM)
-Generates code via iterative reversible denoising with self-correction:
+Results are printed as a publication-quality table and saved to `logs/benchmark_<paradigm>_<backend>.json`.
+
+---
+
+## 7. Programmatic Python API
+
+All functionality is also accessible programmatically:
 
 ```python
-from undiff.hub import TelosModel
+import telos
 
-# Load pretrained UNDLM checkpoint
-model = TelosModel.from_pretrained("checkpoints/uniform/12m/telos_12m_r15")
-
-# Generate code completion
-completion = model.complete(
-    prompt="def fibonacci(n: int) -> int:\n",
-    max_tokens=64,
-    num_steps=64,
-    temperature=0.8,
-    schedule="linear"  # Options: "linear" or "cosine"
+# 1. Data Preparation
+telos.dataprep(
+    corpus="src/",
+    output_path="data/corpus.bin",
+    vocab_size=8192
 )
-print(completion)
-```
 
-### C. Autoregressive Baseline Models (AR)
-Generates code via causal left-to-right next-token prediction:
-
-```python
-from ar.hub import TelosModel
-
-# Load pretrained AR checkpoint
-model = TelosModel.from_pretrained("checkpoints/ar/12m/telos_12m_r15")
-
-# Generate code completion
-completion = model.complete(
-    prompt="import os\ndef get_current_directory():\n",
-    max_tokens=64,
-    temperature=0.7
+# 2. Zero-Config Model Training
+trainer = telos.train(
+    paradigm="mdlm",
+    params="25M",
+    tokens="300M",
+    effective_batch=32,
+    hardware="auto"
 )
-print(completion)
+
+# 3. Model Evaluation
+results = telos.evaluate(
+    checkpoint="checkpoints/mdlm/model.safetensors",
+    mode="probes"
+)
+print("Top-1 Accuracy:", results["overall"]["top1_acc_pct"])
+
+# 4. Benchmarking
+bench_results = telos.benchmark(
+    paradigm="ar",
+    params="12M",
+    duration=15.0
+)
 ```
-
-### D. Interactive Research Web Interface
-For live interactive generation and diffusion step inspections:
-- **Interactive Research Demo**: [https://telos.research.wingit.tech](https://telos.research.wingit.tech)
-
-
