@@ -39,6 +39,7 @@ class UnifiedPyTorchTrainer:
 
         self.vocab_size = self.m_cfg.get("vocab_size", 8192)
         self.seq_len = self.m_cfg.get("seq_len", 512)
+        self.precision = self.t_cfg.get("precision", "bf16")
         
         # Build special token LUT manually for PyTorch
         self.special_lut = torch.zeros(self.vocab_size, dtype=torch.bool)
@@ -94,7 +95,6 @@ class UnifiedPyTorchTrainer:
         self.warmup_steps = int(self.t_cfg.get("warmup_steps", 100))
         self.weight_decay = float(self.t_cfg.get("weight_decay", 0.1))
         self.grad_clip = float(self.t_cfg.get("grad_clip", 1.0))
-        self.precision = self.t_cfg.get("precision", "bf16")
 
         self.optimizer = torch.optim.AdamW(
             self.model.parameters(),
@@ -241,11 +241,17 @@ class UnifiedPyTorchTrainer:
 
     def train(self, resume_step: int = 0, benchmark: bool = False, benchmark_duration: float = 300.0):
         self.model.train()
-        train_bin = Path("data/python_corpus.bin")
-        if not train_bin.exists():
+        d_cfg = self.cfg.get("data", {})
+        train_path = d_cfg.get("train_path", d_cfg.get("dataset_path", d_cfg.get("path", None)))
+        use_synthetic = d_cfg.get("synthetic", False)
+
+        train_bin = Path(train_path) if train_path else Path("data/python_corpus.bin")
+        if not train_bin.exists() and train_path is None:
             train_bin = Path("data/python_corpus_2.5b.bin")
         
-        if train_bin.exists():
+        # If synthetic flag is set OR vocab_size is small (<1024) without an explicit train_path,
+        # use synthetic random stream to prevent out-of-bounds token embedding indices
+        if train_bin.exists() and not use_synthetic and (self.vocab_size >= 1024 or train_path is not None):
             if self.is_master:
                 print(f"  Loading pre-tokenized dataset from {train_bin}...")
             # PyTorch models usually trained on the larger corpus with dtype uint16
@@ -254,7 +260,7 @@ class UnifiedPyTorchTrainer:
             dataset_matrix = raw_data[:n_seqs * self.seq_len].reshape(n_seqs, self.seq_len)
         else:
             if self.is_master:
-                print("  Notice: Pre-tokenized dataset file not found. Generating synthetic stream...")
+                print("  Notice: Using synthetic dataset stream...")
             dataset_matrix = np.random.randint(0, self.vocab_size, (10000, self.seq_len), dtype=np.uint16)
 
         bs = int(self.t_cfg.get("batch_size", 16))
