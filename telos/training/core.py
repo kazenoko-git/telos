@@ -44,7 +44,13 @@ def build_special_token_lut(vocab_size: int, special_tokens=(0, 1, 2, 3)):
     for token_id in special_tokens:
         if token_id < vocab_size:
             lut[token_id] = True
-    return mx.array(lut, dtype=mx.bool_)
+    if MLX_AVAILABLE:
+        return mx.array(lut, dtype=mx.bool_)
+    try:
+        import numpy as np
+        return np.array(lut, dtype=bool)
+    except ImportError:
+        return lut
 
 def cast_optimizer_moments_bf16(state_dict: dict) -> dict:
     """Casts AdamW moment tensors m and v to bfloat16 to reduce memory footprint by 50%."""
