@@ -8,8 +8,6 @@ import argparse
 from pathlib import Path
 
 from telos.configs import build_config
-from telos.models import TelosTransformer
-from telos.training import UnifiedPyTorchTrainer
 
 
 def train(
@@ -106,6 +104,9 @@ def train(
         )
         trainer = UnifiedMLXTrainer(paradigm=paradigm, model=model, cfg=cfg, eval_policy=eval_policy)
     else:
+        from telos.models import TelosTransformer
+        from telos.training import UnifiedPyTorchTrainer
+
         model = TelosTransformer(
             vocab_size=m_cfg.get("vocab_size", 8192),
             d_model=m_cfg.get("d_model", 512),
