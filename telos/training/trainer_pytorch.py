@@ -4,6 +4,7 @@ Unified PyTorch Trainer for all Telos paradigms (AR, MDLM, UNDLM, COROSred).
 
 import time
 import math
+import json
 import numpy as np
 from pathlib import Path
 
@@ -50,7 +51,13 @@ class UnifiedPyTorchTrainer:
                 import torch_xla.core.xla_model as xm
                 self.device = xm.xla_device()
                 self.is_tpu = True
-                self.world_size = xm.xrt_world_size()
+                # Query world size: prefer modern torch_xla.runtime API (PyTorch-XLA 2.4+),
+                # with fallback to xm.xrt_world_size() for legacy environments.
+                try:
+                    import torch_xla.runtime as xr
+                    self.world_size = xr.world_size()
+                except (ImportError, AttributeError):
+                    self.world_size = xm.xrt_world_size()
                 self.is_master = xm.is_master_ordinal()
                 print(f"  [Hardware] Detected PyTorch-XLA TPU Topology ({self.world_size} Cores).")
             except ImportError:
@@ -111,12 +118,13 @@ class UnifiedPyTorchTrainer:
             min_lr=self.min_lr
         )
 
-        self.use_amp = (self.precision in ["fp16", "bf16"]) and (self.device.type in ["cuda", "mps", "xla"])
+        # TPU uses native BF16 execution on XLA cores; exclude from torch.amp.autocast
+        self.use_amp = (self.precision in ["fp16", "bf16"]) and (self.device.type in ["cuda", "mps"])
         self.amp_dtype = torch.bfloat16 if self.precision == "bf16" else torch.float16
 
-        # GradScaler for FP16 training on CUDA
+        # Modern GradScaler API for FP16 training on CUDA
         self.use_scaler = (self.precision == "fp16") and (self.device.type == "cuda")
-        self.scaler = torch.cuda.amp.GradScaler() if self.use_scaler else None
+        self.scaler = torch.amp.GradScaler("cuda") if self.use_scaler else None
 
         self.global_step = 0
 
@@ -212,7 +220,6 @@ class UnifiedPyTorchTrainer:
         print(f"  Latency per Step:     Mean: {mean_lat:.1f} ms  |  p50: {p50_lat:.1f} ms  |  p95: {p95_lat:.1f} ms")
         print("=" * 76 + "\n")
 
-        import json
         log_dir = Path("logs")
         log_dir.mkdir(exist_ok=True)
         bench_payload = {
@@ -245,23 +252,43 @@ class UnifiedPyTorchTrainer:
         train_path = d_cfg.get("train_path", d_cfg.get("dataset_path", d_cfg.get("path", None)))
         use_synthetic = d_cfg.get("synthetic", False)
 
+        if train_path is not None and not Path(train_path).exists():
+            raise FileNotFoundError(f"Specified training data binary not found: {train_path}")
+
         train_bin = Path(train_path) if train_path else Path("data/python_corpus.bin")
         if not train_bin.exists() and train_path is None:
             train_bin = Path("data/python_corpus_2.5b.bin")
         
-        # If synthetic flag is set OR vocab_size is small (<1024) without an explicit train_path,
-        # use synthetic random stream to prevent out-of-bounds token embedding indices
-        if train_bin.exists() and not use_synthetic and (self.vocab_size >= 1024 or train_path is not None):
+        if train_bin.exists() and not use_synthetic:
             if self.is_master:
                 print(f"  Loading pre-tokenized dataset from {train_bin}...")
-            # PyTorch models usually trained on the larger corpus with dtype uint16
-            raw_data = np.memmap(train_bin, dtype=np.uint16, mode="r")
+            # Detect dtype from metadata sidecar if available
+            dtype = None
+            for meta_cand in [Path(str(train_bin) + ".json"), train_bin.with_suffix(".json")]:
+                if meta_cand.exists():
+                    try:
+                        with open(meta_cand, "r") as mf:
+                            m_info = json.load(mf)
+                            dt_str = m_info.get("dtype", "uint16")
+                            dtype = np.int32 if dt_str == "int32" else np.uint16
+                            break
+                    except Exception:
+                        pass
+            if dtype is None:
+                dtype = np.int32 if self.vocab_size > 65536 else np.uint16
+
+            raw_data = np.memmap(train_bin, dtype=dtype, mode="r")
             n_seqs = len(raw_data) // self.seq_len
             dataset_matrix = raw_data[:n_seqs * self.seq_len].reshape(n_seqs, self.seq_len)
-        else:
+        elif use_synthetic:
             if self.is_master:
                 print("  Notice: Using synthetic dataset stream...")
             dataset_matrix = np.random.randint(0, self.vocab_size, (10000, self.seq_len), dtype=np.uint16)
+        else:
+            raise FileNotFoundError(
+                f"No training data found at '{train_bin}'. Run 'telos dataprep' to generate token data, "
+                "or pass '--synthetic' to train on synthetic random tokens."
+            )
 
         bs = int(self.t_cfg.get("batch_size", 16))
         grad_accum = int(self.t_cfg.get("gradient_accumulation", 1))
@@ -325,8 +352,8 @@ class UnifiedPyTorchTrainer:
             elif self.is_tpu:
                 nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
                 import torch_xla.core.xla_model as xm
+                # xm.optimizer_step() triggers gradient reduction and internal mark_step()
                 xm.optimizer_step(self.optimizer)
-                xm.mark_step()
             else:
                 nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
                 self.optimizer.step()
