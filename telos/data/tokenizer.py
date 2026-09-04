@@ -47,14 +47,41 @@ def train_bpe_tokenizer(
     return tokenizer
 
 
-def load_tokenizer(save_path: str = "configs/shared/tokenizer_0.json") -> Tokenizer:
-    """Loads a previously trained Tokenizer from JSON file."""
-    path = Path(save_path)
-    if not path.exists():
-        # Fallback search paths
-        for alt in ["configs/shared/tokenizer_mac.json", "configs/tokenizer_0.json", "configs/tokenizer_mac.json"]:
-            if Path(alt).exists():
-                path = Path(alt)
+def load_tokenizer(save_path: str | Path | None = None) -> Tokenizer:
+    """Loads a previously trained Tokenizer from JSON file or bundled package assets."""
+    target = None
+    if save_path is not None:
+        p = Path(save_path)
+        if p.exists():
+            target = p
+
+    if target is None:
+        # 1. Check bundled asset in telos.assets
+        try:
+            import importlib.resources as pkg_resources
+            asset_ref = pkg_resources.files("telos.assets").joinpath("tokenizer_0.json")
+            if asset_ref.is_file():
+                target = Path(str(asset_ref))
+        except Exception:
+            pass
+
+    if target is None:
+        # 2. Fallback search paths in workspace repository
+        for alt in [
+            save_path,
+            "configs/shared/tokenizer_0.json",
+            "configs/shared/tokenizer_mac.json",
+            "configs/tokenizer_0.json",
+            "configs/tokenizer_mac.json",
+        ]:
+            if alt and Path(alt).exists():
+                target = Path(alt)
                 break
-    assert path.exists(), f"Tokenizer file not found at {save_path}"
-    return Tokenizer.from_file(str(path))
+
+    if target is None or not target.exists():
+        raise FileNotFoundError(
+            f"Tokenizer file not found. Checked requested path '{save_path}', bundled package assets "
+            "('telos.assets/tokenizer_0.json'), and standard config locations."
+        )
+
+    return Tokenizer.from_file(str(target))

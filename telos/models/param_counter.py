@@ -43,7 +43,10 @@ def count_parameters(config: TelosConfig) -> dict[str, int]:
     # output projection: 0 if tied, V * d if untied
     out_proj_params = 0 if config.tied_embeddings else (v * d)
 
-    total_params = embedding_params + (l * total_per_layer) + final_norm_params + out_proj_params
+    # reliability head: Linear(d, d) + SiLU + Linear(d, 1) -> (d*d + d) + (d + 1)
+    rel_head_params = (d * d + 2 * d + 1) if config.use_reliability_head else 0
+
+    total_params = embedding_params + (l * total_per_layer) + final_norm_params + out_proj_params + rel_head_params
 
     return {
         "embedding": embedding_params,
@@ -51,6 +54,7 @@ def count_parameters(config: TelosConfig) -> dict[str, int]:
         "all_layers": l * total_per_layer,
         "final_norm": final_norm_params,
         "output_proj": out_proj_params,
+        "reliability_head": rel_head_params,
         "total": total_params
     }
 

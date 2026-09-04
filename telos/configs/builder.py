@@ -5,7 +5,6 @@ tokenizer, hardware, hardware count) into an executable training configuration.
 Supports optional YAML config file bypasses.
 """
 
-import os
 import math
 from pathlib import Path
 import yaml
@@ -32,11 +31,16 @@ def auto_detect_hardware() -> tuple[str, str, int]:
 
     # 2. Check PyTorch-XLA (Google Cloud / TPU Pods)
     try:
-        import torch_xla.core.xla_model as xm
-        world_size = xm.xrt_world_size()
-        return "pytorch", "xla", world_size
-    except ImportError:
-        pass
+        import torch_xla.runtime as xr
+        world_size = xr.world_size()
+        return "pytorch", "xla", max(1, world_size)
+    except Exception:
+        try:
+            import torch_xla.core.xla_model as xm
+            world_size = xm.xrt_world_size()
+            return "pytorch", "xla", max(1, world_size)
+        except Exception:
+            pass
 
     # 3. Check NVIDIA CUDA GPUs
     try:
@@ -126,9 +130,14 @@ def build_config(
     t_cfg["batch_size"] = actual_bs
 
     if effective_batch is not None:
+        # Check if user specified effective batch with explicit token suffix (e.g. 32k, 1M, tokens)
+        is_token_suffix = False
+        if isinstance(effective_batch, str):
+            clean_str = effective_batch.strip().lower()
+            if clean_str.endswith(("k", "m", "b", "tokens")):
+                is_token_suffix = True
         eff_b = parse_human_number(effective_batch)
-        # If user specified effective batch in tokens (e.g. 32k), divide by seq_len
-        if eff_b > 2048:
+        if is_token_suffix:
             eff_b = max(1, eff_b // seq_len)
         actual_accum = max(1, math.ceil(eff_b / actual_bs))
         t_cfg["gradient_accumulation"] = actual_accum
@@ -164,8 +173,11 @@ def build_config(
     t_cfg.setdefault("precision", "bf16")
 
     # 7. Hardware & Distributed Setup
-    det_backend, det_device, det_count = auto_detect_hardware()
     hw = str(hardware).lower() if hardware else "auto"
+    if hw in ["auto", "none"] or devices in ["auto", None]:
+        det_backend, det_device, det_count = auto_detect_hardware()
+    else:
+        det_backend, det_device, det_count = ("mlx", "gpu", 1) if hw == "mlx" else ("pytorch", hw, 1)
     
     if hw in ["auto", "none"]:
         final_backend = det_backend
@@ -193,7 +205,7 @@ def build_config(
     if paradigm == "corosred":
         cfg["corosred"] = {"phase": phase, "mask_prob": 0.15, "k_amb": 5}
         m_cfg["use_reliability_head"] = True
-        m_cfg["mask_token_id"] = 0
+        m_cfg["mask_token_id"] = 1
     else:
         m_cfg["use_reliability_head"] = False
         m_cfg["mask_token_id"] = 1
@@ -203,11 +215,17 @@ def build_config(
     if paradigm == "corosred":
         ckpt_default += f"/phase_{phase.lower()}"
         
-    c_cfg["checkpoint_dir"] = str(checkpoint_dir or c_cfg.get("checkpoint_dir", ckpt_default))
+    if checkpoint_dir is not None:
+        c_cfg["checkpoint_dir"] = str(checkpoint_dir)
+    else:
+        c_cfg.setdefault("checkpoint_dir", ckpt_default)
     
     # Auto-save cadence: 10% of total steps, clamped between 500 and 2500
     auto_save_cadence = max(500, min(2500, int(0.1 * t_cfg["max_steps"])))
-    c_cfg["save_every_steps"] = int(save_every or c_cfg.get("save_every_steps", auto_save_cadence))
+    if save_every is not None:
+        c_cfg["save_every_steps"] = int(save_every)
+    else:
+        c_cfg.setdefault("save_every_steps", auto_save_cadence)
 
     # 10. Data & Synthetic Flag
     if data_path:

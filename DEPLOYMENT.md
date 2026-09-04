@@ -184,3 +184,39 @@ bench_results = telos.benchmark(
     duration=15.0
 )
 ```
+
+---
+
+## 8. Packaging & Publishing to PyPI
+
+### Build Wheels and Source Distribution
+Build the production package artifacts using `uv build` (or `python -m build`):
+
+```bash
+# Build tar.gz and .whl into dist/
+uv build
+```
+
+The wheel automatically bundles the default ByteLevel BPE tokenizer (`telos/assets/tokenizer_0.json`) so installed packages function with zero manual downloads.
+
+### Optional Hardware Acceleration Targets
+- Standard Linux/CUDA/TPU install:
+  ```bash
+  pip install telos
+  ```
+- Apple Silicon Metal acceleration (`mlx`):
+  ```bash
+  pip install "telos[mlx]"
+  ```
+- Complete development environment with tests:
+  ```bash
+  pip install "telos[all]"
+  ```
+
+### Publish to PyPI
+```bash
+# Upload to PyPI via twine (or uv publish)
+uv publish
+# Or:
+twine upload dist/*
+```

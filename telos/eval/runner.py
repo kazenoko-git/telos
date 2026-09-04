@@ -5,8 +5,6 @@ Qualitative Code Sampling, and Validation Perplexity computation.
 Compatible with both MLX (.safetensors) and PyTorch (.pt) checkpoints.
 """
 
-import os
-import sys
 import json
 import time
 import math
@@ -16,7 +14,7 @@ import numpy as np
 
 from .probes import PROBE_SUITE_100
 from telos.data.tokenizer import load_tokenizer
-from telos.models import MLXTelosTransformer, TelosTransformer, TelosConfig
+from telos.models import TelosTransformer, TelosConfig
 
 
 def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None = None):
@@ -38,11 +36,14 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
 
     # Load config JSON if present
     cfg_file = cp.parent / "config.json"
+    full_cfg = {}
     m_cfg = {}
     if cfg_file.exists():
         with open(cfg_file, "r") as f:
-            m_cfg = json.load(f)
+            full_cfg = json.load(f)
+            m_cfg = full_cfg.get("model", full_cfg)
     elif config:
+        full_cfg = config
         m_cfg = config.get("model", config)
 
     vocab_size = m_cfg.get("vocab_size", 8192)
@@ -51,15 +52,29 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
     n_heads = m_cfg.get("n_heads", 16)
     n_kv_heads = m_cfg.get("n_kv_heads", n_heads)
 
+    # Determine paradigm, causality, and reliability head from configuration or checkpoint path
+    paradigm = str(full_cfg.get("paradigm", "") or m_cfg.get("paradigm", "")).lower()
+    if not paradigm:
+        for p in ["corosred", "mdlm", "undlm", "ar"]:
+            if p in str(cp).lower():
+                paradigm = p
+                break
+
+    is_causal = bool(m_cfg.get("is_causal", paradigm == "ar"))
+    use_reliability_head = bool(m_cfg.get("use_reliability_head", paradigm == "corosred"))
+
     if cp.suffix == ".safetensors":
         import mlx.core as mx
+        from telos.models import MLXTelosTransformer
         model = MLXTelosTransformer(
             vocab_size=vocab_size,
             d_model=d_model,
             n_layers=n_layers,
             n_heads=n_heads,
             n_kv_heads=n_kv_heads,
-            tied_embeddings=True
+            tied_embeddings=True,
+            is_causal=is_causal,
+            use_reliability_head=use_reliability_head,
         )
         model.load_weights(str(cp))
         return model, "mlx", vocab_size
@@ -72,12 +87,14 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
             n_layers=n_layers,
             n_heads=n_heads,
             n_kv_heads=n_kv_heads,
-            tied_embeddings=True
+            tied_embeddings=True,
+            is_causal=is_causal,
+            use_reliability_head=use_reliability_head,
         )
         model = TelosTransformer(tc)
         state = torch.load(str(cp), map_location="cpu")
         sd = state.get("model_state_dict", state)
-        model.load_state_dict(sd, strict=False)
+        model.load_state_dict(sd, strict=True)
         model.eval()
         return model, "pytorch", vocab_size
 
@@ -250,7 +267,7 @@ def evaluate(
 ) -> dict:
     """Master programmatic entrypoint for Télos evaluation."""
     model, backend, vocab_size = load_model_from_checkpoint(checkpoint)
-    tok = load_tokenizer(str(tokenizer_path or "configs/shared/tokenizer_0.json"))
+    tok = load_tokenizer(str(tokenizer_path) if tokenizer_path else None)
 
     if mode == "probes":
         return evaluate_probes(model, tok, backend)

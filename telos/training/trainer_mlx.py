@@ -194,21 +194,43 @@ class UnifiedMLXTrainer:
         train_path = d_cfg.get("train_path", d_cfg.get("dataset_path", d_cfg.get("path", None)))
         use_synthetic = d_cfg.get("synthetic", False)
 
+        if train_path is not None and not Path(train_path).exists():
+            raise FileNotFoundError(f"Specified training data binary not found: {train_path}")
+
         train_bin = Path(train_path) if train_path else Path("data/python_corpus_mac.bin")
         if not train_bin.exists() and train_path is None:
             train_bin = Path("data/python_corpus.bin")
         if not train_bin.exists() and train_path is None:
             train_bin = Path("data/python_corpus_2.5b.bin")
 
-        if train_bin.exists() and not use_synthetic and (self.vocab_size >= 1024 or train_path is not None):
+        if train_bin.exists() and not use_synthetic:
             print(f"  Loading pre-tokenized dataset from {train_bin}...")
-            dtype = np.int32 if "mac" in str(train_bin) else np.uint16
+            # Detect dtype from metadata sidecar if available
+            dtype = None
+            for meta_cand in [Path(str(train_bin) + ".json"), train_bin.with_suffix(".json")]:
+                if meta_cand.exists():
+                    try:
+                        with open(meta_cand, "r") as mf:
+                            m_info = json.load(mf)
+                            dt_str = m_info.get("dtype", "uint16")
+                            dtype = np.int32 if dt_str == "int32" else np.uint16
+                            break
+                    except Exception:
+                        pass
+            if dtype is None:
+                dtype = np.int32 if "mac" in str(train_bin) or self.vocab_size > 65536 else np.uint16
+
             raw_data = np.memmap(train_bin, dtype=dtype, mode="r")
             n_seqs = len(raw_data) // self.seq_len
             dataset_matrix = raw_data[:n_seqs * self.seq_len].reshape(n_seqs, self.seq_len)
-        else:
+        elif use_synthetic:
             print("  Notice: Using synthetic dataset stream...")
             dataset_matrix = np.random.randint(0, self.vocab_size, (10000, self.seq_len), dtype=np.uint16)
+        else:
+            raise FileNotFoundError(
+                f"No training data found at '{train_bin}'. Run 'telos dataprep' to generate token data, "
+                "or pass '--synthetic' to train on synthetic random tokens."
+            )
 
         max_steps = int(self.t_cfg.get("max_steps", 5000))
         warmup_steps = int(self.t_cfg.get("warmup_steps", 100))

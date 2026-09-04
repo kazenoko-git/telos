@@ -19,6 +19,7 @@ class MLXTelosTransformer(nn.Module):
         tied_embeddings: bool = True,
         use_grad_checkpoint: bool = False,
         is_causal: bool = False,
+        use_reliability_head: bool = False,
         **kwargs
     ):
         super().__init__()
@@ -27,6 +28,7 @@ class MLXTelosTransformer(nn.Module):
         self.tied_embeddings = tied_embeddings
         self.use_grad_checkpoint = use_grad_checkpoint
         self.is_causal = is_causal
+        self.use_reliability_head = use_reliability_head
         
         # Default n_kv_heads to n_heads (standard Multi-Head Attention) if not explicitly set for GQA
         actual_kv_heads = n_heads if n_kv_heads is None else n_kv_heads
@@ -37,12 +39,15 @@ class MLXTelosTransformer(nn.Module):
         if not tied_embeddings:
             self.head = nn.Linear(d_model, vocab_size, bias=False)
 
-        # Scalar reliability head for COROSred
-        self.reliability_head = nn.Sequential(
-            nn.Linear(d_model, d_model),
-            nn.SiLU(),
-            nn.Linear(d_model, 1)
-        )
+        # Scalar reliability head for COROSred (only when enabled)
+        if use_reliability_head:
+            self.reliability_head = nn.Sequential(
+                nn.Linear(d_model, d_model),
+                nn.SiLU(),
+                nn.Linear(d_model, 1)
+            )
+        else:
+            self.reliability_head = None
 
     def hidden_states(self, x, mask_override=None, is_causal: bool | None = None):
         effective_mask = mask_override
@@ -66,6 +71,8 @@ class MLXTelosTransformer(nn.Module):
         h = self.hidden_states(x, mask_override=mask_override, is_causal=is_causal)
         logits = self.logits_from_hidden(h)
         if return_reliability:
+            if self.reliability_head is None:
+                raise ValueError("return_reliability=True requested but use_reliability_head was not enabled.")
             r_scores = mx.squeeze(self.reliability_head(mx.stop_gradient(h)), -1)
             return logits, r_scores
         return logits

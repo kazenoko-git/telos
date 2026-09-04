@@ -4,9 +4,7 @@ Measures steps/sec, tokens/sec, step latency percentiles, and unified memory usa
 Enforces strict 5-minute (300-second) upper bound limit.
 """
 
-import sys
 import argparse
-from pathlib import Path
 
 from telos.train.cli import train
 

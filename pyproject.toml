@@ -4,6 +4,21 @@ version = "0.1.0"
 description = "Small Masked Diffusion Language Model for Code Autocomplete"
 readme = "README.md"
 requires-python = ">=3.10"
+authors = [
+    { name = "Télos Authors" },
+]
+license = { text = "Apache-2.0" }
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "torch>=2.5.0",
     "tokenizers>=0.21.0",
@@ -13,8 +28,6 @@ dependencies = [
     "numpy>=1.26.0",
     "safetensors>=0.4.0",
     "huggingface-hub>=0.25.0",
-    "pytest>=9.1.1",
-    "gradio>=6.22.0",
 ]
 
 [project.optional-dependencies]
@@ -22,6 +35,13 @@ dev = [
     "pytest>=8.0.0",
     "ruff>=0.8.0",
     "gradio>=5.0.0",
+    "matplotlib>=3.8.0",
+]
+mlx = [
+    "mlx>=0.22.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
+all = [
+    "telos[dev,mlx]",
 ]
 
 [project.scripts]
@@ -33,3 +53,13 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["telos"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/.venv",
+    "/.hf_venv",
+    "/data",
+    "/checkpoints",
+    "/logs",
+    "/notebooks",
+]

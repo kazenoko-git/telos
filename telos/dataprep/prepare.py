@@ -111,9 +111,21 @@ def prepare_dataset(
     if synthetic:
         print(f"  [DataPrep] Generating {synthetic_tokens:,} synthetic tokens...")
         dtype = np.uint16 if vocab_size <= 65536 else np.int32
+        dtype_str = "uint16" if dtype == np.uint16 else "int32"
         arr = np.random.randint(0, vocab_size, (synthetic_tokens,), dtype=dtype)
         with open(output_path, "wb") as f:
             f.write(arr.tobytes())
+        
+        meta = {
+            "dtype": dtype_str,
+            "vocab_size": vocab_size,
+            "total_tokens": synthetic_tokens,
+            "synthetic": True,
+        }
+        meta_path = Path(str(output_path) + ".json")
+        with open(meta_path, "w") as mf:
+            json.dump(meta, mf, indent=2)
+            
         print(f"  [DataPrep] Saved synthetic binary corpus to {output_path} ({os.path.getsize(output_path) / 1e6:.2f} MB)")
         return str(output_path)
 
@@ -130,20 +142,21 @@ def prepare_dataset(
                         sample_files.append(str(Path(root) / fl))
                         if len(sample_files) >= 500:
                             break
+                if len(sample_files) >= 500:
+                    break
         elif corpus:
             sample_files = [str(corpus)]
 
         tok_save_path = str(tokenizer_path or "configs/shared/tokenizer_custom.json")
         tok = train_bpe_tokenizer(sample_files, vocab_size=vocab_size, save_path=tok_save_path)
     else:
-        try:
-            tok = load_tokenizer(str(tokenizer_path or "configs/shared/tokenizer_0.json"))
-        except Exception:
-            print("  [DataPrep] Notice: Standard tokenizer not found. Creating default tokenizer...")
-            tok = train_bpe_tokenizer([], vocab_size=vocab_size, save_path="configs/shared/tokenizer_default.json")
+        tok = load_tokenizer(str(tokenizer_path) if tokenizer_path else None)
 
-    print(f"  [DataPrep] Processing corpus into {output_path}...")
-    dtype = np.uint16 if vocab_size <= 65536 else np.int32
+    actual_vocab = tok.get_vocab_size() if tok else vocab_size
+    dtype = np.uint16 if actual_vocab <= 65536 else np.int32
+    dtype_str = "uint16" if dtype == np.uint16 else "int32"
+
+    print(f"  [DataPrep] Processing corpus into {output_path} (vocab_size={actual_vocab}, dtype={dtype_str})...")
     total_tokens = 0
     buffer = []
 
@@ -171,6 +184,17 @@ def prepare_dataset(
                 arr = np.array(flat_tokens, dtype=dtype)
                 out_f.write(arr.tobytes())
                 total_tokens += len(flat_tokens)
+
+    # Save metadata sidecar
+    meta = {
+        "dtype": dtype_str,
+        "vocab_size": actual_vocab,
+        "total_tokens": total_tokens,
+        "synthetic": False,
+    }
+    meta_path = Path(str(output_path) + ".json")
+    with open(meta_path, "w") as mf:
+        json.dump(meta, mf, indent=2)
 
     size_mb = os.path.getsize(output_path) / 1e6
     print(f"  [DataPrep] Finished! Total tokens: {total_tokens:,} | File size: {size_mb:.2f} MB | Path: {output_path}")
