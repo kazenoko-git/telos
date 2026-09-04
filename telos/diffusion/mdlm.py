@@ -119,23 +119,32 @@ if TORCH_AVAILABLE:
 
         return total_loss, metrics
 
-    apply_masking = apply_masking_pytorch
+    def apply_masking(
+        input_ids: torch.Tensor,
+        t_values: torch.Tensor | None = None,
+        mask_token_id: int = 1,
+        special_token_ids: set | None = None,
+        special_token_lut: torch.Tensor | None = None
+    ):
+        """High-level apply_masking supporting both explicit t_values or sampled uniform t."""
+        if t_values is None:
+            B = input_ids.shape[0]
+            t_values = torch.rand(B, 1, device=input_ids.device).clamp(min=1e-5, max=1.0)
+        
+        if special_token_lut is None and special_token_ids is not None:
+            max_id = max(input_ids.max().item(), max(special_token_ids)) + 1
+            special_token_lut = torch.zeros(max_id, dtype=torch.bool, device=input_ids.device)
+            for sid in special_token_ids:
+                special_token_lut[sid] = True
+                
+        return apply_masking_pytorch(input_ids, t_values, mask_token_id=mask_token_id, special_token_lut=special_token_lut)
+
     mdlm_loss = mdlm_loss_pytorch
-
-
-def apply_masking(input_ids: torch.Tensor, t_values: torch.Tensor | None = None, mask_token_id: int = 1, special_token_ids: set | None = None, special_token_lut: torch.Tensor | None = None):
-    """High-level apply_masking supporting both explicit t_values or sampled uniform t."""
-    if t_values is None:
-        B = input_ids.shape[0]
-        t_values = torch.rand(B, 1, device=input_ids.device).clamp(min=1e-5, max=1.0)
-    
-    if special_token_lut is None and special_token_ids is not None:
-        max_id = max(input_ids.max().item(), max(special_token_ids)) + 1
-        special_token_lut = torch.zeros(max_id, dtype=torch.bool, device=input_ids.device)
-        for sid in special_token_ids:
-            special_token_lut[sid] = True
-            
-    return apply_masking_pytorch(input_ids, t_values, mask_token_id=mask_token_id, special_token_lut=special_token_lut)
+else:
+    apply_masking_pytorch = None
+    mdlm_loss_pytorch = None
+    apply_masking = None
+    mdlm_loss = None
 
 
 # =========================================================================
