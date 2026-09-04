@@ -27,24 +27,20 @@ try:
 except ImportError:
     TORCH_AVAILABLE = False
 
-from telos.models import TelosTransformer, TelosConfig, MLXTelosTransformer
+from telos.models import TelosTransformer, TelosConfig
 from telos.models.param_counter import count_parameters, verify_with_model
-from telos.diffusion.ar import ar_loss_fn_mlx, ar_loss_fn_pytorch
+from telos.diffusion.ar import ar_loss_fn_pytorch
 from telos.diffusion.mdlm import (
-    apply_masking_mlx, mdlm_loss_mlx,
     apply_masking_pytorch, mdlm_loss_pytorch,
     sample_beta_timesteps
 )
 from telos.diffusion.undlm import (
-    apply_uniform_noise_mlx, undlm_loss_mlx,
     apply_uniform_noise_pytorch, undlm_loss_pytorch
 )
 from telos.diffusion.corosred import (
-    crsr_phase_a_loss_fn_mlx, crsr_phase_b_loss_fn_mlx,
     crsr_phase_a_loss_fn_pytorch, crsr_phase_b_loss_fn_pytorch
 )
 from telos.diffusion.sampler import MDLMSampler, MLXMDLMSampler
-from telos.training.trainer_mlx import UnifiedMLXTrainer
 from telos.training.trainer_pytorch import UnifiedPyTorchTrainer
 
 
@@ -62,6 +58,7 @@ def test_model_contracts() -> tuple[bool, str]:
             return False, "Weight tying failed in TelosTransformer"
 
         if MLX_AVAILABLE:
+            from telos.models import MLXTelosTransformer
             mlx_model = MLXTelosTransformer(vocab_size=1000, d_model=128, n_layers=2, n_heads=4, n_kv_heads=4, tied_embeddings=True)
             dummy = mx.zeros((2, 16), dtype=mx.int32)
             out = mlx_model(dummy)
@@ -142,6 +139,12 @@ def test_losses_mlx() -> tuple[bool, str]:
     if not MLX_AVAILABLE:
         return True, "Skipped (MLX not available on this platform)"
     try:
+        from telos.models import MLXTelosTransformer
+        from telos.diffusion.ar import ar_loss_fn_mlx
+        from telos.diffusion.mdlm import apply_masking_mlx, mdlm_loss_mlx
+        from telos.diffusion.undlm import apply_uniform_noise_mlx, undlm_loss_mlx
+        from telos.diffusion.corosred import crsr_phase_a_loss_fn_mlx, crsr_phase_b_loss_fn_mlx
+
         bs, seq_len, vocab_size = 4, 32, 100
         targets = mx.random.randint(0, vocab_size, (bs, seq_len))
 
@@ -169,7 +172,7 @@ def test_losses_mlx() -> tuple[bool, str]:
             return False, "MLX UNDLM loss is non-positive"
 
         # COROSred Phase A & B
-        model_crsr = MLXTelosTransformer(vocab_size=vocab_size, d_model=64, n_layers=2, n_heads=2, is_causal=True)
+        model_crsr = MLXTelosTransformer(vocab_size=vocab_size, d_model=64, n_layers=2, n_heads=2, is_causal=True, use_reliability_head=True)
         loss_crsr_a, _ = crsr_phase_a_loss_fn_mlx(model_crsr, targets, vocab_size, k_amb=5)
         loss_crsr_b, _ = crsr_phase_b_loss_fn_mlx(model_crsr, targets, vocab_size, mask_token_id=1)
         mx.eval(loss_crsr_a, loss_crsr_b)
@@ -182,44 +185,45 @@ def test_losses_mlx() -> tuple[bool, str]:
 
 
 def test_live_training_steps(backend: str = "all", paradigm: str = "all") -> tuple[bool, str]:
-    """Performs live 2-step training runs across all paradigms on both PyTorch and MLX."""
+    """Runs 2 live micro-steps of AR, MDLM, UNDLM, and COROSred across PyTorch and MLX."""
     try:
+        from telos.training import UnifiedPyTorchTrainer
+        dummy_cfg = {
+            "model": {"vocab_size": 100, "d_model": 64, "n_layers": 2, "n_heads": 2, "seq_len": 32},
+            "training": {"max_steps": 2, "batch_size": 2, "gradient_accumulation": 1, "max_lr": 1e-4, "min_lr": 1e-5, "warmup_steps": 1, "weight_decay": 0.01},
+            "checkpoint": {"checkpoint_dir": "checkpoints/test_scratch", "save_every_steps": 100},
+            "data": {"synthetic": True}
+        }
         all_paradigms = ["ar", "mdlm", "undlm", "corosred"]
         target_paradigms = [paradigm.lower()] if paradigm.lower() != "all" else all_paradigms
-        
-        dummy_cfg = {
-            "model": {"vocab_size": 100, "seq_len": 32, "d_model": 64, "n_layers": 2, "n_heads": 2},
-            "training": {"max_steps": 2, "max_lr": 1e-3, "batch_size": 4, "gradient_accumulation": 1},
-            "data": {"synthetic": True},
-            "checkpoint": {"save_every_steps": 100}
-        }
 
         # 1. Test PyTorch paradigms
         if backend in ["all", "pytorch"]:
             for p in target_paradigms:
-                m = TelosTransformer(vocab_size=100, d_model=64, n_layers=2, n_heads=2, seq_len=32, is_causal=(p in ["ar", "corosred"]), use_reliability_head=(p == "corosred"))
-                trainer = UnifiedPyTorchTrainer(p, m, dummy_cfg, device_type="cpu")
+                m_pt = TelosTransformer(vocab_size=100, d_model=64, n_layers=2, n_heads=2, n_kv_heads=2, is_causal=(p in ["ar", "corosred"]), use_reliability_head=(p == "corosred"))
+                trainer = UnifiedPyTorchTrainer(p, m_pt, dummy_cfg, device_type="cpu")
                 trainer.train(resume_step=0)
 
                 if p == "corosred":
-                    # Also test Phase B
                     dummy_cfg_b = dict(dummy_cfg)
                     dummy_cfg_b["corosred"] = {"phase": "B"}
-                    m_b = TelosTransformer(vocab_size=100, d_model=64, n_layers=2, n_heads=2, seq_len=32, is_causal=False)
-                    trainer_b = UnifiedPyTorchTrainer(p, m_b, dummy_cfg_b, device_type="cpu")
+                    m_pt_b = TelosTransformer(vocab_size=100, d_model=64, n_layers=2, n_heads=2, n_kv_heads=2, is_causal=False, use_reliability_head=True)
+                    trainer_b = UnifiedPyTorchTrainer(p, m_pt_b, dummy_cfg_b, device_type="cpu")
                     trainer_b.train(resume_step=0)
 
         # 2. Test MLX paradigms if available
         if MLX_AVAILABLE and backend in ["all", "mlx"]:
+            from telos.models import MLXTelosTransformer
+            from telos.training import UnifiedMLXTrainer
             for p in target_paradigms:
-                m_mlx = MLXTelosTransformer(vocab_size=100, d_model=64, n_layers=2, n_heads=2, n_kv_heads=2, is_causal=(p in ["ar", "corosred"]))
+                m_mlx = MLXTelosTransformer(vocab_size=100, d_model=64, n_layers=2, n_heads=2, n_kv_heads=2, is_causal=(p in ["ar", "corosred"]), use_reliability_head=(p == "corosred"))
                 trainer_mlx = UnifiedMLXTrainer(p, m_mlx, dummy_cfg, eval_policy="step")
                 trainer_mlx.train(resume_step=0)
 
                 if p == "corosred":
                     dummy_cfg_b = dict(dummy_cfg)
                     dummy_cfg_b["corosred"] = {"phase": "B"}
-                    m_mlx_b = MLXTelosTransformer(vocab_size=100, d_model=64, n_layers=2, n_heads=2, n_kv_heads=2, is_causal=False)
+                    m_mlx_b = MLXTelosTransformer(vocab_size=100, d_model=64, n_layers=2, n_heads=2, n_kv_heads=2, is_causal=False, use_reliability_head=True)
                     trainer_mlx_b = UnifiedMLXTrainer(p, m_mlx_b, dummy_cfg_b, eval_policy="step")
                     trainer_mlx_b.train(resume_step=0)
 
@@ -239,6 +243,7 @@ def test_samplers() -> tuple[bool, str]:
             return False, "MDLMSampler left unmasked [MASK] tokens"
 
         if MLX_AVAILABLE:
+            from telos.models import MLXTelosTransformer
             mlx_model = MLXTelosTransformer(vocab_size=50, d_model=32, n_layers=2, n_heads=2, n_kv_heads=2)
             mlx_sampler = MLXMDLMSampler(mlx_model, mask_token_id=1, num_steps=3, schedule="cosine")
             sample_mlx = mlx_sampler.sample(seq_len=16)
