@@ -210,6 +210,10 @@ def build_config(
         m_cfg["use_reliability_head"] = False
         m_cfg["mask_token_id"] = 1
 
+    cfg["paradigm"] = paradigm
+    m_cfg["paradigm"] = paradigm
+    m_cfg["is_causal"] = paradigm in ("ar", "corosred")
+
     # 9. Checkpoint Storage & Cadence
     ckpt_default = f"checkpoints/{paradigm}"
     if paradigm == "corosred":
