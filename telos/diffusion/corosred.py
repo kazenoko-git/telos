@@ -126,7 +126,7 @@ if TORCH_AVAILABLE:
             target_logits = detached_logits.gather(dim=-1, index=expanded_targets)
             
             # Count elements strictly greater than the target's logit
-            num_greater = (detached_logits > target_logits).sum(dim=-1)
+            num_greater = (detached_logits > target_logits).float().sum(dim=-1)
             is_target_in_top_k = (num_greater < k_amb)
 
             labels = is_exact_match.float()
@@ -137,7 +137,9 @@ if TORCH_AVAILABLE:
         valid_mask = ~is_ambiguous
 
         if special_token_lut is not None:
-            content_mask = ~special_token_lut[shift_targets]
+            # Special tokens in Télos tokenizer are IDs 0, 1, 2, 3 (PAD, BOS, EOS, MASK).
+            # Direct comparison avoids unpartitioned 1D tensor lookup indexing across SPMD shards.
+            content_mask = (shift_targets >= 4)
             valid_mask = valid_mask & content_mask
 
         masked_bce = bce_raw * valid_mask.float()
