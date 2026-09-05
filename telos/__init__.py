@@ -6,15 +6,20 @@ from . import dataprep
 from . import train
 from . import eval
 from . import bench
-from .models.transformer import TelosTransformer, TelosConfig
-from .training.trainer_pytorch import UnifiedPyTorchTrainer
 from .training.hardware import HardwareProfile
+
+from .models.config import TelosConfig
 
 # Primary callable aliases
 prepare_dataset = dataprep.prepare_dataset
 run_train = train.train
 evaluate = eval.evaluate
 benchmark = bench.benchmark
+
+_TORCH_IMPORTS = {
+    "TelosTransformer": ".models.transformer",
+    "UnifiedPyTorchTrainer": ".training.trainer_pytorch",
+}
 
 def __getattr__(name: str):
     if name == "MLXTelosTransformer":
@@ -23,6 +28,16 @@ def __getattr__(name: str):
     if name == "UnifiedMLXTrainer":
         from .training import UnifiedMLXTrainer
         return UnifiedMLXTrainer
+    if name in _TORCH_IMPORTS:
+        try:
+            import importlib
+            mod = importlib.import_module(_TORCH_IMPORTS[name], __package__)
+            return getattr(mod, name)
+        except ImportError as err:
+            raise ImportError(
+                f"{name} requires 'torch', which is not available in this environment. "
+                "Install it via `pip install torch`."
+            ) from err
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 __all__ = [
