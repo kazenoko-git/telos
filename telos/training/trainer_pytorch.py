@@ -5,6 +5,7 @@ Unified PyTorch Trainer for all Telos paradigms (AR, MDLM, UNDLM, COROSred).
 import time
 import math
 import json
+import inspect
 import numpy as np
 from pathlib import Path
 
@@ -130,7 +131,9 @@ class UnifiedPyTorchTrainer:
                     decay_params.append(param)
 
         # Fused AdamW merges kernel operations for faster gradient updates on CUDA
-        use_fused = (self.device.type == "cuda") and hasattr(torch.optim.AdamW, "fused")
+        use_fused = (self.device.type == "cuda") and (
+            "fused" in inspect.signature(torch.optim.AdamW).parameters
+        )
         opt_kwargs = {
             "lr": self.max_lr,
             "betas": (0.9, 0.95),
@@ -444,7 +447,7 @@ class UnifiedPyTorchTrainer:
             self.save_checkpoint(ckpt_dir / "checkpoint_final.pt")
             # Write standalone config.json for eval loader and downstream tools
             with open(ckpt_dir / "config.json", "w") as f:
-                json.dump(self.cfg, f, indent=2)
+                json.dump(self.cfg, f, indent=2, default=str)
             print("=" * 70)
             print(f"  {self.paradigm.upper()} PyTorch Training Complete! Total time: {total_time/60.0:.2f} minutes.")
             print(f"  Saved standalone model artifact to {ckpt_dir}/")
