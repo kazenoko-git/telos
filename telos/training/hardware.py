@@ -89,13 +89,8 @@ def detect_cuda_profile() -> HardwareProfile:
 def detect_tpu_profile() -> HardwareProfile:
     """Detects PyTorch-XLA TPU slice configuration (v6e-1, v3e-8, v5e-8, v6e-16)."""
     try:
-        import torch_xla.core.xla_model as xm
-        # Prefer modern runtime world_size() API available in PyTorch-XLA 2.4+
-        try:
-            import torch_xla.runtime as xr
-            world_size = xr.world_size()
-        except (ImportError, AttributeError):
-            world_size = xm.xrt_world_size()
+        from .xla_utils import get_xla_world_size
+        world_size = get_xla_world_size()
         return HardwareProfile(
             backend="pytorch",
             device_name=f"TPU Slice ({world_size} Cores)",
