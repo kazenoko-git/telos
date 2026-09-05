@@ -65,16 +65,23 @@ class UnifiedPyTorchTrainer:
             try:
                 # Use cached XLA device and consistent xla_model context to guarantee
                 # InitializeComputationClient() is invoked at most once per process lifetime.
-                from .xla_utils import get_xla_device, get_xla_world_size, is_xla_master
+                from .xla_utils import get_xla_device, get_xla_world_size, is_xla_master, get_xla_spmd_mesh
                 self.device = get_xla_device()
                 self.is_tpu = True
+                self.spmd_mesh = get_xla_spmd_mesh()
+                self.is_spmd = self.spmd_mesh is not None
                 self.world_size = get_xla_world_size()
                 self.is_master = is_xla_master()
-                print(f"  [Hardware] Detected PyTorch-XLA TPU Topology ({self.world_size} Cores).")
+                if self.is_spmd:
+                    print(f"  [Hardware] Detected PyTorch-XLA SPMD Topology ({self.world_size} Cores).")
+                else:
+                    print(f"  [Hardware] Detected PyTorch-XLA TPU Topology ({self.world_size} Cores).")
             except ImportError as e:
                 print(f"Warning: torch_xla not installed ({e}). Falling back to CPU.")
                 self.device = torch.device("cpu")
                 self.is_tpu = False
+                self.spmd_mesh = None
+                self.is_spmd = False
                 self.world_size = 1
                 self.is_master = True
             except RuntimeError:
@@ -83,6 +90,8 @@ class UnifiedPyTorchTrainer:
         elif str(device_type).lower() == "cuda":
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
             self.is_tpu = False
+            self.spmd_mesh = None
+            self.is_spmd = False
             self.world_size = 1
             self.is_master = True
             self.n_gpus = torch.cuda.device_count()
@@ -96,6 +105,8 @@ class UnifiedPyTorchTrainer:
         else:
             self.device = torch.device(device_type)
             self.is_tpu = False
+            self.spmd_mesh = None
+            self.is_spmd = False
             self.world_size = 1
             self.is_master = True
 
@@ -375,6 +386,12 @@ class UnifiedPyTorchTrainer:
             for i in range(grad_accum):
                 batch_seqs = global_targets[i * bs : (i + 1) * bs]
 
+                # In PyTorch-XLA SPMD mode, shard batch dimension across TPU chips so PJRT
+                # produces valid PjRtShardedData buffers and avoids ExecuteReplicated NULL pointer SIGSEGV.
+                if getattr(self, "is_spmd", False) and self.spmd_mesh is not None:
+                    import torch_xla.distributed.spmd as xs
+                    xs.mark_sharding(batch_seqs, self.spmd_mesh, ("data", None))
+
                 if self.use_amp:
                     with torch.amp.autocast(device_type=self.device.type, dtype=self.amp_dtype):
                         loss, metrics = self._execute_microbatch(batch_seqs)
@@ -394,10 +411,13 @@ class UnifiedPyTorchTrainer:
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
             elif self.is_tpu:
-                nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
                 import torch_xla.core.xla_model as xm
-                # xm.optimizer_step() triggers gradient reduction and internal mark_step()
+                # Reduce gradients across SPMD replicas / TPU cores prior to norm clipping
+                xm.reduce_gradients(self.optimizer)
+                nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
+                # xm.optimizer_step() applies updates and triggers internal mark_step()
                 xm.optimizer_step(self.optimizer)
+                xm.mark_step()
             else:
                 nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
                 self.optimizer.step()
@@ -428,8 +448,8 @@ class UnifiedPyTorchTrainer:
                 sps = steps_taken / elapsed if elapsed > 0 else 0
                 tps = sps * bs * grad_accum * self.seq_len
 
-                l_val = last_metrics['loss'].item() if last_metrics and 'loss' in last_metrics else 0.0
-                ce_val = last_metrics['unweighted_ce'].item() if last_metrics and 'unweighted_ce' in last_metrics else 0.0
+                l_val = float(last_metrics['loss'].detach().cpu().item()) if last_metrics and 'loss' in last_metrics else 0.0
+                ce_val = float(last_metrics['unweighted_ce'].detach().cpu().item()) if last_metrics and 'unweighted_ce' in last_metrics else 0.0
                 
                 log_msg = f"  [{self.paradigm.upper()}] Step {step:>6d}/{self.max_steps} | Loss: {l_val:>6.4f} | CE: {ce_val:>5.3f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s"
                 if not benchmark:
