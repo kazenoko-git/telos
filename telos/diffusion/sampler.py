@@ -5,9 +5,24 @@ Includes:
 - MLXMDLMSampler: MLX Apple Silicon native confidence-based unmasking sampler.
 """
 
+from __future__ import annotations
 import math
-import torch
-import torch.nn.functional as F
+
+try:
+    import torch
+    import torch.nn.functional as F
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    
+    class _DummyTorch:
+        @staticmethod
+        def no_grad():
+            def decorator(func):
+                return func
+            return decorator
+    
+    torch = _DummyTorch()
 
 try:
     import mlx.core as mx
@@ -22,7 +37,7 @@ class MDLMSampler:
 
     def __init__(
         self,
-        model: torch.nn.Module,
+        model: 'torch.nn.Module',
         mask_token_id: int,
         num_steps: int = 64,
         temperature: float = 1.0,
