@@ -6,7 +6,8 @@ transformer dimensions (d_model, n_layers, n_heads) adhering to standard scaling
 
 import math
 import re
-from telos.models.param_counter import count_parameters, TelosConfig
+from telos.models.param_counter import count_parameters
+from telos.models.config import TelosConfig
 
 
 def parse_human_number(val: str | int | float) -> int:
