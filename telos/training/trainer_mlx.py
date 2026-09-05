@@ -43,9 +43,19 @@ class UnifiedMLXTrainer:
         self.paradigm = paradigm.lower()
         self.model = model
         self.cfg = cfg
-        self.m_cfg = cfg.get("model", {})
-        self.t_cfg = cfg.get("training", {})
-        self.c_cfg = cfg.get("checkpoint", {})
+        self.m_cfg = cfg.setdefault("model", {})
+        self.t_cfg = cfg.setdefault("training", {})
+        self.c_cfg = cfg.setdefault("checkpoint", {})
+
+        # Ensure paradigm and architectural metadata are mirrored into configuration
+        if "paradigm" not in self.cfg:
+            self.cfg["paradigm"] = self.paradigm
+        if "paradigm" not in self.m_cfg:
+            self.m_cfg["paradigm"] = self.paradigm
+        if "is_causal" not in self.m_cfg:
+            self.m_cfg["is_causal"] = getattr(self.model, "is_causal", self.paradigm in ("ar", "corosred"))
+        if "use_reliability_head" not in self.m_cfg:
+            self.m_cfg["use_reliability_head"] = getattr(self.model, "use_reliability_head", self.paradigm == "corosred")
         
         # Hardware Profile & Memory Management
         self.hw_profile = detect_apple_silicon_profile(user_policy=eval_policy)
@@ -311,7 +321,7 @@ class UnifiedMLXTrainer:
 
             # For benchmark mode: 5 warmup steps before collecting benchmark timers
             if benchmark:
-                if step == resume_step + 5:
+                if step >= resume_step + 5 and bench_start_time is None:
                     bench_start_time = time.time()
                 elif bench_start_time is not None:
                     latencies.append(step_time_ms)
