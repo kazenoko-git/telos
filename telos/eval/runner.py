@@ -14,8 +14,7 @@ import numpy as np
 
 from .probes import PROBE_SUITE_100
 from telos.data.tokenizer import load_tokenizer
-from telos.models import TelosTransformer, TelosConfig
-
+from telos.models import TelosConfig
 
 def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None = None):
     """Loads an MLX or PyTorch model along with its tokenizer from a checkpoint path."""
@@ -91,6 +90,7 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
             is_causal=is_causal,
             use_reliability_head=use_reliability_head,
         )
+        from telos.models import TelosTransformer
         model = TelosTransformer(tc)
         state = torch.load(str(cp), map_location="cpu")
         sd = state.get("model_state_dict", state)
