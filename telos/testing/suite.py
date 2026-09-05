@@ -24,24 +24,32 @@ try:
     import torch
     import torch.nn.functional as F
     TORCH_AVAILABLE = True
+    from telos.models import TelosTransformer
+    from telos.models.param_counter import verify_with_model
+    from telos.diffusion.ar import ar_loss_fn_pytorch
+    from telos.diffusion.mdlm import apply_masking_pytorch, mdlm_loss_pytorch
+    from telos.diffusion.undlm import apply_uniform_noise_pytorch, undlm_loss_pytorch
+    from telos.diffusion.corosred import crsr_phase_a_loss_fn_pytorch, crsr_phase_b_loss_fn_pytorch
+    from telos.diffusion.sampler import MDLMSampler
+    from telos.training.trainer_pytorch import UnifiedPyTorchTrainer
 except ImportError:
     TORCH_AVAILABLE = False
+    TelosTransformer = None
+    verify_with_model = None
+    ar_loss_fn_pytorch = None
+    apply_masking_pytorch = None
+    mdlm_loss_pytorch = None
+    apply_uniform_noise_pytorch = None
+    undlm_loss_pytorch = None
+    crsr_phase_a_loss_fn_pytorch = None
+    crsr_phase_b_loss_fn_pytorch = None
+    MDLMSampler = None
+    UnifiedPyTorchTrainer = None
 
-from telos.models import TelosTransformer, TelosConfig
-from telos.models.param_counter import count_parameters, verify_with_model
-from telos.diffusion.ar import ar_loss_fn_pytorch
-from telos.diffusion.mdlm import (
-    apply_masking_pytorch, mdlm_loss_pytorch,
-    sample_beta_timesteps
-)
-from telos.diffusion.undlm import (
-    apply_uniform_noise_pytorch, undlm_loss_pytorch
-)
-from telos.diffusion.corosred import (
-    crsr_phase_a_loss_fn_pytorch, crsr_phase_b_loss_fn_pytorch
-)
-from telos.diffusion.sampler import MDLMSampler, MLXMDLMSampler
-from telos.training.trainer_pytorch import UnifiedPyTorchTrainer
+from telos.models import TelosConfig
+from telos.models.param_counter import count_parameters
+from telos.diffusion.mdlm import sample_beta_timesteps
+from telos.diffusion.sampler import MLXMDLMSampler
 
 
 def test_model_contracts() -> tuple[bool, str]:
