@@ -30,17 +30,20 @@ def auto_detect_hardware() -> tuple[str, str, int]:
             pass
 
     # 2. Check PyTorch-XLA (Google Cloud / TPU Pods)
-    try:
-        import torch_xla.runtime as xr
-        world_size = xr.world_size()
-        return "pytorch", "xla", max(1, world_size)
-    except Exception:
-        try:
-            import torch_xla.core.xla_model as xm
-            world_size = xm.xrt_world_size()
-            return "pytorch", "xla", max(1, world_size)
-        except Exception:
-            pass
+    # Check non-intrusively via environment inspection or cached device singleton
+    # to avoid premature ComputationClient initialization before the trainer starts.
+    import os
+    from telos.training.xla_utils import is_tpu_environment, is_xla_initialized, get_xla_world_size
+    if is_tpu_environment() or is_xla_initialized():
+        count = 1
+        if "TPU_PROCESS_ADDRESSES" in os.environ:
+            try:
+                count = len(os.environ["TPU_PROCESS_ADDRESSES"].split(","))
+            except Exception:
+                count = 1
+        elif is_xla_initialized():
+            count = get_xla_world_size()
+        return "pytorch", "xla", max(1, count)
 
     # 3. Check NVIDIA CUDA GPUs
     try:
