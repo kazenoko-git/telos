@@ -35,14 +35,7 @@ def auto_detect_hardware() -> tuple[str, str, int]:
     import os
     from telos.training.xla_utils import is_tpu_environment, is_xla_initialized, get_xla_world_size
     if is_tpu_environment() or is_xla_initialized():
-        count = 1
-        if "TPU_PROCESS_ADDRESSES" in os.environ:
-            try:
-                count = len(os.environ["TPU_PROCESS_ADDRESSES"].split(","))
-            except Exception:
-                count = 1
-        elif is_xla_initialized():
-            count = get_xla_world_size()
+        count = get_xla_world_size()
         return "pytorch", "xla", max(1, count)
 
     # 3. Check NVIDIA CUDA GPUs
