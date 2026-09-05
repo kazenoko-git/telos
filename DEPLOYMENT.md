@@ -89,6 +89,9 @@ telos train --paradigm ar --params 100M --tokens 2.5B --hardware xla --devices 8
 telos train --config configs/unified/25m/telos_25m_r10.yaml
 ```
 
+> [!TIP]
+> **TPU Runtime Notes**: When training on Google Cloud TPU VMs or Colab/Kaggle TPU runtimes, ensure `export PJRT_DEVICE=TPU` is set in your shell environment. Télos automatically manages the PyTorch-XLA device singleton, allowing multi-phase runs (e.g. COROSred Phase A followed by Phase B) within the same notebook kernel or session without double-initialization runtime assertions.
+
 ---
 
 ## 4. High-Efficiency Data Preparation (`telos dataprep`)
