@@ -71,12 +71,15 @@ class UnifiedPyTorchTrainer:
                 self.world_size = get_xla_world_size()
                 self.is_master = is_xla_master()
                 print(f"  [Hardware] Detected PyTorch-XLA TPU Topology ({self.world_size} Cores).")
-            except (ImportError, RuntimeError) as e:
-                print(f"Warning: Could not acquire PyTorch-XLA device ({e}). Falling back to CPU.")
+            except ImportError as e:
+                print(f"Warning: torch_xla not installed ({e}). Falling back to CPU.")
                 self.device = torch.device("cpu")
                 self.is_tpu = False
                 self.world_size = 1
                 self.is_master = True
+            except RuntimeError:
+                # Re-raise hardware lock / initialization errors so users don't silently train on CPU
+                raise
         elif str(device_type).lower() == "cuda":
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
             self.is_tpu = False
@@ -173,7 +176,13 @@ class UnifiedPyTorchTrainer:
             "scheduler_state_dict": self.scheduler.state_dict(),
             "config": self.cfg,
         }
-        torch.save(checkpoint, path)
+        if self.is_tpu:
+            import torch_xla.core.xla_model as xm
+            xm.mark_step()
+            # xm.save serializes XLA tensors to CPU host memory safely without graph synchronization stalls
+            xm.save(checkpoint, path)
+        else:
+            torch.save(checkpoint, path)
 
     def load_checkpoint(self, path: str | Path):
         path = Path(path)
@@ -440,6 +449,9 @@ class UnifiedPyTorchTrainer:
             return
 
         if self.is_master:
+            if self.is_tpu:
+                import torch_xla.core.xla_model as xm
+                xm.mark_step()
             self.save_checkpoint(ckpt_dir / "checkpoint_final.pt")
             # Write standalone config.json for eval loader and downstream tools
             with open(ckpt_dir / "config.json", "w") as f:
