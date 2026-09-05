@@ -44,6 +44,15 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
     elif config:
         full_cfg = config
         m_cfg = config.get("model", config)
+    elif cp.suffix == ".pt":
+        try:
+            import torch
+            ckpt_data = torch.load(str(cp), map_location="cpu")
+            if isinstance(ckpt_data, dict) and "config" in ckpt_data:
+                full_cfg = ckpt_data.get("config", {})
+                m_cfg = full_cfg.get("model", full_cfg)
+        except Exception:
+            pass
 
     vocab_size = m_cfg.get("vocab_size", 8192)
     d_model = m_cfg.get("d_model", 512)
@@ -80,6 +89,15 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
 
     elif cp.suffix in [".pt", ".bin"]:
         import torch
+        state = torch.load(str(cp), map_location="cpu")
+        sd = state.get("model_state_dict", state)
+        # Strip DataParallel 'module.' prefix if present
+        sd = {k.removeprefix("module."): v for k, v in sd.items()}
+
+        # Auto-detect reliability head from state_dict keys if not explicitly defined in config
+        if not use_reliability_head and any("reliability_head" in k for k in sd.keys()):
+            use_reliability_head = True
+
         tc = TelosConfig(
             vocab_size=vocab_size,
             d_model=d_model,
@@ -92,8 +110,6 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
         )
         from telos.models import TelosTransformer
         model = TelosTransformer(tc)
-        state = torch.load(str(cp), map_location="cpu")
-        sd = state.get("model_state_dict", state)
         model.load_state_dict(sd, strict=True)
         model.eval()
         return model, "pytorch", vocab_size
