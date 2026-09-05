@@ -103,24 +103,33 @@ if TORCH_AVAILABLE:
     ) -> tuple[torch.Tensor, dict[str, float]]:
         B, T = batch_seqs.shape
 
-        # Forward pass under causal mask (pass mask_override=True to the model if it supports it, 
-        # or assume model is instantiated with is_causal=True)
-        # Here we assume the trainer passes mask_override=True
+        # Forward pass under causal mask
         logits, raw_r_scores = model(batch_seqs, return_reliability=True, mask_override=True)
 
         shift_logits = logits[:, :-1, :]
         shift_r_scores = raw_r_scores[:, :-1]
         shift_targets = batch_seqs[:, 1:]
 
-        argmax_indices = shift_logits.argmax(dim=-1)
-        is_exact_match = (argmax_indices == shift_targets)
+        # Explicitly detach logits used for label generation to prevent XLA from tracing
+        # a massive, non-differentiable graph branch during backward.
+        with torch.no_grad():
+            detached_logits = shift_logits.detach()
+            
+            argmax_indices = detached_logits.argmax(dim=-1)
+            is_exact_match = (argmax_indices == shift_targets)
 
-        # PyTorch topk
-        _, top_k_indices = torch.topk(shift_logits, k_amb, dim=-1)
-        expanded_targets = shift_targets.unsqueeze(-1)
-        is_target_in_top_k = (top_k_indices == expanded_targets).any(dim=-1)
+            # PyTorch XLA Optimization: torch.topk forces a CPU fallback or brutal brute-force 
+            # sort on TPU VM which causes Eigen ThreadPool SIGSEGV in PJRT. 
+            # Instead, we check if the target is in the top-k by counting how many elements 
+            # have a strictly greater logit score.
+            expanded_targets = shift_targets.unsqueeze(-1)
+            target_logits = detached_logits.gather(dim=-1, index=expanded_targets)
+            
+            # Count elements strictly greater than the target's logit
+            num_greater = (detached_logits > target_logits).sum(dim=-1)
+            is_target_in_top_k = (num_greater < k_amb)
 
-        labels = is_exact_match.float()
+            labels = is_exact_match.float()
 
         bce_raw = F.binary_cross_entropy_with_logits(shift_r_scores, labels, reduction="none")
 
