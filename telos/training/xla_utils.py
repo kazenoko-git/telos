@@ -10,6 +10,7 @@ from pathlib import Path
 _CACHED_XLA_DEVICE = None
 _CACHED_XLA_WORLD_SIZE = None
 _CACHED_IS_MASTER = None
+_CACHED_SPMD_MESH = None
 
 
 def is_tpu_environment() -> bool:
@@ -32,23 +33,63 @@ def get_xla_device():
     """
     Returns the XLA device singleton.
     Guarantees xm.xla_device() is called at most once per process lifetime.
+    Automatically detects and initializes SPMD virtual device when multi-device TPU VM is available,
+    preventing PjRtComputationClient::ExecuteReplicated SIGSEGV on sharded tensor graphs.
     """
     global _CACHED_XLA_DEVICE
     if _CACHED_XLA_DEVICE is not None:
         return _CACHED_XLA_DEVICE
 
     import torch_xla.core.xla_model as xm
-    
-    # Initialize computation client safely
+    import torch_xla.runtime as xr
+
+    # If running in a multi-device TPU environment (e.g. Kaggle v3-8 / GCE TPU VM),
+    # activate SPMD before xm.xla_device() so the SPMD virtual device (spmd:0) is bound
+    # and all TPU chips can participate in data-parallel training without ExecuteReplicated SIGSEGV.
+    if is_tpu_environment() and not xr.is_spmd():
+        try:
+            n_dev = xr.global_runtime_device_count()
+            if n_dev > 1:
+                xr.use_spmd()
+        except Exception:
+            pass
+
     _CACHED_XLA_DEVICE = xm.xla_device()
     return _CACHED_XLA_DEVICE
 
 
+def get_xla_spmd_mesh():
+    """Returns the active SPMD Mesh singleton across addressable TPU chips, or None."""
+    global _CACHED_SPMD_MESH
+    if _CACHED_SPMD_MESH is not None:
+        return _CACHED_SPMD_MESH
+
+    try:
+        import torch_xla.runtime as xr
+        if xr.is_spmd():
+            import torch_xla.distributed.spmd as xs
+            import numpy as np
+            n_dev = xr.global_runtime_device_count()
+            _CACHED_SPMD_MESH = xs.Mesh(np.arange(n_dev), (n_dev,), ("data",))
+            return _CACHED_SPMD_MESH
+    except Exception:
+        pass
+    return None
+
+
 def get_xla_world_size() -> int:
-    """Returns the XLA world size."""
+    """Returns the XLA world size (SPMD chip count or standard XRT world size)."""
     global _CACHED_XLA_WORLD_SIZE
     if _CACHED_XLA_WORLD_SIZE is not None:
         return _CACHED_XLA_WORLD_SIZE
+
+    try:
+        import torch_xla.runtime as xr
+        if xr.is_spmd():
+            _CACHED_XLA_WORLD_SIZE = xr.global_runtime_device_count()
+            return max(1, _CACHED_XLA_WORLD_SIZE)
+    except Exception:
+        pass
 
     try:
         import torch_xla.core.xla_model as xm
