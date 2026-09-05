@@ -4,7 +4,11 @@ Accurately computes trainable parameters based on configuration, accounting for
 weight-tied embeddings, SwiGLU expansion, and RMSNorm layers.
 """
 
-from .transformer import TelosConfig, TelosTransformer
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .transformer import TelosConfig
 
 
 def count_parameters(config: TelosConfig) -> dict[str, int]:
@@ -61,5 +65,6 @@ def count_parameters(config: TelosConfig) -> dict[str, int]:
 
 def verify_with_model(config: TelosConfig) -> int:
     """Instantiates PyTorch model and counts numel() directly to verify formula."""
+    from .transformer import TelosTransformer
     model = TelosTransformer(config)
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
