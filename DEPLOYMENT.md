@@ -90,7 +90,15 @@ telos train --config configs/unified/25m/telos_25m_r10.yaml
 ```
 
 > [!TIP]
-> **TPU Runtime Notes**: When training on Google Cloud TPU VMs or Colab/Kaggle TPU runtimes, ensure `export PJRT_DEVICE=TPU` is set in your shell environment. Télos automatically manages the PyTorch-XLA device singleton, allowing multi-phase runs (e.g. COROSred Phase A followed by Phase B) within the same notebook kernel or session without double-initialization runtime assertions.
+> **TPU Runtime Notes & Kaggle Troubleshooting**:
+> 1. Ensure `export PJRT_DEVICE=TPU` is set in your environment (standard on Kaggle/Colab TPU runtimes).
+> 2. **Resolving `/dev/vfio/*: Device or resource busy`**: On Cloud/Kaggle TPU VMs, each TPU chip (`/dev/vfio/0`, `/dev/vfio/1`, etc.) can only be locked by a single process at a time. If an earlier process crashed or a notebook cell was interrupted, the device lock remains held. Run:
+>    ```bash
+>    fuser -k -9 /dev/vfio/* 2>/dev/null || true
+>    ```
+>    or in the Kaggle UI: click **Session -> Restart Session**.
+> 3. **Avoid Notebook Kernel Contention**: Do not import `torch_xla` or initialize TPU tensors in interactive notebook cells if you execute training via shell `!telos train ...`. Otherwise the long-lived Jupyter kernel retains `/dev/vfio/*`, blocking child processes.
+> 4. **Multi-Phase Pipeline**: When chaining Phase A and Phase B via shell, insert a 5-second pause (`sleep 5`) to allow the kernel driver to release VFIO descriptors, or run both phases within a single Python script using `from telos.train.cli import train`.
 
 ---
 
