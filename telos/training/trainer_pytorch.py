@@ -63,20 +63,16 @@ class UnifiedPyTorchTrainer:
 
         if str(device_type).lower() in ["tpu", "xla"]:
             try:
-                import torch_xla.core.xla_model as xm
-                self.device = xm.xla_device()
+                # Use cached XLA device and consistent xla_model context to guarantee
+                # InitializeComputationClient() is invoked at most once per process lifetime.
+                from .xla_utils import get_xla_device, get_xla_world_size, is_xla_master
+                self.device = get_xla_device()
                 self.is_tpu = True
-                # Query world size: prefer modern torch_xla.runtime API (PyTorch-XLA 2.4+),
-                # with fallback to xm.xrt_world_size() for legacy environments.
-                try:
-                    import torch_xla.runtime as xr
-                    self.world_size = xr.world_size()
-                except (ImportError, AttributeError):
-                    self.world_size = xm.xrt_world_size()
-                self.is_master = xm.is_master_ordinal()
+                self.world_size = get_xla_world_size()
+                self.is_master = is_xla_master()
                 print(f"  [Hardware] Detected PyTorch-XLA TPU Topology ({self.world_size} Cores).")
-            except ImportError:
-                print("Warning: torch_xla not installed. Falling back to CPU.")
+            except (ImportError, RuntimeError) as e:
+                print(f"Warning: Could not acquire PyTorch-XLA device ({e}). Falling back to CPU.")
                 self.device = torch.device("cpu")
                 self.is_tpu = False
                 self.world_size = 1
