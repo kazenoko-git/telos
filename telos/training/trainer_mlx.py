@@ -366,7 +366,7 @@ class UnifiedMLXTrainer:
         self.model.save_weights(str(final_weights))
 
         with open(ckpt_dir / "config.json", "w") as f:
-            json.dump(self.m_cfg, f, indent=2)
+            json.dump(self.cfg, f, indent=2, default=str)
 
         print("=" * 70)
         print(f"  {self.paradigm.upper()} Training Complete! Total time: {total_time/60.0:.2f} minutes.")
