@@ -54,6 +54,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["telos"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"telos/assets/tokenizer_0.json" = "telos/assets/tokenizer_0.json"
+
 [tool.hatch.build.targets.sdist]
 exclude = [
     "/.venv",
