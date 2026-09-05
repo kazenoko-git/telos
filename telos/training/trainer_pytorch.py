@@ -31,12 +31,26 @@ class UnifiedPyTorchTrainer:
         if not TORCH_AVAILABLE:
             raise ImportError("PyTorch is not installed. Cannot use UnifiedPyTorchTrainer.")
 
+        if torch.cuda.is_available():
+            # Enable TF32 for matrix multiplications on Ampere+ architectures
+            torch.set_float32_matmul_precision("high")
+
         self.paradigm = paradigm.lower()
         self.model = model
         self.cfg = cfg
-        self.m_cfg = cfg.get("model", {})
-        self.t_cfg = cfg.get("training", {})
-        self.c_cfg = cfg.get("checkpoint", {})
+        self.m_cfg = cfg.setdefault("model", {})
+        self.t_cfg = cfg.setdefault("training", {})
+        self.c_cfg = cfg.setdefault("checkpoint", {})
+
+        # Ensure paradigm and architectural metadata are mirrored into configuration
+        if "paradigm" not in self.cfg:
+            self.cfg["paradigm"] = self.paradigm
+        if "paradigm" not in self.m_cfg:
+            self.m_cfg["paradigm"] = self.paradigm
+        if "is_causal" not in self.m_cfg:
+            self.m_cfg["is_causal"] = getattr(self.model, "is_causal", self.paradigm in ("ar", "corosred"))
+        if "use_reliability_head" not in self.m_cfg:
+            self.m_cfg["use_reliability_head"] = getattr(self.model, "use_reliability_head", self.paradigm == "corosred")
 
         self.vocab_size = self.m_cfg.get("vocab_size", 8192)
         self.seq_len = self.m_cfg.get("seq_len", 512)
@@ -103,12 +117,34 @@ class UnifiedPyTorchTrainer:
         self.weight_decay = float(self.t_cfg.get("weight_decay", 0.1))
         self.grad_clip = float(self.t_cfg.get("grad_clip", 1.0))
 
+        # Separate parameters into decayed and non-decayed groups:
+        # Standard transformer optimization applies 0 weight decay to 1D parameters (biases, layer norms, RMS norms)
+        # and embedding lookup tables to avoid regularizing scale/shift parameters.
+        decay_params = []
+        no_decay_params = []
+        for name, param in self.model.named_parameters():
+            if param.requires_grad:
+                if param.ndim == 1 or "embed" in name:
+                    no_decay_params.append(param)
+                else:
+                    decay_params.append(param)
+
+        # Fused AdamW merges kernel operations for faster gradient updates on CUDA
+        use_fused = (self.device.type == "cuda") and hasattr(torch.optim.AdamW, "fused")
+        opt_kwargs = {
+            "lr": self.max_lr,
+            "betas": (0.9, 0.95),
+            "eps": 1e-8,
+        }
+        if use_fused:
+            opt_kwargs["fused"] = True
+
         self.optimizer = torch.optim.AdamW(
-            self.model.parameters(),
-            lr=self.max_lr,
-            betas=(0.9, 0.95),
-            weight_decay=self.weight_decay,
-            eps=1e-8
+            [
+                {"params": decay_params, "weight_decay": self.weight_decay},
+                {"params": no_decay_params, "weight_decay": 0.0},
+            ],
+            **opt_kwargs
         )
 
         self.scheduler = WarmupCosineLR(
@@ -275,7 +311,7 @@ class UnifiedPyTorchTrainer:
                     except Exception:
                         pass
             if dtype is None:
-                dtype = np.int32 if self.vocab_size > 65536 else np.uint16
+                dtype = np.int32 if "mac" in str(train_bin) or self.vocab_size > 65536 else np.uint16
 
             raw_data = np.memmap(train_bin, dtype=dtype, mode="r")
             n_seqs = len(raw_data) // self.seq_len
@@ -366,7 +402,7 @@ class UnifiedPyTorchTrainer:
 
             # For benchmark mode: 5 warmup steps before collecting benchmark timers
             if benchmark:
-                if step == resume_step + 5:
+                if step >= resume_step + 5 and bench_start_time is None:
                     bench_start_time = time.time()
                 elif bench_start_time is not None:
                     latencies.append(step_time_ms)
@@ -406,6 +442,9 @@ class UnifiedPyTorchTrainer:
 
         if self.is_master:
             self.save_checkpoint(ckpt_dir / "checkpoint_final.pt")
+            # Write standalone config.json for eval loader and downstream tools
+            with open(ckpt_dir / "config.json", "w") as f:
+                json.dump(self.cfg, f, indent=2)
             print("=" * 70)
             print(f"  {self.paradigm.upper()} PyTorch Training Complete! Total time: {total_time/60.0:.2f} minutes.")
             print(f"  Saved standalone model artifact to {ckpt_dir}/")
