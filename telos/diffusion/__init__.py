@@ -6,7 +6,12 @@ _MLX_FUNCTIONS = {
     "undlm_loss_mlx": ".undlm",
     "crsr_phase_a_loss_fn_mlx": ".corosred",
     "crsr_phase_b_loss_fn_mlx": ".corosred",
+    "crsr_expected_gain_loss_fn_mlx": ".corosred",
+    "crsr_phase_b_self_conditioned_loss_fn_mlx": ".corosred",
     "MLXMDLMSampler": ".sampler",
+    "dilate_flags": ".region",
+    "bridge_gaps": ".region",
+    "form_refinement_regions": ".region",
 }
 
 _TORCH_FUNCTIONS = {
@@ -19,7 +24,13 @@ _TORCH_FUNCTIONS = {
     "undlm_loss_pytorch": ".undlm",
     "crsr_phase_a_loss_fn_pytorch": ".corosred",
     "crsr_phase_b_loss_fn_pytorch": ".corosred",
+    "crsr_expected_gain_loss_fn_pytorch": ".corosred",
+    "crsr_phase_b_self_conditioned_loss_fn_pytorch": ".corosred",
     "MDLMSampler": ".sampler",
+    "COROSredRefiner": ".refiner",
+    "dilate_flags": ".region",
+    "bridge_gaps": ".region",
+    "form_refinement_regions": ".region",
 }
 
 def __getattr__(name: str):
@@ -59,7 +70,10 @@ __all__ = [
     "undlm_loss_pytorch",
     "crsr_phase_a_loss_fn_pytorch",
     "crsr_phase_b_loss_fn_pytorch",
+    "crsr_expected_gain_loss_fn_pytorch",
+    "crsr_phase_b_self_conditioned_loss_fn_pytorch",
     "MDLMSampler",
+    "COROSredRefiner",
     "MLXMDLMSampler",
     "ar_loss_fn_mlx",
     "apply_masking_mlx",
@@ -68,4 +82,9 @@ __all__ = [
     "undlm_loss_mlx",
     "crsr_phase_a_loss_fn_mlx",
     "crsr_phase_b_loss_fn_mlx",
+    "crsr_expected_gain_loss_fn_mlx",
+    "crsr_phase_b_self_conditioned_loss_fn_mlx",
+    "dilate_flags",
+    "bridge_gaps",
+    "form_refinement_regions",
 ]
