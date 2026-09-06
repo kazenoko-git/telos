@@ -392,6 +392,7 @@ if TORCH_AVAILABLE:
         metrics = {
             "loss": loss,
             "unweighted_ce": loss,
+            "self_cond": float(self_cond_prob),
             "self_cond_prob": float(self_cond_prob)
         }
         return loss, metrics
