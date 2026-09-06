@@ -249,7 +249,6 @@ fuser -k -9 /dev/vfio/* 2>/dev/null || true
 
 # 2. Configure PyTorch-XLA Environment
 export PJRT_DEVICE=TPU
-export XLA_USE_BF16=1
 
 # 3. Clone or pull latest codebase (ensure local changes are pushed via git push)
 cd /kaggle/working
@@ -266,8 +265,8 @@ fi
 pip install -q pyyaml tokenizers datasets safetensors huggingface_hub
 pip install -q --no-deps -e .
 
-# 5. Run Hardware Benchmark on TPU (MDLM 12M, 30 seconds)
-telos bench --paradigm mdlm --params 12M --hardware xla --duration 30
+# 5. Run Hardware Benchmark across all 8 TPU cores (MDLM 12M, 30s)
+telos bench --paradigm mdlm --params 12M --hardware xla --devices 8 --duration 30
 ```
 
 ### In-Kernel Python Alternative
@@ -277,17 +276,17 @@ If calling Télos directly within a Python notebook cell:
 ```python
 import os
 os.environ["PJRT_DEVICE"] = "TPU"
-os.environ["XLA_USE_BF16"] = "1"
 
 import telos
 
-# Run 30s benchmark across all 8 TPU cores via SPMD
+# Run 30s benchmark across all 8 TPU cores
 telos.benchmark(
     paradigm="mdlm",
     params="12M",
     hardware="xla",
-    devices="auto",
+    devices=8,
     duration=30.0
 )
 ```
+
 
