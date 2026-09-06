@@ -29,6 +29,17 @@ def is_xla_initialized() -> bool:
     return _CACHED_XLA_DEVICE is not None
 
 
+def clean_tpu_environment():
+    """
+    Cleans conflicting Kaggle/GCP environment variables that trigger fatal
+    SliceBuilder port lookup crashes in PyTorch-XLA PJRT multiprocessing.
+    """
+    if os.environ.get("TPU_PROCESS_ADDRESSES", "").strip().lower() == "local":
+        os.environ.pop("TPU_PROCESS_ADDRESSES", None)
+    if "CLOUD_TPU_TASK_ID" in os.environ and "TPU_NAME" not in os.environ:
+        os.environ.pop("CLOUD_TPU_TASK_ID", None)
+
+
 def get_xla_device():
     """
     Returns the XLA device singleton.
@@ -39,6 +50,7 @@ def get_xla_device():
     if _CACHED_XLA_DEVICE is not None:
         return _CACHED_XLA_DEVICE
 
+    clean_tpu_environment()
     import torch_xla.core.xla_model as xm
     _CACHED_XLA_DEVICE = xm.xla_device()
     return _CACHED_XLA_DEVICE
