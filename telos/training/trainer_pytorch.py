@@ -2,6 +2,9 @@
 Unified PyTorch Trainer for all Telos paradigms (AR, MDLM, UNDLM, COROSred).
 """
 
+import os
+import queue
+import threading
 import time
 import math
 import json
@@ -39,6 +42,8 @@ class UnifiedPyTorchTrainer:
         if torch.cuda.is_available():
             # Enable TF32 for matrix multiplications on Ampere+ architectures
             torch.set_float32_matmul_precision("high")
+            # Allocator hygiene: Set expandable_segments to eliminate memory fragmentation during autotuning
+            os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
         self.paradigm = paradigm.lower()
         self.model = model
@@ -65,6 +70,7 @@ class UnifiedPyTorchTrainer:
         self.special_lut = torch.zeros(self.vocab_size, dtype=torch.bool)
         self.special_lut[:4] = True
 
+        local_rank = int(os.environ.get("LOCAL_RANK", -1))
         if str(device_type).lower() in ["tpu", "xla"]:
             try:
                 # Use cached XLA device and consistent xla_model context to guarantee
@@ -92,16 +98,24 @@ class UnifiedPyTorchTrainer:
                 # Re-raise hardware lock / initialization errors so users don't silently train on CPU
                 raise
         elif str(device_type).lower() == "cuda":
-            self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+            if local_rank != -1 and torch.cuda.is_available():
+                torch.cuda.set_device(local_rank)
+                self.device = torch.device(f"cuda:{local_rank}")
+                if not torch.distributed.is_initialized():
+                    torch.distributed.init_process_group(backend="nccl")
+                self.world_size = int(os.environ.get("WORLD_SIZE", 1))
+                self.is_master = (int(os.environ.get("RANK", 0)) == 0)
+                self.is_ddp = True
+            else:
+                self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+                self.world_size = 1
+                self.is_master = True
+                self.is_ddp = False
+
             self.is_tpu = False
             self.spmd_mesh = None
             self.is_spmd = False
-            self.world_size = 1
-            self.is_master = True
             self.n_gpus = torch.cuda.device_count()
-            if self.n_gpus > 1:
-                gpu_name = torch.cuda.get_device_name(0)
-                print(f"  [Hardware] Multi-GPU Detected: {self.n_gpus}x {gpu_name}. Wrapping model in DataParallel.")
             # Check native BF16 support (e.g. Turing T4 does not support BF16, Ampere/Ada/Hopper do)
             if not torch.cuda.is_bf16_supported() and self.precision == "bf16":
                 print("  [Notice] Hardware lacks native BF16 support. Automatically falling back to FP16 with GradScaler.")
@@ -113,13 +127,41 @@ class UnifiedPyTorchTrainer:
             self.is_spmd = False
             self.world_size = 1
             self.is_master = True
+            self.is_ddp = False
 
         self.model.to(self.device)
         self.special_lut = self.special_lut.to(self.device)
 
-        # Multi-GPU wrapping
-        if getattr(self, "n_gpus", 1) > 1 and not self.is_tpu:
+        # Explicit bfloat16 casting for TPU MXU hardware saturation
+        if self.is_tpu and self.precision in ["bfloat16", "bf16"]:
+            self.model.to(dtype=torch.bfloat16)
+            print("  [Precision] TPU model weights cast to native torch.bfloat16.")
+
+        # Multi-GPU wrapping: Prefer DDP over deprecated DataParallel
+        if getattr(self, "is_ddp", False):
+            self.model = nn.parallel.DistributedDataParallel(self.model, device_ids=[local_rank])
+            if self.is_master:
+                print(f"  [Hardware] Multi-GPU DDP initialized across {self.world_size} processes.")
+        elif getattr(self, "n_gpus", 1) > 1 and not self.is_tpu and self.device.type == "cuda":
+            print("  [Hardware Notice] Multi-GPU detected without torchrun. For 1.8x-7x throughput scaling, launch with 'torchrun'. Falling back to DataParallel.")
             self.model = nn.DataParallel(self.model)
+
+        # Gradient checkpointing activation
+        if self.t_cfg.get("gradient_checkpointing", False) or self.m_cfg.get("use_grad_checkpoint", False):
+            if hasattr(self.model, "use_grad_checkpoint"):
+                self.model.use_grad_checkpoint = True
+            elif hasattr(self.model, "module") and hasattr(self.model.module, "use_grad_checkpoint"):
+                self.model.module.use_grad_checkpoint = True
+            print("  [Memory] PyTorch Gradient Checkpointing Enabled.")
+
+        # torch.compile integration (fusing RMSNorm, SwiGLU, and RoPE)
+        if self.t_cfg.get("compile", False) and hasattr(torch, "compile") and self.device.type == "cuda":
+            mode = self.t_cfg.get("compile_mode", "reduce-overhead")
+            try:
+                self.model = torch.compile(self.model, mode=mode)
+                print(f"  [Compiler] torch.compile enabled (mode={mode}).")
+            except Exception as e:
+                print(f"  [Compiler] torch.compile skipped: {e}")
 
         if self.paradigm == "corosred":
             self.crsr_cfg = cfg.get("crsr", cfg.get("corosred", {}))
@@ -164,24 +206,49 @@ class UnifiedPyTorchTrainer:
             **opt_kwargs
         )
 
+        # On TPU, quantize LR updates to 10-step cadence to avoid XLA graph recompilations from Python float changes
+        lr_cadence = 10 if self.is_tpu else 1
         self.scheduler = WarmupCosineLR(
             self.optimizer,
             warmup_steps=self.warmup_steps,
             max_steps=self.max_steps,
-            min_lr=self.min_lr
+            min_lr=self.min_lr,
+            update_cadence=lr_cadence
         )
 
-        # TPU uses native BF16 execution on XLA cores; exclude from torch.amp.autocast
-        self.use_amp = (self.precision in ["fp16", "bf16"]) and (self.device.type in ["cuda", "mps"])
-        self.amp_dtype = torch.bfloat16 if self.precision == "bf16" else torch.float16
+        # Autocast AMP precision
+        if self.is_tpu:
+            self.use_amp = (self.precision in ["fp16", "bf16"]) and hasattr(torch.amp, "autocast")
+            self.amp_device = "xla"
+            self.amp_dtype = torch.bfloat16
+        else:
+            self.use_amp = (self.precision in ["fp16", "bf16"]) and (self.device.type in ["cuda", "mps"])
+            self.amp_device = self.device.type
+            self.amp_dtype = torch.bfloat16 if self.precision == "bf16" else torch.float16
 
         # Modern GradScaler API for FP16 training on CUDA
         self.use_scaler = (self.precision == "fp16") and (self.device.type == "cuda")
         self.scaler = torch.amp.GradScaler("cuda") if self.use_scaler else None
 
+        # Pre-sampled device-resident Beta(1.5, 1.5) buffer to eliminate per-microbatch host RNG & PCIe syncs
+        if self.paradigm in ["mdlm", "undlm"]:
+            self.beta_buffer_size = 1_000_000
+            beta_np = sample_beta_timesteps(self.beta_buffer_size)
+            beta_dtype = torch.bfloat16 if (self.is_tpu or self.precision == "bf16") else torch.float32
+            self.beta_buffer = torch.from_numpy(beta_np).to(device=self.device, dtype=beta_dtype)
+            self.beta_idx = 0
+
         self.global_step = 0
 
-    def save_checkpoint(self, path: str | Path):
+    def _sample_beta_timesteps(self, bs: int) -> torch.Tensor:
+        """Fetches bs timesteps directly from the device-resident Beta buffer without CPU copy."""
+        if self.beta_idx + bs > self.beta_buffer_size:
+            self.beta_idx = 0
+        start = self.beta_idx
+        self.beta_idx += bs
+        return self.beta_buffer[start : start + bs]
+
+    def save_checkpoint(self, path: str | Path, sync: bool = False):
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         checkpoint = {
@@ -196,8 +263,14 @@ class UnifiedPyTorchTrainer:
             xm.mark_step()
             # xm.save serializes XLA tensors to CPU host memory safely without graph synchronization stalls
             xm.save(checkpoint, path)
-        else:
+        elif sync:
             torch.save(checkpoint, path)
+        else:
+            # Asynchronous checkpoint saving on a background worker thread to prevent hot-loop sync stalls
+            def _async_save():
+                torch.save(checkpoint, path)
+            save_thread = threading.Thread(target=_async_save, daemon=True)
+            save_thread.start()
 
     def load_checkpoint(self, path: str | Path):
         path = Path(path)
@@ -223,14 +296,14 @@ class UnifiedPyTorchTrainer:
 
         elif self.paradigm == "mdlm":
             bs = batch_seqs.shape[0]
-            t_vals = torch.from_numpy(sample_beta_timesteps(bs)).to(self.device)
+            t_vals = self._sample_beta_timesteps(bs)
             masked_ids, mask_pos, t_vals_out = apply_masking_pytorch(batch_seqs, t_vals, mask_token_id=1, special_token_lut=self.special_lut)
             logits = self.model(masked_ids, mask_override=False)
             loss, metrics = mdlm_loss_pytorch(logits, batch_seqs, mask_pos, t_vals_out)
 
         elif self.paradigm == "undlm":
             bs = batch_seqs.shape[0]
-            t_vals = torch.from_numpy(sample_beta_timesteps(bs)).to(self.device)
+            t_vals = self._sample_beta_timesteps(bs)
             noisy_ids, corrupt_mask, t_vals_out = apply_uniform_noise_pytorch(batch_seqs, t_vals, self.vocab_size, special_token_lut=self.special_lut)
             logits = self.model(noisy_ids, mask_override=False)
             loss, metrics = undlm_loss_pytorch(logits, batch_seqs, t_vals_out, special_token_lut=self.special_lut)
@@ -399,10 +472,24 @@ class UnifiedPyTorchTrainer:
         bench_steps = 0
         self.optimizer.zero_grad()
 
+        # Background asynchronous batch prefetcher
+        prefetch_queue = queue.Queue(maxsize=1)
+
+        def prefetch_worker():
+            nonlocal idx_ptr
+            for _ in range(resume_step + 1, self.max_steps + 1):
+                batch_t, idx_ptr = get_global_targets_contiguous_pytorch(
+                    dataset_matrix, idx_ptr, bs * grad_accum, self.seq_len, self.device, non_blocking=True
+                )
+                prefetch_queue.put(batch_t)
+
+        prefetch_thread = threading.Thread(target=prefetch_worker, daemon=True)
+        prefetch_thread.start()
+
         for step in range(resume_step + 1, self.max_steps + 1):
             t_step_start = time.perf_counter()
 
-            global_targets, idx_ptr = get_global_targets_contiguous_pytorch(dataset_matrix, idx_ptr, bs * grad_accum, self.seq_len, self.device)
+            global_targets = prefetch_queue.get()
 
             last_metrics = None
             
@@ -416,7 +503,7 @@ class UnifiedPyTorchTrainer:
                     xs.mark_sharding(batch_seqs, self.spmd_mesh, ("data", None))
 
                 if self.use_amp:
-                    with torch.amp.autocast(device_type=self.device.type, dtype=self.amp_dtype):
+                    with torch.amp.autocast(device_type=getattr(self, "amp_device", self.device.type), dtype=self.amp_dtype):
                         loss, metrics = self._execute_microbatch(batch_seqs)
                 else:
                     loss, metrics = self._execute_microbatch(batch_seqs)
@@ -435,8 +522,10 @@ class UnifiedPyTorchTrainer:
                 self.scaler.update()
             elif self.is_tpu:
                 import torch_xla.core.xla_model as xm
-                # Reduce gradients across SPMD replicas / TPU cores prior to norm clipping
-                xm.reduce_gradients(self.optimizer)
+                # In SPMD mode, xs.mark_sharding on the batch automatically triggers the partitioner all-reduce.
+                # Only call xm.reduce_gradients in multi-process non-SPMD mode.
+                if not getattr(self, "is_spmd", False):
+                    xm.reduce_gradients(self.optimizer)
                 nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
                 # xm.optimizer_step() applies updates and triggers internal mark_step()
                 xm.optimizer_step(self.optimizer)
@@ -495,7 +584,7 @@ class UnifiedPyTorchTrainer:
             if self.is_tpu:
                 import torch_xla.core.xla_model as xm
                 xm.mark_step()
-            self.save_checkpoint(ckpt_dir / "checkpoint_final.pt")
+            self.save_checkpoint(ckpt_dir / "checkpoint_final.pt", sync=True)
             # Write standalone config.json for eval loader and downstream tools
             with open(ckpt_dir / "config.json", "w") as f:
                 json.dump(self.cfg, f, indent=2, default=str)
