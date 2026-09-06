@@ -123,7 +123,7 @@ def train(
                     paradigm=paradigm,
                     phase=phase,
                     params=params,
-                    tokens=tokens,
+                    tokens=None,  # Pre-resolved cluster max_steps takes precedence in workers
                     effective_batch=None,
                     batch_size=t_cfg["batch_size"],
                     grad_accum=t_cfg["gradient_accumulation"],
