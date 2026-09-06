@@ -82,14 +82,26 @@ class TelosTransformer(nn.Module):
         h = self.dropout(h)
         cos, sin = self.rope(h, seq_len)
 
+        is_xla = h.device.type == "xla" or str(h.device).startswith("xla")
         for layer in self.layers:
             # Memory Optimization: Recompute activations during backward pass when gradient checkpointing is enabled
             if self.use_grad_checkpoint and self.training:
-                h = torch.utils.checkpoint.checkpoint(
-                    layer, h, cos, sin, mask_override, use_reentrant=False
-                )
+                if is_xla:
+                    # In PyTorch-XLA, use_reentrant=True with preserve_rng_state=False avoids
+                    # torch.utils.checkpoint calling getattr(torch, "xla") which throws AttributeError.
+                    h = torch.utils.checkpoint.checkpoint(
+                        layer, h, cos, sin, mask_override,
+                        use_reentrant=True,
+                        preserve_rng_state=False
+                    )
+                else:
+                    h = torch.utils.checkpoint.checkpoint(
+                        layer, h, cos, sin, mask_override,
+                        use_reentrant=False
+                    )
             else:
                 h = layer(h, cos, sin, mask_override=mask_override)
+
 
         h = self.final_norm(h)
         logits = self.output_projection(h)
