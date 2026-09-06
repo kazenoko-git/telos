@@ -151,8 +151,9 @@ def build_config(
     d_model = m_cfg["d_model"]
     
     if final_device == "xla":
-        # TPU MXU systolic arrays (v5e/v6e) require large per-core microbatches (64-128+) to saturate
-        auto_microbatch = 128 if d_model <= 512 else 64
+        # TPU v3 (16GB HBM) per-core microbatch sizing: 32-48 sequences is the sweet spot
+        # to saturate MXU systolic arrays while keeping attention matrices well within 16GB HBM.
+        auto_microbatch = 48 if d_model <= 384 else (32 if d_model <= 512 else 16)
     elif final_backend == "mlx":
         # Apple Silicon memory-tier scaling: scale microbatch based on unified memory capacity
         try:
@@ -200,15 +201,16 @@ def build_config(
     else:
         t_cfg.setdefault("gradient_accumulation", 1)
 
-    # Hardware Safeguard: On Cloud TPU v3 (16 GB HBM), a per-core microbatch > 128 in a single forward pass
-    # requires > 26 GB of activations and logits, exceeding physical HBM capacity.
-    # Auto-split into a hardware-safe per-core microbatch (<= 128) and scale gradient_accumulation.
-    if final_device == "xla" and t_cfg["batch_size"] > 128:
+    # Hardware Safeguard: On Cloud TPU v3 (16 GB HBM), a per-core microbatch > 48 in a single forward pass
+    # produces large [B*H, T, T] attention score matrices that exceed physical 16GB HBM capacity.
+    # Auto-split into a hardware-safe per-core microbatch (<= 48) and scale gradient_accumulation.
+    if final_device == "xla" and t_cfg["batch_size"] > 48:
         raw_bs = t_cfg["batch_size"]
-        safe_microbatch = 128 if raw_bs % 128 == 0 else (64 if raw_bs % 64 == 0 else (48 if raw_bs % 48 == 0 else 32))
+        safe_microbatch = 48 if raw_bs % 48 == 0 else (32 if raw_bs % 32 == 0 else (16 if raw_bs % 16 == 0 else 24))
         accum_multiplier = max(1, math.ceil(raw_bs / safe_microbatch))
         t_cfg["batch_size"] = safe_microbatch
         t_cfg["gradient_accumulation"] = t_cfg.get("gradient_accumulation", 1) * accum_multiplier
+
 
     cluster_multiplier = dev_count if dev_count > 1 else 1
     effective_seqs = t_cfg["batch_size"] * t_cfg["gradient_accumulation"] * cluster_multiplier
