@@ -50,11 +50,16 @@ if MLX_AVAILABLE:
         valid_mask_f32 = valid_mask
         masked_bce = bce_raw * valid_mask_f32
 
+        shift_logits_f32 = shift_logits.reshape(-1, vocab_size)
+        shift_targets_flat = shift_targets.reshape(-1)
+        ar_loss = mx.mean(mx_nn.losses.cross_entropy(shift_logits_f32, shift_targets_flat, reduction="none"))
+
         valid_count = mx.clip(mx.sum(valid_mask_f32, axis=1), 1.0, float(T - 1))
         per_example_loss = mx.sum(masked_bce, axis=1) / valid_count
 
-        loss = mx.mean(per_example_loss)
-        return loss, loss
+        r_loss = mx.mean(per_example_loss)
+        total_loss = ar_loss + r_loss
+        return total_loss, ar_loss
 
     def crsr_phase_b_loss_fn_mlx(model, batch_seqs, vocab_size, mask_token_id: int, mask_prob: float = 0.15):
         """
@@ -239,13 +244,18 @@ if TORCH_AVAILABLE:
             content_mask = (shift_targets >= 4)
             valid_mask = valid_mask & content_mask
 
+        # 1. Autoregressive Causal Language Modeling Loss (trains the backbone model)
+        ar_ce = F.cross_entropy(shift_logits.reshape(-1, vocab_size), shift_targets.reshape(-1))
+
+        # 2. Reliability Head Binary Cross Entropy Loss (trains the reliability head)
         masked_bce = bce_raw * valid_mask.float()
         valid_count = valid_mask.sum(dim=1).float().clamp(min=1.0)
-        per_example_loss = masked_bce.sum(dim=1) / valid_count
-        loss = per_example_loss.mean()
+        per_example_r_loss = masked_bce.sum(dim=1) / valid_count
+        r_loss = per_example_r_loss.mean()
 
-        metrics = {"loss": loss, "unweighted_ce": loss}
-        return loss, metrics
+        total_loss = ar_ce + r_loss
+        metrics = {"loss": total_loss, "unweighted_ce": ar_ce, "r_loss": r_loss}
+        return total_loss, metrics
 
 
     def crsr_phase_b_loss_fn_pytorch(
