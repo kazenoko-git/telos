@@ -86,23 +86,25 @@ def train(
 
     backend = cfg["_backend"]
     device = cfg["_device"]
+    dev_count = cfg.get("_device_count", 1)
     is_causal = paradigm.lower() in ["ar", "corosred"]
 
     m_cfg = cfg["model"]
     t_cfg = cfg["training"]
 
     if not kwargs.get("_is_spawned", False):
+
         print("=" * 76)
         print(f"  TÉLOS UNIFIED TRAINER  |  Paradigm: {paradigm.upper()} (Phase {phase.upper()})")
         print(f"  Hardware Backend:     {backend.upper()} ({device})")
         if "_resolved_params" in cfg:
             print(f"  Target Parameters:    {cfg['_resolved_params']:,} (~{params})")
-        print(f"  Architecture:         d_model={m_cfg['d_model']}, n_layers={m_cfg['n_layers']}, n_heads={m_cfg['n_heads']}, seq_len={m_cfg['seq_len']}")
-        eff_batch = t_cfg["batch_size"] * t_cfg["gradient_accumulation"]
-        print(f"  Batch Config:         batch_size={t_cfg['batch_size']}, grad_accum={t_cfg['gradient_accumulation']} (effective={eff_batch} seqs / {eff_batch * m_cfg['seq_len']:,} tok)")
+        dev_multiplier = dev_count if dev_count > 1 else 1
+        eff_batch = t_cfg["batch_size"] * t_cfg["gradient_accumulation"] * dev_multiplier
+        dev_str = f", devices={dev_count}" if dev_count > 1 else ""
+        print(f"  Batch Config:         batch_size={t_cfg['batch_size']}, grad_accum={t_cfg['gradient_accumulation']}{dev_str} (effective={eff_batch} seqs / {eff_batch * m_cfg['seq_len']:,} tok)")
         print(f"  Training Steps:       {t_cfg['max_steps']:,} steps | LR: {t_cfg['max_lr']:.2e} -> {t_cfg['min_lr']:.2e} (warmup={t_cfg['warmup_steps']})")
         print(f"  Checkpoint Dir:       {cfg['checkpoint']['checkpoint_dir']} (every {cfg['checkpoint']['save_every_steps']} steps)")
-    dev_count = cfg.get("_device_count", 1)
     if backend == "pytorch" and device == "xla" and dev_count > 1 and not kwargs.get("_is_spawned", False):
         try:
             from telos.training.xla_utils import clean_tpu_environment
@@ -114,18 +116,18 @@ def train(
                     phase=phase,
                     params=params,
                     tokens=tokens,
-                    effective_batch=effective_batch,
-                    batch_size=batch_size,
-                    grad_accum=grad_accum,
+                    effective_batch=None,
+                    batch_size=t_cfg["batch_size"],
+                    grad_accum=t_cfg["gradient_accumulation"],
                     seq_len=seq_len,
                     tokenizer=tokenizer,
                     vocab_size=vocab_size,
                     hardware=hardware,
                     devices=1,
-                    max_steps=max_steps,
-                    max_lr=max_lr,
-                    min_lr=min_lr,
-                    warmup_steps=warmup_steps,
+                    max_steps=t_cfg["max_steps"],
+                    max_lr=t_cfg["max_lr"],
+                    min_lr=t_cfg["min_lr"],
+                    warmup_steps=t_cfg["warmup_steps"],
                     weight_decay=weight_decay,
                     checkpoint_dir=checkpoint_dir,
                     save_every=save_every,
@@ -143,6 +145,7 @@ def train(
                 )
             xmp.spawn(_mp_train_worker, args=(spawn_args,), nprocs=None)
             return None
+
         except Exception as e:
             print(f"  [Notice] Multi-core xmp.spawn skipped ({e}). Proceeding on single core.")
 
