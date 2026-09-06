@@ -78,9 +78,9 @@ telos train --paradigm mdlm --params 25M --tokens 300M --effective-batch 32
 # 2. Train a 50M UNDLM model on 4x NVIDIA GPUs (CUDA)
 telos train --paradigm undlm --params 50M --tokens 500M --hardware cuda --devices 4
 
-# 3. Train COROSred 2-Phase Model
+# 3. Train COROSred 2-Phase Model (Phase B automatically trains with Self-Conditioning)
 telos train --paradigm corosred --phase A --params 12M --tokens 50M
-telos train --paradigm corosred --phase B --params 12M --tokens 100M
+telos train --paradigm corosred --phase B --params 12M --tokens 100M --self-condition --self-cond-prob 0.5
 
 # 4. Train AR Baseline on Cloud TPU Pod (PyTorch-XLA)
 telos train --paradigm ar --params 100M --tokens 2.5B --hardware xla --devices 8

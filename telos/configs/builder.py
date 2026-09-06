@@ -199,7 +199,13 @@ def build_config(
 
     # 8. Paradigm-Specific Properties
     if paradigm == "corosred":
-        cfg["corosred"] = {"phase": phase, "mask_prob": 0.15, "k_amb": 5}
+        cfg["corosred"] = {
+            "phase": phase,
+            "mask_prob": float(kwargs.get("mask_prob", 0.15)),
+            "k_amb": int(kwargs.get("k_amb", 5)),
+            "self_condition": bool(kwargs.get("self_condition", True)),
+            "self_cond_prob": float(kwargs.get("self_cond_prob", 0.5)),
+        }
         m_cfg["use_reliability_head"] = True
         m_cfg["mask_token_id"] = 1
     else:

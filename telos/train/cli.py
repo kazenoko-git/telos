@@ -37,6 +37,8 @@ def train(
     eval_policy: str = "auto",
     benchmark: bool = False,
     benchmark_duration: float = 300.0,
+    self_condition: bool = True,
+    self_cond_prob: float = 0.5,
     **kwargs
 ):
     """
@@ -65,6 +67,8 @@ def train(
         config_path=config_path,
         data_path=data_path,
         synthetic=synthetic,
+        self_condition=self_condition,
+        self_cond_prob=self_cond_prob,
         **kwargs
     )
 
@@ -165,6 +169,10 @@ def main():
     parser.add_argument("--benchmark", action="store_true", help="Run throughput benchmark (at most 5 minutes)")
     parser.add_argument("--benchmark-duration", type=int, default=300, help="Benchmark duration in seconds (capped at 300)")
 
+    # COROSred Self-Conditioning options
+    parser.add_argument("--self-condition", action=argparse.BooleanOptionalAction, default=True, help="Enable self-conditioned draft training in COROSred Phase B")
+    parser.add_argument("--self-cond-prob", type=float, default=0.5, help="Probability of training on model drafts vs clean masks in Phase B")
+
     args = parser.parse_args()
 
     try:
@@ -194,7 +202,9 @@ def main():
             resume_step=args.resume,
             eval_policy=args.eval_policy,
             benchmark=args.benchmark,
-            benchmark_duration=args.benchmark_duration
+            benchmark_duration=args.benchmark_duration,
+            self_condition=args.self_condition,
+            self_cond_prob=args.self_cond_prob
         )
     except KeyboardInterrupt:
         print("\nTraining interrupted by user.")
