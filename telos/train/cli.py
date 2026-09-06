@@ -91,16 +91,17 @@ def train(
     m_cfg = cfg["model"]
     t_cfg = cfg["training"]
 
-    print("=" * 76)
-    print(f"  TÉLOS UNIFIED TRAINER  |  Paradigm: {paradigm.upper()} (Phase {phase.upper()})")
-    print(f"  Hardware Backend:     {backend.upper()} ({device})")
-    if "_resolved_params" in cfg:
-        print(f"  Target Parameters:    {cfg['_resolved_params']:,} (~{params})")
-    print(f"  Architecture:         d_model={m_cfg['d_model']}, n_layers={m_cfg['n_layers']}, n_heads={m_cfg['n_heads']}, seq_len={m_cfg['seq_len']}")
-    eff_batch = t_cfg["batch_size"] * t_cfg["gradient_accumulation"]
-    print(f"  Batch Config:         batch_size={t_cfg['batch_size']}, grad_accum={t_cfg['gradient_accumulation']} (effective={eff_batch} seqs / {eff_batch * m_cfg['seq_len']:,} tok)")
-    print(f"  Training Steps:       {t_cfg['max_steps']:,} steps | LR: {t_cfg['max_lr']:.2e} -> {t_cfg['min_lr']:.2e} (warmup={t_cfg['warmup_steps']})")
-    print(f"  Checkpoint Dir:       {cfg['checkpoint']['checkpoint_dir']} (every {cfg['checkpoint']['save_every_steps']} steps)")
+    if not kwargs.get("_is_spawned", False):
+        print("=" * 76)
+        print(f"  TÉLOS UNIFIED TRAINER  |  Paradigm: {paradigm.upper()} (Phase {phase.upper()})")
+        print(f"  Hardware Backend:     {backend.upper()} ({device})")
+        if "_resolved_params" in cfg:
+            print(f"  Target Parameters:    {cfg['_resolved_params']:,} (~{params})")
+        print(f"  Architecture:         d_model={m_cfg['d_model']}, n_layers={m_cfg['n_layers']}, n_heads={m_cfg['n_heads']}, seq_len={m_cfg['seq_len']}")
+        eff_batch = t_cfg["batch_size"] * t_cfg["gradient_accumulation"]
+        print(f"  Batch Config:         batch_size={t_cfg['batch_size']}, grad_accum={t_cfg['gradient_accumulation']} (effective={eff_batch} seqs / {eff_batch * m_cfg['seq_len']:,} tok)")
+        print(f"  Training Steps:       {t_cfg['max_steps']:,} steps | LR: {t_cfg['max_lr']:.2e} -> {t_cfg['min_lr']:.2e} (warmup={t_cfg['warmup_steps']})")
+        print(f"  Checkpoint Dir:       {cfg['checkpoint']['checkpoint_dir']} (every {cfg['checkpoint']['save_every_steps']} steps)")
     dev_count = cfg.get("_device_count", 1)
     if backend == "pytorch" and device == "xla" and dev_count > 1 and not kwargs.get("_is_spawned", False):
         try:
