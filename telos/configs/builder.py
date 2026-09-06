@@ -118,57 +118,7 @@ def build_config(
         m_cfg.setdefault("n_kv_heads", m_cfg["n_heads"])
         m_cfg.setdefault("tied_embeddings", True)
 
-    # 4. Batch Size & Gradient Accumulation Resolution
-    d_model = m_cfg["d_model"]
-    # Auto microbatch heuristic based on model dimension
-    auto_microbatch = 16 if d_model <= 512 else (8 if d_model <= 1024 else 4)
-    actual_bs = batch_size if batch_size is not None else t_cfg.get("batch_size", auto_microbatch)
-    t_cfg["batch_size"] = actual_bs
-
-    if effective_batch is not None:
-        # Check if user specified effective batch with explicit token suffix (e.g. 32k, 1M, tokens)
-        is_token_suffix = False
-        if isinstance(effective_batch, str):
-            clean_str = effective_batch.strip().lower()
-            if clean_str.endswith(("k", "m", "b", "tokens")):
-                is_token_suffix = True
-        eff_b = parse_human_number(effective_batch)
-        if is_token_suffix:
-            eff_b = max(1, eff_b // seq_len)
-        actual_accum = max(1, math.ceil(eff_b / actual_bs))
-        t_cfg["gradient_accumulation"] = actual_accum
-    elif grad_accum is not None:
-        t_cfg["gradient_accumulation"] = grad_accum
-    else:
-        t_cfg.setdefault("gradient_accumulation", 1)
-
-    effective_seqs = t_cfg["batch_size"] * t_cfg["gradient_accumulation"]
-    tokens_per_step = effective_seqs * seq_len
-
-    # 5. Training Duration (Tokens -> Steps)
-    if tokens is not None:
-        total_tokens = parse_human_number(tokens)
-        resolved_steps = max(1, math.ceil(total_tokens / tokens_per_step))
-        t_cfg["max_steps"] = resolved_steps
-    elif max_steps is not None:
-        t_cfg["max_steps"] = max_steps
-    else:
-        t_cfg.setdefault("max_steps", 5000)
-
-    # 6. Automatic Learning Rate, Warmup & Regularization Scaling
-    # Width-adjusted scaling law: base lr = 6e-4 * sqrt(256 / d_model)
-    auto_max_lr = 6.0e-4 * math.sqrt(256.0 / max(64, d_model))
-    auto_min_lr = 0.1 * auto_max_lr
-    auto_warmup = max(50, min(2000, int(0.02 * t_cfg["max_steps"])))
-
-    t_cfg["max_lr"] = float(max_lr if max_lr is not None else t_cfg.get("max_lr", auto_max_lr))
-    t_cfg["min_lr"] = float(min_lr if min_lr is not None else t_cfg.get("min_lr", auto_min_lr))
-    t_cfg["warmup_steps"] = int(warmup_steps if warmup_steps is not None else t_cfg.get("warmup_steps", auto_warmup))
-    t_cfg["weight_decay"] = float(weight_decay if weight_decay is not None else t_cfg.get("weight_decay", 0.1))
-    t_cfg.setdefault("grad_clip", 1.0)
-    t_cfg.setdefault("precision", "bf16")
-
-    # 7. Hardware & Distributed Setup
+    # 4. Hardware & Distributed Setup Resolution
     hw = str(hardware).lower() if hardware else "auto"
     if hw in ["auto", "none"] or devices in ["auto", None]:
         det_backend, det_device, det_count = auto_detect_hardware()
@@ -196,6 +146,79 @@ def build_config(
     
     dev_count = det_count if devices in ["auto", None] else int(devices)
     cfg["_device_count"] = dev_count
+
+    # 5. Batch Size & Gradient Accumulation Resolution (Hardware Tier Aware)
+    d_model = m_cfg["d_model"]
+    
+    if final_device == "xla":
+        # TPU MXU systolic arrays (v5e/v6e) require large per-core microbatches (64-128+) to saturate
+        auto_microbatch = 128 if d_model <= 512 else 64
+    elif final_backend == "mlx":
+        # Apple Silicon memory-tier scaling: scale microbatch based on unified memory capacity
+        try:
+            from telos.training.hardware import detect_apple_silicon_profile
+            hw_prof = detect_apple_silicon_profile()
+            tot_gb = hw_prof.total_memory_gb
+        except Exception:
+            tot_gb = 16.0
+
+        if tot_gb >= 64.0:
+            auto_microbatch = 64 if d_model <= 256 else (32 if d_model <= 512 else 16)
+        elif tot_gb >= 32.0:
+            auto_microbatch = 32 if d_model <= 256 else (16 if d_model <= 512 else 8)
+        elif tot_gb >= 24.0:
+            auto_microbatch = 16 if d_model <= 512 else 8
+        else:
+            auto_microbatch = 16 if d_model <= 256 else (8 if d_model <= 512 else 4)
+    else:
+        # CUDA / CPU default heuristic
+        auto_microbatch = 16 if d_model <= 512 else (8 if d_model <= 1024 else 4)
+
+    actual_bs = batch_size if batch_size is not None else t_cfg.get("batch_size", auto_microbatch)
+    t_cfg["batch_size"] = actual_bs
+
+    if effective_batch is not None:
+        # Check if user specified effective batch with explicit token suffix (e.g. 32k, 1M, tokens)
+        is_token_suffix = False
+        if isinstance(effective_batch, str):
+            clean_str = effective_batch.strip().lower()
+            if clean_str.endswith(("k", "m", "b", "tokens")):
+                is_token_suffix = True
+        eff_b = parse_human_number(effective_batch)
+        if is_token_suffix:
+            eff_b = max(1, eff_b // seq_len)
+        actual_accum = max(1, math.ceil(eff_b / actual_bs))
+        t_cfg["gradient_accumulation"] = actual_accum
+    elif grad_accum is not None:
+        t_cfg["gradient_accumulation"] = grad_accum
+    else:
+        t_cfg.setdefault("gradient_accumulation", 1)
+
+    effective_seqs = t_cfg["batch_size"] * t_cfg["gradient_accumulation"]
+    tokens_per_step = effective_seqs * seq_len
+
+    # 6. Training Duration (Tokens -> Steps)
+    if tokens is not None:
+        total_tokens = parse_human_number(tokens)
+        resolved_steps = max(1, math.ceil(total_tokens / tokens_per_step))
+        t_cfg["max_steps"] = resolved_steps
+    elif max_steps is not None:
+        t_cfg["max_steps"] = max_steps
+    else:
+        t_cfg.setdefault("max_steps", 5000)
+
+    # 7. Automatic Learning Rate, Warmup & Regularization Scaling
+    # Width-adjusted scaling law: base lr = 6e-4 * sqrt(256 / d_model)
+    auto_max_lr = 6.0e-4 * math.sqrt(256.0 / max(64, d_model))
+    auto_min_lr = 0.1 * auto_max_lr
+    auto_warmup = max(50, min(2000, int(0.02 * t_cfg["max_steps"])))
+
+    t_cfg["max_lr"] = float(max_lr if max_lr is not None else t_cfg.get("max_lr", auto_max_lr))
+    t_cfg["min_lr"] = float(min_lr if min_lr is not None else t_cfg.get("min_lr", auto_min_lr))
+    t_cfg["warmup_steps"] = int(warmup_steps if warmup_steps is not None else t_cfg.get("warmup_steps", auto_warmup))
+    t_cfg["weight_decay"] = float(weight_decay if weight_decay is not None else t_cfg.get("weight_decay", 0.1))
+    t_cfg.setdefault("grad_clip", 1.0)
+    t_cfg.setdefault("precision", "bf16")
 
     # 8. Paradigm-Specific Properties
     if paradigm == "corosred":
