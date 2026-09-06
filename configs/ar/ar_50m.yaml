@@ -1,0 +1,23 @@
+model:
+  vocab_size: 8192
+  d_model: 512
+  n_layers: 14
+  n_heads: 8
+  n_kv_heads: 8
+  seq_len: 512
+  tied_embeddings: true
+  is_causal: true
+
+training:
+  batch_size: 384
+  gradient_accumulation: 1
+  tokens: "2.5B"
+  warmup_steps: 100
+  max_lr: 4.0e-4
+  min_lr: 4.0e-5
+  weight_decay: 0.01
+  precision: "bf16"
+
+checkpoint:
+  checkpoint_dir: "checkpoints/ar/50m"
+  save_every_steps: 500

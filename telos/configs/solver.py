@@ -42,6 +42,15 @@ def parse_human_number(val: str | int | float) -> int:
     return int(num * multipliers[suffix])
 
 
+CANONICAL_TIERS = {
+    "12M": {"d_model": 256, "n_layers": 8, "n_heads": 4, "n_kv_heads": 4},
+    "25M": {"d_model": 384, "n_layers": 10, "n_heads": 6, "n_kv_heads": 6},
+    "50M": {"d_model": 512, "n_layers": 14, "n_heads": 8, "n_kv_heads": 8},
+    "100M": {"d_model": 768, "n_layers": 14, "n_heads": 12, "n_kv_heads": 12},
+    "300M": {"d_model": 1024, "n_layers": 23, "n_heads": 16, "n_kv_heads": 16},
+}
+
+
 def solve_transformer_geometry(
     target_params: int | str,
     vocab_size: int = 8192,
@@ -54,9 +63,34 @@ def solve_transformer_geometry(
     Aspect ratio constraints:
     - head_dim = 64 (standard for modern LLMs)
     - n_heads = d_model // 64
-    - d_model is a multiple of 64
+    - d_model is a multiple of 64 (and multiple of 128 for TPU MXU systolic alignment)
     - n_layers typically ranges between 6 and 32 for models under 1B params
     """
+    # Check canonical hardware-aligned tiers first
+    target_key = str(target_params).strip().upper()
+    if target_key in CANONICAL_TIERS and vocab_size == 8192 and tied_embeddings:
+        tier = CANONICAL_TIERS[target_key]
+        cfg = TelosConfig(
+            vocab_size=vocab_size,
+            d_model=tier["d_model"],
+            n_layers=tier["n_layers"],
+            n_heads=tier["n_heads"],
+            n_kv_heads=tier["n_kv_heads"],
+            tied_embeddings=tied_embeddings
+        )
+        actual_params = count_parameters(cfg)["total"]
+        target = parse_human_number(target_params)
+        return {
+            "d_model": tier["d_model"],
+            "n_layers": tier["n_layers"],
+            "n_heads": tier["n_heads"],
+            "n_kv_heads": tier["n_kv_heads"],
+            "vocab_size": vocab_size,
+            "tied_embeddings": tied_embeddings,
+            "actual_params": actual_params,
+            "target_params": target,
+        }
+
     target = parse_human_number(target_params)
     
     # Candidate hidden dimensions (multiples of 64 from 128 to 2048)

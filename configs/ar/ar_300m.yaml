@@ -1,0 +1,23 @@
+model:
+  vocab_size: 8192
+  d_model: 1024
+  n_layers: 23
+  n_heads: 16
+  n_kv_heads: 16
+  seq_len: 512
+  tied_embeddings: true
+  is_causal: true
+
+training:
+  batch_size: 192
+  gradient_accumulation: 2
+  tokens: "2.5B"
+  warmup_steps: 200
+  max_lr: 2.5e-4
+  min_lr: 2.5e-5
+  weight_decay: 0.01
+  precision: "bf16"
+
+checkpoint:
+  checkpoint_dir: "checkpoints/ar/300m"
+  save_every_steps: 500
