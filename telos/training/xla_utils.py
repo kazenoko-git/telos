@@ -91,6 +91,11 @@ def get_xla_world_size() -> int:
 
     try:
         import torch_xla.runtime as xr
+        if hasattr(xr, "world_size"):
+            ws = xr.world_size()
+            if ws > 1:
+                _CACHED_XLA_WORLD_SIZE = ws
+                return _CACHED_XLA_WORLD_SIZE
         if xr.is_spmd():
             _CACHED_XLA_WORLD_SIZE = xr.global_runtime_device_count()
             return max(1, _CACHED_XLA_WORLD_SIZE)
@@ -99,10 +104,16 @@ def get_xla_world_size() -> int:
 
     try:
         import torch_xla.core.xla_model as xm
-        _CACHED_XLA_WORLD_SIZE = xm.xrt_world_size()
+        if hasattr(xm, "xrt_world_size"):
+            ws = xm.xrt_world_size()
+            if ws > 1:
+                _CACHED_XLA_WORLD_SIZE = ws
+                return _CACHED_XLA_WORLD_SIZE
     except Exception:
-        _CACHED_XLA_WORLD_SIZE = 1
-    return max(1, _CACHED_XLA_WORLD_SIZE)
+        pass
+
+    _CACHED_XLA_WORLD_SIZE = 1
+    return _CACHED_XLA_WORLD_SIZE
 
 
 def is_xla_master() -> bool:
@@ -112,10 +123,22 @@ def is_xla_master() -> bool:
         return _CACHED_IS_MASTER
 
     try:
-        import torch_xla.core.xla_model as xm
-        _CACHED_IS_MASTER = xm.is_master_ordinal()
+        import torch_xla.runtime as xr
+        if hasattr(xr, "process_index"):
+            _CACHED_IS_MASTER = (xr.process_index() == 0)
+            return _CACHED_IS_MASTER
     except Exception:
-        _CACHED_IS_MASTER = True
+        pass
+
+    try:
+        import torch_xla.core.xla_model as xm
+        if hasattr(xm, "is_master_ordinal"):
+            _CACHED_IS_MASTER = xm.is_master_ordinal()
+            return _CACHED_IS_MASTER
+    except Exception:
+        pass
+
+    _CACHED_IS_MASTER = True
     return _CACHED_IS_MASTER
 
 
