@@ -51,9 +51,17 @@ def get_xla_device():
         return _CACHED_XLA_DEVICE
 
     clean_tpu_environment()
+    import torch
+    try:
+        import torch_xla
+        if not hasattr(torch, "xla"):
+            torch.xla = torch_xla
+    except ImportError:
+        pass
     import torch_xla.core.xla_model as xm
     _CACHED_XLA_DEVICE = xm.xla_device()
     return _CACHED_XLA_DEVICE
+
 
 
 def get_xla_spmd_mesh():
