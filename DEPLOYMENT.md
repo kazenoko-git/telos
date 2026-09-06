@@ -249,6 +249,8 @@ fuser -k -9 /dev/vfio/* 2>/dev/null || true
 
 # 2. Configure PyTorch-XLA Environment
 export PJRT_DEVICE=TPU
+unset TPU_PROCESS_ADDRESSES
+unset CLOUD_TPU_TASK_ID
 
 # 3. Clone or pull latest codebase (ensure local changes are pushed via git push)
 cd /kaggle/working
