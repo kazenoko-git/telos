@@ -104,11 +104,8 @@ def train(
     if backend == "pytorch" and device == "xla" and dev_count > 1 and not kwargs.get("_is_spawned", False):
         try:
             import torch_xla.distributed.xla_multiprocessing as xmp
-            import torch_xla.core.xla_model as xm
-            # If not already running inside a spawned worker
-            if xm.xrt_world_size() == 1:
-                print(f"  [Hardware] Launching multi-core PyTorch-XLA execution across {dev_count} TPU cores via xmp.spawn...")
-                spawn_args = dict(
+            print(f"  [Hardware] Launching multi-core PyTorch-XLA execution across {dev_count} TPU cores via xmp.spawn...")
+            spawn_args = dict(
                     paradigm=paradigm,
                     phase=phase,
                     params=params,
@@ -140,8 +137,8 @@ def train(
                     init_checkpoint=init_checkpoint,
                     _is_spawned=True,
                 )
-                xmp.spawn(_mp_train_worker, args=(spawn_args,), nprocs=dev_count, start_method="fork")
-                return None
+            xmp.spawn(_mp_train_worker, args=(spawn_args,), nprocs=dev_count, start_method="fork")
+            return None
         except Exception as e:
             print(f"  [Notice] Multi-core xmp.spawn skipped ({e}). Proceeding on single core.")
 
