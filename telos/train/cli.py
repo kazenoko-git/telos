@@ -39,6 +39,7 @@ def train(
     benchmark_duration: float = 300.0,
     self_condition: bool = True,
     self_cond_prob: float = 0.5,
+    init_checkpoint: str | Path | None = None,
     **kwargs
 ):
     """
@@ -120,6 +121,22 @@ def train(
             is_causal=is_causal,
             use_reliability_head=(paradigm.lower() == "corosred")
         )
+
+        # Auto-detect or load initial checkpoint (e.g. chaining Phase A weights into Phase B)
+        init_ckpt_path = init_checkpoint
+        if init_ckpt_path is None and paradigm.lower() == "corosred" and phase.upper() == "B":
+            cand = Path(cfg["checkpoint"]["checkpoint_dir"]).parent / "phase_a" / "checkpoint_final.pt"
+            if cand.exists():
+                init_ckpt_path = str(cand)
+
+        if init_ckpt_path and Path(init_ckpt_path).exists():
+            import torch
+            print(f"  [Init] Loading model weights from {init_ckpt_path}...")
+            ckpt_state = torch.load(init_ckpt_path, map_location="cpu")
+            sd = ckpt_state.get("model_state_dict", ckpt_state)
+            sd = {k.removeprefix("module."): v for k, v in sd.items()}
+            model.load_state_dict(sd, strict=False)
+
         trainer = UnifiedPyTorchTrainer(paradigm=paradigm, model=model, cfg=cfg, device_type=device)
 
     # Execute training or benchmark
@@ -172,6 +189,7 @@ def main():
     # COROSred Self-Conditioning options
     parser.add_argument("--self-condition", action=argparse.BooleanOptionalAction, default=True, help="Enable self-conditioned draft training in COROSred Phase B")
     parser.add_argument("--self-cond-prob", type=float, default=0.5, help="Probability of training on model drafts vs clean masks in Phase B")
+    parser.add_argument("--init-checkpoint", type=str, default=None, help="Path to initial checkpoint to load weights from before training")
 
     args = parser.parse_args()
 
@@ -204,7 +222,8 @@ def main():
             benchmark=args.benchmark,
             benchmark_duration=args.benchmark_duration,
             self_condition=args.self_condition,
-            self_cond_prob=args.self_cond_prob
+            self_cond_prob=args.self_cond_prob,
+            init_checkpoint=args.init_checkpoint
         )
     except KeyboardInterrupt:
         print("\nTraining interrupted by user.")
