@@ -153,7 +153,7 @@ def build_config(
     if final_device == "xla":
         # TPU v3 (16GB HBM) per-core microbatch sizing: 32-48 sequences is the sweet spot
         # to saturate MXU systolic arrays while keeping attention matrices well within 16GB HBM.
-        auto_microbatch = 48 if d_model <= 384 else (32 if d_model <= 512 else 16)
+        auto_microbatch = 48 if d_model <= 512 else 16
     elif final_backend == "mlx":
         # Apple Silicon memory-tier scaling: scale microbatch based on unified memory capacity
         try:
@@ -217,12 +217,14 @@ def build_config(
     tokens_per_step = effective_seqs * seq_len
 
     # 6. Training Duration (Tokens -> Steps)
-    if tokens is not None:
+    # If max_steps is explicitly provided (e.g. pre-resolved by cluster coordinator),
+    # prioritize it over recalculating from tokens on a single worker's local microbatch.
+    if max_steps is not None:
+        t_cfg["max_steps"] = int(max_steps)
+    elif tokens is not None:
         total_tokens = parse_human_number(tokens)
         resolved_steps = max(1, math.ceil(total_tokens / tokens_per_step))
         t_cfg["max_steps"] = resolved_steps
-    elif max_steps is not None:
-        t_cfg["max_steps"] = max_steps
     else:
         t_cfg.setdefault("max_steps", 5000)
 
