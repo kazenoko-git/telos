@@ -60,8 +60,19 @@ if TORCH_AVAILABLE:
         
         shift_logits = logits[:, :-1, :].contiguous().view(-1, vocab_size)
         shift_targets = batch_seqs[:, 1:].contiguous().view(-1)
+        total_tokens = shift_targets.numel()
 
-        ce_loss_per_token = F.cross_entropy(shift_logits, shift_targets, reduction="none").view(batch_size, seq_len - 1)
+        # Chunked cross-entropy: compute CE over slices of 4,096 tokens to cut peak activation memory
+        chunk_size = 4096
+        if total_tokens > chunk_size:
+            ce_chunks = []
+            for i in range(0, total_tokens, chunk_size):
+                chunk_l = shift_logits[i : i + chunk_size]
+                chunk_t = shift_targets[i : i + chunk_size]
+                ce_chunks.append(F.cross_entropy(chunk_l, chunk_t, reduction="none"))
+            ce_loss_per_token = torch.cat(ce_chunks, dim=0).view(batch_size, seq_len - 1)
+        else:
+            ce_loss_per_token = F.cross_entropy(shift_logits, shift_targets, reduction="none").view(batch_size, seq_len - 1)
 
         if special_token_lut is not None:
             shift_target_2d = batch_seqs[:, 1:]
