@@ -78,6 +78,16 @@ def get_xla_world_size() -> int:
                     return max(1, int(os.environ[env_k]))
                 except ValueError:
                     pass
+        if is_tpu_environment():
+            try:
+                vfio_chips = list(Path("/dev/vfio").glob("[0-9]*"))
+                if len(vfio_chips) >= 4:
+                    return 8
+                elif len(vfio_chips) > 0:
+                    return len(vfio_chips) * 2
+            except Exception:
+                pass
+            return 8
 
     try:
         import torch_xla.runtime as xr
