@@ -187,14 +187,31 @@ def build_config(
         eff_b = parse_human_number(effective_batch)
         if is_token_suffix:
             eff_b = max(1, eff_b // seq_len)
-        actual_accum = max(1, math.ceil(eff_b / actual_bs))
+        
+        # In multi-device setups (e.g. 8 TPU cores), effective_batch is the total cluster target
+        eff_per_device = max(1, eff_b // dev_count) if dev_count > 1 else eff_b
+        if batch_size is None:
+            actual_bs = min(auto_microbatch, eff_per_device)
+            t_cfg["batch_size"] = actual_bs
+        actual_accum = max(1, math.ceil(eff_per_device / actual_bs))
         t_cfg["gradient_accumulation"] = actual_accum
     elif grad_accum is not None:
         t_cfg["gradient_accumulation"] = grad_accum
     else:
         t_cfg.setdefault("gradient_accumulation", 1)
 
-    effective_seqs = t_cfg["batch_size"] * t_cfg["gradient_accumulation"]
+    # Hardware Safeguard: On Cloud TPU v3 (16 GB HBM), a per-core microbatch > 128 in a single forward pass
+    # requires > 26 GB of activations and logits, exceeding physical HBM capacity.
+    # Auto-split into a hardware-safe per-core microbatch (<= 128) and scale gradient_accumulation.
+    if final_device == "xla" and t_cfg["batch_size"] > 128:
+        raw_bs = t_cfg["batch_size"]
+        safe_microbatch = 128 if raw_bs % 128 == 0 else (64 if raw_bs % 64 == 0 else (48 if raw_bs % 48 == 0 else 32))
+        accum_multiplier = max(1, math.ceil(raw_bs / safe_microbatch))
+        t_cfg["batch_size"] = safe_microbatch
+        t_cfg["gradient_accumulation"] = t_cfg.get("gradient_accumulation", 1) * accum_multiplier
+
+    cluster_multiplier = dev_count if dev_count > 1 else 1
+    effective_seqs = t_cfg["batch_size"] * t_cfg["gradient_accumulation"] * cluster_multiplier
     tokens_per_step = effective_seqs * seq_len
 
     # 6. Training Duration (Tokens -> Steps)
@@ -206,6 +223,7 @@ def build_config(
         t_cfg["max_steps"] = max_steps
     else:
         t_cfg.setdefault("max_steps", 5000)
+
 
     # 7. Automatic Learning Rate, Warmup & Regularization Scaling
     # Width-adjusted scaling law: base lr = 6e-4 * sqrt(256 / d_model)
