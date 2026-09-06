@@ -217,8 +217,11 @@ class UnifiedPyTorchTrainer:
         )
 
         # Autocast AMP precision
+        # Autocast AMP precision
         if self.is_tpu:
-            self.use_amp = (self.precision in ["fp16", "bf16"]) and hasattr(torch.amp, "autocast")
+            # TPU weights and activations are already cast directly to bfloat16.
+            # Disable torch.amp.autocast to avoid dispatch overhead and XLA_USE_BF16 deprecation.
+            self.use_amp = False
             self.amp_device = "xla"
             self.amp_dtype = torch.bfloat16
         else:
@@ -241,7 +244,17 @@ class UnifiedPyTorchTrainer:
         self.global_step = 0
 
     def _sample_beta_timesteps(self, bs: int) -> torch.Tensor:
-        """Fetches bs timesteps directly from the device-resident Beta buffer without CPU copy."""
+        """
+        Fetches bs timesteps. On TPU, generates on-device with constant shape to prevent
+        XLA graph recompilation caused by dynamic Python buffer slice offsets.
+        """
+        if self.is_tpu:
+            # On TPU, do NOT slice buffer with changing integer indices (causes XLA graph recompilation every step).
+            # Generate Beta(1.5, 1.5) timesteps directly on-device using a continuous bell transformation:
+            u = torch.rand(bs, 1, device=self.device, dtype=torch.float32)
+            t = 0.5 * (1.0 - torch.cos(torch.pi * u))
+            return t.clamp(min=1e-3, max=1.0 - 1e-3).to(dtype=torch.bfloat16)
+
         if self.beta_idx + bs > self.beta_buffer_size:
             self.beta_idx = 0
         start = self.beta_idx
@@ -342,7 +355,8 @@ class UnifiedPyTorchTrainer:
         if not self.is_master:
             return
 
-        tokens_processed = steps * bs * grad_accum * self.seq_len
+        world_mult = getattr(self, "world_size", 1)
+        tokens_processed = steps * bs * grad_accum * self.seq_len * world_mult
         sps = steps / elapsed if elapsed > 0 else 0.0
         tps = tokens_processed / elapsed if elapsed > 0 else 0.0
         mean_lat = np.mean(latencies) if latencies else 0.0
@@ -353,7 +367,7 @@ class UnifiedPyTorchTrainer:
         if getattr(self, "n_gpus", 1) > 1:
             device_desc += f" ({self.n_gpus} GPUs DataParallel)"
         elif self.is_tpu:
-            device_desc += f" ({self.world_size} TPU Cores SPMD)"
+            device_desc += f" ({self.world_size} TPU Cores)"
 
         print("\n" + "=" * 76)
         print("  TELOS UNIFIED BENCHMARK REPORT (PyTorch)")
@@ -472,24 +486,34 @@ class UnifiedPyTorchTrainer:
         bench_steps = 0
         self.optimizer.zero_grad()
 
-        # Background asynchronous batch prefetcher
-        prefetch_queue = queue.Queue(maxsize=1)
+        # Background asynchronous batch prefetcher (CUDA only)
+        # PyTorch-XLA does NOT support multi-threaded tensor allocation/transfer to device;
+        # transfers on background worker threads cause heavy XLA runtime mutex serialization.
+        if self.is_tpu:
+            prefetch_queue = None
+        else:
+            prefetch_queue = queue.Queue(maxsize=1)
 
-        def prefetch_worker():
-            nonlocal idx_ptr
-            for _ in range(resume_step + 1, self.max_steps + 1):
-                batch_t, idx_ptr = get_global_targets_contiguous_pytorch(
-                    dataset_matrix, idx_ptr, bs * grad_accum, self.seq_len, self.device, non_blocking=True
-                )
-                prefetch_queue.put(batch_t)
+            def prefetch_worker():
+                nonlocal idx_ptr
+                for _ in range(resume_step + 1, self.max_steps + 1):
+                    batch_t, idx_ptr = get_global_targets_contiguous_pytorch(
+                        dataset_matrix, idx_ptr, bs * grad_accum, self.seq_len, self.device, non_blocking=True
+                    )
+                    prefetch_queue.put(batch_t)
 
-        prefetch_thread = threading.Thread(target=prefetch_worker, daemon=True)
-        prefetch_thread.start()
+            prefetch_thread = threading.Thread(target=prefetch_worker, daemon=True)
+            prefetch_thread.start()
 
         for step in range(resume_step + 1, self.max_steps + 1):
             t_step_start = time.perf_counter()
 
-            global_targets = prefetch_queue.get()
+            if prefetch_queue is not None:
+                global_targets = prefetch_queue.get()
+            else:
+                global_targets, idx_ptr = get_global_targets_contiguous_pytorch(
+                    dataset_matrix, idx_ptr, bs * grad_accum, self.seq_len, self.device, non_blocking=False
+                )
 
             last_metrics = None
             
