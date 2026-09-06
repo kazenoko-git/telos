@@ -36,13 +36,14 @@ class TelosTransformer(nn.Module):
             valid_keys = {
                 "vocab_size", "d_model", "n_layers", "n_heads", "n_kv_heads",
                 "max_seq_len", "seq_len", "dropout", "tied_embeddings", "is_causal",
-                "use_reliability_head"
+                "use_reliability_head", "use_grad_checkpoint"
             }
             cfg_kwargs = {k: v for k, v in kwargs.items() if k in valid_keys}
             self.config = TelosConfig(**cfg_kwargs)
         else:
             self.config = config
 
+        self.use_grad_checkpoint = getattr(self.config, "use_grad_checkpoint", False)
         self.tok_embeddings = nn.Embedding(self.config.vocab_size, self.config.d_model)
         self.dropout = nn.Dropout(self.config.dropout)
         self.rope = RotaryEmbedding(dim=self.config.d_model // self.config.n_heads, max_seq_len=self.config.max_seq_len)
@@ -82,7 +83,13 @@ class TelosTransformer(nn.Module):
         cos, sin = self.rope(h, seq_len)
 
         for layer in self.layers:
-            h = layer(h, cos, sin, mask_override=mask_override)
+            # Memory Optimization: Recompute activations during backward pass when gradient checkpointing is enabled
+            if self.use_grad_checkpoint and self.training:
+                h = torch.utils.checkpoint.checkpoint(
+                    layer, h, cos, sin, mask_override, use_reentrant=False
+                )
+            else:
+                h = layer(h, cos, sin, mask_override=mask_override)
 
         h = self.final_norm(h)
         logits = self.output_projection(h)
