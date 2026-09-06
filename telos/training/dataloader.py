@@ -34,8 +34,16 @@ def get_global_targets_contiguous_mlx(dataset_matrix, idx_ptr, total_batch, seq_
     return mx.array(batch, dtype=mx.int32), next_ptr
 
 
-def get_global_targets_contiguous_pytorch(dataset_matrix, idx_ptr, total_batch, seq_len, device):
-    """Fetches contiguous batches and returns PyTorch tensor."""
+def get_global_targets_contiguous_pytorch(dataset_matrix, idx_ptr, total_batch, seq_len, device, non_blocking: bool = True):
+    """
+    Fetches contiguous batches and transfers to PyTorch tensor.
+    Transfers int32 directly across host-to-device bus before casting to int64 on device
+    to halve PCIe memory transfer bandwidth.
+    """
     import torch
     batch, next_ptr = get_global_targets_contiguous(dataset_matrix, idx_ptr, total_batch, seq_len)
-    return torch.from_numpy(batch.astype(np.int64)).to(device), next_ptr
+    # Transfer int32 across PCIe bus to reduce host->device bandwidth by 50%
+    tensor = torch.from_numpy(batch.astype(np.int32))
+    if str(device).startswith("cuda") and torch.cuda.is_available():
+        tensor = tensor.pin_memory()
+    return tensor.to(device, dtype=torch.long, non_blocking=non_blocking), next_ptr
