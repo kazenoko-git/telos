@@ -62,9 +62,13 @@ if TORCH_AVAILABLE:
         shift_targets = batch_seqs[:, 1:].contiguous().view(-1)
         total_tokens = shift_targets.numel()
 
-        # Chunked cross-entropy: compute CE over slices of 4,096 tokens to cut peak activation memory
+        # Chunked cross-entropy on CUDA: compute CE over slices of 4,096 tokens to cut peak activation memory.
+        # On PyTorch-XLA (TPU), slicing in Python creates N separate HLO pad/remat operations in the backward
+        # pass that pad every slice back to the full batch shape, which explodes HBM memory (175+ GB).
+        # XLA's native compiler fuses unchunked cross_entropy directly into a single reduction kernel.
         chunk_size = 4096
-        if total_tokens > chunk_size:
+        is_xla = logits.device.type == "xla" or str(logits.device).startswith("xla")
+        if not is_xla and total_tokens > chunk_size:
             ce_chunks = []
             for i in range(0, total_tokens, chunk_size):
                 chunk_l = shift_logits[i : i + chunk_size]
@@ -73,6 +77,7 @@ if TORCH_AVAILABLE:
             ce_loss_per_token = torch.cat(ce_chunks, dim=0).view(batch_size, seq_len - 1)
         else:
             ce_loss_per_token = F.cross_entropy(shift_logits, shift_targets, reduction="none").view(batch_size, seq_len - 1)
+
 
         if special_token_lut is not None:
             shift_target_2d = batch_seqs[:, 1:]
