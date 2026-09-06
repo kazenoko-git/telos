@@ -231,3 +231,63 @@ uv publish
 # Or:
 twine upload dist/*
 ```
+
+---
+
+## 9. Kaggle TPU VM v3-8 Setup & Benchmark Guide
+
+When testing or training on Kaggle Cloud TPUs, configure your Kaggle Notebook with **Accelerator: TPU VM v3-8**.
+
+### Recommended All-in-One Kaggle Notebook Cell (`%%bash`)
+
+Running as a bash cell avoids Jupyter kernel `/dev/vfio/*` device lock retention and protects Kaggle's pre-installed PyTorch-XLA binaries from pip conflicts:
+
+```bash
+%%bash
+# 1. Terminate any hung or zombie TPU device locks from previous runs
+fuser -k -9 /dev/vfio/* 2>/dev/null || true
+
+# 2. Configure PyTorch-XLA Environment
+export PJRT_DEVICE=TPU
+export XLA_USE_BF16=1
+
+# 3. Clone or pull latest codebase (ensure local changes are pushed via git push)
+cd /kaggle/working
+if [ ! -d "telos" ]; then
+  git clone https://github.com/kazenoko-git/telos.git
+  cd telos
+else
+  cd telos
+  git fetch origin
+  git reset --hard origin/main
+fi
+
+# 4. Install dependencies without overwriting Kaggle's pre-installed torch/torch_xla
+pip install -q pyyaml tokenizers datasets safetensors huggingface_hub
+pip install -q --no-deps -e .
+
+# 5. Run Hardware Benchmark on TPU (MDLM 12M, 30 seconds)
+telos bench --paradigm mdlm --params 12M --hardware xla --duration 30
+```
+
+### In-Kernel Python Alternative
+
+If calling Télos directly within a Python notebook cell:
+
+```python
+import os
+os.environ["PJRT_DEVICE"] = "TPU"
+os.environ["XLA_USE_BF16"] = "1"
+
+import telos
+
+# Run 30s benchmark across all 8 TPU cores via SPMD
+telos.benchmark(
+    paradigm="mdlm",
+    params="12M",
+    hardware="xla",
+    devices="auto",
+    duration=30.0
+)
+```
+
