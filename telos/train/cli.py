@@ -13,6 +13,7 @@ from telos.configs import build_config
 def _mp_train_worker(index, kwargs):
     """Worker entrypoint executed on each spawned TPU core."""
     from telos.training import xla_utils
+    xla_utils.clean_tpu_environment()
     # Reset singleton references in forked child process so xm.xla_device() binds to assigned core
     xla_utils._CACHED_XLA_DEVICE = None
     xla_utils._CACHED_XLA_WORLD_SIZE = None
@@ -103,6 +104,8 @@ def train(
     dev_count = cfg.get("_device_count", 1)
     if backend == "pytorch" and device == "xla" and dev_count > 1 and not kwargs.get("_is_spawned", False):
         try:
+            from telos.training.xla_utils import clean_tpu_environment
+            clean_tpu_environment()
             import torch_xla.distributed.xla_multiprocessing as xmp
             print(f"  [Hardware] Launching multi-core PyTorch-XLA execution across {dev_count} TPU cores via xmp.spawn...")
             spawn_args = dict(
