@@ -22,7 +22,7 @@ from .core import (
     get_sys_mem_str,
     execute_mlx_training_step,
 )
-from .dataloader import get_global_targets_contiguous_mlx
+from .dataloader import get_global_targets_contiguous_mlx, get_global_targets_contiguous
 
 from telos.diffusion.ar import ar_loss_fn_mlx
 from telos.diffusion.mdlm import mdlm_loss_mlx, apply_masking_mlx, sample_beta_timesteps
@@ -71,13 +71,57 @@ class UnifiedMLXTrainer:
         self.special_lut = build_special_token_lut(self.vocab_size)
         self.grad_clip = float(self.t_cfg.get("grad_clip", 1.0))
 
-        if self.t_cfg.get("gradient_checkpointing", False) or self.m_cfg.get("use_grad_checkpoint", False):
+        # Precision Management: Ensure model weights are bfloat16 and maintain fp32 master weights for optimizer
+        precision = str(self.t_cfg.get("precision", self.hw_profile.precision)).lower()
+        if precision in ("bfloat16", "bf16"):
+            if hasattr(self.model, "to_bfloat16"):
+                self.model.to_bfloat16()
+            else:
+                from mlx.utils import tree_map
+                self.model.update(tree_map(lambda p: p.astype(mx.bfloat16) if isinstance(p, mx.array) and p.dtype == mx.float32 else p, self.model.parameters()))
+            self.model.use_master_weights = True
+            print("  [Precision] MLX weights cast to bfloat16 (maintaining fp32 master weights).")
+
+        # Auto-enable gradient checkpointing when estimated working set exceeds memory budget
+        from mlx.utils import tree_flatten
+        param_count = sum(p.size for _, p in tree_flatten(self.model.parameters()))
+        # 16 bytes/param: 2 (bf16 model) + 4 (fp32 master) + 4 (Adam m) + 4 (Adam v) + 2 (grads)
+        static_mem_gb = (param_count * 16.0) / (1024 ** 3)
+        bs_est = int(self.t_cfg.get("batch_size", 16))
+        d_model_est = self.m_cfg.get("d_model", 512)
+        n_layers_est = self.m_cfg.get("n_layers", 12)
+        # Empirical activation memory estimate for non-checkpointed transformer
+        act_mem_gb = (n_layers_est * bs_est * self.seq_len * d_model_est * 16.0) / (1024 ** 3)
+        working_set_gb = static_mem_gb + act_mem_gb
+        # Conservative unified memory budget: 45% of total unified RAM
+        mem_budget_gb = self.hw_profile.total_memory_gb * 0.45
+        auto_chkpt = working_set_gb > mem_budget_gb
+
+        if self.t_cfg.get("gradient_checkpointing", False) or self.m_cfg.get("use_grad_checkpoint", False) or auto_chkpt:
             self.model.use_grad_checkpoint = True
-            print("  [Memory] Gradient Checkpointing Enabled.")
+            if auto_chkpt and not (self.t_cfg.get("gradient_checkpointing", False) or self.m_cfg.get("use_grad_checkpoint", False)):
+                print(f"  [Memory] Auto-enabled gradient checkpointing (Estimated: {working_set_gb:.2f}GB > Budget: {mem_budget_gb:.2f}GB).")
+            else:
+                print("  [Memory] Gradient Checkpointing Enabled.")
+
+        # Device-resident pre-sampled Beta(1.5, 1.5) buffer to eliminate per-microbatch CPU RNG & transfers
+        if self.paradigm in ["mdlm", "undlm"]:
+            self.beta_buffer_size = 1_000_000
+            beta_np = np.random.beta(1.5, 1.5, size=(self.beta_buffer_size, 1)).astype(np.float32)
+            self.beta_buffer = mx.clip(mx.array(beta_np), 1e-5, 1.0)
+            self.beta_idx = 0
 
         if self.paradigm == "corosred":
             self.crsr_cfg = cfg.get("crsr", cfg.get("corosred", {}))
             self.phase = self.crsr_cfg.get("phase", "A").upper()
+
+    def _sample_beta_timesteps(self, bs: int) -> mx.array:
+        """Fetches bs timesteps directly from the pre-sampled device-resident Beta buffer without CPU copy."""
+        if self.beta_idx + bs > self.beta_buffer_size:
+            self.beta_idx = 0
+        start = self.beta_idx
+        self.beta_idx += bs
+        return self.beta_buffer[start : start + bs]
 
     def _get_lr(self, step, warmup_steps, max_steps, max_lr, min_lr):
         if step <= warmup_steps:
@@ -167,7 +211,7 @@ class UnifiedMLXTrainer:
         """Runs a dummy forward pass to compile the MLX graph."""
         dummy_seqs = mx.random.randint(0, self.vocab_size, (bs, self.seq_len))
         if self.paradigm in ["mdlm", "undlm"]:
-            dummy_t_vals = mx.clip(mx.array(np.random.beta(1.5, 1.5, size=(bs, 1)).astype(np.float32)), 1e-5, 1.0)
+            dummy_t_vals = self._sample_beta_timesteps(bs)
             d_loss, d_ce, d_grads = step_fn(dummy_seqs, dummy_t_vals)
         else:
             d_loss, d_ce, d_grads = step_fn(dummy_seqs)
@@ -324,13 +368,16 @@ class UnifiedMLXTrainer:
             lr = self._get_lr(step, warmup_steps, max_steps, max_lr, min_lr)
             optimizer.learning_rate = lr
 
-            global_targets, idx_ptr = get_global_targets_contiguous_mlx(dataset_matrix, idx_ptr, bs * grad_accum, self.seq_len)
+            # Fetch contiguous batch as a numpy view without materializing all microbatches into MLX memory upfront
+            global_targets_np, idx_ptr = get_global_targets_contiguous(dataset_matrix, idx_ptr, bs * grad_accum, self.seq_len)
 
             def batch_gen():
+                # Slice lazily from the numpy array per microbatch to cut resident MLX batch memory ~grad_accum×
                 for i in range(grad_accum):
-                    batch_seqs = global_targets[i * bs : (i + 1) * bs]
+                    batch_slice = global_targets_np[i * bs : (i + 1) * bs]
+                    batch_seqs = mx.array(batch_slice, dtype=mx.int32)
                     if self.paradigm in ["mdlm", "undlm"]:
-                        t_vals = mx.clip(mx.array(np.random.beta(1.5, 1.5, size=(bs, 1)).astype(np.float32)), 1e-5, 1.0)
+                        t_vals = self._sample_beta_timesteps(bs)
                         yield (batch_seqs, t_vals)
                     else:
                         yield batch_seqs
