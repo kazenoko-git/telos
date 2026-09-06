@@ -10,6 +10,16 @@ from pathlib import Path
 from telos.configs import build_config
 
 
+def _mp_train_worker(index, kwargs):
+    """Worker entrypoint executed on each spawned TPU core."""
+    from telos.training import xla_utils
+    # Reset singleton references in forked child process so xm.xla_device() binds to assigned core
+    xla_utils._CACHED_XLA_DEVICE = None
+    xla_utils._CACHED_XLA_WORLD_SIZE = None
+    xla_utils._CACHED_IS_MASTER = None
+    train(**kwargs)
+
+
 def train(
     paradigm: str = "mdlm",
     phase: str = "A",
@@ -90,7 +100,50 @@ def train(
     print(f"  Batch Config:         batch_size={t_cfg['batch_size']}, grad_accum={t_cfg['gradient_accumulation']} (effective={eff_batch} seqs / {eff_batch * m_cfg['seq_len']:,} tok)")
     print(f"  Training Steps:       {t_cfg['max_steps']:,} steps | LR: {t_cfg['max_lr']:.2e} -> {t_cfg['min_lr']:.2e} (warmup={t_cfg['warmup_steps']})")
     print(f"  Checkpoint Dir:       {cfg['checkpoint']['checkpoint_dir']} (every {cfg['checkpoint']['save_every_steps']} steps)")
-    print("=" * 76)
+    dev_count = cfg.get("_device_count", 1)
+    if backend == "pytorch" and device == "xla" and dev_count > 1 and not kwargs.get("_is_spawned", False):
+        try:
+            import torch_xla.distributed.xla_multiprocessing as xmp
+            import torch_xla.core.xla_model as xm
+            # If not already running inside a spawned worker
+            if xm.xrt_world_size() == 1:
+                print(f"  [Hardware] Launching multi-core PyTorch-XLA execution across {dev_count} TPU cores via xmp.spawn...")
+                spawn_args = dict(
+                    paradigm=paradigm,
+                    phase=phase,
+                    params=params,
+                    tokens=tokens,
+                    effective_batch=effective_batch,
+                    batch_size=batch_size,
+                    grad_accum=grad_accum,
+                    seq_len=seq_len,
+                    tokenizer=tokenizer,
+                    vocab_size=vocab_size,
+                    hardware=hardware,
+                    devices=1,
+                    max_steps=max_steps,
+                    max_lr=max_lr,
+                    min_lr=min_lr,
+                    warmup_steps=warmup_steps,
+                    weight_decay=weight_decay,
+                    checkpoint_dir=checkpoint_dir,
+                    save_every=save_every,
+                    config_path=config_path,
+                    data_path=data_path,
+                    synthetic=synthetic,
+                    resume_step=resume_step,
+                    eval_policy=eval_policy,
+                    benchmark=benchmark,
+                    benchmark_duration=benchmark_duration,
+                    self_condition=self_condition,
+                    self_cond_prob=self_cond_prob,
+                    init_checkpoint=init_checkpoint,
+                    _is_spawned=True,
+                )
+                xmp.spawn(_mp_train_worker, args=(spawn_args,), nprocs=dev_count, start_method="fork")
+                return None
+        except Exception as e:
+            print(f"  [Notice] Multi-core xmp.spawn skipped ({e}). Proceeding on single core.")
 
     if backend == "mlx":
         # Defer MLX imports so non-Apple-Silicon environments don't resolve MLX
