@@ -340,33 +340,33 @@ if TORCH_AVAILABLE:
         self_cond_prob: float = 0.5
     ) -> tuple[torch.Tensor, dict[str, float]]:
         """
-        Self-Conditioned Phase B Loss (PyTorch):
+        Self-Conditioned Phase B Loss (PyTorch & TPU-safe):
         Trains the bidirectional denoiser on model-generated draft sequences with errors,
-        eliminating the train/test distribution mismatch.
+        eliminating the train/test distribution mismatch. Fully vectorized without host
+        synchronization (.item()) for zero-stall Cloud TPU execution.
         """
         B, T = batch_seqs.shape
 
-        use_self_cond = (torch.rand(1).item() < self_cond_prob)
         rand_probs = torch.rand((B, T), device=batch_seqs.device)
         mask_positions = (rand_probs < mask_prob)
 
-        if use_self_cond:
+        if self_cond_prob > 0.0:
+            # Vectorized on-device coin flip per sequence (no .item() host barrier)
+            rand_sc = torch.rand((B, 1), device=batch_seqs.device) < self_cond_prob
             with torch.no_grad():
                 causal_logits = model(batch_seqs, return_reliability=False, mask_override=True)
                 draft_preds = torch.argmax(causal_logits[:, :-1, :], dim=-1)
                 draft_seqs = torch.cat([batch_seqs[:, :1], draft_preds], dim=1)
 
-            corrupted_seqs = torch.where(
-                mask_positions,
-                torch.full((B, T), mask_token_id, dtype=batch_seqs.dtype, device=batch_seqs.device),
-                draft_seqs
-            )
+            base_seqs = torch.where(rand_sc, draft_seqs, batch_seqs)
         else:
-            corrupted_seqs = torch.where(
-                mask_positions,
-                torch.full((B, T), mask_token_id, dtype=batch_seqs.dtype, device=batch_seqs.device),
-                batch_seqs
-            )
+            base_seqs = batch_seqs
+
+        corrupted_seqs = torch.where(
+            mask_positions,
+            torch.full((B, T), mask_token_id, dtype=batch_seqs.dtype, device=batch_seqs.device),
+            base_seqs
+        )
 
         # Forward pass in Bidirectional Attention Mode
         logits = model(corrupted_seqs, return_reliability=False, mask_override=False)
@@ -382,7 +382,7 @@ if TORCH_AVAILABLE:
         metrics = {
             "loss": loss,
             "unweighted_ce": loss,
-            "self_cond": float(use_self_cond)
+            "self_cond_prob": float(self_cond_prob)
         }
         return loss, metrics
 
