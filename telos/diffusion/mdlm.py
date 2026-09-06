@@ -72,7 +72,7 @@ if TORCH_AVAILABLE:
         rand_matrix = torch.rand(B, T, device=input_ids.device)
         raw_mask = rand_matrix < t_values
 
-        if special_token_lut is not None:
+        if special_token_lut is not None and not str(input_ids.device).startswith("xla"):
             is_special = special_token_lut[input_ids]
         else:
             is_special = input_ids < 4
