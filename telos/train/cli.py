@@ -12,6 +12,13 @@ from telos.configs import build_config
 
 def _mp_train_worker(index, kwargs):
     """Worker entrypoint executed on each spawned TPU core."""
+    import torch
+    try:
+        import torch_xla
+        if not hasattr(torch, "xla"):
+            torch.xla = torch_xla
+    except ImportError:
+        pass
     from telos.training import xla_utils
     xla_utils.clean_tpu_environment()
     # Reset singleton references in forked child process so xm.xla_device() binds to assigned core
@@ -19,6 +26,7 @@ def _mp_train_worker(index, kwargs):
     xla_utils._CACHED_XLA_WORLD_SIZE = None
     xla_utils._CACHED_IS_MASTER = None
     train(**kwargs)
+
 
 
 def train(
