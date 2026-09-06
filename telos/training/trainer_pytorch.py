@@ -146,13 +146,15 @@ class UnifiedPyTorchTrainer:
             print("  [Hardware Notice] Multi-GPU detected without torchrun. For 1.8x-7x throughput scaling, launch with 'torchrun'. Falling back to DataParallel.")
             self.model = nn.DataParallel(self.model)
 
-        # Gradient checkpointing activation
-        if self.t_cfg.get("gradient_checkpointing", False) or self.m_cfg.get("use_grad_checkpoint", False):
+        # Gradient checkpointing activation (auto-enabled on TPU or when explicitly requested)
+        auto_chkpt = self.is_tpu or self.t_cfg.get("gradient_checkpointing", False) or self.m_cfg.get("use_grad_checkpoint", False)
+        if auto_chkpt:
             if hasattr(self.model, "use_grad_checkpoint"):
                 self.model.use_grad_checkpoint = True
             elif hasattr(self.model, "module") and hasattr(self.model.module, "use_grad_checkpoint"):
                 self.model.module.use_grad_checkpoint = True
             print("  [Memory] PyTorch Gradient Checkpointing Enabled.")
+
 
         # torch.compile integration (fusing RMSNorm, SwiGLU, and RoPE)
         if self.t_cfg.get("compile", False) and hasattr(torch, "compile") and self.device.type == "cuda":
