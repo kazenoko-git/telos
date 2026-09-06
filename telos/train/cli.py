@@ -137,7 +137,7 @@ def train(
                     init_checkpoint=init_checkpoint,
                     _is_spawned=True,
                 )
-            xmp.spawn(_mp_train_worker, args=(spawn_args,), nprocs=dev_count, start_method="fork")
+            xmp.spawn(_mp_train_worker, args=(spawn_args,), nprocs=None)
             return None
         except Exception as e:
             print(f"  [Notice] Multi-core xmp.spawn skipped ({e}). Proceeding on single core.")
