@@ -20,6 +20,7 @@ class MLXTelosTransformer(nn.Module):
         use_grad_checkpoint: bool = False,
         is_causal: bool = False,
         use_reliability_head: bool = False,
+        precision: str = "bfloat16",
         **kwargs
     ):
         super().__init__()
@@ -48,6 +49,17 @@ class MLXTelosTransformer(nn.Module):
             )
         else:
             self.reliability_head = None
+
+        # Precision casting: cast model weights to bfloat16 for high-throughput Metal compute
+        self.precision = precision
+        if precision in ("bfloat16", "bf16"):
+            self.to_bfloat16()
+
+    def to_bfloat16(self):
+        """Casts all float32 model parameters to bfloat16 to optimize memory and Metal compute throughput."""
+        from mlx.utils import tree_map
+        self.update(tree_map(lambda p: p.astype(mx.bfloat16) if isinstance(p, mx.array) and p.dtype == mx.float32 else p, self.parameters()))
+        return self
 
     def hidden_states(self, x, mask_override=None, is_causal: bool | None = None):
         effective_mask = mask_override
