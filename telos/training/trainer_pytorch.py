@@ -22,7 +22,11 @@ from .dataloader import get_global_targets_contiguous_pytorch
 from telos.diffusion.ar import ar_loss_fn_pytorch
 from telos.diffusion.mdlm import mdlm_loss_pytorch, apply_masking_pytorch, sample_beta_timesteps
 from telos.diffusion.undlm import undlm_loss_pytorch, apply_uniform_noise_pytorch
-from telos.diffusion.corosred import crsr_phase_a_loss_fn_pytorch, crsr_phase_b_loss_fn_pytorch
+from telos.diffusion.corosred import (
+    crsr_phase_a_loss_fn_pytorch,
+    crsr_phase_b_loss_fn_pytorch,
+    crsr_phase_b_self_conditioned_loss_fn_pytorch
+)
 
 
 class UnifiedPyTorchTrainer:
@@ -236,8 +240,27 @@ class UnifiedPyTorchTrainer:
                 k_amb = self.crsr_cfg.get("k_amb", 5)
                 loss, metrics = crsr_phase_a_loss_fn_pytorch(self.model, batch_seqs, self.vocab_size, special_token_lut=self.special_lut, k_amb=k_amb)
             else:
-                mask_token_id = self.m_cfg.get("mask_token_id", 0)
-                loss, metrics = crsr_phase_b_loss_fn_pytorch(self.model, batch_seqs, self.vocab_size, mask_token_id=mask_token_id)
+                mask_token_id = self.m_cfg.get("mask_token_id", 1)
+                mask_prob = float(self.crsr_cfg.get("mask_prob", 0.15))
+                self_cond = self.crsr_cfg.get("self_condition", True)
+                self_cond_prob = float(self.crsr_cfg.get("self_cond_prob", 0.5))
+                if self_cond and self_cond_prob > 0.0:
+                    loss, metrics = crsr_phase_b_self_conditioned_loss_fn_pytorch(
+                        self.model,
+                        batch_seqs,
+                        self.vocab_size,
+                        mask_token_id=mask_token_id,
+                        mask_prob=mask_prob,
+                        self_cond_prob=self_cond_prob
+                    )
+                else:
+                    loss, metrics = crsr_phase_b_loss_fn_pytorch(
+                        self.model,
+                        batch_seqs,
+                        self.vocab_size,
+                        mask_token_id=mask_token_id,
+                        mask_prob=mask_prob
+                    )
         
         return loss, metrics
 
