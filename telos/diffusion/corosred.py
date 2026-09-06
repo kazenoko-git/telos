@@ -366,6 +366,7 @@ if TORCH_AVAILABLE:
             with torch.no_grad():
                 causal_logits = model(batch_seqs, return_reliability=False, mask_override=True)
                 draft_preds = torch.argmax(causal_logits[:, :-1, :], dim=-1)
+                del causal_logits
                 draft_seqs = torch.cat([batch_seqs[:, :1], draft_preds], dim=1)
 
             base_seqs = torch.where(rand_sc, draft_seqs, batch_seqs)
