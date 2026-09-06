@@ -547,13 +547,13 @@ class UnifiedPyTorchTrainer:
             elif self.is_tpu:
                 import torch_xla.core.xla_model as xm
                 # In SPMD mode, xs.mark_sharding on the batch automatically triggers the partitioner all-reduce.
-                # Only call xm.reduce_gradients in multi-process non-SPMD mode.
                 if not getattr(self, "is_spmd", False):
                     xm.reduce_gradients(self.optimizer)
-                nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
-                # xm.optimizer_step() applies updates and triggers internal mark_step()
-                xm.optimizer_step(self.optimizer)
+                if self.grad_clip > 0:
+                    nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
+                self.optimizer.step()
                 xm.mark_step()
+
             else:
                 nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
                 self.optimizer.step()
