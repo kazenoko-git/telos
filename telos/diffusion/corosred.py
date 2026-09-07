@@ -307,6 +307,9 @@ if TORCH_AVAILABLE:
             mask_positions = (rand_probs < mask_prob)
             mask_positions = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), mask_positions[:, 1:]], dim=1)
 
+        if hasattr(torch, "clear_autocast_cache"):
+            torch.clear_autocast_cache()
+
         corrupted_seqs = torch.where(
             mask_positions,
             torch.full((B, T), mask_token_id, dtype=batch_seqs.dtype, device=batch_seqs.device),
@@ -427,6 +430,9 @@ if TORCH_AVAILABLE:
             else:
                 base_seqs = batch_seqs
                 raw_r_scores = None
+
+        if hasattr(torch, "clear_autocast_cache"):
+            torch.clear_autocast_cache()
 
         # Determine mask positions:
         # If the Learned Reliability Head is available, route masks to low-confidence positions!
