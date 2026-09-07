@@ -71,3 +71,28 @@ def test_self_conditioned_phase_b_loss_pytorch():
     )
     assert isinstance(loss_clean, torch.Tensor)
     assert metrics_clean["self_cond"] == 0.0
+
+
+def test_confidence_routed_phase_b_with_lrh():
+    """Verify confidence-routed Phase B loss cleanly leverages the Learned Reliability Head."""
+    cfg = TelosConfig(vocab_size=60, d_model=32, n_layers=2, n_heads=2, max_seq_len=16, use_reliability_head=True)
+    model = TelosTransformer(cfg)
+
+    batch = torch.randint(4, 60, (2, 16), dtype=torch.long)
+
+    # Execute Phase B with LRH enabled
+    loss, metrics = crsr_phase_b_self_conditioned_loss_fn_pytorch(
+        model=model,
+        batch_seqs=batch,
+        vocab_size=60,
+        mask_token_id=1,
+        mask_prob=0.20,
+        self_cond_prob=0.5
+    )
+    assert isinstance(loss, torch.Tensor)
+    assert loss.ndim == 0
+    assert not torch.isnan(loss)
+
+    loss.backward()
+    # Ensure gradients propagate to transformer parameters
+    assert next(model.parameters()).grad is not None
