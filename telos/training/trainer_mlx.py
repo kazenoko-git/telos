@@ -93,8 +93,28 @@ class UnifiedMLXTrainer:
         # Empirical activation memory estimate for non-checkpointed transformer
         act_mem_gb = (n_layers_est * bs_est * self.seq_len * d_model_est * 16.0) / (1024 ** 3)
         working_set_gb = static_mem_gb + act_mem_gb
-        # Conservative unified memory budget: 45% of total unified RAM
-        mem_budget_gb = self.hw_profile.total_memory_gb * 0.45
+        # Apple Silicon unified memory tiers:
+        # 1/3 at <=24GB, 1/2 at 32GB, 3/4 at 64GB, 81.25% at 128GB
+        tot_gb = self.hw_profile.total_memory_gb
+        if tot_gb <= 24.0:
+            mem_frac = 1.0 / 3.0
+        elif tot_gb <= 36.0:
+            mem_frac = 0.50
+        elif tot_gb <= 72.0:
+            mem_frac = 0.75
+        else:
+            mem_frac = 0.8125
+
+        mem_budget_gb = tot_gb * mem_frac
+
+        # Set hardware allocator limit via Metal API to prevent memory pressure swapping
+        set_lim_fn = getattr(mx, "set_memory_limit", getattr(getattr(mx, "metal", None), "set_memory_limit", None))
+        if set_lim_fn is not None:
+            try:
+                set_lim_fn(int(mem_budget_gb * (1024 ** 3)))
+            except Exception:
+                pass
+
         auto_chkpt = working_set_gb > mem_budget_gb
 
         if self.t_cfg.get("gradient_checkpointing", False) or self.m_cfg.get("use_grad_checkpoint", False) or auto_chkpt:
@@ -408,8 +428,7 @@ class UnifiedMLXTrainer:
                         self._print_benchmark_report(bench_steps, bench_elapsed, latencies, bs, grad_accum)
                         return
 
-            if step % 200 == 0:
-                mx.clear_cache()
+
 
             if step % 50 == 0 or step == 1 or step == max_steps or (benchmark and step % 10 == 0):
                 avg_loss_val = accum_loss.item() / grad_accum
