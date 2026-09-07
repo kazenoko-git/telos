@@ -48,6 +48,8 @@ class UnifiedPyTorchTrainer:
             torch.set_float32_matmul_precision("high")
 
         self.paradigm = paradigm.lower()
+        self.crsr_cfg = cfg.get("crsr", cfg.get("corosred", {}))
+        self.phase = self.crsr_cfg.get("phase", cfg.get("phase", "A")).upper() if self.paradigm == "corosred" else "A"
         self.model = model
         self.cfg = cfg
         self.m_cfg = cfg.setdefault("model", {})
@@ -185,8 +187,7 @@ class UnifiedPyTorchTrainer:
                 print(f"  [Compiler] torch.compile skipped: {e}")
 
         if self.paradigm == "corosred":
-            self.crsr_cfg = cfg.get("crsr", cfg.get("corosred", {}))
-            self.phase = self.crsr_cfg.get("phase", "A").upper()
+            pass
 
         self.max_steps = int(self.t_cfg.get("max_steps", 5000))
         self.max_lr = float(self.t_cfg.get("max_lr", 3e-4))
