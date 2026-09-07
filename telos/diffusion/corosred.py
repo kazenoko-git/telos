@@ -294,10 +294,9 @@ if TORCH_AVAILABLE:
                     mask_positions = low_conf_mask | explore_mask
                     mask_positions = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), mask_positions[:, 1:]], dim=1)
                     no_mask = ~mask_positions.any(dim=1, keepdim=True)
-                    if no_mask.any():
-                        fallback = (torch.rand((B, T), device=batch_seqs.device) < mask_prob)
-                        fallback = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), fallback[:, 1:]], dim=1)
-                        mask_positions = torch.where(no_mask, fallback, mask_positions)
+                    fallback = (torch.rand((B, T), device=batch_seqs.device) < mask_prob)
+                    fallback = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), fallback[:, 1:]], dim=1)
+                    mask_positions = torch.where(no_mask, fallback, mask_positions)
                 else:
                     rand_probs = torch.rand((B, T), device=batch_seqs.device)
                     mask_positions = (rand_probs < mask_prob)
@@ -445,10 +444,9 @@ if TORCH_AVAILABLE:
 
             # Safeguard: if a sequence has no low-confidence tokens, fallback to uniform random mask
             no_mask = ~mask_positions.any(dim=1, keepdim=True)
-            if no_mask.any():
-                fallback = (torch.rand((B, T), device=batch_seqs.device) < mask_prob)
-                fallback = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), fallback[:, 1:]], dim=1)
-                mask_positions = torch.where(no_mask, fallback, mask_positions)
+            fallback = (torch.rand((B, T), device=batch_seqs.device) < mask_prob)
+            fallback = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), fallback[:, 1:]], dim=1)
+            mask_positions = torch.where(no_mask, fallback, mask_positions)
         else:
             rand_probs = torch.rand((B, T), device=batch_seqs.device)
             mask_positions = (rand_probs < mask_prob)
