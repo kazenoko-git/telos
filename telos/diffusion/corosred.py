@@ -157,18 +157,39 @@ if MLX_AVAILABLE:
 
         if use_self_cond or has_reliability:
             if has_reliability:
+                # Pass 1: Causal forward pass to compute draft predictions and reliability scores
                 causal_logits, raw_r_scores = model(batch_seqs, mask_override="causal", return_reliability=True)
-                r_probs = mx.sigmoid(raw_r_scores[:, :-1])
-                full_r_probs = mx.concatenate([mx.ones((B, 1)), r_probs], axis=1)
-                low_conf_mask = full_r_probs < 0.5
-                explore_mask = mx.random.uniform(shape=(B, T)) < (mask_prob * 0.3)
-                mask_positions = mx.logical_or(low_conf_mask, explore_mask)
+                r_scores = mx.stop_gradient(raw_r_scores[:, :-1])
+                # Prepend high confidence score for token 0 (BOS) so it is never masked
+                r_scores_with_bos = mx.concatenate([mx.full((B, 1), 1e9), r_scores], axis=1)
+
+                # Strictly enforce 15% total mask budget (e.g. 76 tokens for seq_len=512)
+                total_k = int(T * mask_prob)
+                k_targeted = int(total_k * 0.70)  # 70% targeted at model's lowest-confidence positions
+                k_explore = total_k - k_targeted  # 30% uniform random exploration
+
+                # 1. Target lowest k_targeted confidence tokens (stop_gradient prevents scatter VJP error)
+                sorted_indices = mx.stop_gradient(mx.argsort(r_scores_with_bos, axis=-1))
+                targeted_indices = sorted_indices[:, :k_targeted]
+                mask_positions = mx.zeros((B, T), dtype=mx.bool_)
+                row_indices = mx.broadcast_to(mx.arange(B)[:, None], (B, k_targeted))
+                mask_positions[row_indices, targeted_indices] = True
+                mask_positions[:, 0] = False
+
+                # 2. Add k_explore uniform exploration positions
+                rand_scores = mx.random.uniform(shape=(B, T))
+                rand_scores_mod = mx.where(mask_positions, mx.full((B, T), -1e9), rand_scores)
+                rand_scores_mod[:, 0] = -1e9
+                rand_indices = mx.stop_gradient(mx.argsort(rand_scores_mod, axis=-1)[:, -k_explore:])
+                row_indices_exp = mx.broadcast_to(mx.arange(B)[:, None], (B, k_explore))
+                mask_positions[row_indices_exp, rand_indices] = True
             else:
                 causal_logits = model(batch_seqs, mask_override="causal", return_reliability=False)
                 mask_positions = mx.random.uniform(shape=(B, T)) < mask_prob
+                mask_positions[:, 0] = False
 
             if use_self_cond:
-                draft_preds = mx.argmax(causal_logits[:, :-1, :], axis=-1)
+                draft_preds = mx.stop_gradient(mx.argmax(causal_logits[:, :-1, :], axis=-1))
                 draft_seqs = mx.concatenate([batch_seqs[:, :1], draft_preds], axis=1)
                 base_seqs = draft_seqs
             else:
@@ -176,6 +197,7 @@ if MLX_AVAILABLE:
         else:
             base_seqs = batch_seqs
             mask_positions = mx.random.uniform(shape=(B, T)) < mask_prob
+            mask_positions[:, 0] = False
 
         corrupted = mx.where(mask_positions, mx.full((B, T), mask_token_id, dtype=batch_seqs.dtype), base_seqs)
 
@@ -438,23 +460,27 @@ if TORCH_AVAILABLE:
         # If the Learned Reliability Head is available, route masks to low-confidence positions!
         if raw_r_scores is not None:
             # Shift r_scores to align with next-token prediction
-            # raw_r_scores[:, :-1] predicts reliability of tokens 1..T-1
-            r_probs = torch.sigmoid(raw_r_scores[:, :-1])
-            # Prepend 1.0 for token 0 (BOS / prompt token: high confidence, never mask)
-            full_r_probs = torch.cat([torch.ones((B, 1), device=batch_seqs.device, dtype=r_probs.dtype), r_probs], dim=1)
+            r_scores = raw_r_scores[:, :-1]
+            r_scores_with_bos = torch.cat([torch.full((B, 1), 1e9, device=batch_seqs.device, dtype=r_scores.dtype), r_scores], dim=1)
 
-            # 1. Targeted masks: positions where LRH predicts low confidence (r_prob < 0.5)
-            low_conf_mask = (full_r_probs < 0.5)
-            # 2. Exploration masks: small uniform random mask (30% of mask_prob) so model explores unflagged tokens
-            explore_mask = (torch.rand((B, T), device=batch_seqs.device) < (mask_prob * 0.3))
-            mask_positions = low_conf_mask | explore_mask
-            mask_positions = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), mask_positions[:, 1:]], dim=1)
+            # Strictly enforce 15% total mask budget (e.g. 76 tokens for seq_len=512)
+            total_k = int(T * mask_prob)
+            k_targeted = int(total_k * 0.70)  # 70% targeted at lowest-confidence positions
+            k_explore = total_k - k_targeted  # 30% uniform random exploration
 
-            # Safeguard: if a sequence has no low-confidence tokens, fallback to uniform random mask
-            no_mask = ~mask_positions.any(dim=1, keepdim=True)
-            fallback = (torch.rand((B, T), device=batch_seqs.device) < mask_prob)
-            fallback = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), fallback[:, 1:]], dim=1)
-            mask_positions = torch.where(no_mask, fallback, mask_positions)
+            # 1. Target lowest k_targeted confidence tokens
+            sorted_indices = torch.argsort(r_scores_with_bos, dim=-1)
+            targeted_indices = sorted_indices[:, :k_targeted]
+            mask_positions = torch.zeros((B, T), device=batch_seqs.device, dtype=torch.bool)
+            mask_positions.scatter_(1, targeted_indices, True)
+            mask_positions[:, 0] = False
+
+            # 2. Add k_explore uniform exploration positions
+            rand_scores = torch.rand((B, T), device=batch_seqs.device)
+            rand_scores = torch.where(mask_positions, torch.full((B, T), -1e9, device=batch_seqs.device), rand_scores)
+            rand_scores[:, 0] = -1e9
+            rand_indices = torch.argsort(rand_scores, dim=-1)[:, -k_explore:]
+            mask_positions.scatter_(1, rand_indices, True)
         else:
             rand_probs = torch.rand((B, T), device=batch_seqs.device)
             mask_positions = (rand_probs < mask_prob)
