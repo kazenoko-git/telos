@@ -1,0 +1,32 @@
+# Télos TPU v3 Config: 15M Model (~15M params)
+# Strictly forces batch_size=48 per core, gradient_accumulation=1 (Cluster effective batch = 384 seqs)
+
+model:
+  vocab_size: 8192
+  d_model: 384
+  n_layers: 8
+  n_heads: 6
+  n_kv_heads: 6
+  seq_len: 512
+  tied_embeddings: true
+  use_reliability_head: true
+  mask_token_id: 1
+
+training:
+  batch_size: 48
+  gradient_accumulation: 1
+  precision: bf16
+  gradient_checkpointing: true
+  max_lr: 4.90e-4
+  min_lr: 4.90e-5
+  weight_decay: 0.1
+  grad_clip: 1.0
+
+  tpu:
+    batch_size: 48
+    gradient_accumulation: 1
+    num_devices: 8
+
+checkpoint:
+  checkpoint_dir: checkpoints/corosred/15m
+  save_every_steps: 500
