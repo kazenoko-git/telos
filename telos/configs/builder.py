@@ -230,10 +230,11 @@ def build_config(
     else:
         t_cfg.setdefault("gradient_accumulation", 1)
 
-    # Hardware Safeguard: On Cloud TPU v3 (16 GB HBM), a per-core microbatch > 48 in a single forward pass
-    # produces large [B*H, T, T] attention score matrices that exceed physical 16GB HBM capacity.
-    # Auto-split into a hardware-safe per-core microbatch (<= 48) and scale gradient_accumulation.
-    if final_device == "xla" and t_cfg["batch_size"] > 48:
+    # Hardware Safeguard: On legacy Cloud TPU v3 (16 GB HBM), large attention matrices for d_model >= 768
+    # can exceed physical 16GB HBM capacity if microbatch > 48.
+    # On modern TPUs (v5e/v6e 32GB HBM) or smaller models (d_model <= 512), single-pass execution is safe.
+    # If the user explicitly requested grad_accum=1, never force gradient accumulation.
+    if final_device == "xla" and t_cfg["batch_size"] > 48 and grad_accum != 1 and d_model >= 768:
         raw_bs = t_cfg["batch_size"]
         safe_microbatch = 48 if raw_bs % 48 == 0 else (32 if raw_bs % 32 == 0 else (16 if raw_bs % 16 == 0 else 24))
         accum_multiplier = max(1, math.ceil(raw_bs / safe_microbatch))
