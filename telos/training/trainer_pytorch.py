@@ -9,8 +9,12 @@ import time
 import math
 import json
 import inspect
+from contextlib import nullcontext
 import numpy as np
 from pathlib import Path
+
+# Allocator hygiene: Set expandable_segments BEFORE torch is imported to prevent memory fragmentation during autotuning
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 try:
     import torch
@@ -42,8 +46,6 @@ class UnifiedPyTorchTrainer:
         if torch.cuda.is_available():
             # Enable TF32 for matrix multiplications on Ampere+ architectures
             torch.set_float32_matmul_precision("high")
-            # Allocator hygiene: Set expandable_segments to eliminate memory fragmentation during autotuning
-            os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
         self.paradigm = paradigm.lower()
         self.model = model
@@ -132,10 +134,11 @@ class UnifiedPyTorchTrainer:
         self.model.to(self.device)
         self.special_lut = self.special_lut.to(self.device)
 
-        # Explicit bfloat16 casting for TPU MXU hardware saturation
-        if self.is_tpu and self.precision in ["bfloat16", "bf16"]:
+        # Explicit bfloat16 casting for TPU MXU hardware saturation with fp32 master weights
+        self.use_master_weights = self.is_tpu and self.precision in ["bfloat16", "bf16"]
+        if self.use_master_weights:
             self.model.to(dtype=torch.bfloat16)
-            print("  [Precision] TPU model weights cast to native torch.bfloat16.")
+            print("  [Precision] TPU model weights cast to native torch.bfloat16 (maintaining fp32 master weights).")
 
         # Multi-GPU wrapping: Prefer DDP over deprecated DataParallel
         if getattr(self, "is_ddp", False):
@@ -179,14 +182,25 @@ class UnifiedPyTorchTrainer:
         # Separate parameters into decayed and non-decayed groups:
         # Standard transformer optimization applies 0 weight decay to 1D parameters (biases, layer norms, RMS norms)
         # and embedding lookup tables to avoid regularizing scale/shift parameters.
+        self.param_to_master = []
         decay_params = []
         no_decay_params = []
         for name, param in self.model.named_parameters():
             if param.requires_grad:
-                if param.ndim == 1 or "embed" in name:
-                    no_decay_params.append(param)
+                if self.use_master_weights:
+                    # Allocate fp32 master parameter copy to prevent updates from rounding to zero in bf16
+                    mp = param.detach().clone().float().requires_grad_(True)
+                    self.param_to_master.append((param, mp))
+                    target_param = mp
                 else:
-                    decay_params.append(param)
+                    target_param = param
+
+                if param.ndim == 1 or "embed" in name:
+                    no_decay_params.append(target_param)
+                else:
+                    decay_params.append(target_param)
+
+        self.master_params = [mp for _, mp in self.param_to_master] if self.use_master_weights else None
 
         # Fused AdamW merges kernel operations for faster gradient updates on CUDA
         use_fused = (self.device.type == "cuda") and (
@@ -239,23 +253,27 @@ class UnifiedPyTorchTrainer:
         if self.paradigm in ["mdlm", "undlm"]:
             self.beta_buffer_size = 1_000_000
             beta_np = sample_beta_timesteps(self.beta_buffer_size)
-            beta_dtype = torch.bfloat16 if (self.is_tpu or self.precision == "bf16") else torch.float32
-            self.beta_buffer = torch.from_numpy(beta_np).to(device=self.device, dtype=beta_dtype)
+            # Retain float32 precision across all backends (MLX, CUDA, TPU) for exact masking probabilities
+            self.beta_buffer = torch.from_numpy(beta_np).to(device=self.device, dtype=torch.float32)
+            self.beta_counter = torch.zeros((), dtype=torch.int64, device=self.device)
             self.beta_idx = 0
+
+        # Checkpoint thread primitives to eliminate torn async saves and filesystem race conditions
+        self._save_lock = threading.Lock()
+        self._save_thread = None
 
         self.global_step = 0
 
     def _sample_beta_timesteps(self, bs: int) -> torch.Tensor:
         """
-        Fetches bs timesteps. On TPU, generates on-device with constant shape to prevent
-        XLA graph recompilation caused by dynamic Python buffer slice offsets.
+        Fetches bs timesteps. On TPU, indexes device-resident Beta(1.5, 1.5) buffer
+        with device-computed indices to ensure static XLA shapes and exact Beta distribution.
         """
         if self.is_tpu:
-            # On TPU, do NOT slice buffer with changing integer indices (causes XLA graph recompilation every step).
-            # Generate Beta(1.5, 1.5) timesteps directly on-device using a continuous bell transformation:
-            u = torch.rand(bs, 1, device=self.device, dtype=torch.float32)
-            t = 0.5 * (1.0 - torch.cos(torch.pi * u))
-            return t.clamp(min=1e-3, max=1.0 - 1e-3).to(dtype=torch.bfloat16)
+            # Device-computed tensor index: static shape (bs,), zero dynamic slice recompilations in XLA
+            idx = (self.beta_counter + torch.arange(bs, device=self.device, dtype=torch.int64)) % self.beta_buffer_size
+            self.beta_counter = (self.beta_counter + bs) % self.beta_buffer_size
+            return self.beta_buffer[idx]
 
         if self.beta_idx + bs > self.beta_buffer_size:
             self.beta_idx = 0
@@ -266,26 +284,53 @@ class UnifiedPyTorchTrainer:
     def save_checkpoint(self, path: str | Path, sync: bool = False):
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        checkpoint = {
-            "global_step": self.global_step,
-            "model_state_dict": self.model.state_dict(),
-            "optimizer_state_dict": self.optimizer.state_dict(),
-            "scheduler_state_dict": self.scheduler.state_dict(),
-            "config": self.cfg,
-        }
+
+        # Join any prior background save thread to ensure two saves never overlap or race
+        if self._save_thread is not None and self._save_thread.is_alive():
+            self._save_thread.join()
+
         if self.is_tpu:
             import torch_xla.core.xla_model as xm
             xm.mark_step()
+            checkpoint = {
+                "global_step": self.global_step,
+                "model_state_dict": self.model.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "scheduler_state_dict": self.scheduler.state_dict(),
+                "config": self.cfg,
+            }
             # xm.save serializes XLA tensors to CPU host memory safely without graph synchronization stalls
             xm.save(checkpoint, path)
-        elif sync:
+            return
+
+        # Clone state dicts to detached CPU tensors to prevent torn-state corruption from concurrent in-place mutations
+        cpu_model_state = {k: v.detach().cpu().clone() for k, v in self.model.state_dict().items()}
+        raw_opt_state = self.optimizer.state_dict()
+        cpu_opt_state = {
+            "state": {
+                k: {sk: sv.detach().cpu().clone() if isinstance(sv, torch.Tensor) else sv for sk, sv in v.items()}
+                for k, v in raw_opt_state.get("state", {}).items()
+            },
+            "param_groups": raw_opt_state.get("param_groups", [])
+        }
+
+        checkpoint = {
+            "global_step": self.global_step,
+            "model_state_dict": cpu_model_state,
+            "optimizer_state_dict": cpu_opt_state,
+            "scheduler_state_dict": self.scheduler.state_dict(),
+            "config": self.cfg,
+        }
+
+        if sync:
             torch.save(checkpoint, path)
         else:
-            # Asynchronous checkpoint saving on a background worker thread to prevent hot-loop sync stalls
+            # Asynchronous checkpoint saving on a background worker thread with cloned CPU tensors
             def _async_save():
-                torch.save(checkpoint, path)
-            save_thread = threading.Thread(target=_async_save, daemon=True)
-            save_thread.start()
+                with self._save_lock:
+                    torch.save(checkpoint, path)
+            self._save_thread = threading.Thread(target=_async_save, daemon=True)
+            self._save_thread.start()
 
     def load_checkpoint(self, path: str | Path):
         path = Path(path)
@@ -487,6 +532,8 @@ class UnifiedPyTorchTrainer:
         latencies = []
         bench_steps = 0
         self.optimizer.zero_grad()
+        if self.use_master_weights:
+            self.model.zero_grad()
 
         # Background asynchronous batch prefetcher (CUDA only)
         # PyTorch-XLA does NOT support multi-threaded tensor allocation/transfer to device;
@@ -498,11 +545,15 @@ class UnifiedPyTorchTrainer:
 
             def prefetch_worker():
                 nonlocal idx_ptr
-                for _ in range(resume_step + 1, self.max_steps + 1):
-                    batch_t, idx_ptr = get_global_targets_contiguous_pytorch(
-                        dataset_matrix, idx_ptr, bs * grad_accum, self.seq_len, self.device, non_blocking=True
-                    )
-                    prefetch_queue.put(batch_t)
+                try:
+                    for _ in range(resume_step + 1, self.max_steps + 1):
+                        batch_t, idx_ptr = get_global_targets_contiguous_pytorch(
+                            dataset_matrix, idx_ptr, bs * grad_accum, self.seq_len, self.device, non_blocking=True
+                        )
+                        prefetch_queue.put((batch_t, None))
+                except Exception as e:
+                    # Pass exception through the queue so consumer thread does not hang indefinitely
+                    prefetch_queue.put((None, e))
 
             prefetch_thread = threading.Thread(target=prefetch_worker, daemon=True)
             prefetch_thread.start()
@@ -511,7 +562,10 @@ class UnifiedPyTorchTrainer:
             t_step_start = time.perf_counter()
 
             if prefetch_queue is not None:
-                global_targets = prefetch_queue.get()
+                item, exc = prefetch_queue.get()
+                if exc is not None:
+                    raise exc
+                global_targets = item
             else:
                 global_targets, idx_ptr = get_global_targets_contiguous_pytorch(
                     dataset_matrix, idx_ptr, bs * grad_accum, self.seq_len, self.device, non_blocking=False
@@ -528,17 +582,20 @@ class UnifiedPyTorchTrainer:
                     import torch_xla.distributed.spmd as xs
                     xs.mark_sharding(batch_seqs, self.spmd_mesh, ("data", None))
 
-                if self.use_amp:
-                    with torch.amp.autocast(device_type=getattr(self, "amp_device", self.device.type), dtype=self.amp_dtype):
+                # DDP gradient accumulation optimization: disable all-reduce on non-final microbatches
+                sync_ctx = self.model.no_sync() if (getattr(self, "is_ddp", False) and i < grad_accum - 1) else nullcontext()
+                with sync_ctx:
+                    if self.use_amp:
+                        with torch.amp.autocast(device_type=getattr(self, "amp_device", self.device.type), dtype=self.amp_dtype):
+                            loss, metrics = self._execute_microbatch(batch_seqs)
+                    else:
                         loss, metrics = self._execute_microbatch(batch_seqs)
-                else:
-                    loss, metrics = self._execute_microbatch(batch_seqs)
 
-                loss = loss / grad_accum
-                if self.use_scaler:
-                    self.scaler.scale(loss).backward()
-                else:
-                    loss.backward()
+                    loss = loss / grad_accum
+                    if self.use_scaler:
+                        self.scaler.scale(loss).backward()
+                    else:
+                        loss.backward()
                 last_metrics = metrics
 
             if self.use_scaler:
@@ -548,12 +605,25 @@ class UnifiedPyTorchTrainer:
                 self.scaler.update()
             elif self.is_tpu:
                 import torch_xla.core.xla_model as xm
+                # Copy gradients from bfloat16 model parameters to float32 master parameters
+                if self.use_master_weights:
+                    for p, mp in self.param_to_master:
+                        if p.grad is not None:
+                            mp.grad = p.grad.float()
+
                 # In SPMD mode, xs.mark_sharding on the batch automatically triggers the partitioner all-reduce.
                 if not getattr(self, "is_spmd", False):
                     xm.reduce_gradients(self.optimizer)
                 if self.grad_clip > 0:
-                    nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
+                    target_params = self.master_params if self.use_master_weights else self.model.parameters()
+                    nn.utils.clip_grad_norm_(target_params, self.grad_clip)
                 self.optimizer.step()
+
+                # Synchronize updated float32 master weights back to bfloat16 model parameters
+                if self.use_master_weights:
+                    for p, mp in self.param_to_master:
+                        p.data.copy_(mp.data.to(p.dtype))
+
                 xm.mark_step()
 
             else:
@@ -561,6 +631,8 @@ class UnifiedPyTorchTrainer:
                 self.optimizer.step()
 
             self.optimizer.zero_grad()
+            if self.use_master_weights:
+                self.model.zero_grad()
             self.scheduler.step()
             self.global_step = step
 
@@ -605,6 +677,9 @@ class UnifiedPyTorchTrainer:
             bench_elapsed = time.time() - (bench_start_time if bench_start_time else start_time)
             self._print_benchmark_report(bench_steps, bench_elapsed, latencies, bs, grad_accum)
             return
+
+        if self._save_thread is not None and self._save_thread.is_alive():
+            self._save_thread.join()
 
         if self.is_master:
             if self.is_tpu:
