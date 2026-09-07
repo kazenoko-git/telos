@@ -182,7 +182,7 @@ def build_config(
     if final_device == "xla":
         # TPU v3 (16GB HBM) per-core microbatch sizing: 32-48 sequences is the sweet spot
         # to saturate MXU systolic arrays while keeping attention matrices well within 16GB HBM.
-        auto_microbatch = 48 if d_model <= 512 else 16
+        auto_microbatch = 48 if d_model <= 768 else 16
     elif final_backend == "mlx":
         # Apple Silicon memory-tier scaling: scale microbatch based on unified memory capacity
         try:
