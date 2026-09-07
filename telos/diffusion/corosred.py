@@ -277,14 +277,15 @@ if TORCH_AVAILABLE:
     ) -> tuple[torch.Tensor, dict[str, float]]:
         B, T = batch_seqs.shape
 
+        raw_model = getattr(model, "module", model)
         has_reliability = (
-            getattr(model, "reliability_head", None) is not None
-            or getattr(getattr(model, "config", None), "use_reliability_head", False)
+            getattr(raw_model, "reliability_head", None) is not None
+            or getattr(getattr(raw_model, "config", None), "use_reliability_head", False)
         )
 
         if has_reliability:
             with torch.no_grad():
-                causal_out = model(batch_seqs, return_reliability=True, mask_override=True)
+                causal_out = raw_model(batch_seqs, return_reliability=True, mask_override=True)
                 if isinstance(causal_out, tuple):
                     _, raw_r_scores = causal_out
                     r_probs = torch.sigmoid(raw_r_scores[:, :-1])
@@ -399,14 +400,15 @@ if TORCH_AVAILABLE:
         """
         B, T = batch_seqs.shape
 
+        raw_model = getattr(model, "module", model)
         has_reliability = (
-            getattr(model, "reliability_head", None) is not None
-            or getattr(getattr(model, "config", None), "use_reliability_head", False)
+            getattr(raw_model, "reliability_head", None) is not None
+            or getattr(getattr(raw_model, "config", None), "use_reliability_head", False)
         )
 
         with torch.no_grad():
             if self_cond_prob > 0.0 or has_reliability:
-                causal_out = model(batch_seqs, return_reliability=has_reliability, mask_override=True)
+                causal_out = raw_model(batch_seqs, return_reliability=has_reliability, mask_override=True)
                 if has_reliability and isinstance(causal_out, tuple):
                     causal_logits, raw_r_scores = causal_out
                 else:
