@@ -85,11 +85,10 @@ class TelosTransformer(nn.Module):
         is_xla = h.device.type == "xla" or str(h.device).startswith("xla")
         for layer in self.layers:
             # Memory Optimization: Recompute activations during backward pass when gradient checkpointing is enabled
-            if self.use_grad_checkpoint and self.training:
+            if self.use_grad_checkpoint and self.training and torch.is_grad_enabled():
                 h = torch.utils.checkpoint.checkpoint(
                     layer, h, cos, sin, mask_override,
-                    use_reentrant=True,
-                    preserve_rng_state=False
+                    use_reentrant=False
                 )
             else:
                 h = layer(h, cos, sin, mask_override=mask_override)
