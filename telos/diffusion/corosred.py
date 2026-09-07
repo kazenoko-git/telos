@@ -145,29 +145,39 @@ if MLX_AVAILABLE:
         self_cond_prob: float = 0.5
     ):
         """
-        Self-Conditioned Phase B Loss (MLX):
-        With probability `self_cond_prob`, trains the bidirectional denoiser on
-        model-generated draft sequences with errors rather than 100% clean sequences,
-        eliminating the train/test distribution mismatch.
+        Confidence-Routed Self-Conditioned Phase B Loss (MLX):
+        Leverages the Learned Reliability Head to selectively mask low-confidence
+        positions rather than uniform random tokens, training the bidirectional
+        denoiser directly on model draft error patterns.
         """
         B, T = batch_seqs.shape
 
-        # Sample random coin flip for self-conditioning branch
         use_self_cond = float(mx.random.uniform(shape=(1,))[0]) < self_cond_prob
+        has_reliability = getattr(model, "use_reliability_head", False) and getattr(model, "reliability_head", None) is not None
 
-        rand_probs = mx.random.uniform(shape=(B, T))
-        mask_positions = rand_probs < mask_prob
+        if use_self_cond or has_reliability:
+            if has_reliability:
+                causal_logits, raw_r_scores = model(batch_seqs, mask_override="causal", return_reliability=True)
+                r_probs = mx.sigmoid(raw_r_scores[:, :-1])
+                full_r_probs = mx.concatenate([mx.ones((B, 1)), r_probs], axis=1)
+                low_conf_mask = full_r_probs < 0.5
+                explore_mask = mx.random.uniform(shape=(B, T)) < (mask_prob * 0.3)
+                mask_positions = mx.logical_or(low_conf_mask, explore_mask)
+            else:
+                causal_logits = model(batch_seqs, mask_override="causal", return_reliability=False)
+                mask_positions = mx.random.uniform(shape=(B, T)) < mask_prob
 
-        if use_self_cond:
-            # Generate causal draft tokens
-            causal_logits = model(batch_seqs, mask_override="causal", return_reliability=False)
-            draft_preds = mx.argmax(causal_logits[:, :-1, :], axis=-1)
-            draft_seqs = mx.concatenate([batch_seqs[:, :1], draft_preds], axis=1)
-
-            # Corrupt the draft sequence at masked positions
-            corrupted = mx.where(mask_positions, mx.full((B, T), mask_token_id, dtype=batch_seqs.dtype), draft_seqs)
+            if use_self_cond:
+                draft_preds = mx.argmax(causal_logits[:, :-1, :], axis=-1)
+                draft_seqs = mx.concatenate([batch_seqs[:, :1], draft_preds], axis=1)
+                base_seqs = draft_seqs
+            else:
+                base_seqs = batch_seqs
         else:
-            corrupted = mx.where(mask_positions, mx.full((B, T), mask_token_id, dtype=batch_seqs.dtype), batch_seqs)
+            base_seqs = batch_seqs
+            mask_positions = mx.random.uniform(shape=(B, T)) < mask_prob
+
+        corrupted = mx.where(mask_positions, mx.full((B, T), mask_token_id, dtype=batch_seqs.dtype), base_seqs)
 
         # Forward pass in Bidirectional Attention Mode
         logits = model(corrupted, mask_override=None, return_reliability=False)
@@ -267,10 +277,41 @@ if TORCH_AVAILABLE:
     ) -> tuple[torch.Tensor, dict[str, float]]:
         B, T = batch_seqs.shape
 
-        rand_probs = torch.rand((B, T), device=batch_seqs.device)
-        mask_positions = rand_probs < mask_prob
+        has_reliability = (
+            getattr(model, "reliability_head", None) is not None
+            or getattr(getattr(model, "config", None), "use_reliability_head", False)
+        )
 
-        corrupted_seqs = torch.where(mask_positions, torch.full((B, T), mask_token_id, dtype=batch_seqs.dtype, device=batch_seqs.device), batch_seqs)
+        if has_reliability:
+            with torch.no_grad():
+                causal_out = model(batch_seqs, return_reliability=True, mask_override=True)
+                if isinstance(causal_out, tuple):
+                    _, raw_r_scores = causal_out
+                    r_probs = torch.sigmoid(raw_r_scores[:, :-1])
+                    full_r_probs = torch.cat([torch.ones((B, 1), device=batch_seqs.device, dtype=r_probs.dtype), r_probs], dim=1)
+                    low_conf_mask = (full_r_probs < 0.5)
+                    explore_mask = (torch.rand((B, T), device=batch_seqs.device) < (mask_prob * 0.3))
+                    mask_positions = low_conf_mask | explore_mask
+                    mask_positions = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), mask_positions[:, 1:]], dim=1)
+                    no_mask = ~mask_positions.any(dim=1, keepdim=True)
+                    if no_mask.any():
+                        fallback = (torch.rand((B, T), device=batch_seqs.device) < mask_prob)
+                        fallback = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), fallback[:, 1:]], dim=1)
+                        mask_positions = torch.where(no_mask, fallback, mask_positions)
+                else:
+                    rand_probs = torch.rand((B, T), device=batch_seqs.device)
+                    mask_positions = (rand_probs < mask_prob)
+                    mask_positions = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), mask_positions[:, 1:]], dim=1)
+        else:
+            rand_probs = torch.rand((B, T), device=batch_seqs.device)
+            mask_positions = (rand_probs < mask_prob)
+            mask_positions = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), mask_positions[:, 1:]], dim=1)
+
+        corrupted_seqs = torch.where(
+            mask_positions,
+            torch.full((B, T), mask_token_id, dtype=batch_seqs.dtype, device=batch_seqs.device),
+            batch_seqs
+        )
 
         # Forward pass in Bidirectional Attention Mode
         logits = model(corrupted_seqs, return_reliability=False, mask_override=False)
@@ -350,28 +391,68 @@ if TORCH_AVAILABLE:
         self_cond_prob: float = 0.5
     ) -> tuple[torch.Tensor, dict[str, float]]:
         """
-        Self-Conditioned Phase B Loss (PyTorch & TPU-safe):
-        Trains the bidirectional denoiser on model-generated draft sequences with errors,
-        eliminating the train/test distribution mismatch. Fully vectorized without host
-        synchronization (.item()) for zero-stall Cloud TPU execution.
+        Confidence-Routed Self-Conditioned Phase B Loss (PyTorch & TPU-safe):
+        Leverages the Learned Reliability Head (LRH) to selectively mask low-confidence
+        draft positions (r_scores < 0) rather than blindly masking uniform random tokens.
+        Eliminates the train/test distribution mismatch by training the bidirectional
+        denoiser directly on the model's actual draft error patterns.
+        Fully vectorized without host synchronization (.item()) for zero-stall Cloud TPU execution.
         """
         B, T = batch_seqs.shape
 
-        rand_probs = torch.rand((B, T), device=batch_seqs.device)
-        mask_positions = (rand_probs < mask_prob)
+        has_reliability = (
+            getattr(model, "reliability_head", None) is not None
+            or getattr(getattr(model, "config", None), "use_reliability_head", False)
+        )
 
-        if self_cond_prob > 0.0:
-            # Vectorized on-device coin flip per sequence (no .item() host barrier)
-            rand_sc = torch.rand((B, 1), device=batch_seqs.device) < self_cond_prob
-            with torch.no_grad():
-                causal_logits = model(batch_seqs, return_reliability=False, mask_override=True)
+        with torch.no_grad():
+            if self_cond_prob > 0.0 or has_reliability:
+                causal_out = model(batch_seqs, return_reliability=has_reliability, mask_override=True)
+                if has_reliability and isinstance(causal_out, tuple):
+                    causal_logits, raw_r_scores = causal_out
+                else:
+                    causal_logits = causal_out
+                    raw_r_scores = None
+
                 draft_preds = torch.argmax(causal_logits[:, :-1, :], dim=-1)
                 del causal_logits
                 draft_seqs = torch.cat([batch_seqs[:, :1], draft_preds], dim=1)
 
-            base_seqs = torch.where(rand_sc, draft_seqs, batch_seqs)
+                if self_cond_prob > 0.0:
+                    rand_sc = torch.rand((B, 1), device=batch_seqs.device) < self_cond_prob
+                    base_seqs = torch.where(rand_sc, draft_seqs, batch_seqs)
+                else:
+                    base_seqs = batch_seqs
+            else:
+                base_seqs = batch_seqs
+                raw_r_scores = None
+
+        # Determine mask positions:
+        # If the Learned Reliability Head is available, route masks to low-confidence positions!
+        if raw_r_scores is not None:
+            # Shift r_scores to align with next-token prediction
+            # raw_r_scores[:, :-1] predicts reliability of tokens 1..T-1
+            r_probs = torch.sigmoid(raw_r_scores[:, :-1])
+            # Prepend 1.0 for token 0 (BOS / prompt token: high confidence, never mask)
+            full_r_probs = torch.cat([torch.ones((B, 1), device=batch_seqs.device, dtype=r_probs.dtype), r_probs], dim=1)
+
+            # 1. Targeted masks: positions where LRH predicts low confidence (r_prob < 0.5)
+            low_conf_mask = (full_r_probs < 0.5)
+            # 2. Exploration masks: small uniform random mask (30% of mask_prob) so model explores unflagged tokens
+            explore_mask = (torch.rand((B, T), device=batch_seqs.device) < (mask_prob * 0.3))
+            mask_positions = low_conf_mask | explore_mask
+            mask_positions = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), mask_positions[:, 1:]], dim=1)
+
+            # Safeguard: if a sequence has no low-confidence tokens, fallback to uniform random mask
+            no_mask = ~mask_positions.any(dim=1, keepdim=True)
+            if no_mask.any():
+                fallback = (torch.rand((B, T), device=batch_seqs.device) < mask_prob)
+                fallback = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), fallback[:, 1:]], dim=1)
+                mask_positions = torch.where(no_mask, fallback, mask_positions)
         else:
-            base_seqs = batch_seqs
+            rand_probs = torch.rand((B, T), device=batch_seqs.device)
+            mask_positions = (rand_probs < mask_prob)
+            mask_positions = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), mask_positions[:, 1:]], dim=1)
 
         corrupted_seqs = torch.where(
             mask_positions,
