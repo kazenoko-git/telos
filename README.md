@@ -1,4 +1,4 @@
-# τέλος (télos) — Exploring Language Modeling Paradigms at Scale
+# τέλος (télos) — Exploring Beyond Autoregressive Models
 
 <p align="center">
   <a href="https://telos.research.wingit.tech"><strong> Research Page & Demos: telos.research.wingit.tech</strong></a>
@@ -9,7 +9,7 @@
 1. **Autoregressive Language Models (AR)** — Standard causal left-to-right next-token prediction.
 2. **Masked Diffusion Language Models (MDLM)** — Non-autoregressive generation via continuous absorbing-state ($[\text{MASK}]$) diffusion.
 3. **Uniform Noise Diffusion Language Models (UNDLM)** — Non-autoregressive generation via discrete uniform vocabulary corruption with **reversible self-correction**.
-4. **CoroSRED (Continuous Routing Self-Conditioned Residual Diffusion)** — Dual-phase hybrid architecture uniting causal autoregressive drafting with bidirectional masked diffusion refinement, steered by an analytical reliability routing head.
+4. **COROSred (Continuous Routing Self-Conditioned Residual Diffusion)** — Dual-phase hybrid architecture uniting causal autoregressive drafting with bidirectional masked diffusion refinement, steered by an analytical reliability routing head.
 
 All architectures share unified, hardware-aligned transformer backbones (**RoPE**, **SwiGLU**, **RMSNorm**, **Weight Tying**) and are trained under controlled token-to-parameter scaling ratios across Apple Silicon (**Apple MLX / Metal**) and Google Cloud TPUs (**PyTorch-XLA**).
 

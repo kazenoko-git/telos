@@ -63,7 +63,8 @@ Télos provides a unified command line interface with 5 core commands:
 - **Min LR**: Auto-calculated as $0.1 \times \text{max\_lr}$ (standard cosine floor).
 - **Warmup Steps**: Auto-calculated as $\max(50, \min(2000, 0.02 \times \text{max\_steps}))$.
 - **Weight Decay**: Default $0.1$.
-*(All overridable via `--max-lr`, `--min-lr`, `--warmup-steps`, `--weight-decay`)*
+- **PyTorch Compilation**: `--compile` / `--no-compile` toggles `torch.compile` kernel fusion on CUDA (auto-enabled in unified GPU profiles).
+*(All overridable via `--max-lr`, `--min-lr`, `--warmup-steps`, `--weight-decay`, `--compile`)*
 
 ### Checkpoint Controls
 - `--checkpoint-dir`: Storage directory (default: `checkpoints/<paradigm>`).
@@ -75,8 +76,8 @@ Télos provides a unified command line interface with 5 core commands:
 # 1. Train a 25M MDLM model on 300M tokens on Apple Silicon (MLX)
 telos train --paradigm mdlm --params 25M --tokens 300M --effective-batch 32
 
-# 2. Train a 50M UNDLM model on 4x NVIDIA GPUs (CUDA)
-telos train --paradigm undlm --params 50M --tokens 500M --hardware cuda --devices 4
+# 2. Train a 50M UNDLM model on 4x NVIDIA GPUs (CUDA) with torch.compile
+telos train --paradigm undlm --params 50M --tokens 500M --hardware cuda --devices 4 --compile
 
 # 3. Train COROSred 2-Phase Model (Phase B automatically trains with Self-Conditioning)
 telos train --paradigm corosred --phase A --params 12M --tokens 50M
