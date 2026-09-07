@@ -28,6 +28,81 @@ def _mp_train_worker(index, kwargs):
 
 
 
+def _load_checkpoint_into_mlx(model, ckpt_path: str | Path):
+    """Loads weights from either a safetensors file or a PyTorch (.pt/.bin) checkpoint into an MLX model."""
+    import mlx.core as mx
+    ckpt_path = Path(ckpt_path)
+    if not ckpt_path.exists():
+        print(f"  [Init Warning] Checkpoint not found at {ckpt_path}, starting from scratch.")
+        return
+
+    if ckpt_path.suffix in (".safetensors", ".npz"):
+        print(f"  [Init] Loading native MLX weights from {ckpt_path}...")
+        model.load_weights(str(ckpt_path), strict=False)
+        return
+
+    # PyTorch (.pt / .bin) checkpoint translation
+    import torch
+    print(f"  [Init] Loading PyTorch weights into MLX model from {ckpt_path}...")
+    ckpt_state = torch.load(ckpt_path, map_location="cpu")
+    sd = ckpt_state.get("model_state_dict", ckpt_state)
+
+    mlx_weights = {}
+    qkv = {}
+    tied_embeddings = getattr(model, "tied_embeddings", True)
+
+    for k, v in sd.items():
+        k = k.removeprefix("module.")
+        if not isinstance(v, torch.Tensor):
+            continue
+        arr = mx.array(v.float().numpy()).astype(mx.bfloat16)
+
+        if k == "tok_embeddings.weight":
+            mlx_weights["emb.weight"] = arr
+        elif k == "final_norm.weight":
+            mlx_weights["norm.weight"] = arr
+        elif k == "output_projection.weight":
+            if not tied_embeddings:
+                mlx_weights["head.weight"] = arr
+        elif ".attn_norm.weight" in k:
+            layer_idx = k.split(".")[1]
+            mlx_weights[f"layers.{layer_idx}.norm1.weight"] = arr
+        elif ".mlp_norm.weight" in k:
+            layer_idx = k.split(".")[1]
+            mlx_weights[f"layers.{layer_idx}.norm2.weight"] = arr
+        elif ".attn.out_proj.weight" in k:
+            layer_idx = k.split(".")[1]
+            mlx_weights[f"layers.{layer_idx}.out.weight"] = arr
+        elif ".attn.q_proj.weight" in k:
+            layer_idx = k.split(".")[1]
+            qkv.setdefault(layer_idx, {})["q"] = arr
+        elif ".attn.k_proj.weight" in k:
+            layer_idx = k.split(".")[1]
+            qkv.setdefault(layer_idx, {})["k"] = arr
+        elif ".attn.v_proj.weight" in k:
+            layer_idx = k.split(".")[1]
+            qkv.setdefault(layer_idx, {})["v"] = arr
+        elif ".mlp.w1.weight" in k:
+            layer_idx = k.split(".")[1]
+            mlx_weights[f"layers.{layer_idx}.mlp.w1.weight"] = arr
+        elif ".mlp.v.weight" in k:
+            layer_idx = k.split(".")[1]
+            mlx_weights[f"layers.{layer_idx}.mlp.w2.weight"] = arr
+        elif ".mlp.w2.weight" in k:
+            layer_idx = k.split(".")[1]
+            mlx_weights[f"layers.{layer_idx}.mlp.w3.weight"] = arr
+        elif "reliability_head." in k:
+            parts = k.split(".")
+            mlx_weights[f"reliability_head.layers.{parts[1]}.{parts[2]}"] = arr
+
+    for layer_idx, p in qkv.items():
+        if "q" in p and "k" in p and "v" in p:
+            mlx_weights[f"layers.{layer_idx}.qkv_proj.weight"] = mx.concatenate([p["q"], p["k"], p["v"]], axis=0)
+
+    model.load_weights(list(mlx_weights.items()), strict=False)
+    print(f"  [Init] Successfully loaded {len(mlx_weights)} parameter tensors into MLX model.")
+
+
 def train(
     paradigm: str = "mdlm",
     phase: str = "A",
@@ -176,6 +251,16 @@ def train(
             use_grad_checkpoint=t_cfg.get("gradient_checkpointing", False) or m_cfg.get("use_grad_checkpoint", False),
             precision=precision
         )
+        # Auto-detect or load initial checkpoint (e.g. chaining Phase A weights into Phase B)
+        init_ckpt_path = init_checkpoint
+        if init_ckpt_path is None and paradigm.lower() == "corosred" and phase.upper() == "B":
+            cand = Path(cfg["checkpoint"]["checkpoint_dir"]).parent / "phase_a" / "checkpoint_final.pt"
+            if cand.exists():
+                init_ckpt_path = str(cand)
+
+        if init_ckpt_path and Path(init_ckpt_path).exists():
+            _load_checkpoint_into_mlx(model, init_ckpt_path)
+
         trainer = UnifiedMLXTrainer(paradigm=paradigm, model=model, cfg=cfg, eval_policy=eval_policy)
     else:
         from telos.models import TelosTransformer
