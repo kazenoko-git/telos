@@ -51,7 +51,7 @@ Comprehensive head-to-head benchmark evaluated on a held-out 102,400-token valid
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **50M CoroSRED Phase A** | 1.00B | 1:20 | 5.3893 | 219.04 | 24.75% | 40.69% | 10.25 | 10.76 |
 | **50M AR Baseline (Chinchilla Extrapolated)** | 2.00B | 1:40 | ~5.18 | ~177.2 | ~24.8% | ~41.5% | ~10.15 | ~10.70 |
-| **50M CoroSRED Phase B** | **2.00B (1B A + 1B B)** | **1:40** | **4.2983** | **29.26** | **24.46%** | **52.27%** | **10.57** | **9.51** |
+| **50M CoroSRED Phase B** | **2.00B (1B A + 1B B)** | **1:40** | **4.2983** | **73.57** | **24.46%** | **52.27%** | **10.57** | **9.51** |
 
 *(In Bidirectional Masked Denoising, Phase B achieves **Val CE = 3.3762**, **Perplexity = 29.26**, and **Top-1 = 45.76%**)*.
 
