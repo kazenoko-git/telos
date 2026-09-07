@@ -146,7 +146,7 @@ def evaluate_probes(model, tokenizer, backend: str, mask_token_id: int = 1) -> d
             import mlx.core as mx
             x = mx.array([input_ids], dtype=mx.int32)
             logits = model(x)
-            logits_pos = np.array(logits[0, mask_idx])
+            logits_pos = np.array(logits[0, mask_idx].astype(mx.float32))
         else:
             import torch
             x = torch.tensor([input_ids], dtype=torch.long)
@@ -257,7 +257,7 @@ def evaluate_sample(model, tokenizer, backend: str, prompts: list[str] | None = 
                 import mlx.core as mx
                 x = mx.array([curr_ids], dtype=mx.int32)
                 logits = model(x)
-                next_tok = int(np.argmax(np.array(logits[0, -1])))
+                next_tok = int(np.argmax(np.array(logits[0, -1].astype(mx.float32))))
             else:
                 import torch
                 x = torch.tensor([curr_ids], dtype=torch.long)
