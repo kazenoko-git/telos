@@ -1,11 +1,10 @@
-"""
-Zero-Config Dimensional Trainer CLI and Programmatic API for Télos.
-Supports AR, MDLM, UNDLM, COROSred, and custom architectures across MLX, CUDA, and TPU.
-"""
-
+import os
 import sys
 import argparse
 from pathlib import Path
+
+# Allocator hygiene: Set expandable_segments BEFORE torch is imported
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 from telos.configs import build_config
 
@@ -55,10 +54,10 @@ def train(
     resume_step: int = 0,
     eval_policy: str = "auto",
     benchmark: bool = False,
-    benchmark_duration: float = 300.0,
     self_condition: bool = True,
     self_cond_prob: float = 0.5,
     init_checkpoint: str | Path | None = None,
+    compile: bool | None = None,
     **kwargs
 ):
     """
@@ -85,10 +84,10 @@ def train(
         checkpoint_dir=checkpoint_dir,
         save_every=save_every,
         config_path=config_path,
-        data_path=data_path,
         synthetic=synthetic,
         self_condition=self_condition,
         self_cond_prob=self_cond_prob,
+        compile=compile,
         **kwargs
     )
 
@@ -149,6 +148,7 @@ def train(
                     self_condition=self_condition,
                     self_cond_prob=self_cond_prob,
                     init_checkpoint=init_checkpoint,
+                    compile=compile,
                     _is_spawned=True,
                 )
             xmp.spawn(_mp_train_worker, args=(spawn_args,), nprocs=None)
@@ -162,6 +162,7 @@ def train(
         from telos.models import MLXTelosTransformer
         from telos.training import UnifiedMLXTrainer
 
+        precision = t_cfg.get("precision", "bfloat16")
         model = MLXTelosTransformer(
             vocab_size=m_cfg.get("vocab_size", 8192),
             d_model=m_cfg.get("d_model", 512),
@@ -170,7 +171,8 @@ def train(
             n_kv_heads=m_cfg.get("n_kv_heads", None),
             is_causal=is_causal,
             use_reliability_head=bool(m_cfg.get("use_reliability_head", paradigm.lower() == "corosred")),
-            use_grad_checkpoint=t_cfg.get("gradient_checkpointing", False) or m_cfg.get("use_grad_checkpoint", False)
+            use_grad_checkpoint=t_cfg.get("gradient_checkpointing", False) or m_cfg.get("use_grad_checkpoint", False),
+            precision=precision
         )
         trainer = UnifiedMLXTrainer(paradigm=paradigm, model=model, cfg=cfg, eval_policy=eval_policy)
     else:
@@ -257,6 +259,7 @@ def main():
     parser.add_argument("--self-condition", action=argparse.BooleanOptionalAction, default=True, help="Enable self-conditioned draft training in COROSred Phase B")
     parser.add_argument("--self-cond-prob", type=float, default=0.5, help="Probability of training on model drafts vs clean masks in Phase B")
     parser.add_argument("--init-checkpoint", type=str, default=None, help="Path to initial checkpoint to load weights from before training")
+    parser.add_argument("--compile", action=argparse.BooleanOptionalAction, default=None, help="Enable torch.compile for PyTorch CUDA execution")
 
     args = parser.parse_args()
 
@@ -290,7 +293,8 @@ def main():
             benchmark_duration=args.benchmark_duration,
             self_condition=args.self_condition,
             self_cond_prob=args.self_cond_prob,
-            init_checkpoint=args.init_checkpoint
+            init_checkpoint=args.init_checkpoint,
+            compile=args.compile
         )
     except KeyboardInterrupt:
         print("\nTraining interrupted by user.")
