@@ -345,6 +345,11 @@ class UnifiedPyTorchTrainer:
         self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
         self.global_step = checkpoint.get("global_step", 0)
 
+        # Synchronize fp32 master weights from loaded model parameters to prevent overwriting with stale init values
+        if getattr(self, "use_master_weights", False):
+            for p, mp in self.param_to_master:
+                mp.data.copy_(p.data.float())
+
     def _execute_microbatch(self, batch_seqs):
         """Executes a single microbatch and returns loss and metrics."""
         loss = None
@@ -402,7 +407,8 @@ class UnifiedPyTorchTrainer:
         if not self.is_master:
             return
 
-        world_mult = getattr(self, "world_size", 1)
+        # In SPMD mode, batch size is already global across TPU mesh; avoid inflating tokens_processed by world_size
+        world_mult = getattr(self, "world_size", 1) if not getattr(self, "is_spmd", False) else 1
         tokens_processed = steps * bs * grad_accum * self.seq_len * world_mult
         sps = steps / elapsed if elapsed > 0 else 0.0
         tps = tokens_processed / elapsed if elapsed > 0 else 0.0
@@ -416,6 +422,8 @@ class UnifiedPyTorchTrainer:
         elif self.is_tpu:
             device_desc += f" ({self.world_size} TPU Cores)"
 
+        eff_batch = bs * grad_accum * world_mult
+
         print("\n" + "=" * 76)
         print("  TELOS UNIFIED BENCHMARK REPORT (PyTorch)")
         print("=" * 76)
@@ -423,7 +431,7 @@ class UnifiedPyTorchTrainer:
         print(f"  Hardware Target:      {device_desc}")
         print(f"  Precision:            {self.precision.upper()} (AMP: {self.use_amp})")
         print(f"  Batch Config:         batch_size={bs}, grad_accum={grad_accum}, seq_len={self.seq_len}")
-        print(f"  Total Effective Batch: {bs * grad_accum} sequences ({bs * grad_accum * self.seq_len:,} tokens/step)")
+        print(f"  Total Effective Batch: {eff_batch} sequences ({eff_batch * self.seq_len:,} tokens/step)")
         print("-" * 76)
         print(f"  Benchmark Duration:   {elapsed:.2f} seconds (limit: 300.0s / 5.0m)")
         print(f"  Steps Completed:      {steps:,}")
@@ -656,7 +664,8 @@ class UnifiedPyTorchTrainer:
                 elapsed = time.time() - start_time
                 steps_taken = step - resume_step
                 sps = steps_taken / elapsed if elapsed > 0 else 0
-                tps = sps * bs * grad_accum * self.seq_len
+                world_mult = getattr(self, "world_size", 1) if not getattr(self, "is_spmd", False) else 1
+                tps = sps * bs * grad_accum * self.seq_len * world_mult
 
                 l_val = float(last_metrics['loss'].detach().cpu().item()) if last_metrics and 'loss' in last_metrics else 0.0
                 ce_val = float(last_metrics['unweighted_ce'].detach().cpu().item()) if last_metrics and 'unweighted_ce' in last_metrics else 0.0
