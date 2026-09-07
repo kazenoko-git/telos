@@ -107,13 +107,13 @@ class UnifiedMLXTrainer:
 
         mem_budget_gb = tot_gb * mem_frac
 
-        # Set hardware allocator limit via Metal API to prevent memory pressure swapping
-        set_lim_fn = getattr(mx, "set_memory_limit", getattr(getattr(mx, "metal", None), "set_memory_limit", None))
-        if set_lim_fn is not None:
+        # Set resident wired memory limit via Metal API to control active wired allocations
+        set_wired_fn = getattr(mx, "set_wired_limit", getattr(getattr(mx, "metal", None), "set_wired_limit", None))
+        if set_wired_fn is not None:
             try:
-                set_lim_fn(int(mem_budget_gb * (1024 ** 3)))
-            except Exception:
-                pass
+                set_wired_fn(int(mem_budget_gb * (1024 ** 3)))
+            except Exception as e:
+                print(f"  [Memory Notice] Could not set Metal wired memory limit ({e}). System limit can be increased via 'sudo sysctl iogpu.wired_limit_mb=...'.")
 
         auto_chkpt = working_set_gb > mem_budget_gb
 
