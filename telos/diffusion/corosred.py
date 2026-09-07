@@ -73,7 +73,7 @@ if MLX_AVAILABLE:
         corrupted_seqs = mx.where(mask_positions, mx.full((B, T), mask_token_id, dtype=batch_seqs.dtype), batch_seqs)
 
         # Forward pass in Bidirectional Attention Mode
-        logits = model(corrupted_seqs, mask_override=None, return_reliability=False)
+        logits = model(corrupted_seqs, mask_override=False, return_reliability=False)
         logits_f32 = logits.reshape(-1, vocab_size)
         targets_flat = batch_seqs.reshape(-1)
 
@@ -115,7 +115,7 @@ if MLX_AVAILABLE:
         mask_shift = mask_positions[:, 1:]
 
         corrupted = mx.where(mask_positions, mx.full((B, T), mask_token_id, dtype=batch_seqs.dtype), batch_seqs)
-        denoise_logits = model(corrupted, mask_override=None, return_reliability=False)
+        denoise_logits = model(corrupted, mask_override=False, return_reliability=False)
         shift_denoise = denoise_logits[:, 1:, :].reshape(-1, vocab_size)
 
         ce_after_flat = mx_nn.losses.cross_entropy(shift_denoise, shift_targets, reduction="none")
@@ -180,7 +180,7 @@ if MLX_AVAILABLE:
         corrupted = mx.where(mask_positions, mx.full((B, T), mask_token_id, dtype=batch_seqs.dtype), base_seqs)
 
         # Forward pass in Bidirectional Attention Mode
-        logits = model(corrupted, mask_override=None, return_reliability=False)
+        logits = model(corrupted, mask_override=False, return_reliability=False)
         logits_f32 = logits.reshape(-1, vocab_size)
         targets_flat = batch_seqs.reshape(-1)
 
