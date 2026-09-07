@@ -84,10 +84,15 @@ class UnifiedPyTorchTrainer:
                 self.is_spmd = self.spmd_mesh is not None
                 self.world_size = get_xla_world_size()
                 self.is_master = is_xla_master()
+                try:
+                    import torch_xla.core.xla_model as xm
+                    self.rank = xm.get_ordinal()
+                except Exception:
+                    self.rank = 0
                 if self.is_spmd:
                     print(f"  [Hardware] Detected PyTorch-XLA SPMD Topology ({self.world_size} Cores).")
                 else:
-                    print(f"  [Hardware] Detected PyTorch-XLA TPU Topology ({self.world_size} Cores).")
+                    print(f"  [Hardware] Detected PyTorch-XLA TPU Topology ({self.world_size} Cores, Rank {self.rank}).")
             except ImportError as e:
                 print(f"Warning: torch_xla not installed ({e}). Falling back to CPU.")
                 self.device = torch.device("cpu")
@@ -95,6 +100,7 @@ class UnifiedPyTorchTrainer:
                 self.spmd_mesh = None
                 self.is_spmd = False
                 self.world_size = 1
+                self.rank = 0
                 self.is_master = True
             except RuntimeError:
                 # Re-raise hardware lock / initialization errors so users don't silently train on CPU
@@ -106,11 +112,13 @@ class UnifiedPyTorchTrainer:
                 if not torch.distributed.is_initialized():
                     torch.distributed.init_process_group(backend="nccl")
                 self.world_size = int(os.environ.get("WORLD_SIZE", 1))
-                self.is_master = (int(os.environ.get("RANK", 0)) == 0)
+                self.rank = int(os.environ.get("RANK", 0))
+                self.is_master = (self.rank == 0)
                 self.is_ddp = True
             else:
                 self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
                 self.world_size = 1
+                self.rank = 0
                 self.is_master = True
                 self.is_ddp = False
 
@@ -128,6 +136,7 @@ class UnifiedPyTorchTrainer:
             self.spmd_mesh = None
             self.is_spmd = False
             self.world_size = 1
+            self.rank = 0
             self.is_master = True
             self.is_ddp = False
 
@@ -512,18 +521,24 @@ class UnifiedPyTorchTrainer:
 
         bs = int(self.t_cfg.get("batch_size", 16))
         grad_accum = int(self.t_cfg.get("gradient_accumulation", 1))
+        local_step_seqs = bs * grad_accum
+        world_mult = getattr(self, "world_size", 1) if not getattr(self, "is_spmd", False) else 1
+        cluster_step_seqs = local_step_seqs * world_mult
+        rank = getattr(self, "rank", 0) if not getattr(self, "is_spmd", False) else 0
 
         # Benchmark duration strictly capped at 300.0 seconds (5 minutes)
         max_bench_duration = min(float(benchmark_duration), 300.0)
 
-        idx_ptr = 0
+        n_rows = len(dataset_matrix)
         self.global_step = resume_step
         if resume_step > 0:
-            seqs_consumed = resume_step * (bs * grad_accum)
-            idx_ptr = seqs_consumed % len(dataset_matrix)
+            seqs_consumed = resume_step * cluster_step_seqs
+            idx_ptr = (seqs_consumed + rank * local_step_seqs) % n_rows
             # Advance scheduler
             for _ in range(resume_step):
                 self.scheduler.step()
+        else:
+            idx_ptr = (rank * local_step_seqs) % n_rows
 
         ckpt_dir_name = f"checkpoints/{self.paradigm}"
         if self.paradigm == "corosred":
@@ -555,9 +570,10 @@ class UnifiedPyTorchTrainer:
                 nonlocal idx_ptr
                 try:
                     for _ in range(resume_step + 1, self.max_steps + 1):
-                        batch_t, idx_ptr = get_global_targets_contiguous_pytorch(
-                            dataset_matrix, idx_ptr, bs * grad_accum, self.seq_len, self.device, non_blocking=True
+                        batch_t, _ = get_global_targets_contiguous_pytorch(
+                            dataset_matrix, idx_ptr, local_step_seqs, self.seq_len, self.device, non_blocking=True
                         )
+                        idx_ptr = (idx_ptr + cluster_step_seqs) % n_rows
                         prefetch_queue.put((batch_t, None))
                 except Exception as e:
                     # Pass exception through the queue so consumer thread does not hang indefinitely
@@ -575,9 +591,10 @@ class UnifiedPyTorchTrainer:
                     raise exc
                 global_targets = item
             else:
-                global_targets, idx_ptr = get_global_targets_contiguous_pytorch(
-                    dataset_matrix, idx_ptr, bs * grad_accum, self.seq_len, self.device, non_blocking=False
+                global_targets, _ = get_global_targets_contiguous_pytorch(
+                    dataset_matrix, idx_ptr, local_step_seqs, self.seq_len, self.device, non_blocking=False
                 )
+                idx_ptr = (idx_ptr + cluster_step_seqs) % n_rows
 
             last_metrics = None
             
