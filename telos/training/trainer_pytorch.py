@@ -151,7 +151,14 @@ class UnifiedPyTorchTrainer:
 
         # Multi-GPU wrapping: Prefer DDP over deprecated DataParallel
         if getattr(self, "is_ddp", False):
-            self.model = nn.parallel.DistributedDataParallel(self.model, device_ids=[local_rank])
+            # In COROSRED Phase B, reliability_head is frozen and only used for draft routing,
+            # so find_unused_parameters=True prevents DDP unused parameter reduction assertions.
+            find_unused = (self.paradigm == "corosred" and str(self.phase).upper() == "B")
+            self.model = nn.parallel.DistributedDataParallel(
+                self.model,
+                device_ids=[local_rank],
+                find_unused_parameters=find_unused
+            )
             if self.is_master:
                 print(f"  [Hardware] Multi-GPU DDP initialized across {self.world_size} processes.")
         elif getattr(self, "n_gpus", 1) > 1 and not self.is_tpu and self.device.type == "cuda":
