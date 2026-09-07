@@ -5,6 +5,7 @@ tokenizer, hardware, hardware count) into an executable training configuration.
 Supports optional YAML config file bypasses.
 """
 
+import os
 import math
 from pathlib import Path
 import yaml
@@ -147,7 +148,35 @@ def build_config(
     dev_count = det_count if devices in ["auto", None] else int(devices)
     cfg["_device_count"] = dev_count
 
-    # 5. Batch Size & Gradient Accumulation Resolution (Hardware Tier Aware)
+    # 5. Profile Inheritance Resolution (tpu:, mac:, gpu:, lightning:)
+    profile_candidate = None
+    if final_device == "xla" or hw in ["tpu", "xla"]:
+        profile_candidate = "tpu"
+    elif final_backend == "mlx" or final_device in ["mps", "mac"]:
+        profile_candidate = "mac"
+    elif final_device == "cuda" or hw in ["cuda", "gpu"]:
+        is_lightning = bool(os.environ.get("LIGHTNING_CLUSTER") or os.environ.get("LIGHTNING_ENVIRONMENT"))
+        if is_lightning and "lightning" in t_cfg:
+            profile_candidate = "lightning"
+        else:
+            profile_candidate = "gpu"
+
+    if profile_candidate and profile_candidate in t_cfg and isinstance(t_cfg[profile_candidate], dict):
+        prof = t_cfg[profile_candidate]
+        if batch_size is None and "batch_size" in prof:
+            t_cfg["batch_size"] = prof["batch_size"]
+        if grad_accum is None and "gradient_accumulation" in prof:
+            t_cfg["gradient_accumulation"] = prof["gradient_accumulation"]
+        if devices in ["auto", None] and "num_devices" in prof:
+            dev_count = prof["num_devices"]
+            cfg["_device_count"] = dev_count
+        if "compile" in prof and t_cfg.get("compile") is None:
+            t_cfg["compile"] = bool(prof["compile"])
+
+    if kwargs.get("compile") is not None:
+        t_cfg["compile"] = bool(kwargs["compile"])
+
+    # 6. Batch Size & Gradient Accumulation Resolution (Hardware Tier Aware)
     d_model = m_cfg["d_model"]
     
     if final_device == "xla":
