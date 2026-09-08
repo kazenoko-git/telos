@@ -316,8 +316,40 @@ class UnifiedPyTorchTrainer:
                 "scheduler_state_dict": self.scheduler.state_dict(),
                 "config": self.cfg,
             }
-            # xm.save serializes XLA tensors to CPU host memory safely without graph synchronization stalls
-            xm.save(checkpoint, path)
+            str_path = str(path)
+            # xm.save serializes XLA tensors to CPU host memory safely.
+            # master_only=False is required because self.is_master already guards this method,
+            # and PyTorch-XLA PJRT can evaluate is_master_ordinal inconsistently across processes.
+            try:
+                xm.save(checkpoint, str_path, master_only=False)
+            except Exception as e:
+                print(f"  [Checkpoint Warning] xm.save error: {e}. Falling back to CPU serialization.")
+
+            # Verification and robust fallback: ensure file was actually written to disk and is non-empty
+            if not path.exists() or path.stat().st_size == 0:
+                print(f"  [Checkpoint] xm.save produced no file at {str_path}. Converting state tensors to CPU explicitly...")
+                cpu_model = {k: v.detach().cpu().clone() for k, v in self.model.state_dict().items()}
+                raw_opt = self.optimizer.state_dict()
+                cpu_opt = {
+                    "state": {
+                        k: {sk: sv.detach().cpu().clone() if isinstance(sv, torch.Tensor) else sv for sk, sv in v.items()}
+                        for k, v in raw_opt.get("state", {}).items()
+                    },
+                    "param_groups": raw_opt.get("param_groups", [])
+                }
+                cpu_checkpoint = {
+                    "global_step": self.global_step,
+                    "model_state_dict": cpu_model,
+                    "optimizer_state_dict": cpu_opt,
+                    "scheduler_state_dict": self.scheduler.state_dict(),
+                    "config": self.cfg,
+                }
+                torch.save(cpu_checkpoint, str_path)
+
+            if not path.exists() or path.stat().st_size == 0:
+                raise RuntimeError(f"FATAL: Checkpoint file could not be created at {str_path}!")
+
+            print(f"  [Checkpoint Verified] Successfully saved {str_path} ({path.stat().st_size / 1e6:.1f} MB)")
             return
 
         # Clone state dicts to detached CPU tensors to prevent torn-state corruption from concurrent in-place mutations
