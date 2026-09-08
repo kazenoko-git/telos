@@ -138,21 +138,26 @@ def evaluate_probes(model, tokenizer, backend: str, mask_token_id: int = 1) -> d
             target_ids = [0]
         target_tok = target_ids[0]
 
-        # Prepare input with [MASK] at prediction position
-        input_ids = list(p_ids) + [mask_token_id]
-        mask_idx = len(input_ids) - 1
+        # Prepare input with [MASK] at prediction position (incorporating suffix for true infilling)
+        suffix = probe.get("suffix", "")
+        s_ids = tokenizer.encode(suffix).ids if suffix else []
+        input_ids = list(p_ids) + [mask_token_id] + s_ids
+        mask_idx = len(p_ids)
 
         if backend == "mlx":
             import mlx.core as mx
             x = mx.array([input_ids], dtype=mx.int32)
-            logits = model(x)
+            logits = model(x, mask_override=False)
             logits_pos = np.array(logits[0, mask_idx].astype(mx.float32))
         else:
             import torch
             x = torch.tensor([input_ids], dtype=torch.long)
             with torch.no_grad():
-                logits = model(x)
+                logits = model(x, mask_override=False)
             logits_pos = logits[0, mask_idx].detach().cpu().numpy()
+
+        # Prevent predicting the [MASK] token itself
+        logits_pos[mask_token_id] = -1e9
 
         # Compute softmax probabilities & target rank
         shifted = logits_pos - np.max(logits_pos)
