@@ -179,7 +179,9 @@ class UnifiedPyTorchTrainer:
 
         # torch.compile integration (fusing RMSNorm, SwiGLU, and RoPE)
         if self.t_cfg.get("compile", False) and hasattr(torch, "compile") and self.device.type == "cuda":
-            mode = self.t_cfg.get("compile_mode", "reduce-overhead")
+            # Default to "default" instead of "reduce-overhead" to avoid static CUDA Graph buffer
+            # aliasing crashes when self-conditioned diffusion invokes the model multiple times per step.
+            mode = self.t_cfg.get("compile_mode", "default")
             try:
                 self.model = torch.compile(self.model, mode=mode)
                 print(f"  [Compiler] torch.compile enabled (mode={mode}).")
