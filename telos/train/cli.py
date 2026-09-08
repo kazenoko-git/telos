@@ -258,7 +258,13 @@ def train(
             if cand.exists():
                 init_ckpt_path = str(cand)
 
-        if init_ckpt_path and Path(init_ckpt_path).exists():
+        if init_ckpt_path:
+            ckpt_file = Path(init_ckpt_path)
+            if not ckpt_file.exists():
+                raise FileNotFoundError(
+                    f"Initial checkpoint file '{init_ckpt_path}' does not exist! "
+                    f"Aborting to avoid training from uninitialized random weights."
+                )
             _load_checkpoint_into_mlx(model, init_ckpt_path)
 
         trainer = UnifiedMLXTrainer(paradigm=paradigm, model=model, cfg=cfg, eval_policy=eval_policy)
@@ -285,13 +291,20 @@ def train(
             if cand.exists():
                 init_ckpt_path = str(cand)
 
-        if init_ckpt_path and Path(init_ckpt_path).exists():
+        if init_ckpt_path:
+            ckpt_file = Path(init_ckpt_path)
+            if not ckpt_file.exists():
+                raise FileNotFoundError(
+                    f"Initial checkpoint file '{init_ckpt_path}' does not exist! "
+                    f"Aborting to avoid training from uninitialized random weights."
+                )
             import torch
             print(f"  [Init] Loading model weights from {init_ckpt_path}...")
             ckpt_state = torch.load(init_ckpt_path, map_location="cpu")
             sd = ckpt_state.get("model_state_dict", ckpt_state)
             sd = {k.removeprefix("module."): v for k, v in sd.items()}
             model.load_state_dict(sd, strict=False)
+            print(f"  [Init] Successfully loaded weights from {init_ckpt_path}.")
 
         trainer = UnifiedPyTorchTrainer(paradigm=paradigm, model=model, cfg=cfg, device_type=device)
 
