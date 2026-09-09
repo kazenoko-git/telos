@@ -155,9 +155,9 @@ class UnifiedPyTorchTrainer:
 
         # Multi-GPU wrapping: Prefer DDP over deprecated DataParallel
         if getattr(self, "is_ddp", False):
-            # In COROSRED Phase B, reliability_head is frozen and only used for draft routing,
+            # In COROSred Phase B and C, reliability_head is frozen / only used for routing,
             # so find_unused_parameters=True prevents DDP unused parameter reduction assertions.
-            find_unused = (self.paradigm == "corosred" and str(self.phase).upper() == "B")
+            find_unused = (self.paradigm == "corosred" and str(self.phase).upper() in ["B", "C"])
             self.model = nn.parallel.DistributedDataParallel(
                 self.model,
                 device_ids=[local_rank],
@@ -428,30 +428,35 @@ class UnifiedPyTorchTrainer:
 
         elif self.paradigm == "corosred":
             if self.phase == "A":
+                # Phase A: Causal Autoregressive backbone pretraining + detachable Learned Reliability Head
                 k_amb = self.crsr_cfg.get("k_amb", 5)
                 loss, metrics = crsr_phase_a_loss_fn_pytorch(self.model, batch_seqs, self.vocab_size, special_token_lut=self.special_lut, k_amb=k_amb)
-            else:
+            elif self.phase == "B":
+                # Phase B: 15% Uniform Random Masking on clean ground-truth tokens (bidirectional infilling)
                 mask_token_id = self.m_cfg.get("mask_token_id", 1)
                 mask_prob = float(self.crsr_cfg.get("mask_prob", 0.15))
-                self_cond = self.crsr_cfg.get("self_condition", True)
+                loss, metrics = crsr_phase_b_loss_fn_pytorch(
+                    self.model,
+                    batch_seqs,
+                    self.vocab_size,
+                    mask_token_id=mask_token_id,
+                    mask_prob=mask_prob
+                )
+            elif self.phase == "C":
+                # Phase C: Self-Conditioned Model Drafts + Confidence Routing (70% low-confidence, 30% exploration)
+                mask_token_id = self.m_cfg.get("mask_token_id", 1)
+                mask_prob = float(self.crsr_cfg.get("mask_prob", 0.15))
                 self_cond_prob = float(self.crsr_cfg.get("self_cond_prob", 0.5))
-                if self_cond and self_cond_prob > 0.0:
-                    loss, metrics = crsr_phase_b_self_conditioned_loss_fn_pytorch(
-                        self.model,
-                        batch_seqs,
-                        self.vocab_size,
-                        mask_token_id=mask_token_id,
-                        mask_prob=mask_prob,
-                        self_cond_prob=self_cond_prob
-                    )
-                else:
-                    loss, metrics = crsr_phase_b_loss_fn_pytorch(
-                        self.model,
-                        batch_seqs,
-                        self.vocab_size,
-                        mask_token_id=mask_token_id,
-                        mask_prob=mask_prob
-                    )
+                loss, metrics = crsr_phase_b_self_conditioned_loss_fn_pytorch(
+                    self.model,
+                    batch_seqs,
+                    self.vocab_size,
+                    mask_token_id=mask_token_id,
+                    mask_prob=mask_prob,
+                    self_cond_prob=self_cond_prob
+                )
+            else:
+                raise ValueError(f"Unknown COROSred phase: '{self.phase}'. Supported phases are 'A', 'B', or 'C'.")
         
         return loss, metrics
 

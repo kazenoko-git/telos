@@ -251,9 +251,9 @@ def train(
             use_grad_checkpoint=t_cfg.get("gradient_checkpointing", False) or m_cfg.get("use_grad_checkpoint", False),
             precision=precision
         )
-        # Auto-detect or load initial checkpoint (e.g. chaining Phase A weights into Phase B)
+        # Auto-detect or load initial checkpoint (e.g. chaining Phase A weights into Phase B or Phase C)
         init_ckpt_path = init_checkpoint
-        if init_ckpt_path is None and paradigm.lower() == "corosred" and phase.upper() == "B":
+        if init_ckpt_path is None and paradigm.lower() == "corosred" and phase.upper() in ["B", "C"]:
             cand = Path(cfg["checkpoint"]["checkpoint_dir"]).parent / "phase_a" / "checkpoint_final.pt"
             if cand.exists():
                 init_ckpt_path = str(cand)
@@ -284,9 +284,9 @@ def train(
         )
 
 
-        # Auto-detect or load initial checkpoint (e.g. chaining Phase A weights into Phase B)
+        # Auto-detect or load initial checkpoint (e.g. chaining Phase A weights into Phase B or Phase C)
         init_ckpt_path = init_checkpoint
-        if init_ckpt_path is None and paradigm.lower() == "corosred" and phase.upper() == "B":
+        if init_ckpt_path is None and paradigm.lower() == "corosred" and phase.upper() in ["B", "C"]:
             cand = Path(cfg["checkpoint"]["checkpoint_dir"]).parent / "phase_a" / "checkpoint_final.pt"
             if cand.exists():
                 init_ckpt_path = str(cand)
@@ -323,7 +323,7 @@ def main():
     
     # 6 Fundamental Dimensions
     parser.add_argument("--paradigm", type=str, default="mdlm", choices=["ar", "mdlm", "undlm", "corosred", "custom"], help="Training paradigm")
-    parser.add_argument("--phase", type=str, default="A", choices=["A", "B", "a", "b"], help="Phase for COROSred paradigm")
+    parser.add_argument("--phase", type=str, default="A", choices=["A", "B", "C", "a", "b", "c"], help="Phase for COROSred paradigm (A: Causal AR + LRH, B: 15% Uniform Mask, C: Confidence-Routed Drafts)")
     parser.add_argument("--params", type=str, default="12M", help="Target parameter budget (e.g. 12M, 25M, 50M, 100M, 500M)")
     parser.add_argument("--tokens", type=str, default=None, help="Target total training tokens (e.g. 2.5B, 300M, 50M)")
     parser.add_argument("--effective-batch", type=str, default=None, help="Target effective batch size in sequences or tokens (e.g. 32, 64, 32k)")

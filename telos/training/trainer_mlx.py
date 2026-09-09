@@ -189,39 +189,42 @@ class UnifiedMLXTrainer:
                 def microbatch_step_uncompiled(batch_seqs):
                     (loss, ce), grads = loss_and_grad_fn(self.model, batch_seqs, vocab_size, special_token_lut=special_lut, k_amb=k_amb)
                     return loss, ce, grads
-            else:
+            elif self.phase == "B":
+                # Phase B: 15% Uniform Random Masking on clean tokens
                 mask_token_id = self.m_cfg.get("mask_token_id", 1)
                 mask_prob = float(self.crsr_cfg.get("mask_prob", 0.15))
-                self_cond = self.crsr_cfg.get("self_condition", True)
+                loss_and_grad_fn = mx_nn.value_and_grad(self.model, crsr_phase_b_loss_fn_mlx)
+                compilation_targets = [self.model.state]
+
+                def microbatch_step_uncompiled(batch_seqs):
+                    (loss, ce), grads = loss_and_grad_fn(
+                        self.model,
+                        batch_seqs,
+                        vocab_size,
+                        mask_token_id=mask_token_id,
+                        mask_prob=mask_prob
+                    )
+                    return loss, ce, grads
+            elif self.phase == "C":
+                # Phase C: Self-Conditioned Model Drafts + Confidence Routing
+                mask_token_id = self.m_cfg.get("mask_token_id", 1)
+                mask_prob = float(self.crsr_cfg.get("mask_prob", 0.15))
                 self_cond_prob = float(self.crsr_cfg.get("self_cond_prob", 0.5))
+                loss_and_grad_fn = mx_nn.value_and_grad(self.model, crsr_phase_b_self_conditioned_loss_fn_mlx)
+                compilation_targets = [self.model.state]
 
-                if self_cond and self_cond_prob > 0.0:
-                    loss_and_grad_fn = mx_nn.value_and_grad(self.model, crsr_phase_b_self_conditioned_loss_fn_mlx)
-                    compilation_targets = [self.model.state]
-
-                    def microbatch_step_uncompiled(batch_seqs):
-                        (loss, ce), grads = loss_and_grad_fn(
-                            self.model,
-                            batch_seqs,
-                            vocab_size,
-                            mask_token_id=mask_token_id,
-                            mask_prob=mask_prob,
-                            self_cond_prob=self_cond_prob
-                        )
-                        return loss, ce, grads
-                else:
-                    loss_and_grad_fn = mx_nn.value_and_grad(self.model, crsr_phase_b_loss_fn_mlx)
-                    compilation_targets = [self.model.state]
-
-                    def microbatch_step_uncompiled(batch_seqs):
-                        (loss, ce), grads = loss_and_grad_fn(
-                            self.model,
-                            batch_seqs,
-                            vocab_size,
-                            mask_token_id=mask_token_id,
-                            mask_prob=mask_prob
-                        )
-                        return loss, ce, grads
+                def microbatch_step_uncompiled(batch_seqs):
+                    (loss, ce), grads = loss_and_grad_fn(
+                        self.model,
+                        batch_seqs,
+                        vocab_size,
+                        mask_token_id=mask_token_id,
+                        mask_prob=mask_prob,
+                        self_cond_prob=self_cond_prob
+                    )
+                    return loss, ce, grads
+            else:
+                raise ValueError(f"Unknown COROSred phase: '{self.phase}'. Supported phases are 'A', 'B', or 'C'.")
         else:
             raise ValueError(f"Unknown paradigm: {self.paradigm}")
 

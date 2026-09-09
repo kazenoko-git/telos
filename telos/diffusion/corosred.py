@@ -214,6 +214,9 @@ if MLX_AVAILABLE:
 
         return loss, loss
 
+    # Canonical alias for Phase C (Self-Conditioned Model Drafts + Confidence Routing)
+    crsr_phase_c_loss_fn_mlx = crsr_phase_b_self_conditioned_loss_fn_mlx
+
 
 # =========================================================================
 # PYTORCH IMPLEMENTATION
@@ -299,35 +302,16 @@ if TORCH_AVAILABLE:
     ) -> tuple[torch.Tensor, dict[str, float]]:
         B, T = batch_seqs.shape
 
-        raw_model = getattr(model, "module", model)
-        has_reliability = (
-            getattr(raw_model, "reliability_head", None) is not None
-            or getattr(getattr(raw_model, "config", None), "use_reliability_head", False)
-        )
+        # Phase B: 15% Uniform Random Masking on clean ground-truth tokens (never masking BOS at index 0)
+        rand_probs = torch.rand((B, T), device=batch_seqs.device)
+        mask_positions = (rand_probs < mask_prob)
+        mask_positions = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), mask_positions[:, 1:]], dim=1)
 
-        if has_reliability:
-            with torch.no_grad():
-                causal_out = raw_model(batch_seqs, return_reliability=True, mask_override=True)
-                if isinstance(causal_out, tuple):
-                    _, raw_r_scores = causal_out
-                    r_probs = torch.sigmoid(raw_r_scores[:, :-1])
-                    full_r_probs = torch.cat([torch.ones((B, 1), device=batch_seqs.device, dtype=r_probs.dtype), r_probs], dim=1)
-                    low_conf_mask = (full_r_probs < 0.5)
-                    explore_mask = (torch.rand((B, T), device=batch_seqs.device) < (mask_prob * 0.3))
-                    mask_positions = low_conf_mask | explore_mask
-                    mask_positions = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), mask_positions[:, 1:]], dim=1)
-                    no_mask = ~mask_positions.any(dim=1, keepdim=True)
-                    fallback = (torch.rand((B, T), device=batch_seqs.device) < mask_prob)
-                    fallback = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), fallback[:, 1:]], dim=1)
-                    mask_positions = torch.where(no_mask, fallback, mask_positions)
-                else:
-                    rand_probs = torch.rand((B, T), device=batch_seqs.device)
-                    mask_positions = (rand_probs < mask_prob)
-                    mask_positions = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), mask_positions[:, 1:]], dim=1)
-        else:
-            rand_probs = torch.rand((B, T), device=batch_seqs.device)
-            mask_positions = (rand_probs < mask_prob)
-            mask_positions = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), mask_positions[:, 1:]], dim=1)
+        # Ensure at least one token is masked per sequence as fallback
+        no_mask = ~mask_positions.any(dim=1, keepdim=True)
+        fallback = (torch.rand((B, T), device=batch_seqs.device) < mask_prob)
+        fallback = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), fallback[:, 1:]], dim=1)
+        mask_positions = torch.where(no_mask, fallback, mask_positions)
 
         if hasattr(torch, "clear_autocast_cache"):
             torch.clear_autocast_cache()
@@ -510,4 +494,7 @@ if TORCH_AVAILABLE:
             "self_cond_prob": float(self_cond_prob)
         }
         return loss, metrics
+
+    # Canonical alias for Phase C (Self-Conditioned Model Drafts + Confidence Routing)
+    crsr_phase_c_loss_fn_pytorch = crsr_phase_b_self_conditioned_loss_fn_pytorch
 

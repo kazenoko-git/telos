@@ -29,7 +29,7 @@ try:
     from telos.diffusion.ar import ar_loss_fn_pytorch
     from telos.diffusion.mdlm import apply_masking_pytorch, mdlm_loss_pytorch
     from telos.diffusion.undlm import apply_uniform_noise_pytorch, undlm_loss_pytorch
-    from telos.diffusion.corosred import crsr_phase_a_loss_fn_pytorch, crsr_phase_b_loss_fn_pytorch
+    from telos.diffusion.corosred import crsr_phase_a_loss_fn_pytorch, crsr_phase_b_loss_fn_pytorch, crsr_phase_b_self_conditioned_loss_fn_pytorch
     from telos.diffusion.sampler import MDLMSampler
     from telos.training.trainer_pytorch import UnifiedPyTorchTrainer
 except ImportError:
@@ -43,6 +43,7 @@ except ImportError:
     undlm_loss_pytorch = None
     crsr_phase_a_loss_fn_pytorch = None
     crsr_phase_b_loss_fn_pytorch = None
+    crsr_phase_b_self_conditioned_loss_fn_pytorch = None
     MDLMSampler = None
     UnifiedPyTorchTrainer = None
 
@@ -129,15 +130,16 @@ def test_losses_pytorch() -> tuple[bool, str]:
         if not torch.isfinite(loss_undlm) or loss_undlm.item() <= 0:
             return False, "UNDLM loss is not positive finite"
 
-        # COROSred Phase A & B
+        # COROSred Phase A, B & C
         crsr_cfg = TelosConfig(vocab_size=vocab_size, d_model=64, n_layers=2, n_heads=2, max_seq_len=seq_len, use_reliability_head=True)
         crsr_model = TelosTransformer(crsr_cfg)
         loss_crsr_a, _ = crsr_phase_a_loss_fn_pytorch(crsr_model, targets, vocab_size, k_amb=5)
         loss_crsr_b, _ = crsr_phase_b_loss_fn_pytorch(crsr_model, targets, vocab_size, mask_token_id=1)
-        if not torch.isfinite(loss_crsr_a) or not torch.isfinite(loss_crsr_b):
+        loss_crsr_c, _ = crsr_phase_b_self_conditioned_loss_fn_pytorch(crsr_model, targets, vocab_size, mask_token_id=1, mask_prob=0.15, self_cond_prob=0.5)
+        if not torch.isfinite(loss_crsr_a) or not torch.isfinite(loss_crsr_b) or not torch.isfinite(loss_crsr_c):
             return False, "COROSred loss is not finite"
 
-        return True, "Passed (AR, MDLM, UNDLM, COROSred A/B losses valid)"
+        return True, "Passed (AR, MDLM, UNDLM, COROSred A/B/C losses valid)"
     except Exception as e:
         return False, str(e)
 
