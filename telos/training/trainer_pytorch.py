@@ -145,13 +145,15 @@ class UnifiedPyTorchTrainer:
         self.model.to(self.device)
         self.special_lut = self.special_lut.to(self.device)
 
-        # On modern TPU v5e/v6e with PyTorch-XLA PJRT, native AdamW maintains fp32 optimizer states
-        # directly in the XLA kernel. Disabling manual master-weights mirroring prevents in-place
-        # tensor copying (p.data.copy_) that caused lazy graph aliasing and dampened updates.
+        # In mixed-precision training (bfloat16), model parameters in memory MUST remain in float32
+        # so AdamW gradient updates (order 10^-5 to 10^-6) do not mathematically underflow to zero
+        # against bfloat16's 7-bit mantissa (machine epsilon 2^-7 ~ 0.0078).
+        # On TPU, Matrix Multiply Units (MXUs) execute systolic GEMMs in bfloat16 via hardware autocast
+        # while optimizer states and parameter weights remain unadulterated in float32.
         self.use_master_weights = False
         if self.is_tpu and self.precision in ["bfloat16", "bf16"]:
-            self.model.to(dtype=torch.bfloat16)
-            print("  [Precision] TPU model weights cast to native torch.bfloat16 (PyTorch-XLA AdamW maintains fp32 states natively).")
+            self.model.to(dtype=torch.float32)
+            print("  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).")
 
         # Multi-GPU wrapping: Prefer DDP over deprecated DataParallel
         if getattr(self, "is_ddp", False):
@@ -254,11 +256,10 @@ class UnifiedPyTorchTrainer:
         )
 
         # Autocast AMP precision
-        # Autocast AMP precision
         if self.is_tpu:
-            # TPU weights and activations are already cast directly to bfloat16.
-            # Disable torch.amp.autocast to avoid dispatch overhead and XLA_USE_BF16 deprecation.
-            self.use_amp = False
+            # Enable hardware bfloat16 autocast on TPU to utilize systolic MXU arrays
+            # while parameters in HBM remain in float32 for unadulterated AdamW updates.
+            self.use_amp = (self.precision in ["fp16", "bf16", "bfloat16"])
             self.amp_device = "xla"
             self.amp_dtype = torch.bfloat16
         else:
