@@ -38,7 +38,7 @@ Télos provides a unified command line interface with 5 core commands:
 | Command | Module | Description |
 | :--- | :--- | :--- |
 | **`telos dataprep`** | `telos.dataprep` | High-efficiency data processing for raw text, code directories, JSONL, or Hugging Face datasets into chunked binary memory-mapped arrays (`.bin`). |
-| **`telos train`** | `telos.train` | Zero-config dimensional model trainer (AR, MDLM, UNDLM, COROSred Phase A & B, custom). No YAML config required. |
+| **`telos train`** | `telos.train` | Zero-config dimensional model trainer (AR, MDLM, UNDLM, COROSred Phase A, B & C, custom). No YAML config required. |
 | **`telos eval`** | `telos.eval` | High-end evaluation suite with 100 contextual probes across 8 categories, target CE, average rank, and qualitative code sampling. |
 | **`telos bench`** | `telos.bench` | Dedicated throughput, latency, and memory benchmark engine strictly capped at at most 5 minutes. |
 | **`telos test`** | `telos.testing` | Unified test suite verifying model contracts, causality, losses, and samplers. |
@@ -79,9 +79,14 @@ telos train --paradigm mdlm --params 25M --tokens 300M --effective-batch 32
 # 2. Train a 50M UNDLM model on 4x NVIDIA GPUs (CUDA) with torch.compile
 telos train --paradigm undlm --params 50M --tokens 500M --hardware cuda --devices 4 --compile
 
-# 3. Train COROSred 2-Phase Model (Phase B automatically trains with Self-Conditioning)
-telos train --paradigm corosred --phase A --params 12M --tokens 50M
-telos train --paradigm corosred --phase B --params 12M --tokens 100M --self-condition --self-cond-prob 0.5
+# 3. Train COROSred Phase A (Causal AR + Learned Reliability Head)
+telos train --paradigm corosred --phase A --params 50M --tokens 1.0B
+
+# 4. Chain into COROSred Phase B (15% Uniform Random Masking)
+telos train --paradigm corosred --phase B --params 50M --tokens 1.0B --init-checkpoint checkpoints/corosred/50m/phase_a/checkpoint_final.pt
+
+# 5. Chain into COROSred Phase C (Confidence-Routed Self-Conditioned Re-Diffusion)
+telos train --paradigm corosred --phase C --params 50M --tokens 1.0B --init-checkpoint checkpoints/corosred/50m/phase_a/checkpoint_final.pt
 
 # 4. Train AR Baseline on Cloud TPU Pod (PyTorch-XLA)
 telos train --paradigm ar --params 100M --tokens 2.5B --hardware xla --devices 8
