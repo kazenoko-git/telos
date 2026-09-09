@@ -207,7 +207,7 @@ def train(
                     tokenizer=tokenizer,
                     vocab_size=vocab_size,
                     hardware=hardware,
-                    devices=1,
+                    devices=dev_count,
                     max_steps=t_cfg["max_steps"],
                     max_lr=t_cfg["max_lr"],
                     min_lr=t_cfg["min_lr"],
@@ -323,7 +323,7 @@ def main():
     
     # 6 Fundamental Dimensions
     parser.add_argument("--paradigm", type=str, default="mdlm", choices=["ar", "mdlm", "undlm", "corosred", "custom"], help="Training paradigm")
-    parser.add_argument("--phase", type=str, default="A", choices=["A", "B", "C", "a", "b", "c"], help="Phase for COROSred paradigm (A: Causal AR + LRH, B: 15% Uniform Mask, C: Confidence-Routed Drafts)")
+    parser.add_argument("--phase", type=str, default="A", choices=["A", "B", "C", "a", "b", "c"], help="Phase for COROSred paradigm (A: Causal AR + LRH, B: 15%% Uniform Mask, C: Confidence-Routed Drafts)")
     parser.add_argument("--params", type=str, default="12M", help="Target parameter budget (e.g. 12M, 25M, 50M, 100M, 500M)")
     parser.add_argument("--tokens", type=str, default=None, help="Target total training tokens (e.g. 2.5B, 300M, 50M)")
     parser.add_argument("--effective-batch", type=str, default=None, help="Target effective batch size in sequences or tokens (e.g. 32, 64, 32k)")
