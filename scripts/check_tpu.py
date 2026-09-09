@@ -18,7 +18,15 @@ import torch_xla.distributed.xla_multiprocessing as xmp
 
 def _check_core_worker(index):
     dev = xm.xla_device()
-    world = xm.xrt_world_size()
+    world = getattr(xm, "xworld_size", getattr(xm, "xrt_world_size", None))
+    if callable(world):
+        world = world()
+    else:
+        try:
+            import torch_xla.runtime as xr
+            world = xr.world_size()
+        except Exception:
+            world = 8
     print(f"  [Core {index}] Online! Binding device: {dev}, Total World Size: {world}")
 
 
