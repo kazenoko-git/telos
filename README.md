@@ -237,7 +237,3 @@ For cluster deployment, pre-tokenization scripts, and TPU topologies, see [DEPLO
 ## License
 
 Apache-2.0 License. See [LICENSE](LICENSE) for details.
-
-## For the reviewers...
-
-PLEASE state what part you think is AI generated, and why does it look AI generated. NONE of the README is AI generated. I wrote it myself. 😭
