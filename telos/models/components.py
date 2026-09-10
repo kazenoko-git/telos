@@ -17,6 +17,7 @@ class RMSNorm(nn.Module):
     """
     Simplifies LayerNorm by eliminating mean-centering and relying
     solely on the root mean square of feature activations.
+    Utilizes fused F.rms_norm kernel when available.
     """
     def __init__(self, dim: int, eps: float = 1e-6):
         super().__init__()
@@ -24,8 +25,10 @@ class RMSNorm(nn.Module):
         self.weight = nn.Parameter(torch.ones(dim))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        rms = torch.sqrt(torch.mean(x ** 2, dim=-1, keepdim=True) + self.eps)
-        return (x / rms) * self.weight
+        if hasattr(F, "rms_norm"):
+            return F.rms_norm(x, (x.shape[-1],), self.weight, self.eps)
+        rms = torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+        return x * rms * self.weight
 
 
 class RotaryEmbedding(nn.Module):
@@ -64,8 +67,16 @@ def _rotate_half(x: torch.Tensor) -> torch.Tensor:
 
 def apply_rope(q: torch.Tensor, k: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """Applies rotary position embeddings to query and key tensors."""
-    cos = cos.to(dtype=q.dtype).unsqueeze(0).unsqueeze(0)
-    sin = sin.to(dtype=q.dtype).unsqueeze(0).unsqueeze(0)
+    if cos.ndim == 2:
+        cos = cos.unsqueeze(0).unsqueeze(0)
+    if cos.dtype != q.dtype:
+        cos = cos.to(dtype=q.dtype)
+
+    if sin.ndim == 2:
+        sin = sin.unsqueeze(0).unsqueeze(0)
+    if sin.dtype != q.dtype:
+        sin = sin.to(dtype=q.dtype)
+
     q_embed = (q * cos) + (_rotate_half(q) * sin)
     k_embed = (k * cos) + (_rotate_half(k) * sin)
     return q_embed, k_embed
