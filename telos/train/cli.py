@@ -299,7 +299,7 @@ def train(
             n_kv_heads=m_cfg.get("n_kv_heads", None),
             is_causal=is_causal,
             use_reliability_head=(paradigm.lower() == "corosred"),
-            use_grad_checkpoint=t_cfg.get("gradient_checkpointing", False) or m_cfg.get("use_grad_checkpoint", False) or (backend == "pytorch" and device in ["xla", "cuda"])
+            use_grad_checkpoint=t_cfg.get("gradient_checkpointing", False) or m_cfg.get("use_grad_checkpoint", False) or (backend == "pytorch" and device in ["xla", "cuda"] and m_cfg.get("d_model", 512) >= 768)
         )
 
 
