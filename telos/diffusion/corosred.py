@@ -217,6 +217,130 @@ if MLX_AVAILABLE:
     # Canonical alias for Phase C (Self-Conditioned Model Drafts + Confidence Routing)
     crsr_phase_c_loss_fn_mlx = crsr_phase_b_self_conditioned_loss_fn_mlx
 
+    def corosred_unified_loss_fn_mlx(
+        model,
+        batch_seqs: mx.array,
+        vocab_size: int,
+        alpha: float = 0.85,
+        beta: float = 0.15,
+        gamma: float = 0.0,
+        mask_token_id: int = 1,
+        mask_prob: float = 0.15,
+        k_amb: int = 5,
+        causal_ratio: float = 0.75,
+        special_token_lut: mx.array | None = None,
+    ):
+        """
+        Unified Multi-Objective Loss Function (Apple Silicon / MLX):
+        Executes causal next-token prediction on B_c sequences and bidirectional infilling on B_m sequences,
+        normalizing across pooled tokens with schedule weights alpha(t), beta(t), and gamma(t).
+        """
+        B, T = batch_seqs.shape
+
+        # 1. Partition heterogeneous microbatch: B_c causal + B_m infill
+        # Compute exact integer split of causal vs infill sequences
+        B_c = int(round(B * causal_ratio))
+        # Ensure at least 1 causal sequence and at least 1 infill sequence when batch size > 1
+        B_c = max(1, min(B_c, B - 1)) if B > 1 else 1
+        B_m = B - B_c
+
+        # Slice causal microbatch subset
+        batch_causal = batch_seqs[:B_c]
+        # Slice infill microbatch subset (or fall back to first sequence if B=1)
+        batch_infill = batch_seqs[B_c:] if B_m > 0 else batch_seqs[:1]
+
+        # 2. Causal Forward Pass (Exact causal slice)
+        # Check if model has reliability head module enabled
+        has_rel = getattr(model, "use_reliability_head", False) and getattr(model, "reliability_head", None) is not None
+
+        if has_rel:
+            # Forward pass returning causal logits and unnormalized reliability scores
+            logits_c, raw_r_scores = model(batch_causal, mask_override="causal", return_reliability=True)
+        else:
+            # Forward pass returning causal logits only
+            logits_c = model(batch_causal, mask_override="causal", return_reliability=False)
+            raw_r_scores = None
+
+        # Align causal logits with targets by shifting position by 1
+        shift_logits_c = logits_c[:, :-1, :]
+        shift_targets_c = batch_causal[:, 1:]
+
+        # Compute per-token cross entropy loss on causal slice
+        ce_c_all = mx_nn.losses.cross_entropy(
+            shift_logits_c.reshape(-1, vocab_size),
+            shift_targets_c.reshape(-1),
+            reduction="none"
+        )
+        sum_ce_c = mx.sum(ce_c_all)
+        n_causal_tokens = float(B_c * (T - 1))
+
+        # 3. Auxiliary Reliability Head Loss (with Ambiguity Exclusion)
+        if has_rel and raw_r_scores is not None:
+            # Align reliability prediction scores with shifted target tokens
+            shift_r_scores = raw_r_scores[:, :-1]
+            # Identify model greedy predictions
+            argmax_indices = mx.argmax(shift_logits_c, axis=-1)
+            is_exact_match = (argmax_indices == shift_targets_c)
+
+            # Determine top-k candidate tokens to detect ambiguous cases
+            top_k_indices = mx.argpartition(shift_logits_c, -k_amb, axis=-1)[..., -k_amb:]
+            expanded_targets = mx.expand_dims(shift_targets_c, -1)
+            is_target_in_top_k = mx.any(top_k_indices == expanded_targets, axis=-1)
+
+            # Assign ground truth labels: 1.0 if greedy prediction matches target, 0.0 otherwise
+            labels = mx.where(is_exact_match, mx.ones_like(shift_r_scores), mx.zeros_like(shift_r_scores))
+            # Compute raw binary cross entropy loss with logits
+            bce_raw = mx_nn.losses.binary_cross_entropy(shift_r_scores, labels, with_logits=True)
+
+            # Ambiguity exclusion: filter out positions where target is in top-k but not rank 1
+            is_ambiguous = mx.logical_and(is_target_in_top_k, mx.logical_not(is_exact_match))
+            valid_mask = mx.logical_not(is_ambiguous)
+            if special_token_lut is not None:
+                valid_mask = mx.logical_and(valid_mask, ~special_token_lut[shift_targets_c])
+
+            # Mask out ambiguous and special tokens from BCE loss
+            valid_mask_f32 = valid_mask.astype(mx.float32)
+            masked_bce = bce_raw * valid_mask_f32
+            valid_count = mx.clip(mx.sum(valid_mask_f32), 1.0, float(B_c * (T - 1)))
+            l_head = mx.sum(masked_bce) / valid_count
+        else:
+            l_head = mx.array(0.0)
+
+        # 4. Infill Forward Pass (Exact infill slice)
+        if B_m > 0:
+            # Generate uniform random mask positions for infill sequences
+            rand_probs = mx.random.uniform(shape=(B_m, T))
+            mask_positions = rand_probs < mask_prob
+            # Never mask sequence start BOS token
+            mask_positions[:, 0] = False
+
+            # Replace masked token positions with mask token ID
+            corrupted_m = mx.where(mask_positions, mx.full((B_m, T), mask_token_id, dtype=batch_infill.dtype), batch_infill)
+            # Forward pass in bidirectional attention mode
+            logits_m = model(corrupted_m, mask_override=False, return_reliability=False)
+
+            # Compute cross entropy on all tokens and select only masked positions
+            ce_m_all = mx_nn.losses.cross_entropy(
+                logits_m.reshape(-1, vocab_size),
+                batch_infill.reshape(-1),
+                reduction="none"
+            ).reshape(B_m, T)
+            masked_ce_m = ce_m_all * mask_positions
+            sum_ce_m = mx.sum(masked_ce_m)
+            n_infill_tokens = mx.clip(mx.sum(mask_positions.astype(mx.float32)), 1.0, float(B_m * T))
+        else:
+            sum_ce_m = mx.array(0.0)
+            n_infill_tokens = mx.array(1.0)
+
+        # 5. Unified Pooled Normalization
+        # Combines causal and infill token sums divided by weighted evaluated token counts
+        pooled_numerator = alpha * sum_ce_c + beta * sum_ce_m
+        pooled_denominator = alpha * n_causal_tokens + beta * n_infill_tokens
+        pooled_ce = pooled_numerator / pooled_denominator
+        total_loss = pooled_ce + gamma * l_head
+
+        return total_loss, pooled_ce
+
 
 # =========================================================================
 # PYTORCH IMPLEMENTATION
