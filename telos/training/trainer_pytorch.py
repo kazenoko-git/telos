@@ -34,6 +34,12 @@ from telos.diffusion.corosred import (
     crsr_phase_b_loss_fn_pytorch,
     crsr_phase_b_self_conditioned_loss_fn_pytorch
 )
+from telos.training.schedule import COROSredSchedule, DynamicMetricTracker
+from telos.diffusion.corosred_unified import (
+    RoutingMaskCache,
+    corosred_unified_step_pytorch,
+)
+from telos.training.monitor import DualMetricMonitor
 
 
 class UnifiedPyTorchTrainer:
@@ -49,7 +55,22 @@ class UnifiedPyTorchTrainer:
 
         self.paradigm = paradigm.lower()
         self.crsr_cfg = cfg.get("crsr", cfg.get("corosred", {}))
-        self.phase = self.crsr_cfg.get("phase", cfg.get("phase", "A")).upper() if self.paradigm == "corosred" else "A"
+        
+        # Determine if COROSred should run in unified continuous mode (default) or legacy multi-phase
+        if self.paradigm == "corosred":
+            if self.crsr_cfg.get("unified", None) is not None:
+                self.is_unified = bool(self.crsr_cfg["unified"])
+            elif self.crsr_cfg.get("legacy_phases", False):
+                self.is_unified = False
+            elif "phase" in cfg and cfg["phase"] in ["A", "B", "C"]:
+                self.is_unified = False
+            else:
+                self.is_unified = True
+            raw_phase = self.crsr_cfg.get("phase", cfg.get("phase", "unified"))
+            self.phase = str(raw_phase).upper() if raw_phase else "UNIFIED"
+        else:
+            self.is_unified = False
+            self.phase = "A"
         self.model = model
         self.cfg = cfg
         self.m_cfg = cfg.setdefault("model", {})
@@ -157,9 +178,15 @@ class UnifiedPyTorchTrainer:
 
         # Multi-GPU wrapping: Prefer DDP over deprecated DataParallel
         if getattr(self, "is_ddp", False):
-            # In COROSred Phase B and C, reliability_head is frozen / only used for routing,
+            # In legacy COROSred Phase B and C, reliability_head is frozen / only used for routing,
             # so find_unused_parameters=True prevents DDP unused parameter reduction assertions.
-            find_unused = (self.paradigm == "corosred" and str(self.phase).upper() in ["B", "C"])
+            # In Unified COROSred, both causal backbone and reliability head receive gradients,
+            # so find_unused_parameters=False eliminates per-step DDP parameter tree traversal overhead.
+            find_unused = (
+                self.paradigm == "corosred"
+                and not getattr(self, "is_unified", False)
+                and str(self.phase).upper() in ["B", "C"]
+            )
             self.model = nn.parallel.DistributedDataParallel(
                 self.model,
                 device_ids=[local_rank],
@@ -192,15 +219,45 @@ class UnifiedPyTorchTrainer:
             except Exception as e:
                 print(f"  [Compiler] torch.compile skipped: {e}")
 
-        if self.paradigm == "corosred":
-            pass
-
         self.max_steps = int(self.t_cfg.get("max_steps", 5000))
         self.max_lr = float(self.t_cfg.get("max_lr", 3e-4))
         self.min_lr = float(self.t_cfg.get("min_lr", 3e-5))
         self.warmup_steps = int(self.t_cfg.get("warmup_steps", 100))
         self.weight_decay = float(self.t_cfg.get("weight_decay", 0.1))
         self.grad_clip = float(self.t_cfg.get("grad_clip", 1.0))
+
+        if self.paradigm == "corosred":
+            if getattr(self, "is_unified", False):
+                self.schedule = COROSredSchedule(
+                    max_steps=self.max_steps,
+                    alpha_max=float(self.crsr_cfg.get("alpha_max", 0.85)),
+                    alpha_min=float(self.crsr_cfg.get("alpha_min", 0.20)),
+                    beta_min=float(self.crsr_cfg.get("beta_min", 0.15)),
+                    beta_max=float(self.crsr_cfg.get("beta_max", 0.70)),
+                    gamma_max=float(self.crsr_cfg.get("gamma_max", 0.10)),
+                    hold_fraction=float(self.crsr_cfg.get("hold_fraction", 0.20)),
+                    decay_power=float(self.crsr_cfg.get("decay_power", 2.5)),
+                    acc_gate_threshold=float(self.crsr_cfg.get("acc_gate_threshold", 0.65)),
+                )
+                self.metric_tracker = DynamicMetricTracker(
+                    trust_region=float(self.crsr_cfg.get("trust_region", 0.20)),
+                    rebalance_temp=float(self.crsr_cfg.get("rebalance_temp", 0.25)),
+                )
+                self.routing_cache = RoutingMaskCache(
+                    refresh_every_steps=int(self.crsr_cfg.get("routing_cache_steps", 50)),
+                    k_targeted_ratio=float(self.crsr_cfg.get("k_targeted_ratio", 0.70)),
+                )
+                self.adaptive_rebalance = bool(self.crsr_cfg.get("adaptive_rebalance", False))
+                self.causal_ratio = float(self.crsr_cfg.get("causal_ratio", 0.75))
+                self.dual_monitor = None
+                if self.is_master:
+                    print(
+                        f"  [COROSred Unified] Initialized continuous multi-objective loop: "
+                        f"alpha=[{self.schedule.alpha_max:.2f}->{self.schedule.alpha_min:.2f} floor], "
+                        f"beta=[{self.schedule.beta_min:.2f}->{self.schedule.beta_max:.2f}], "
+                        f"gamma_max={self.schedule.gamma_max:.2f}, hold={self.schedule.hold_fraction*100:.0f}%, "
+                        f"adaptive_rebalance={self.adaptive_rebalance}."
+                    )
 
         # Separate parameters into decayed and non-decayed groups:
         # Standard transformer optimization applies 0 weight decay to 1D parameters (biases, layer norms, RMS norms)
@@ -428,7 +485,31 @@ class UnifiedPyTorchTrainer:
             loss, metrics = undlm_loss_pytorch(logits, batch_seqs, t_vals_out, special_token_lut=self.special_lut)
 
         elif self.paradigm == "corosred":
-            if self.phase == "A":
+            if getattr(self, "is_unified", False):
+                mask_token_id = self.m_cfg.get("mask_token_id", 1)
+                mask_prob = float(self.crsr_cfg.get("mask_prob", 0.15))
+                k_amb = int(self.crsr_cfg.get("k_amb", 5))
+                
+                # Fetch continuous schedule weights driven by step progress and empirical EMAs
+                lrh_acc_ema = self.metric_tracker.lrh_acc_ema if hasattr(self, "metric_tracker") else None
+                lrh_auc_ema = self.metric_tracker.lrh_auc_ema if hasattr(self, "metric_tracker") else None
+                sched_w = self.schedule.get_weights(self.global_step, lrh_acc_ema, lrh_auc_ema)
+
+                loss, metrics = corosred_unified_step_pytorch(
+                    self.model,
+                    batch_seqs,
+                    self.vocab_size,
+                    schedule_weights=sched_w,
+                    mask_token_id=mask_token_id,
+                    mask_prob=mask_prob,
+                    special_token_lut=self.special_lut,
+                    k_amb=k_amb,
+                    causal_ratio=getattr(self, "causal_ratio", 0.75),
+                    routing_cache=getattr(self, "routing_cache", None),
+                    metric_tracker=getattr(self, "metric_tracker", None),
+                    adaptive_rebalance=getattr(self, "adaptive_rebalance", False),
+                )
+            elif self.phase == "A":
                 # Phase A: Causal Autoregressive backbone pretraining + detachable Learned Reliability Head
                 k_amb = self.crsr_cfg.get("k_amb", 5)
                 loss, metrics = crsr_phase_a_loss_fn_pytorch(self.model, batch_seqs, self.vocab_size, special_token_lut=self.special_lut, k_amb=k_amb)
@@ -457,7 +538,7 @@ class UnifiedPyTorchTrainer:
                     self_cond_prob=self_cond_prob
                 )
             else:
-                raise ValueError(f"Unknown COROSred phase: '{self.phase}'. Supported phases are 'A', 'B', or 'C'.")
+                raise ValueError(f"Unknown COROSred phase: '{self.phase}'. Supported phases are 'A', 'B', 'C', or 'unified'.")
         
         return loss, metrics
 
@@ -569,6 +650,25 @@ class UnifiedPyTorchTrainer:
                 "or pass '--synthetic' to train on synthetic random tokens."
             )
 
+        # Initialize DualMetricMonitor on held-out validation data if running unified COROSred
+        if getattr(self, "is_unified", False):
+            val_path = d_cfg.get("val_path", d_cfg.get("val_dataset_path", None))
+            if val_path and Path(val_path).exists():
+                try:
+                    val_data = np.memmap(val_path, dtype=dtype, mode="r")
+                    val_seqs = len(val_data) // self.seq_len
+                    val_matrix = val_data[:val_seqs * self.seq_len].reshape(val_seqs, self.seq_len)
+                    self.dual_monitor = DualMetricMonitor(val_matrix, self.vocab_size, self.seq_len, self.device)
+                    if self.is_master:
+                        print(f"  [Dual Monitor] Initialized on validation split ({val_seqs} sequences).")
+                except Exception as e:
+                    if self.is_master:
+                        print(f"  [Dual Monitor] Could not load val data: {e}")
+            if getattr(self, "dual_monitor", None) is None and len(dataset_matrix) > 200:
+                self.dual_monitor = DualMetricMonitor(dataset_matrix[-200:], self.vocab_size, self.seq_len, self.device)
+                if self.is_master:
+                    print("  [Dual Monitor] Initialized on tail 200 sequences of training corpus.")
+
         bs = int(self.t_cfg.get("batch_size", 16))
         grad_accum = int(self.t_cfg.get("gradient_accumulation", 1))
         local_step_seqs = bs * grad_accum
@@ -592,7 +692,10 @@ class UnifiedPyTorchTrainer:
 
         ckpt_dir_name = f"checkpoints/{self.paradigm}"
         if self.paradigm == "corosred":
-            ckpt_dir_name += f"/phase_{self.phase.lower()}"
+            if getattr(self, "is_unified", False):
+                ckpt_dir_name += "/unified"
+            else:
+                ckpt_dir_name += f"/phase_{self.phase.lower()}"
         ckpt_dir = Path(self.c_cfg.get("checkpoint_dir", self.c_cfg.get("dir", ckpt_dir_name)))
         if self.is_master and not benchmark:
             ckpt_dir.mkdir(parents=True, exist_ok=True)
@@ -645,6 +748,14 @@ class UnifiedPyTorchTrainer:
                     dataset_matrix, idx_ptr, local_step_seqs, self.seq_len, self.device, non_blocking=False
                 )
                 idx_ptr = (idx_ptr + cluster_step_seqs) % n_rows
+            # Periodically replenish the routing cache with pre-computed low-confidence mask positions
+            if getattr(self, "is_unified", False) and hasattr(self, "routing_cache") and self.routing_cache.should_refresh(step):
+                self.routing_cache.refresh(
+                    self.model,
+                    upcoming_seqs=global_targets,
+                    current_step=step,
+                    mask_prob=float(self.crsr_cfg.get("mask_prob", 0.15)),
+                )
 
             last_metrics = None
             
@@ -737,13 +848,39 @@ class UnifiedPyTorchTrainer:
                 l_val = float(last_metrics['loss'].detach().cpu().item()) if last_metrics and 'loss' in last_metrics else 0.0
                 ce_val = float(last_metrics['unweighted_ce'].detach().cpu().item()) if last_metrics and 'unweighted_ce' in last_metrics else 0.0
                 
-                log_msg = f"  [{self.paradigm.upper()}] Step {step:>6d}/{self.max_steps} | Loss: {l_val:>6.4f} | CE: {ce_val:>5.3f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s"
+                if getattr(self, "is_unified", False) and last_metrics and "causal_ce" in last_metrics:
+                    c_ce = float(last_metrics["causal_ce"].detach().cpu().item())
+                    i_ce = float(last_metrics["infill_ce"].detach().cpu().item())
+                    a_w = float(last_metrics.get("alpha", 0.0))
+                    b_w = float(last_metrics.get("beta", 0.0))
+                    g_w = float(last_metrics.get("gamma", 0.0))
+                    l_acc = float(last_metrics.get("lrh_acc", 0.0))
+                    l_auc = float(last_metrics.get("lrh_auc", 0.0))
+                    log_msg = (
+                        f"  [COROSRED-UNIFIED] Step {step:>6d}/{self.max_steps} | Loss: {l_val:>6.4f} | "
+                        f"C-CE: {c_ce:>5.3f} | I-CE: {i_ce:>5.3f} | "
+                        f"α={a_w:.2f} β={b_w:.2f} γ={g_w:.2f} | Acc={l_acc:.2f} AUC={l_auc:.2f} | "
+                        f"{sps:>5.1f} st/s | {tps:>9,.0f} tok/s"
+                    )
+                else:
+                    log_msg = f"  [{self.paradigm.upper()}] Step {step:>6d}/{self.max_steps} | Loss: {l_val:>6.4f} | CE: {ce_val:>5.3f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s"
+
                 if not benchmark:
                     eta_mins = (self.max_steps - step) / sps / 60.0 if sps > 0 else 0.0
                     log_msg += f" | ETA: {eta_mins:>4.1f}m"
                 print(log_msg, flush=True)
 
             if not benchmark and self.is_master and step % self.c_cfg.get("save_every_steps", 1000) == 0:
+                if getattr(self, "is_unified", False) and getattr(self, "dual_monitor", None) is not None:
+                    probe_res = self.dual_monitor.evaluate(self.model, current_step=step)
+                    print(
+                        f"  [Dual Probe Step {step:>6d}] Causal Top-1: {probe_res['causal_top1']*100:.1f}% | "
+                        f"C-CE: {probe_res['causal_ce']:.3f} | Infill Top-1: {probe_res['infill_top1']*100:.1f}% | "
+                        f"I-CE: {probe_res['infill_ce']:.3f} | LRH AUC: {probe_res['lrh_auc']:.3f}"
+                    )
+                    div_warn = self.dual_monitor.check_divergence()
+                    if div_warn:
+                        print(f"  {div_warn}")
                 ckpt_file = ckpt_dir / f"checkpoint_step_{step}.pt"
                 self.save_checkpoint(ckpt_file)
                 print(f"  [Checkpoint] Saved weights to {ckpt_file}")
