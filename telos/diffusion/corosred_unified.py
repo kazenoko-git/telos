@@ -250,17 +250,29 @@ def corosred_unified_step_pytorch(
         valid_count = valid_mask.sum().float().clamp(min=1.0)
         batch_lrh_acc = (correct_preds.sum() / valid_count)
 
+        # Balanced classification accuracy: 0.5 * (TPR + TNR), fully immune to ~9:1 class imbalance
+        # Evaluates to 0.50 under chance / constant predictions, establishing an uncorrupted discrimination baseline
+        pos_mask = (labels == 1.0) & valid_mask
+        neg_mask = (labels == 0.0) & valid_mask
+        pos_count = pos_mask.sum().float().clamp(min=1.0)
+        neg_count = neg_mask.sum().float().clamp(min=1.0)
+        tpr = ((valid_preds == 1.0) & pos_mask).sum().float() / pos_count
+        tnr = ((valid_preds == 0.0) & neg_mask).sum().float() / neg_count
+        batch_lrh_bal_acc = 0.5 * (tpr + tnr)
+
         if not is_accelerator:
             batch_lrh_acc_val = float(batch_lrh_acc.item())
+            batch_lrh_bal_acc_val = float(batch_lrh_bal_acc.item())
             flat_r = raw_r_scores[:, :-1][valid_mask]
             flat_y = labels[valid_mask]
             batch_lrh_auc_val = compute_vectorized_roc_auc(flat_r, flat_y)
         else:
             # On TPU/GPU accelerators, maintain 100% static computation graph:
             # Avoid mid-forward device-to-host .cpu() synchronization and dynamic-shape boolean masking.
-            # Master rank logs batch_lrh_acc asynchronously at logging steps without pipeline bubbles.
             batch_lrh_acc_val = batch_lrh_acc
-            batch_lrh_auc_val = 0.75 if (metric_tracker is None or metric_tracker.lrh_auc_ema is None) else float(metric_tracker.lrh_auc_ema)
+            batch_lrh_bal_acc_val = batch_lrh_bal_acc
+            # When full rank-sum AUC is bypassed on XLA, use balanced accuracy (same 0.50-1.00 scale) as real-time proxy
+            batch_lrh_auc_val = batch_lrh_bal_acc if (metric_tracker is None or metric_tracker.lrh_auc_ema is None) else float(metric_tracker.lrh_auc_ema)
 
     # LRH Binary Cross Entropy Loss (always evaluated to ensure 100% static XLA computation graph across all steps)
     shift_r_scores = raw_r_scores[:, :-1]
@@ -336,6 +348,7 @@ def corosred_unified_step_pytorch(
         "infill_ce": mean_infill_ce.detach(),
         "r_loss": r_loss.detach(),
         "lrh_acc": batch_lrh_acc_val,
+        "lrh_bal_acc": batch_lrh_bal_acc_val,
         "lrh_auc": batch_lrh_auc_val,
         "alpha": alpha,
         "beta": beta,
