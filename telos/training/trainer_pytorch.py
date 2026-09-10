@@ -903,7 +903,14 @@ class UnifiedPyTorchTrainer:
                     g_w = float(last_metrics.get("gamma", 0.0))
                     raw_acc = last_metrics.get("lrh_acc", 0.0)
                     l_acc = float(raw_acc.detach().cpu().item()) if isinstance(raw_acc, torch.Tensor) else float(raw_acc)
-                    l_auc = float(last_metrics.get("lrh_auc", 0.0))
+                    # Support tensor-native balanced accuracy or scalar AUC to avoid frozen placeholder display
+                    raw_auc = last_metrics.get("lrh_bal_acc", last_metrics.get("lrh_auc", 0.0))
+                    l_auc = float(raw_auc.detach().cpu().item()) if isinstance(raw_auc, torch.Tensor) else float(raw_auc)
+                    
+                    # Asynchronously update metric tracker on master rank at logging intervals (no TPU stalls)
+                    if getattr(self, "metric_tracker", None) is not None:
+                        self.metric_tracker.update_lrh(l_acc, l_auc)
+
                     log_msg = (
                         f"  [COROSRED-UNIFIED] Step {step:>6d}/{self.max_steps} | Loss: {l_val:>6.4f} | "
                         f"C-CE: {c_ce:>5.3f} | I-CE: {i_ce:>5.3f} | "
@@ -923,6 +930,19 @@ class UnifiedPyTorchTrainer:
                 ckpt_file = ckpt_dir / f"checkpoint_step_{step}.pt"
                 if self.is_master:
                     print(f"\n  [Checkpoint Step {step:>6d}] Saving checkpoint weights to {ckpt_file}...", flush=True)
+
+                if getattr(self, "is_unified", False) and getattr(self, "dual_monitor", None) is not None and self.is_master:
+                    probe_res = self.dual_monitor.evaluate(self.model, current_step=step)
+                    print(
+                        f"  [Dual Probe Step {step:>6d}] Causal Top-1: {probe_res['causal_top1']*100:.1f}% | "
+                        f"C-CE: {probe_res['causal_ce']:.3f} | Infill Top-1: {probe_res['infill_top1']*100:.1f}% | "
+                        f"I-CE: {probe_res['infill_ce']:.3f} | LRH AUC: {probe_res['lrh_auc']:.3f}"
+                    )
+                    div_warn = self.dual_monitor.check_divergence()
+                    if div_warn:
+                        print(f"  {div_warn}")
+                    if getattr(self, "metric_tracker", None) is not None:
+                        self.metric_tracker.update_lrh(probe_res["lrh_acc"], probe_res["lrh_auc"])
 
                 # In PyTorch-XLA multi-processing, all workers must synchronize at step boundaries
                 # so master rank can serialize model weights without worker desynchronization
