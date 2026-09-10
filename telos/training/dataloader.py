@@ -34,16 +34,27 @@ def get_global_targets_contiguous_mlx(dataset_matrix, idx_ptr, total_batch, seq_
     return mx.array(batch, dtype=mx.int32), next_ptr
 
 
-def get_global_targets_contiguous_pytorch(dataset_matrix, idx_ptr, total_batch, seq_len, device, non_blocking: bool = True):
+def get_global_targets_contiguous_pytorch(dataset_matrix, idx_ptr: int, total_batch: int, seq_len: int, device, non_blocking: bool = True):
     """
     Fetches contiguous batches and transfers to PyTorch tensor.
-    Transfers int32 directly across host-to-device bus before casting to int64 on device
-    to halve PCIe memory transfer bandwidth.
+    Avoids redundant memory copies when dataset_matrix is already int32 or int64,
+    and uses non-blocking pinned transfers to halve PCIe bus transfer time.
     """
     import torch
     batch, next_ptr = get_global_targets_contiguous(dataset_matrix, idx_ptr, total_batch, seq_len)
-    # Transfer int32 across PCIe bus to reduce host->device bandwidth by 50%
-    tensor = torch.from_numpy(batch.astype(np.int32))
+    
+    # Avoid redundant memory copies if batch is already a contiguous int32 array
+    if batch.dtype == np.int32 and batch.flags.c_contiguous:
+        tensor = torch.from_numpy(batch)
+    elif batch.dtype == np.int64 and batch.flags.c_contiguous:
+        tensor = torch.from_numpy(batch)
+    else:
+        # Cast to int32 to halve PCIe bandwidth vs int64
+        tensor = torch.from_numpy(batch.astype(np.int32, copy=False))
+
     if str(device).startswith("cuda") and torch.cuda.is_available():
-        tensor = tensor.pin_memory()
+        if not tensor.is_pinned():
+            tensor = tensor.pin_memory()
+            
     return tensor.to(device, dtype=torch.long, non_blocking=non_blocking), next_ptr
+
