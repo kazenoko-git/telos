@@ -180,9 +180,15 @@ def build_config(
     d_model = m_cfg["d_model"]
     
     if final_device == "xla":
-        # TPU v3 (16GB HBM) per-core microbatch sizing: 32-48 sequences is the sweet spot
-        # to saturate MXU systolic arrays while keeping attention matrices well within 16GB HBM.
-        auto_microbatch = 48 if d_model <= 768 else 16
+        # TPU (v5e / v6e / v4 / v3) per-core microbatch sizing:
+        # Microbatch 32 (for d_model <= 512) or 16 (for d_model >= 768)
+        # Strictly maintains a solid medium effective batch size of 256 sequences across 8 TPU cores:
+        # - d_model <= 512 (15M, 25M, 50M): batch_size = 32, grad_accum = 1 -> 32 * 1 * 8 = 256 sequences (131k tok/step).
+        # - d_model >= 768 (100M+): batch_size = 16, grad_accum = 2 -> 16 * 2 * 8 = 256 sequences (131k tok/step).
+        # Cuts peak activation memory in half for 100M+ to eliminate OOM on 16GB HBM TPU v5e
+        # while keeping the effective batch size strictly at 256 (never <= 128).
+        auto_microbatch = 32 if d_model <= 512 else 16
+        auto_accum = 1 if d_model <= 512 else 2
     elif final_backend == "mlx":
         # Apple Silicon memory-tier scaling: scale microbatch based on unified memory capacity
         try:
@@ -228,15 +234,16 @@ def build_config(
     elif grad_accum is not None:
         t_cfg["gradient_accumulation"] = grad_accum
     else:
-        t_cfg.setdefault("gradient_accumulation", 1)
+        if final_device == "xla" and batch_size is None:
+            t_cfg["gradient_accumulation"] = auto_accum
+        else:
+            t_cfg.setdefault("gradient_accumulation", 1)
 
-    # Hardware Safeguard: On legacy Cloud TPU v3 (16 GB HBM), large attention matrices for d_model >= 768
-    # can exceed physical 16GB HBM capacity if microbatch > 48.
-    # On modern TPUs (v5e/v6e 32GB HBM) or smaller models (d_model <= 512), single-pass execution is safe.
-    # If the user explicitly requested grad_accum=1, never force gradient accumulation.
-    if final_device == "xla" and t_cfg["batch_size"] > 48 and grad_accum != 1 and d_model >= 768:
+    # Hardware Safeguard: On TPU v5e (16 GB HBM), for d_model >= 768 (100M+),
+    # microbatch > 16 without gradient accumulation can cause HBM exhaustion during full bidirectional infilling.
+    if final_device == "xla" and t_cfg["batch_size"] > 16 and grad_accum != 1 and d_model >= 768:
         raw_bs = t_cfg["batch_size"]
-        safe_microbatch = 48 if raw_bs % 48 == 0 else (32 if raw_bs % 32 == 0 else (16 if raw_bs % 16 == 0 else 24))
+        safe_microbatch = 16
         accum_multiplier = max(1, math.ceil(raw_bs / safe_microbatch))
         t_cfg["batch_size"] = safe_microbatch
         t_cfg["gradient_accumulation"] = t_cfg.get("gradient_accumulation", 1) * accum_multiplier
