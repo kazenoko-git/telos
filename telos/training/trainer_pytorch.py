@@ -859,6 +859,46 @@ class UnifiedPyTorchTrainer:
                 self.model.zero_grad()
             self.scheduler.step()
             self.global_step = step
+
+            # Synchronized cadence all-reduce of LRH AUC / balanced accuracy across all 8 replicas.
+            # Executed synchronously by ALL ranks outside `if self.is_master` to ensure 100% identical schedule EMAs.
+            cadence = 25
+            if getattr(self, "is_unified", False) and (step % cadence == 0 or step == 1) and last_metrics is not None:
+                raw_auc = last_metrics.get("lrh_bal_acc", last_metrics.get("lrh_auc", None))
+                raw_acc = last_metrics.get("lrh_acc", None)
+                if raw_auc is not None:
+                    if isinstance(raw_auc, torch.Tensor):
+                        auc_t = raw_auc.detach().clone()
+                        acc_t = raw_acc.detach().clone() if isinstance(raw_acc, torch.Tensor) else None
+
+                        # Cheap scalar all-reduce of 0D tensors across all replicas
+                        if self.is_tpu:
+                            import torch_xla.core.xla_model as xm
+                            world_size = xm.xrt_world_size()
+                            if world_size > 1:
+                                tensors_to_reduce = [auc_t] + ([acc_t] if acc_t is not None else [])
+                                reduced = xm.all_reduce("sum", tensors_to_reduce, scale=1.0 / float(world_size))
+                                auc_t = reduced[0]
+                                if acc_t is not None:
+                                    acc_t = reduced[1]
+                        elif getattr(self, "is_ddp", False):
+                            import torch.distributed as dist
+                            dist.all_reduce(auc_t, op=dist.ReduceOp.SUM)
+                            auc_t /= dist.get_world_size()
+                            if acc_t is not None:
+                                dist.all_reduce(acc_t, op=dist.ReduceOp.SUM)
+                                acc_t /= dist.get_world_size()
+
+                        auc_val = float(auc_t.cpu().item())
+                        acc_val = float(acc_t.cpu().item()) if acc_t is not None else auc_val
+                    else:
+                        auc_val = float(raw_auc)
+                        acc_val = float(raw_acc) if raw_acc is not None else auc_val
+
+                    # Update local metric tracker on ALL replicas with identical cluster-wide reduced scalar
+                    if getattr(self, "metric_tracker", None) is not None:
+                        self.metric_tracker.update_lrh(acc=acc_val, auc=auc_val)
+
             if self.is_tpu and step % 50 == 0:
                 import gc
                 gc.collect()
@@ -881,7 +921,7 @@ class UnifiedPyTorchTrainer:
             if self.is_master and (
                 step <= 5
                 or (step <= 50 and step % 10 == 0)
-                or step % 50 == 0
+                or step % 25 == 0
                 or step == self.max_steps
                 or (benchmark and step % 10 == 0)
             ):
@@ -902,14 +942,10 @@ class UnifiedPyTorchTrainer:
                     b_w = float(last_metrics.get("beta", 0.0))
                     g_w = float(last_metrics.get("gamma", 0.0))
                     raw_acc = last_metrics.get("lrh_acc", 0.0)
-                    l_acc = float(raw_acc.detach().cpu().item()) if isinstance(raw_acc, torch.Tensor) else float(raw_acc)
-                    # Support tensor-native balanced accuracy or scalar AUC to avoid frozen placeholder display
+                    tracker = getattr(self, "metric_tracker", None)
+                    l_acc = tracker.lrh_acc_ema if tracker and tracker.lrh_acc_ema is not None else (float(raw_acc.detach().cpu().item()) if isinstance(raw_acc, torch.Tensor) else float(raw_acc))
                     raw_auc = last_metrics.get("lrh_bal_acc", last_metrics.get("lrh_auc", 0.0))
-                    l_auc = float(raw_auc.detach().cpu().item()) if isinstance(raw_auc, torch.Tensor) else float(raw_auc)
-                    
-                    # Asynchronously update metric tracker on master rank at logging intervals (no TPU stalls)
-                    if getattr(self, "metric_tracker", None) is not None:
-                        self.metric_tracker.update_lrh(l_acc, l_auc)
+                    l_auc = tracker.lrh_auc_ema if tracker and tracker.lrh_auc_ema is not None else (float(raw_auc.detach().cpu().item()) if isinstance(raw_auc, torch.Tensor) else float(raw_auc))
 
                     log_msg = (
                         f"  [COROSRED-UNIFIED] Step {step:>6d}/{self.max_steps} | Loss: {l_val:>6.4f} | "
