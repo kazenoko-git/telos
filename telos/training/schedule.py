@@ -71,6 +71,7 @@ class COROSredSchedule:
         gamma_max: float = 0.10,
         hold_fraction: float = 0.20,
         decay_power: float = 2.5,
+        gamma_gate_auc: float = 0.55,
         acc_gate_threshold: float = 0.65,
         auc_gate_min: float = 0.50,
         auc_gate_target: float = 0.75,
@@ -88,6 +89,7 @@ class COROSredSchedule:
         self.gamma_max = gamma_max
         self.hold_fraction = max(0.0, min(1.0, hold_fraction))
         self.decay_power = decay_power
+        self.gamma_gate_auc = gamma_gate_auc
         self.acc_gate_threshold = acc_gate_threshold
         self.auc_gate_min = auc_gate_min
         self.auc_gate_target = auc_gate_target
@@ -109,8 +111,8 @@ class COROSredSchedule:
         
         Args:
             step: Current global training step (0 to max_steps)
-            lrh_acc_ema: Optional running EMA of LRH accuracy for gating gamma
-            lrh_auc_ema: Optional running EMA of LRH ROC-AUC for gating masking blend
+            lrh_acc_ema: Optional running EMA of LRH accuracy (fallback gate)
+            lrh_auc_ema: Optional running EMA of LRH ROC-AUC / balanced accuracy (primary gamma gate and mask blend)
             
         Returns:
             dict containing:
@@ -141,18 +143,25 @@ class COROSredSchedule:
         beta = max(self.beta_min, min(self.beta_max, beta))
 
         # 2. Compute gamma(t) (Head warmup gate)
-        # Gated on empirical classification competence or progress fallback
+        # Gated on empirical classification ranking discrimination (AUC or balanced accuracy)
+        # rather than raw accuracy. Under severe ~9:1 class imbalance, trivial all-negative
+        # predictions yield ~90% raw accuracy with zero ranking power. ROC-AUC and balanced accuracy
+        # maintain an uncorrupted 0.50 chance baseline, ensuring gamma opens only when real signal exists.
         head_is_competent = self.head_ready_override
-        if not head_is_competent and lrh_acc_ema is not None:
+        if not head_is_competent and lrh_auc_ema is not None:
+            # Primary: Gate opens when running ROC-AUC / balanced accuracy crosses gamma_gate_auc (e.g. 0.55-0.60)
+            head_is_competent = (lrh_auc_ema >= self.gamma_gate_auc)
+        elif not head_is_competent and lrh_acc_ema is not None and self.acc_gate_threshold is not None:
+            # Backward compatibility fallback if only raw accuracy telemetry is available
             head_is_competent = (lrh_acc_ema >= self.acc_gate_threshold)
-        elif not head_is_competent and lrh_acc_ema is None:
-            # Fallback when no EMA provided: ramp in after initial 10% steps
+        elif not head_is_competent and lrh_auc_ema is None and lrh_acc_ema is None:
+            # Fallback when no telemetry is provided: ramp in after initial 10% steps
             head_is_competent = (t >= 0.10)
 
         if head_is_competent:
             # Smooth linear ramp-in over 5% of training steps once competence threshold is met
             warmup_frac = 0.05
-            progress_after_gate = max(0.0, min(1.0, (t - 0.10) / warmup_frac)) if lrh_acc_ema is None else 1.0
+            progress_after_gate = max(0.0, min(1.0, (t - 0.10) / warmup_frac)) if (lrh_auc_ema is None and lrh_acc_ema is None) else 1.0
             gamma = self.gamma_max * progress_after_gate
         else:
             gamma = 0.0
