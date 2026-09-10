@@ -340,6 +340,7 @@ def build_config(
                 "gamma_max": float(kwargs.get("gamma_max", 0.10)),
                 "hold_fraction": float(kwargs.get("hold_fraction", 0.20)),
                 "decay_power": float(kwargs.get("decay_power", 2.5)),
+                "gamma_gate_auc": float(kwargs.get("gamma_gate_auc", 0.55)),
                 "acc_gate_threshold": float(kwargs.get("acc_gate_threshold", 0.65)),
                 "causal_ratio": float(kwargs.get("causal_ratio", 0.75)),
                 "routing_cache_steps": int(kwargs.get("routing_cache_steps", 50)),
