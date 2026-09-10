@@ -254,10 +254,9 @@ When training or benchmarking on Google Cloud or Kaggle Cloud TPUs (v5e-8 or v3-
 
 ### 1. Eliminating the 650% CPU Bottleneck
 TPU VMs often suffer from severe host CPU pegging (600%–800% CPU usage) due to two underlying causes:
-1. **LibTPU Host Spin-Waiting**: By default, `libtpu` aggressively busy-polls the host CPU cores in tight loops waiting for TPU HBM completion registers. Télos automatically injects `--xla_tpu_cpu_spin_wait_time_usec=0` into `LIBTPU_INIT_ARGS` in `xla_utils.clean_tpu_environment()`, instructing the host CPU to yield/sleep instead of spin-waiting.
-2. **OpenMP Thread Over-Subscription**: PyTorch-XLA spawns 8 worker processes via `xmp.spawn`. Without thread capping, each process spawns 8–16 OpenMP threads ($8 \times 8 = 64$ threads) competing on CPU spinlocks (`kmp_wait_yield`). Télos automatically sets `OMP_NUM_THREADS=1` and calls `torch.set_num_threads(1)` inside spawned workers.
-3. **Zero-Copy Memory-Mapped Streaming**: Pretokenized `uint16` binary datasets are wrapped directly via `torch.from_numpy()` without intermediate CPU array reallocation.
-4. **Asynchronous Static Graphs**: Inner microbatch loss computation uses pure PyTorch tensor operations with zero `.item()` calls, keeping the XLA HLO execution graph 100% static and asynchronous.
+1. **OpenMP Thread Over-Subscription**: PyTorch-XLA spawns 8 worker processes via `xmp.spawn`. Without thread capping, each process spawns 8–16 OpenMP threads ($8 \times 8 = 64$ threads) competing on CPU spinlocks (`kmp_wait_yield`). Télos automatically sets `OMP_NUM_THREADS=1` and calls `torch.set_num_threads(1)` inside spawned workers.
+2. **Zero-Copy Memory-Mapped Streaming**: Pretokenized `uint16` binary datasets are wrapped directly via `torch.from_numpy()` without intermediate CPU array reallocation.
+3. **Asynchronous Static Graphs**: Inner microbatch loss computation uses pure PyTorch tensor operations with zero `.item()` calls, keeping the XLA HLO execution graph 100% static and asynchronous.
 
 ### 2. Sizing Effective Batch Size & Preventing OOM on Higher Models
 TPU v5e chips provide **16 GB HBM** per tensor core. To strictly maintain a **medium Effective Batch Size = 256 sequences** ($131,072$ tokens/step) across 8 TPU cores without memory exhaustion:
@@ -274,9 +273,9 @@ Running as a bash cell avoids Jupyter kernel `/dev/vfio/*` device lock retention
 # 1. Terminate any hung or zombie TPU device locks from previous runs
 fuser -k -9 /dev/vfio/* 2>/dev/null || true
 
-# 2. Configure PyTorch-XLA & LibTPU Environment
+# 2. Configure PyTorch-XLA Environment
 export PJRT_DEVICE=TPU
-export LIBTPU_INIT_ARGS="--xla_tpu_cpu_spin_wait_time_usec=0"
+unset LIBTPU_INIT_ARGS
 export OMP_NUM_THREADS=1
 unset TPU_PROCESS_ADDRESSES
 unset CLOUD_TPU_TASK_ID
@@ -307,7 +306,7 @@ If calling Télos directly within a Python notebook cell:
 ```python
 import os
 os.environ["PJRT_DEVICE"] = "TPU"
-os.environ["LIBTPU_INIT_ARGS"] = "--xla_tpu_cpu_spin_wait_time_usec=0"
+os.environ.pop("LIBTPU_INIT_ARGS", None)
 os.environ["OMP_NUM_THREADS"] = "1"
 
 import telos
