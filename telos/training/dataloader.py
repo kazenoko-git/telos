@@ -43,19 +43,19 @@ def get_global_targets_contiguous_pytorch(dataset_matrix, idx_ptr: int, total_ba
     import torch
     batch, next_ptr = get_global_targets_contiguous(dataset_matrix, idx_ptr, total_batch, seq_len)
     
-    # Avoid redundant memory copies if batch is already a contiguous int32, int64, or uint16 array
-    if batch.dtype == np.int32 and batch.flags.c_contiguous:
+    # Ensure contiguous and writable memory to prevent PyTorch non-writable array warning and undefined behavior
+    if not batch.flags.writeable or not batch.flags.c_contiguous:
+        batch = np.ascontiguousarray(batch).copy()
+
+    if batch.dtype in (np.int32, np.int64):
         tensor = torch.from_numpy(batch)
-    elif batch.dtype == np.int64 and batch.flags.c_contiguous:
-        tensor = torch.from_numpy(batch)
-    elif batch.dtype == np.uint16 and batch.flags.c_contiguous:
+    elif batch.dtype == np.uint16:
         try:
             tensor = torch.from_numpy(batch)
         except TypeError:
-            tensor = torch.from_numpy(batch.astype(np.int32, copy=False))
+            tensor = torch.from_numpy(batch.astype(np.int32))
     else:
-        # Cast to int32 to halve PCIe bandwidth vs int64
-        tensor = torch.from_numpy(batch.astype(np.int32, copy=False))
+        tensor = torch.from_numpy(batch.astype(np.int32))
 
     if str(device).startswith("cuda") and torch.cuda.is_available():
         if not tensor.is_pinned():
