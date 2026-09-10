@@ -771,14 +771,17 @@ class UnifiedPyTorchTrainer:
                     dataset_matrix, idx_ptr, local_step_seqs, self.seq_len, self.device, non_blocking=False
                 )
                 idx_ptr = (idx_ptr + cluster_step_seqs) % n_rows
-            # Periodically replenish the routing cache with pre-computed low-confidence mask positions
-            if getattr(self, "is_unified", False) and hasattr(self, "routing_cache") and self.routing_cache.should_refresh(step):
-                self.routing_cache.refresh(
-                    self.model,
-                    upcoming_seqs=global_targets,
-                    current_step=step,
-                    mask_prob=float(self.crsr_cfg.get("mask_prob", 0.15)),
-                )
+            # Periodically replenish routing cache only once confidence-routed masking is active (after hold phase)
+            has_routing = getattr(self, "is_unified", False) and hasattr(self, "routing_cache")
+            if has_routing and self.routing_cache.should_refresh(step):
+                sched_w_check = self.schedule.get_weights(step)
+                if sched_w_check.get("mask_blend", 0.0) > 0.0:
+                    self.routing_cache.refresh(
+                        self.model,
+                        upcoming_seqs=global_targets,
+                        current_step=step,
+                        mask_prob=float(self.crsr_cfg.get("mask_prob", 0.15)),
+                    )
 
             last_metrics = None
             
@@ -791,7 +794,13 @@ class UnifiedPyTorchTrainer:
                     import torch_xla.distributed.spmd as xs
                     xs.mark_sharding(batch_seqs, self.spmd_mesh, ("data", None))
 
-                is_log_step = (step % 50 == 0 or step == 1 or step == self.max_steps or (benchmark and step % 10 == 0))
+                is_log_step = (
+                    step <= 5
+                    or (step <= 50 and step % 10 == 0)
+                    or step % 50 == 0
+                    or step == self.max_steps
+                    or (benchmark and step % 10 == 0)
+                )
                 eval_metrics = (i == grad_accum - 1) and is_log_step
                 # DDP gradient accumulation optimization: disable all-reduce on non-final microbatches
                 sync_ctx = self.model.no_sync() if (getattr(self, "is_ddp", False) and i < grad_accum - 1) else nullcontext()
@@ -862,7 +871,13 @@ class UnifiedPyTorchTrainer:
                         self._print_benchmark_report(bench_steps, bench_elapsed, latencies, bs, grad_accum)
                         return
 
-            if self.is_master and (step % 50 == 0 or step == 1 or step == self.max_steps or (benchmark and step % 10 == 0)):
+            if self.is_master and (
+                step <= 5
+                or (step <= 50 and step % 10 == 0)
+                or step % 50 == 0
+                or step == self.max_steps
+                or (benchmark and step % 10 == 0)
+            ):
                 lr = self.scheduler.get_last_lr()[0]
                 elapsed = time.time() - start_time
                 steps_taken = step - resume_step
@@ -879,7 +894,8 @@ class UnifiedPyTorchTrainer:
                     a_w = float(last_metrics.get("alpha", 0.0))
                     b_w = float(last_metrics.get("beta", 0.0))
                     g_w = float(last_metrics.get("gamma", 0.0))
-                    l_acc = float(last_metrics.get("lrh_acc", 0.0))
+                    raw_acc = last_metrics.get("lrh_acc", 0.0)
+                    l_acc = float(raw_acc.detach().cpu().item()) if isinstance(raw_acc, torch.Tensor) else float(raw_acc)
                     l_auc = float(last_metrics.get("lrh_auc", 0.0))
                     log_msg = (
                         f"  [COROSRED-UNIFIED] Step {step:>6d}/{self.max_steps} | Loss: {l_val:>6.4f} | "
