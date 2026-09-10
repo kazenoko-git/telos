@@ -30,8 +30,10 @@ from telos.diffusion.undlm import undlm_loss_mlx, apply_uniform_noise_mlx
 from telos.diffusion.corosred import (
     crsr_phase_a_loss_fn_mlx,
     crsr_phase_b_loss_fn_mlx,
-    crsr_phase_b_self_conditioned_loss_fn_mlx
+    crsr_phase_b_self_conditioned_loss_fn_mlx,
+    corosred_unified_loss_fn_mlx,
 )
+from .schedule import COROSredSchedule
 
 
 from .hardware import detect_apple_silicon_profile
@@ -133,7 +135,11 @@ class UnifiedMLXTrainer:
 
         if self.paradigm == "corosred":
             self.crsr_cfg = cfg.get("crsr", cfg.get("corosred", {}))
-            self.phase = self.crsr_cfg.get("phase", "A").upper()
+            self.is_unified = bool(self.crsr_cfg.get("unified", True))
+            raw_phase = self.crsr_cfg.get("phase", "UNIFIED" if self.is_unified else "A")
+            self.phase = str(raw_phase).upper()
+            if self.phase == "UNIFIED":
+                self.is_unified = True
 
     def _sample_beta_timesteps(self, bs: int) -> mx.array:
         """Fetches bs timesteps directly from the pre-sampled device-resident Beta buffer without CPU copy."""
@@ -181,7 +187,31 @@ class UnifiedMLXTrainer:
                 return loss, ce, grads
 
         elif self.paradigm == "corosred":
-            if self.phase == "A":
+            if self.is_unified or self.phase == "UNIFIED":
+                mask_token_id = self.m_cfg.get("mask_token_id", 1)
+                mask_prob = float(self.crsr_cfg.get("mask_prob", 0.15))
+                k_amb = int(self.crsr_cfg.get("k_amb", 5))
+                causal_ratio = float(self.crsr_cfg.get("causal_ratio", 0.75))
+
+                loss_and_grad_fn = mx_nn.value_and_grad(self.model, corosred_unified_loss_fn_mlx)
+                compilation_targets = [self.model.state]
+
+                def microbatch_step_uncompiled(batch_seqs, alpha, beta, gamma):
+                    (loss, ce), grads = loss_and_grad_fn(
+                        self.model,
+                        batch_seqs,
+                        vocab_size,
+                        alpha=alpha,
+                        beta=beta,
+                        gamma=gamma,
+                        mask_token_id=mask_token_id,
+                        mask_prob=mask_prob,
+                        k_amb=k_amb,
+                        causal_ratio=causal_ratio,
+                        special_token_lut=special_lut
+                    )
+                    return loss, ce, grads
+            elif self.phase == "A":
                 k_amb = self.crsr_cfg.get("k_amb", 5)
                 loss_and_grad_fn = mx_nn.value_and_grad(self.model, crsr_phase_a_loss_fn_mlx)
                 compilation_targets = [self.model.state]
@@ -236,6 +266,13 @@ class UnifiedMLXTrainer:
         if self.paradigm in ["mdlm", "undlm"]:
             dummy_t_vals = self._sample_beta_timesteps(bs)
             d_loss, d_ce, d_grads = step_fn(dummy_seqs, dummy_t_vals)
+        elif self.paradigm == "corosred" and (getattr(self, "is_unified", False) or self.phase == "UNIFIED"):
+            d_loss, d_ce, d_grads = step_fn(
+                dummy_seqs,
+                mx.array(0.85, dtype=mx.float32),
+                mx.array(0.15, dtype=mx.float32),
+                mx.array(0.0, dtype=mx.float32)
+            )
         else:
             d_loss, d_ce, d_grads = step_fn(dummy_seqs)
         mx.eval(d_loss, d_ce, d_grads)
@@ -367,13 +404,30 @@ class UnifiedMLXTrainer:
 
         ckpt_dir_name = f"checkpoints/{self.paradigm}"
         if self.paradigm == "corosred":
-            ckpt_dir_name += f"/phase_{self.phase.lower()}"
+            if getattr(self, "is_unified", False) or self.phase == "UNIFIED":
+                ckpt_dir_name += "/unified"
+            else:
+                ckpt_dir_name += f"/phase_{self.phase.lower()}"
         ckpt_dir = Path(self.c_cfg.get("checkpoint_dir", self.c_cfg.get("dir", ckpt_dir_name)))
         if not benchmark:
             ckpt_dir.mkdir(parents=True, exist_ok=True)
             print(f"  Checkpoint Directory: {ckpt_dir} (Paradigm: {self.paradigm.upper()})")
         else:
             print(f"  [Benchmark Mode] Starting throughput benchmark (Maximum limit: {max_bench_duration:.0f}s)...")
+
+        # Initialize continuous multi-objective schedule if running COROSred in unified mode
+        if self.paradigm == "corosred" and (getattr(self, "is_unified", False) or self.phase == "UNIFIED"):
+            self.schedule = COROSredSchedule(
+                max_steps=max_steps,
+                alpha_max=float(self.crsr_cfg.get("alpha_max", 0.85)),
+                alpha_min=float(self.crsr_cfg.get("alpha_min", 0.20)),
+                beta_min=float(self.crsr_cfg.get("beta_min", 0.15)),
+                beta_max=float(self.crsr_cfg.get("beta_max", 0.70)),
+                gamma_max=float(self.crsr_cfg.get("gamma_max", 0.10)),
+                hold_fraction=float(self.crsr_cfg.get("hold_fraction", 0.20)),
+                decay_power=float(self.crsr_cfg.get("decay_power", 2.5)),
+                acc_gate_threshold=float(self.crsr_cfg.get("acc_gate_threshold", 0.65)),
+            )
 
         # Dynamic memory evaluation policy:
         # Low RAM (<24GB): eager microbatch eval
@@ -394,6 +448,12 @@ class UnifiedMLXTrainer:
             # Fetch contiguous batch as a numpy view without materializing all microbatches into MLX memory upfront
             global_targets_np, idx_ptr = get_global_targets_contiguous(dataset_matrix, idx_ptr, bs * grad_accum, self.seq_len)
 
+            if self.paradigm == "corosred" and (getattr(self, "is_unified", False) or self.phase == "UNIFIED"):
+                w = self.schedule.get_weights(step)
+                alpha_mx = mx.array(w["alpha"], dtype=mx.float32)
+                beta_mx = mx.array(w["beta"], dtype=mx.float32)
+                gamma_mx = mx.array(w["gamma"], dtype=mx.float32)
+
             def batch_gen():
                 # Slice lazily from the numpy array per microbatch to cut resident MLX batch memory ~grad_accum×
                 for i in range(grad_accum):
@@ -402,6 +462,8 @@ class UnifiedMLXTrainer:
                     if self.paradigm in ["mdlm", "undlm"]:
                         t_vals = self._sample_beta_timesteps(bs)
                         yield (batch_seqs, t_vals)
+                    elif self.paradigm == "corosred" and (getattr(self, "is_unified", False) or self.phase == "UNIFIED"):
+                        yield (batch_seqs, alpha_mx, beta_mx, gamma_mx)
                     else:
                         yield batch_seqs
 
@@ -444,7 +506,11 @@ class UnifiedMLXTrainer:
                 eta_mins = (max_steps - step) / sps / 60.0 if sps > 0 else 0.0
                 mem_str = get_sys_mem_str()
 
-                log_msg = f"  [{self.paradigm.upper()}] Step {step:>6d}/{max_steps} | Loss: {avg_loss_val:>6.4f} | CE: {avg_ce_val:>5.3f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s | {mem_str}"
+                if self.paradigm == "corosred" and (getattr(self, "is_unified", False) or self.phase == "UNIFIED"):
+                    w = self.schedule.get_weights(step)
+                    log_msg = f"  [COROSRED] Step {step:>6d}/{max_steps} | Loss: {avg_loss_val:>6.4f} | CE: {avg_ce_val:>5.3f} | α: {w['alpha']:.2f} | β: {w['beta']:.2f} | γ: {w['gamma']:.2f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s | {mem_str}"
+                else:
+                    log_msg = f"  [{self.paradigm.upper()}] Step {step:>6d}/{max_steps} | Loss: {avg_loss_val:>6.4f} | CE: {avg_ce_val:>5.3f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s | {mem_str}"
                 if not benchmark:
                     log_msg += f" | ETA: {eta_mins:>4.1f}m"
                 print(log_msg, flush=True)
