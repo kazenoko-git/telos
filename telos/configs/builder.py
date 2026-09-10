@@ -217,10 +217,16 @@ def build_config(
             except Exception:
                 cuda_gb = 0.0
 
-        if cuda_gb >= 40.0:
-            # High-end Datacenter GPUs (H100 80GB, A100 40/80GB):
-            # Microbatch 64 maximally saturates Hopper/Ampere Tensor Cores with FlashAttention-2
-            # Defaults to medium effective batch of 256 sequences across single or multi-GPU
+        if cuda_gb >= 70.0:
+            # Flagship Datacenter GPUs (H100 80GB SXM5/PCIe, A100 80GB):
+            # Massive 80GB HBM3 bandwidth (3.35 TB/s) permits large microbatches (up to 384+)
+            # Saturates all 132 SMs with FlashAttention-2 and zero activation spilling
+            auto_microbatch = 384 if d_model <= 384 else (192 if d_model <= 512 else (128 if d_model <= 768 else 64))
+            auto_accum = 1 if d_model <= 384 else (2 if d_model <= 512 else (3 if d_model <= 768 else 4))
+        elif cuda_gb >= 40.0:
+            # Datacenter GPUs (A100 40GB, L40S 48GB, RTX 6000 Ada 48GB):
+            # Microbatch 64 maximally saturates Tensor Cores with FlashAttention-2
+            # Defaults to medium effective batch of 256 sequences
             auto_microbatch = 64 if d_model <= 512 else (32 if d_model <= 768 else 16)
             auto_accum = 4 if d_model <= 512 else (8 if d_model <= 768 else 16)
         elif cuda_gb >= 24.0:
@@ -263,8 +269,8 @@ def build_config(
         if final_device == "xla" and batch_size is None:
             t_cfg["gradient_accumulation"] = auto_accum
         elif final_device == "cuda" and batch_size is None:
-            # Maintain medium effective batch of 256 sequences on CUDA
-            target_eff = 256
+            # Scale target effective batch: 384 sequences (196k tok/step) on >=70GB H100/A100, 256 sequences on others
+            target_eff = 384 if cuda_gb >= 70.0 else 256
             cluster_multiplier = dev_count if dev_count > 1 else 1
             eff_per_dev = max(1, target_eff // cluster_multiplier)
             t_cfg["gradient_accumulation"] = max(1, math.ceil(eff_per_dev / actual_bs))
