@@ -207,8 +207,34 @@ def build_config(
         else:
             auto_microbatch = 16 if d_model <= 256 else (8 if d_model <= 512 else 4)
     else:
-        # CUDA / CPU default heuristic
-        auto_microbatch = 16 if d_model <= 512 else (8 if d_model <= 1024 else 4)
+        # CUDA / CPU default heuristic: detect VRAM capacity on CUDA
+        cuda_gb = 0.0
+        if final_device == "cuda":
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    cuda_gb = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+            except Exception:
+                cuda_gb = 0.0
+
+        if cuda_gb >= 40.0:
+            # High-end Datacenter GPUs (H100 80GB, A100 40/80GB):
+            # Microbatch 64 maximally saturates Hopper/Ampere Tensor Cores with FlashAttention-2
+            # Defaults to medium effective batch of 256 sequences across single or multi-GPU
+            auto_microbatch = 64 if d_model <= 512 else (32 if d_model <= 768 else 16)
+            auto_accum = 4 if d_model <= 512 else (8 if d_model <= 768 else 16)
+        elif cuda_gb >= 24.0:
+            # High-end Consumer GPUs (RTX 3090/4090 24GB):
+            auto_microbatch = 32 if d_model <= 512 else (16 if d_model <= 768 else 8)
+            auto_accum = 8 if d_model <= 512 else 16
+        elif cuda_gb >= 16.0:
+            # Mid-tier GPUs (T4 / V100 16GB):
+            auto_microbatch = 16 if d_model <= 512 else (8 if d_model <= 768 else 4)
+            auto_accum = 16 if d_model <= 512 else 32
+        else:
+            # Low VRAM / CPU fallback
+            auto_microbatch = 16 if d_model <= 512 else (8 if d_model <= 1024 else 4)
+            auto_accum = 1
 
     actual_bs = batch_size if batch_size is not None else t_cfg.get("batch_size", auto_microbatch)
     t_cfg["batch_size"] = actual_bs
@@ -224,7 +250,7 @@ def build_config(
         if is_token_suffix:
             eff_b = max(1, eff_b // seq_len)
         
-        # In multi-device setups (e.g. 8 TPU cores), effective_batch is the total cluster target
+        # In multi-device setups (e.g. 8 TPU cores or 8 GPUs), effective_batch is the total cluster target
         eff_per_device = max(1, eff_b // dev_count) if dev_count > 1 else eff_b
         if batch_size is None:
             actual_bs = min(auto_microbatch, eff_per_device)
@@ -236,6 +262,12 @@ def build_config(
     else:
         if final_device == "xla" and batch_size is None:
             t_cfg["gradient_accumulation"] = auto_accum
+        elif final_device == "cuda" and batch_size is None:
+            # Maintain medium effective batch of 256 sequences on CUDA
+            target_eff = 256
+            cluster_multiplier = dev_count if dev_count > 1 else 1
+            eff_per_dev = max(1, target_eff // cluster_multiplier)
+            t_cfg["gradient_accumulation"] = max(1, math.ceil(eff_per_dev / actual_bs))
         else:
             t_cfg.setdefault("gradient_accumulation", 1)
 
