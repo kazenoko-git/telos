@@ -917,20 +917,25 @@ class UnifiedPyTorchTrainer:
                     log_msg += f" | ETA: {eta_mins:>4.1f}m"
                 print(log_msg, flush=True)
 
-            if not benchmark and self.is_master and step % self.c_cfg.get("save_every_steps", 1000) == 0:
-                if getattr(self, "is_unified", False) and getattr(self, "dual_monitor", None) is not None:
-                    probe_res = self.dual_monitor.evaluate(self.model, current_step=step)
-                    print(
-                        f"  [Dual Probe Step {step:>6d}] Causal Top-1: {probe_res['causal_top1']*100:.1f}% | "
-                        f"C-CE: {probe_res['causal_ce']:.3f} | Infill Top-1: {probe_res['infill_top1']*100:.1f}% | "
-                        f"I-CE: {probe_res['infill_ce']:.3f} | LRH AUC: {probe_res['lrh_auc']:.3f}"
-                    )
-                    div_warn = self.dual_monitor.check_divergence()
-                    if div_warn:
-                        print(f"  {div_warn}")
+            save_interval = self.c_cfg.get("save_every_steps", 1000)
+            if not benchmark and step % save_interval == 0:
                 ckpt_file = ckpt_dir / f"checkpoint_step_{step}.pt"
-                self.save_checkpoint(ckpt_file)
-                print(f"  [Checkpoint] Saved weights to {ckpt_file}")
+                if self.is_master:
+                    print(f"\n  [Checkpoint Step {step:>6d}] Saving checkpoint weights to {ckpt_file}...", flush=True)
+
+                # In PyTorch-XLA multi-processing, all workers must synchronize at step boundaries
+                # so master rank can serialize model weights without worker desynchronization
+                if self.is_tpu:
+                    import torch_xla.core.xla_model as xm
+                    xm.rendezvous(f"checkpoint_save_{step}")
+
+                if self.is_master:
+                    self.save_checkpoint(ckpt_file)
+                    print(f"  [Checkpoint Step {step:>6d}] Successfully saved weights to {ckpt_file}\n", flush=True)
+
+                if self.is_tpu:
+                    import torch_xla.core.xla_model as xm
+                    xm.rendezvous(f"checkpoint_done_{step}")
 
         total_time = time.time() - start_time
         if benchmark:
