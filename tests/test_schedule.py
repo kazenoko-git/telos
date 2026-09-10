@@ -77,12 +77,27 @@ def test_schedule_acc_gate_for_gamma():
         acc_gate_threshold=0.65,
         gamma_max=0.10,
     )
-    # When lrh_acc is below threshold, gamma must be 0
+    # When only lrh_acc is provided, fallback works as expected
     w_low = sched.get_weights(step=500, lrh_acc_ema=0.55)
     assert w_low["gamma"] == 0.0
 
-    # When lrh_acc exceeds threshold, gamma is activated
     w_high = sched.get_weights(step=500, lrh_acc_ema=0.70)
+    assert w_high["gamma"] == 0.10
+
+
+def test_schedule_auc_gate_for_gamma():
+    sched = COROSredSchedule(
+        max_steps=1000,
+        gamma_gate_auc=0.55,
+        gamma_max=0.10,
+    )
+    # Under ~9:1 class imbalance, raw acc may be 85% while AUC is at chance (0.50-0.52).
+    # AUC gate must block gamma from premature activation:
+    w_low = sched.get_weights(step=500, lrh_acc_ema=0.85, lrh_auc_ema=0.52)
+    assert w_low["gamma"] == 0.0
+
+    # Once AUC exceeds 0.55 (genuine discriminative signal), gamma gate opens:
+    w_high = sched.get_weights(step=500, lrh_acc_ema=0.85, lrh_auc_ema=0.58)
     assert w_high["gamma"] == 0.10
 
 
