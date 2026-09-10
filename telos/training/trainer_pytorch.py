@@ -479,7 +479,7 @@ class UnifiedPyTorchTrainer:
             for p, mp in self.param_to_master:
                 mp.data.copy_(p.data.float())
 
-    def _execute_microbatch(self, batch_seqs):
+    def _execute_microbatch(self, batch_seqs, compute_metrics: bool = False):
         """Executes a single microbatch and returns loss and metrics."""
         loss = None
         metrics = None
@@ -526,6 +526,7 @@ class UnifiedPyTorchTrainer:
                     routing_cache=getattr(self, "routing_cache", None),
                     metric_tracker=getattr(self, "metric_tracker", None),
                     adaptive_rebalance=getattr(self, "adaptive_rebalance", False),
+                    compute_metrics=compute_metrics,
                 )
             elif self.phase == "A":
                 # Phase A: Causal Autoregressive backbone pretraining + detachable Learned Reliability Head
@@ -786,14 +787,16 @@ class UnifiedPyTorchTrainer:
                     import torch_xla.distributed.spmd as xs
                     xs.mark_sharding(batch_seqs, self.spmd_mesh, ("data", None))
 
+                is_log_step = (step % 50 == 0 or step == 1 or step == self.max_steps or (benchmark and step % 10 == 0))
+                eval_metrics = (i == grad_accum - 1) and is_log_step
                 # DDP gradient accumulation optimization: disable all-reduce on non-final microbatches
                 sync_ctx = self.model.no_sync() if (getattr(self, "is_ddp", False) and i < grad_accum - 1) else nullcontext()
                 with sync_ctx:
                     if self.use_amp:
                         with torch.amp.autocast(device_type=getattr(self, "amp_device", self.device.type), dtype=self.amp_dtype):
-                            loss, metrics = self._execute_microbatch(batch_seqs)
+                            loss, metrics = self._execute_microbatch(batch_seqs, compute_metrics=eval_metrics)
                     else:
-                        loss, metrics = self._execute_microbatch(batch_seqs)
+                        loss, metrics = self._execute_microbatch(batch_seqs, compute_metrics=eval_metrics)
 
                     loss = loss / grad_accum
                     if self.use_scaler:
