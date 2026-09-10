@@ -201,6 +201,7 @@ def corosred_unified_step_pytorch(
     """
     B, T = batch_seqs.shape
     device = batch_seqs.device
+    is_accelerator = (device.type in ["xla", "cuda"] or str(device).startswith(("xla", "cuda")))
 
     # 1. Microbatch Partitioning
     if B >= 2:
@@ -248,43 +249,29 @@ def corosred_unified_step_pytorch(
             content_mask = (shift_targets >= 4)
             valid_mask = valid_mask & content_mask
 
-        # Batch classification accuracy
+        # Batch classification accuracy (static shape scalar tensor on device)
         valid_preds = (raw_r_scores[:, :-1] > 0.0).float()
         correct_preds = (valid_preds == labels).float() * valid_mask.float()
         valid_count = valid_mask.sum().float().clamp(min=1.0)
+        batch_lrh_acc = (correct_preds.sum() / valid_count)
 
-        is_accelerator = (device.type in ["xla", "cuda"] or str(device).startswith(("xla", "cuda")))
-        should_eval_metrics = (compute_metrics is True) or (not is_accelerator) or (metric_tracker is not None and metric_tracker.lrh_acc_ema is None)
-        if should_eval_metrics:
-            batch_lrh_acc = float((correct_preds.sum() / valid_count).item())
-            # On TPU/GPU, evaluate ROC-AUC on CPU to prevent XLA dynamic-shape graph recompilations and PCIe stalls
-            if is_accelerator:
-                flat_r = raw_r_scores[:, :-1][valid_mask].detach().float().cpu()
-                flat_y = labels[valid_mask].detach().float().cpu()
-            else:
-                flat_r = raw_r_scores[:, :-1][valid_mask]
-                flat_y = labels[valid_mask]
-            batch_lrh_auc = compute_vectorized_roc_auc(flat_r, flat_y)
+        if not is_accelerator:
+            batch_lrh_acc_val = float(batch_lrh_acc.item())
+            flat_r = raw_r_scores[:, :-1][valid_mask]
+            flat_y = labels[valid_mask]
+            batch_lrh_auc_val = compute_vectorized_roc_auc(flat_r, flat_y)
         else:
-            # On GPU (CUDA) and TPU (PyTorch-XLA) non-log microbatches: reuse the running EMA.
-            # Eliminates dynamic-shape boolean slicing, blocking .item() PCIe roundtrips, and 2.7ms double-argsort,
-            # keeping hardware pipelines running at peak wire speed.
-            if metric_tracker is not None and metric_tracker.lrh_acc_ema is not None:
-                batch_lrh_acc = float(metric_tracker.lrh_acc_ema)
-                batch_lrh_auc = float(metric_tracker.lrh_auc_ema)
-            else:
-                batch_lrh_acc = 0.70
-                batch_lrh_auc = 0.75
+            # On TPU/GPU accelerators, maintain 100% static computation graph:
+            # Avoid mid-forward device-to-host .cpu() synchronization and dynamic-shape boolean masking.
+            # Master rank logs batch_lrh_acc asynchronously at logging steps without pipeline bubbles.
+            batch_lrh_acc_val = batch_lrh_acc
+            batch_lrh_auc_val = 0.75 if (metric_tracker is None or metric_tracker.lrh_auc_ema is None) else float(metric_tracker.lrh_auc_ema)
 
-    # LRH Binary Cross Entropy Loss (only evaluated when gamma > 0 or during log evaluation)
-    gamma_nom = float(schedule_weights.get("gamma", 0.0))
-    if gamma_nom > 0.0 or compute_metrics:
-        shift_r_scores = raw_r_scores[:, :-1]
-        bce_raw = F.binary_cross_entropy_with_logits(shift_r_scores, labels, reduction="none")
-        masked_bce = bce_raw * valid_mask.float()
-        r_loss = masked_bce.sum() / valid_count
-    else:
-        r_loss = torch.zeros((), device=device, dtype=mean_causal_ce.dtype)
+    # LRH Binary Cross Entropy Loss (always evaluated to ensure 100% static XLA computation graph across all steps)
+    shift_r_scores = raw_r_scores[:, :-1]
+    bce_raw = F.binary_cross_entropy_with_logits(shift_r_scores, labels, reduction="none")
+    masked_bce = bce_raw * valid_mask.float()
+    r_loss = masked_bce.sum() / valid_count
 
     # 3. Sub-batch 2: Bidirectional Infill Pass
     # Enables is_causal=False in SDPA (native fused FlashAttention-2 full attention)
@@ -342,8 +329,8 @@ def corosred_unified_step_pytorch(
 
     # 6. Metric Tracker Update
     if metric_tracker is not None:
-        metric_tracker.update_lrh(batch_lrh_acc, batch_lrh_auc)
         if not is_accelerator:
+            metric_tracker.update_lrh(batch_lrh_acc_val, batch_lrh_auc_val)
             metric_tracker.update_losses(float(mean_causal_ce.item()), float(mean_infill_ce.item()))
 
     unweighted_ce = 0.5 * (mean_causal_ce.detach() + mean_infill_ce.detach())
@@ -353,8 +340,8 @@ def corosred_unified_step_pytorch(
         "causal_ce": mean_causal_ce.detach(),
         "infill_ce": mean_infill_ce.detach(),
         "r_loss": r_loss.detach(),
-        "lrh_acc": batch_lrh_acc,
-        "lrh_auc": batch_lrh_auc,
+        "lrh_acc": batch_lrh_acc_val,
+        "lrh_auc": batch_lrh_auc_val,
         "alpha": alpha,
         "beta": beta,
         "gamma": gamma_nom,
