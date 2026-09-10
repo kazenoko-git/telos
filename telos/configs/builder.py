@@ -259,7 +259,12 @@ def build_config(
         # In multi-device setups (e.g. 8 TPU cores or 8 GPUs), effective_batch is the total cluster target
         eff_per_device = max(1, eff_b // dev_count) if dev_count > 1 else eff_b
         if batch_size is None:
-            actual_bs = min(auto_microbatch, eff_per_device)
+            if final_device == "xla" and eff_per_device <= 48 and d_model <= 512:
+                actual_bs = eff_per_device
+            else:
+                max_cand = min(auto_microbatch, eff_per_device)
+                divisors = [d for d in range(1, max_cand + 1) if eff_per_device % d == 0]
+                actual_bs = divisors[-1] if divisors else max_cand
             t_cfg["batch_size"] = actual_bs
         actual_accum = max(1, math.ceil(eff_per_device / actual_bs))
         t_cfg["gradient_accumulation"] = actual_accum
