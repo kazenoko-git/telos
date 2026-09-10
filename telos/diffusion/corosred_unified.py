@@ -236,11 +236,9 @@ def corosred_unified_step_pytorch(
         argmax_indices = detached_logits.argmax(dim=-1)
         is_exact_match = (argmax_indices == shift_targets)
 
-        # Vectorized top-k membership without full sort (TPU PJRT safe)
-        expanded_targets = shift_targets.unsqueeze(-1)
-        target_logits = detached_logits.gather(dim=-1, index=expanded_targets)
-        num_greater = (detached_logits > target_logits).float().sum(dim=-1)
-        is_target_in_top_k = (num_greater < k_amb)
+        # Memory-efficient top-k membership via torch.topk (allocates <1MB instead of 2.35GB broadcast tensor)
+        topk_indices = torch.topk(detached_logits, k=k_amb, dim=-1).indices
+        is_target_in_top_k = (topk_indices == shift_targets.unsqueeze(-1)).any(dim=-1)
 
         labels = is_exact_match.float()
         is_ambiguous = is_target_in_top_k & (~is_exact_match)
@@ -259,9 +257,13 @@ def corosred_unified_step_pytorch(
         should_eval_metrics = (compute_metrics is True) or (not is_accelerator) or (metric_tracker is not None and metric_tracker.lrh_acc_ema is None)
         if should_eval_metrics:
             batch_lrh_acc = float((correct_preds.sum() / valid_count).item())
-            # Vectorized batch ROC-AUC
-            flat_r = raw_r_scores[:, :-1][valid_mask]
-            flat_y = labels[valid_mask]
+            # On TPU/GPU, evaluate ROC-AUC on CPU to prevent XLA dynamic-shape graph recompilations and PCIe stalls
+            if is_accelerator:
+                flat_r = raw_r_scores[:, :-1][valid_mask].detach().float().cpu()
+                flat_y = labels[valid_mask].detach().float().cpu()
+            else:
+                flat_r = raw_r_scores[:, :-1][valid_mask]
+                flat_y = labels[valid_mask]
             batch_lrh_auc = compute_vectorized_roc_auc(flat_r, flat_y)
         else:
             # On GPU (CUDA) and TPU (PyTorch-XLA) non-log microbatches: reuse the running EMA.
@@ -274,11 +276,15 @@ def corosred_unified_step_pytorch(
                 batch_lrh_acc = 0.70
                 batch_lrh_auc = 0.75
 
-    # LRH Binary Cross Entropy Loss
-    shift_r_scores = raw_r_scores[:, :-1]
-    bce_raw = F.binary_cross_entropy_with_logits(shift_r_scores, labels, reduction="none")
-    masked_bce = bce_raw * valid_mask.float()
-    r_loss = masked_bce.sum() / valid_count
+    # LRH Binary Cross Entropy Loss (only evaluated when gamma > 0 or during log evaluation)
+    gamma_nom = float(schedule_weights.get("gamma", 0.0))
+    if gamma_nom > 0.0 or compute_metrics:
+        shift_r_scores = raw_r_scores[:, :-1]
+        bce_raw = F.binary_cross_entropy_with_logits(shift_r_scores, labels, reduction="none")
+        masked_bce = bce_raw * valid_mask.float()
+        r_loss = masked_bce.sum() / valid_count
+    else:
+        r_loss = torch.zeros((), device=device, dtype=mean_causal_ce.dtype)
 
     # 3. Sub-batch 2: Bidirectional Infill Pass
     # Enables is_causal=False in SDPA (native fused FlashAttention-2 full attention)
