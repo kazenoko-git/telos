@@ -269,10 +269,10 @@ def corosred_unified_step_pytorch(
         else:
             # On TPU/GPU accelerators, maintain 100% static computation graph:
             # Avoid mid-forward device-to-host .cpu() synchronization and dynamic-shape boolean masking.
+            # Balanced accuracy (0.50-1.00 scale) is a shape-stable 0D device tensor proxy for ROC-AUC.
             batch_lrh_acc_val = batch_lrh_acc
             batch_lrh_bal_acc_val = batch_lrh_bal_acc
-            # When full rank-sum AUC is bypassed on XLA, use balanced accuracy (same 0.50-1.00 scale) as real-time proxy
-            batch_lrh_auc_val = batch_lrh_bal_acc if (metric_tracker is None or metric_tracker.lrh_auc_ema is None) else float(metric_tracker.lrh_auc_ema)
+            batch_lrh_auc_val = batch_lrh_bal_acc
 
     # LRH Binary Cross Entropy Loss (always evaluated to ensure 100% static XLA computation graph across all steps)
     shift_r_scores = raw_r_scores[:, :-1]
