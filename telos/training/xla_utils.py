@@ -40,13 +40,13 @@ def clean_tpu_environment():
     if "CLOUD_TPU_TASK_ID" in os.environ and "TPU_NAME" not in os.environ:
         os.environ.pop("CLOUD_TPU_TASK_ID", None)
 
-    # LibTPU Host CPU Spin-Wait Elimination:
-    # By default, libtpu aggressively busy-polls host CPU cores waiting for TPU execution
-    # registers, pegging CPU at 650-800% across 8 worker processes.
-    # Setting --xla_tpu_cpu_spin_wait_time_usec=0 tells libtpu to yield/sleep instead of spin-waiting.
-    libtpu_args = os.environ.get("LIBTPU_INIT_ARGS", "")
-    if "--xla_tpu_cpu_spin_wait_time_usec" not in libtpu_args:
-        os.environ["LIBTPU_INIT_ARGS"] = (libtpu_args + " --xla_tpu_cpu_spin_wait_time_usec=0").strip()
+    # Purge any unrecognized spin-wait flags from LIBTPU_INIT_ARGS that abort gflags startup:
+    if "LIBTPU_INIT_ARGS" in os.environ:
+        cleaned_args = " ".join(arg for arg in os.environ["LIBTPU_INIT_ARGS"].split() if "spin_wait" not in arg)
+        if cleaned_args:
+            os.environ["LIBTPU_INIT_ARGS"] = cleaned_args
+        else:
+            os.environ.pop("LIBTPU_INIT_ARGS", None)
 
     # OpenMP / BLAS thread explosion prevention across spawned processes:
     os.environ.setdefault("OMP_NUM_THREADS", "1")
