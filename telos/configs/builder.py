@@ -54,7 +54,7 @@ def auto_detect_hardware() -> tuple[str, str, int]:
 
 def build_config(
     paradigm: str,
-    phase: str = "A",
+    phase: str | None = None,
     params: str | int | None = "12M",
     tokens: str | int | None = None,
     effective_batch: int | str | None = None,
@@ -274,19 +274,47 @@ def build_config(
 
     # 8. Paradigm-Specific Properties
     if paradigm == "corosred":
-        is_phase_c = (phase == "C")
-        default_self_cond = is_phase_c
-        default_sc_prob = 0.5 if is_phase_c else 0.0
-        cfg["corosred"] = {
-            "phase": phase,
-            "mask_prob": float(kwargs.get("mask_prob", 0.15)),
-            "k_amb": int(kwargs.get("k_amb", 5)),
-            "self_condition": bool(kwargs.get("self_condition", default_self_cond)),
-            "self_cond_prob": float(kwargs.get("self_cond_prob", default_sc_prob)),
-        }
+        raw_phase = str(phase).upper() if phase is not None else None
+        is_legacy = (raw_phase in ["A", "B", "C"]) and bool(kwargs.get("legacy_phases", False))
+        is_unified = not is_legacy
+
+        if is_unified:
+            resolved_phase = "UNIFIED"
+            cfg["corosred"] = {
+                "unified": True,
+                "phase": "unified",
+                "alpha_max": float(kwargs.get("alpha_max", 0.85)),
+                "alpha_min": float(kwargs.get("alpha_min", 0.20)),
+                "beta_min": float(kwargs.get("beta_min", 0.15)),
+                "beta_max": float(kwargs.get("beta_max", 0.70)),
+                "gamma_max": float(kwargs.get("gamma_max", 0.10)),
+                "hold_fraction": float(kwargs.get("hold_fraction", 0.20)),
+                "decay_power": float(kwargs.get("decay_power", 2.5)),
+                "acc_gate_threshold": float(kwargs.get("acc_gate_threshold", 0.65)),
+                "causal_ratio": float(kwargs.get("causal_ratio", 0.75)),
+                "routing_cache_steps": int(kwargs.get("routing_cache_steps", 50)),
+                "adaptive_rebalance": bool(kwargs.get("adaptive_rebalance", False)),
+                "mask_prob": float(kwargs.get("mask_prob", 0.15)),
+                "k_amb": int(kwargs.get("k_amb", 5)),
+            }
+        else:
+            resolved_phase = raw_phase if raw_phase else "A"
+            is_phase_c = (resolved_phase == "C")
+            default_self_cond = is_phase_c
+            default_sc_prob = 0.5 if is_phase_c else 0.0
+            cfg["corosred"] = {
+                "unified": False,
+                "phase": resolved_phase,
+                "mask_prob": float(kwargs.get("mask_prob", 0.15)),
+                "k_amb": int(kwargs.get("k_amb", 5)),
+                "self_condition": bool(kwargs.get("self_condition", default_self_cond)),
+                "self_cond_prob": float(kwargs.get("self_cond_prob", default_sc_prob)),
+            }
         m_cfg["use_reliability_head"] = True
         m_cfg["mask_token_id"] = 1
     else:
+        is_unified = False
+        resolved_phase = "A"
         m_cfg["use_reliability_head"] = False
         m_cfg["mask_token_id"] = 1
 
@@ -297,7 +325,10 @@ def build_config(
     # 9. Checkpoint Storage & Cadence
     ckpt_default = f"checkpoints/{paradigm}"
     if paradigm == "corosred":
-        ckpt_default += f"/phase_{phase.lower()}"
+        if is_unified:
+            ckpt_default += "/unified"
+        else:
+            ckpt_default += f"/phase_{resolved_phase.lower()}"
         
     if checkpoint_dir is not None:
         c_cfg["checkpoint_dir"] = str(checkpoint_dir)
