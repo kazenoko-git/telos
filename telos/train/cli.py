@@ -105,7 +105,7 @@ def _load_checkpoint_into_mlx(model, ckpt_path: str | Path):
 
 def train(
     paradigm: str = "mdlm",
-    phase: str = "A",
+    phase: str | None = None,
     params: str | int | None = "12M",
     tokens: str | int | None = None,
     effective_batch: int | str | None = None,
@@ -179,7 +179,8 @@ def train(
     if not kwargs.get("_is_spawned", False):
 
         print("=" * 76)
-        print(f"  TÉLOS UNIFIED TRAINER  |  Paradigm: {paradigm.upper()} (Phase {phase.upper()})")
+        phase_str = f" (Phase {phase.upper()})" if phase else (" (Unified Continuous)" if paradigm.lower() == "corosred" else "")
+        print(f"  TÉLOS UNIFIED TRAINER  |  Paradigm: {paradigm.upper()}{phase_str}")
         print(f"  Hardware Backend:     {backend.upper()} ({device})")
         if "_resolved_params" in cfg:
             print(f"  Target Parameters:    {cfg['_resolved_params']:,} (~{params})")
@@ -253,7 +254,8 @@ def train(
         )
         # Auto-detect or load initial checkpoint (e.g. chaining Phase A weights into Phase B or Phase C)
         init_ckpt_path = init_checkpoint
-        if init_ckpt_path is None and paradigm.lower() == "corosred" and phase.upper() in ["B", "C"]:
+        is_unified = cfg.get("corosred", {}).get("unified", False)
+        if init_ckpt_path is None and paradigm.lower() == "corosred" and not is_unified and str(phase).upper() in ["B", "C"]:
             cand = Path(cfg["checkpoint"]["checkpoint_dir"]).parent / "phase_a" / "checkpoint_final.pt"
             if cand.exists():
                 init_ckpt_path = str(cand)
@@ -286,7 +288,8 @@ def train(
 
         # Auto-detect or load initial checkpoint (e.g. chaining Phase A weights into Phase B or Phase C)
         init_ckpt_path = init_checkpoint
-        if init_ckpt_path is None and paradigm.lower() == "corosred" and phase.upper() in ["B", "C"]:
+        is_unified = cfg.get("corosred", {}).get("unified", False)
+        if init_ckpt_path is None and paradigm.lower() == "corosred" and not is_unified and str(phase).upper() in ["B", "C"]:
             cand = Path(cfg["checkpoint"]["checkpoint_dir"]).parent / "phase_a" / "checkpoint_final.pt"
             if cand.exists():
                 init_ckpt_path = str(cand)
@@ -323,7 +326,19 @@ def main():
     
     # 6 Fundamental Dimensions
     parser.add_argument("--paradigm", type=str, default="mdlm", choices=["ar", "mdlm", "undlm", "corosred", "custom"], help="Training paradigm")
-    parser.add_argument("--phase", type=str, default="A", choices=["A", "B", "C", "a", "b", "c"], help="Phase for COROSred paradigm (A: Causal AR + LRH, B: 15%% Uniform Mask, C: Confidence-Routed Drafts)")
+    parser.add_argument("--phase", type=str, default=None, help="Phase for legacy COROSred paradigm (A, B, C). If omitted, COROSred runs in unified continuous mode.")
+    parser.add_argument("--legacy-phases", action="store_true", help="Force legacy sequential phase execution (A -> B -> C) instead of unified continuous loop")
+    parser.add_argument("--alpha-max", type=float, default=0.85, help="Initial causal weight alpha_max (default: 0.85)")
+    parser.add_argument("--alpha-min", type=float, default=0.20, help="Permanent floor for causal weight alpha_min (default: 0.20)")
+    parser.add_argument("--beta-min", type=float, default=0.15, help="Initial infilling weight beta_min (default: 0.15)")
+    parser.add_argument("--beta-max", type=float, default=0.70, help="Peak infilling weight beta_max (default: 0.70)")
+    parser.add_argument("--gamma-max", type=float, default=0.10, help="Peak reliability head weight gamma_max (default: 0.10)")
+    parser.add_argument("--hold-frac", type=float, default=0.20, help="Fraction of steps to hold alpha at alpha_max (default: 0.20)")
+    parser.add_argument("--decay-power", type=float, default=2.5, help="Polynomial exponent p for hold-then-decay schedule (default: 2.5)")
+    parser.add_argument("--acc-gate", type=float, default=0.65, help="LRH classification accuracy threshold to activate gamma (default: 0.65)")
+    parser.add_argument("--causal-ratio", type=float, default=0.75, help="Fraction of microbatch sequences dedicated to causal pass (default: 0.75)")
+    parser.add_argument("--routing-cache-steps", type=int, default=50, help="Steps between pre-computed routing mask refreshes (default: 50)")
+    parser.add_argument("--adaptive-rebalance", action="store_true", help="Enable trust-region dynamic loss rebalancing")
     parser.add_argument("--params", type=str, default="12M", help="Target parameter budget (e.g. 12M, 25M, 50M, 100M, 500M)")
     parser.add_argument("--tokens", type=str, default=None, help="Target total training tokens (e.g. 2.5B, 300M, 50M)")
     parser.add_argument("--effective-batch", type=str, default=None, help="Target effective batch size in sequences or tokens (e.g. 32, 64, 32k)")
@@ -394,7 +409,19 @@ def main():
             self_condition=args.self_condition,
             self_cond_prob=args.self_cond_prob,
             init_checkpoint=args.init_checkpoint,
-            compile=args.compile
+            compile=args.compile,
+            legacy_phases=args.legacy_phases,
+            alpha_max=args.alpha_max,
+            alpha_min=args.alpha_min,
+            beta_min=args.beta_min,
+            beta_max=args.beta_max,
+            gamma_max=args.gamma_max,
+            hold_fraction=args.hold_frac,
+            decay_power=args.decay_power,
+            acc_gate_threshold=args.acc_gate,
+            causal_ratio=args.causal_ratio,
+            routing_cache_steps=args.routing_cache_steps,
+            adaptive_rebalance=args.adaptive_rebalance,
         )
     except KeyboardInterrupt:
         print("\nTraining interrupted by user.")
