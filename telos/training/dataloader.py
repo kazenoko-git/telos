@@ -43,11 +43,16 @@ def get_global_targets_contiguous_pytorch(dataset_matrix, idx_ptr: int, total_ba
     import torch
     batch, next_ptr = get_global_targets_contiguous(dataset_matrix, idx_ptr, total_batch, seq_len)
     
-    # Avoid redundant memory copies if batch is already a contiguous int32 array
+    # Avoid redundant memory copies if batch is already a contiguous int32, int64, or uint16 array
     if batch.dtype == np.int32 and batch.flags.c_contiguous:
         tensor = torch.from_numpy(batch)
     elif batch.dtype == np.int64 and batch.flags.c_contiguous:
         tensor = torch.from_numpy(batch)
+    elif batch.dtype == np.uint16 and batch.flags.c_contiguous:
+        try:
+            tensor = torch.from_numpy(batch)
+        except TypeError:
+            tensor = torch.from_numpy(batch.astype(np.int32, copy=False))
     else:
         # Cast to int32 to halve PCIe bandwidth vs int64
         tensor = torch.from_numpy(batch.astype(np.int32, copy=False))
