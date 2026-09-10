@@ -327,10 +327,11 @@ def corosred_unified_step_pytorch(
         alpha, beta = alpha_nom, beta_nom
         rebal_telem = {"nominal_ratio": beta_nom / max(1e-6, alpha_nom), "clamped": False}
 
-    # 5. Unified Pooled Token Normalization
-    # Pools total evaluated token count to strictly neutralize the ~7x count mismatch
-    total_evaluated_tokens = causal_token_count + infill_token_count_t
-    pooled_task_loss = (alpha * causal_loss_sum + beta * infill_loss_sum) / total_evaluated_tokens
+    # 5. Unified Per-Token Task Normalization
+    # Normalizes causal and infill losses per evaluated token to strictly enforce nominal schedule ratio alpha:beta
+    # without allowing the ~20x causal-to-infill token count mismatch to starve infilling gradients.
+    task_weight_sum = max(1e-6, alpha + beta)
+    pooled_task_loss = (alpha * mean_causal_ce + beta * mean_infill_ce) / task_weight_sum
     total_loss = pooled_task_loss + gamma_nom * r_loss
 
     # 6. Metric Tracker Update
@@ -339,7 +340,7 @@ def corosred_unified_step_pytorch(
         if not is_accelerator:
             metric_tracker.update_losses(float(mean_causal_ce.item()), float(mean_infill_ce.item()))
 
-    unweighted_ce = (causal_loss_sum.detach() + infill_loss_sum.detach()) / total_evaluated_tokens
+    unweighted_ce = 0.5 * (mean_causal_ce.detach() + mean_infill_ce.detach())
     metrics = {
         "loss": total_loss.detach(),
         "unweighted_ce": unweighted_ce,
