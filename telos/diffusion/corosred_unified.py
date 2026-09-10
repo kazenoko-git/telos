@@ -136,23 +136,18 @@ class RoutingMaskCache:
                 cached_slice[: full_cached.shape[0]] = full_cached
 
             total_k = max(1, int(T * mask_prob))
-            # Fraction of tokens driven by confidence routing vs exploration
-            k_targeted = int(total_k * min(1.0, mask_blend * self.k_targeted_ratio))
-            k_explore = total_k - k_targeted
 
-            # 1. Take top-confidence positions from cache
+            # 100% Static Top-K Blending (TPU / XLA Safe):
+            # Eliminates dynamic slicing and argsort by selecting top-k across blended priority scores.
+            # Guarantees identical XLA tensor shapes (B, total_k) across all steps,
+            # completely eliminating graph recompilations and host RAM leaks.
+            rand_scores = torch.rand((B, T), device=device)
+            priority = (1.0 - mask_blend) * rand_scores + mask_blend * cached_slice.float()
+            priority[:, 0] = -1e9  # Never mask BOS token
+
+            top_indices = torch.topk(priority, k=total_k, dim=-1).indices
             mask_pos = torch.zeros((B, T), dtype=torch.bool, device=device)
-            if k_targeted > 0:
-                mask_pos = cached_slice
-
-            # 2. Add exploration positions
-            if k_explore > 0:
-                rand_scores = torch.rand((B, T), device=device)
-                rand_scores = torch.where(mask_pos, torch.full((B, T), -1e9, device=device), rand_scores)
-                rand_scores[:, 0] = -1e9
-                rand_indices = torch.argsort(rand_scores, dim=-1)[:, -k_explore:]
-                row_exp = torch.arange(B, device=device).unsqueeze(-1).expand(-1, k_explore)
-                mask_pos[row_exp, rand_indices] = True
+            mask_pos.scatter_(dim=-1, index=top_indices, value=True)
 
         mask_pos[:, 0] = False
         corrupted_seqs = torch.where(
