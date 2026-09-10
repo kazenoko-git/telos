@@ -363,7 +363,7 @@ def main():
     parser.add_argument("--grad-accum", type=int, default=None, help="Gradient accumulation steps override")
     parser.add_argument("--tokenizer", type=str, default=None, help="Path to custom BPE tokenizer JSON or HF model")
     parser.add_argument("--vocab-size", type=int, default=None, help="Vocabulary size override")
-    parser.add_argument("--hardware", type=str, default="auto", choices=["auto", "mlx", "cuda", "mps", "xla", "cpu"], help="Hardware backend")
+    parser.add_argument("--hardware", type=str, default="auto", choices=["auto", "mlx", "cuda", "mps", "xla", "cpu", "pytorch"], help="Hardware backend")
     parser.add_argument("--devices", type=str, default="auto", help="Hardware device count (e.g. 1, 4, 8, auto)")
 
     # Training Dynamics & Checkpoints
@@ -379,7 +379,7 @@ def main():
     parser.add_argument("--eval-policy", type=str, default="auto", choices=["auto", "eager", "step", "lazy"], help="Memory evaluation policy for Apple Silicon MLX")
 
     # Data & Config Bypass
-    parser.add_argument("--data", type=str, default=None, help="Path to pre-tokenized binary dataset (.bin)")
+    parser.add_argument("--data", "--data-path", dest="data", type=str, default=None, help="Path to pre-tokenized binary dataset (.bin)")
     parser.add_argument("--synthetic", action="store_true", help="Force synthetic token stream without loading disk dataset")
     parser.add_argument("--config", type=str, default=None, help="Optional YAML config file bypass")
 
