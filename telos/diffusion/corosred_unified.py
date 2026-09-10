@@ -176,6 +176,7 @@ def corosred_unified_step_pytorch(
     routing_cache: RoutingMaskCache | None = None,
     metric_tracker=None,
     adaptive_rebalance: bool = False,
+    compute_metrics: bool | None = None,
 ) -> tuple[torch.Tensor, dict[str, float]]:
     """
     Executes a single unified COROSred training step using heterogeneous minibatches.
@@ -255,18 +256,23 @@ def corosred_unified_step_pytorch(
         valid_count = valid_mask.sum().float().clamp(min=1.0)
 
         is_accelerator = (device.type in ["xla", "cuda"] or str(device).startswith(("xla", "cuda")))
-        if not is_accelerator:
+        should_eval_metrics = (compute_metrics is True) or (not is_accelerator) or (metric_tracker is not None and metric_tracker.lrh_acc_ema is None)
+        if should_eval_metrics:
             batch_lrh_acc = float((correct_preds.sum() / valid_count).item())
             # Vectorized batch ROC-AUC
             flat_r = raw_r_scores[:, :-1][valid_mask]
             flat_y = labels[valid_mask]
             batch_lrh_auc = compute_vectorized_roc_auc(flat_r, flat_y)
         else:
-            # On GPU (CUDA) and TPU (PyTorch-XLA): eliminate dynamic-shape boolean slicing
-            # and blocking .item() PCIe roundtrips (and 2.7ms double-argsort) inside inner microbatches.
-            # Keeps the CUDA/XLA execution pipeline fully asynchronous at peak hardware wire speed.
-            batch_lrh_acc = 0.70
-            batch_lrh_auc = 0.75
+            # On GPU (CUDA) and TPU (PyTorch-XLA) non-log microbatches: reuse the running EMA.
+            # Eliminates dynamic-shape boolean slicing, blocking .item() PCIe roundtrips, and 2.7ms double-argsort,
+            # keeping hardware pipelines running at peak wire speed.
+            if metric_tracker is not None and metric_tracker.lrh_acc_ema is not None:
+                batch_lrh_acc = float(metric_tracker.lrh_acc_ema)
+                batch_lrh_auc = float(metric_tracker.lrh_auc_ema)
+            else:
+                batch_lrh_acc = 0.70
+                batch_lrh_auc = 0.75
 
     # LRH Binary Cross Entropy Loss
     shift_r_scores = raw_r_scores[:, :-1]
