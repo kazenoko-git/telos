@@ -332,9 +332,19 @@ To achieve **3.0M to 4.5M+ tokens/sec on a single H100** (and **30M+ tokens/sec 
 - **Zero Inner-Loop Synchronizations**: Elimination of blocking `.item()` calls, dynamic boolean slicing, and heavy sorting inside inner microbatches. The CUDA command queue remains 100% full, preventing SM starvation.
 - **FlashAttention-2**: `F.scaled_dot_product_attention` executes fused tile computations directly on Hopper/Ampere Tensor Cores.
 
-### 2. VRAM-Aware Microbatch & Effective Batch Sizing
-- **H100 / A100 (80GB / 40GB)**: Automatically sets `batch_size = 64` (for $d_{\text{model}} \le 512$) with `grad_accum = 4`, guaranteeing the **medium Effective Batch of 256 sequences** ($131,072$ tokens/step). This saturates all 132 SMs while staying well within VRAM.
-- **RTX 3090 / 4090 (24GB)**: Sets `batch_size = 32` with `grad_accum = 8` $\implies$ 256 sequences.
+### 2. VRAM-Aware Microbatch & Large Effective Batch Sizing (Up to 384+)
+The 80GB HBM3 on H100 SXM5 provides 3.35 TB/s of memory bandwidth and vast activation capacity. Because FlashAttention-2 computes attention tiles in SRAM without materializing the $O(T^2)$ attention matrix in HBM, activation memory is linear in $T$ and $d_{\text{model}}$:
+
+| Model Budget | Batch Size | Grad Accum | Effective Batch | Tokens / Step | VRAM Footprint (80GB H100) |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| **15M** ($d=384, L=10$) | **384** | **1** | **384 sequences** | **196,608 tokens** | $\approx 15.2 \text{ GB}$ ($19\%$ HBM) |
+| **50M** ($d=512, L=14$) | **192** | **2** | **384 sequences** | **196,608 tokens** | $\approx 28.5 \text{ GB}$ ($35\%$ HBM) |
+| **50M** ($d=512, L=14$) | **384** | **1** | **384 sequences** | **196,608 tokens** | $\approx 29.1 \text{ GB}$ ($36\%$ HBM) |
+| **100M** ($d=768, L=14$) | **128** | **3** | **384 sequences** | **196,608 tokens** | $\approx 29.8 \text{ GB}$ ($37\%$ HBM) |
+| **100M** ($d=768, L=14$) | **384** | **1** | **384 sequences** | **196,608 tokens** | $\approx 42.4 \text{ GB}$ ($53\%$ HBM) |
+
+- **H100 / A100 (80GB)**: Télos automatically defaults to **Effective Batch 384** ($196,608$ tokens/step). For $d_{\text{model}} \le 384$, it dispatches `batch_size = 384` directly with zero gradient accumulation overhead.
+- **Explicit Override**: You can pass `--batch-size 384` or `--effective-batch 384` (or even 512) to saturate memory and keep Hopper Tensor Cores 100% busy.
 
 ### 3. Gradient Checkpointing Disabled for Small/Medium Models
 - On GPUs with $\ge 24\text{GB}$ VRAM training models $\le 100\text{M}$, activations are retained in VRAM. This saves **33% to 50% compute FLOPs** by completely bypassing backward activation recomputation.
@@ -343,11 +353,17 @@ To achieve **3.0M to 4.5M+ tokens/sec on a single H100** (and **30M+ tokens/sec 
 - Pass `--compile` to fuse RMSNorm, SwiGLU (`SiLU(x * W1) * V`), and RoPE into single CUDA kernels via Inductor:
 
 ```bash
-# High-throughput 50M training on single H100 (3M+ tok/s)
-telos train --paradigm corosred --params 50M --tokens 1.0B --hardware cuda --compile
+# High-throughput 15M training on single H100 with batch 384 (196k tok/step)
+telos train --paradigm corosred --params 15M --tokens 750M --batch-size 384 --hardware cuda --compile
+
+# 50M training on single H100 with batch 384
+telos train --paradigm corosred --params 50M --tokens 1.5B --batch-size 384 --hardware cuda --compile
+
+# 100M training on single H100 with effective batch 384 (192 microbatch x 2 accum)
+telos train --paradigm ar --params 100M --tokens 4.0B --batch-size 192 --grad-accum 2 --hardware cuda --compile
 
 # Multi-GPU training across 8x H100 via torchrun (30M+ tok/s)
-torchrun --nproc_per_node=8 -m telos.train.cli --paradigm corosred --params 100M --tokens 2.5B --hardware cuda --devices 8 --compile
+torchrun --nproc_per_node=8 -m telos.train.cli --paradigm corosred --params 100M --tokens 2.5B --effective-batch 768 --hardware cuda --devices 8 --compile
 ```
 
 
