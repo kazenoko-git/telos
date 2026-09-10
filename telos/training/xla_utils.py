@@ -32,12 +32,26 @@ def is_xla_initialized() -> bool:
 def clean_tpu_environment():
     """
     Cleans conflicting Kaggle/GCP environment variables that trigger fatal
-    SliceBuilder port lookup crashes in PyTorch-XLA PJRT multiprocessing.
+    SliceBuilder port lookup crashes in PyTorch-XLA PJRT multiprocessing,
+    and configures LibTPU runtime flags to eliminate host CPU busy-polling.
     """
     if os.environ.get("TPU_PROCESS_ADDRESSES", "").strip().lower() == "local":
         os.environ.pop("TPU_PROCESS_ADDRESSES", None)
     if "CLOUD_TPU_TASK_ID" in os.environ and "TPU_NAME" not in os.environ:
         os.environ.pop("CLOUD_TPU_TASK_ID", None)
+
+    # LibTPU Host CPU Spin-Wait Elimination:
+    # By default, libtpu aggressively busy-polls host CPU cores waiting for TPU execution
+    # registers, pegging CPU at 650-800% across 8 worker processes.
+    # Setting --xla_tpu_cpu_spin_wait_time_usec=0 tells libtpu to yield/sleep instead of spin-waiting.
+    libtpu_args = os.environ.get("LIBTPU_INIT_ARGS", "")
+    if "--xla_tpu_cpu_spin_wait_time_usec" not in libtpu_args:
+        os.environ["LIBTPU_INIT_ARGS"] = (libtpu_args + " --xla_tpu_cpu_spin_wait_time_usec=0").strip()
+
+    # OpenMP / BLAS thread explosion prevention across spawned processes:
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    os.environ.setdefault("MKL_NUM_THREADS", "1")
+    os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
 
 def get_xla_device():
