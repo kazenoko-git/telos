@@ -259,6 +259,7 @@ class UnifiedPyTorchTrainer:
                     gamma_max=float(self.crsr_cfg.get("gamma_max", 0.10)),
                     hold_fraction=float(self.crsr_cfg.get("hold_fraction", 0.20)),
                     decay_power=float(self.crsr_cfg.get("decay_power", 2.5)),
+                    gamma_gate_auc=float(self.crsr_cfg.get("gamma_gate_auc", 0.55)),
                     acc_gate_threshold=float(self.crsr_cfg.get("acc_gate_threshold", 0.65)),
                 )
                 self.metric_tracker = DynamicMetricTracker(
