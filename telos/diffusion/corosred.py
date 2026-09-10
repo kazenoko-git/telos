@@ -332,11 +332,13 @@ if MLX_AVAILABLE:
             sum_ce_m = mx.array(0.0)
             n_infill_tokens = mx.array(1.0)
 
-        # 5. Unified Pooled Normalization
-        # Combines causal and infill token sums divided by weighted evaluated token counts
-        pooled_numerator = alpha * sum_ce_c + beta * sum_ce_m
-        pooled_denominator = alpha * n_causal_tokens + beta * n_infill_tokens
-        pooled_ce = pooled_numerator / pooled_denominator
+        # 5. Unified Per-Token Task Normalization
+        # Normalizes causal and infill losses per evaluated token to strictly enforce nominal schedule ratio alpha:beta
+        # without allowing the ~20x causal-to-infill token count mismatch to starve infilling gradients.
+        task_weight_sum = mx.clip(alpha + beta, 1e-6, 10.0)
+        mean_ce_c = sum_ce_c / n_causal_tokens
+        mean_ce_m = sum_ce_m / n_infill_tokens
+        pooled_ce = (alpha * mean_ce_c + beta * mean_ce_m) / task_weight_sum
         total_loss = pooled_ce + gamma * l_head
 
         return total_loss, pooled_ce
