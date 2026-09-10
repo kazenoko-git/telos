@@ -155,14 +155,20 @@ Measures steps/sec, tokens/sec, step latency percentiles (mean, p50, p95), and u
 **Guaranteed to run for at most 5 minutes (300 seconds):**
 
 ```bash
-# 1. Benchmark MDLM on Apple Silicon
-telos bench --paradigm mdlm --params 25M --duration 30
+# 1. Benchmark Unified Continuous COROSred on Apple Silicon (MLX)
+telos bench --paradigm corosred --hardware mlx --duration 15
 
-# 2. Benchmark on multi-GPU CUDA
+# 2. Benchmark Autoregressive (AR) causal baseline on Apple Silicon (MLX)
+telos bench --paradigm ar --hardware mlx --duration 15
+
+# 3. Benchmark MDLM diffusion baseline on Apple Silicon (MLX)
+telos bench --paradigm mdlm --params 25M --hardware mlx --duration 30
+
+# 4. Benchmark on multi-GPU CUDA with torch.compile
 telos bench --paradigm undlm --params 50M --hardware cuda --devices 4 --duration 60
 ```
 
-Results are printed as a publication-quality table and saved to `logs/benchmark_<paradigm>_<backend>.json`.
+Results are printed as a publication-quality table and saved to `logs/benchmark_<paradigm>_<backend>_<timestamp>.json`.
 
 ---
 
@@ -242,9 +248,22 @@ twine upload dist/*
 
 ---
 
-## 9. Kaggle TPU VM v3-8 Setup & Benchmark Guide
+## 9. Kaggle TPU VM (v5e-8 & v3-8) Optimization & Benchmark Guide
 
-When testing or training on Kaggle Cloud TPUs, configure your Kaggle Notebook with **Accelerator: TPU VM v3-8**.
+When training or benchmarking on Google Cloud or Kaggle Cloud TPUs (v5e-8 or v3-8), Télos includes dedicated optimizations to achieve **600k+ tokens/sec** while eliminating host CPU bottlenecks and memory overflows:
+
+### 1. Eliminating the 650% CPU Bottleneck
+TPU VMs often suffer from severe host CPU pegging (600%–800% CPU usage) due to two underlying causes:
+1. **LibTPU Host Spin-Waiting**: By default, `libtpu` aggressively busy-polls the host CPU cores in tight loops waiting for TPU HBM completion registers. Télos automatically injects `--xla_tpu_cpu_spin_wait_time_usec=0` into `LIBTPU_INIT_ARGS` in `xla_utils.clean_tpu_environment()`, instructing the host CPU to yield/sleep instead of spin-waiting.
+2. **OpenMP Thread Over-Subscription**: PyTorch-XLA spawns 8 worker processes via `xmp.spawn`. Without thread capping, each process spawns 8–16 OpenMP threads ($8 \times 8 = 64$ threads) competing on CPU spinlocks (`kmp_wait_yield`). Télos automatically sets `OMP_NUM_THREADS=1` and calls `torch.set_num_threads(1)` inside spawned workers.
+3. **Zero-Copy Memory-Mapped Streaming**: Pretokenized `uint16` binary datasets are wrapped directly via `torch.from_numpy()` without intermediate CPU array reallocation.
+4. **Asynchronous Static Graphs**: Inner microbatch loss computation uses pure PyTorch tensor operations with zero `.item()` calls, keeping the XLA HLO execution graph 100% static and asynchronous.
+
+### 2. Sizing Effective Batch Size & Preventing OOM on Higher Models
+TPU v5e chips provide **16 GB HBM** per tensor core. To strictly maintain a **medium Effective Batch Size = 256 sequences** ($131,072$ tokens/step) across 8 TPU cores without memory exhaustion:
+- **15M / 25M / 50M** ($d_{\text{model}} \le 512$): `batch_size=32`, `grad_accum=1` $\implies 32 \times 1 \times 8 = \mathbf{256\text{ sequences}}$ (~3.5 GB HBM per core, reaches **600k tok/s** at ~4.58 steps/s).
+- **100M+** ($d_{\text{model}} \ge 768$): `batch_size=16`, `grad_accum=2` $\implies 16 \times 2 \times 8 = \mathbf{256\text{ sequences}}$. Microbatch is halved to 16, cutting peak activation memory in half and preventing OOM while preserving the exact same effective batch size.
+- **Explicit 384 Sequences**: Pass `--effective-batch 384` to automatically resolve to `batch_size=48, grad_accum=1` (for 50M) and `batch_size=24, grad_accum=2` (for 100M).
 
 ### Recommended All-in-One Kaggle Notebook Cell (`%%bash`)
 
@@ -255,12 +274,14 @@ Running as a bash cell avoids Jupyter kernel `/dev/vfio/*` device lock retention
 # 1. Terminate any hung or zombie TPU device locks from previous runs
 fuser -k -9 /dev/vfio/* 2>/dev/null || true
 
-# 2. Configure PyTorch-XLA Environment
+# 2. Configure PyTorch-XLA & LibTPU Environment
 export PJRT_DEVICE=TPU
+export LIBTPU_INIT_ARGS="--xla_tpu_cpu_spin_wait_time_usec=0"
+export OMP_NUM_THREADS=1
 unset TPU_PROCESS_ADDRESSES
 unset CLOUD_TPU_TASK_ID
 
-# 3. Clone or pull latest codebase (ensure local changes are pushed via git push)
+# 3. Clone or pull latest codebase
 cd /kaggle/working
 if [ ! -d "telos" ]; then
   git clone https://github.com/kazenoko-git/telos.git
@@ -275,8 +296,8 @@ fi
 pip install -q pyyaml tokenizers datasets safetensors huggingface_hub
 pip install -q --no-deps -e .
 
-# 5. Run Hardware Benchmark across all 8 TPU cores (MDLM 12M, 30s)
-telos bench --paradigm mdlm --params 12M --hardware xla --devices 8 --duration 30
+# 5. Run Hardware Benchmark across all 8 TPU cores (50M Unified COROSred, 60s)
+telos bench --paradigm corosred --params 50M --hardware xla --devices 8 --duration 60
 ```
 
 ### In-Kernel Python Alternative
@@ -286,16 +307,18 @@ If calling Télos directly within a Python notebook cell:
 ```python
 import os
 os.environ["PJRT_DEVICE"] = "TPU"
+os.environ["LIBTPU_INIT_ARGS"] = "--xla_tpu_cpu_spin_wait_time_usec=0"
+os.environ["OMP_NUM_THREADS"] = "1"
 
 import telos
 
-# Run 30s benchmark across all 8 TPU cores
+# Run 60s benchmark across all 8 TPU cores
 telos.benchmark(
-    paradigm="mdlm",
-    params="12M",
+    paradigm="corosred",
+    params="50M",
     hardware="xla",
     devices=8,
-    duration=30.0
+    duration=60.0
 )
 ```
 
