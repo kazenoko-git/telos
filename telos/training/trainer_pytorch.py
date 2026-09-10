@@ -650,8 +650,8 @@ class UnifiedPyTorchTrainer:
                 "or pass '--synthetic' to train on synthetic random tokens."
             )
 
-        # Initialize DualMetricMonitor on held-out validation data if running unified COROSred
-        if getattr(self, "is_unified", False):
+        # Initialize DualMetricMonitor on held-out validation data if running unified COROSred (master rank only)
+        if getattr(self, "is_unified", False) and self.is_master:
             val_path = d_cfg.get("val_path", d_cfg.get("val_dataset_path", None))
             if val_path and Path(val_path).exists():
                 try:
@@ -803,7 +803,7 @@ class UnifiedPyTorchTrainer:
                 if self.grad_clip > 0:
                     target_params = self.master_params if self.use_master_weights else self.model.parameters()
                     nn.utils.clip_grad_norm_(target_params, self.grad_clip)
-                self.optimizer.step()
+                xm.optimizer_step(self.optimizer)
 
                 # Synchronize updated float32 master weights back to bfloat16 model parameters
                 if self.use_master_weights:
