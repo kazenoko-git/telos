@@ -212,8 +212,12 @@ class UnifiedPyTorchTrainer:
             if (cuda_gb > 0 and cuda_gb <= 16.0) or (self.m_cfg.get("d_model", 512) >= 1024):
                 cuda_needs_chkpt = True
 
+        # Only enable gradient checkpointing for large models (>=100M, d_model >= 768)
+        # or when explicitly requested. On 15M/25M/50M, HBM footprint is <3.5GB (out of 16GB),
+        # so gradient checkpointing unnecessarily burns ~35% throughput recomputing activations.
+        tpu_needs_chkpt = self.is_tpu and (self.m_cfg.get("d_model", 512) >= 768 or self.t_cfg.get("batch_size", 32) > 64)
         auto_chkpt = (
-            self.is_tpu
+            tpu_needs_chkpt
             or cuda_needs_chkpt
             or self.t_cfg.get("gradient_checkpointing", False)
             or self.m_cfg.get("use_grad_checkpoint", False)
