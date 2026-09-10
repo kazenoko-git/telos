@@ -79,19 +79,21 @@ telos train --paradigm mdlm --params 25M --tokens 300M --effective-batch 32
 # 2. Train a 50M UNDLM model on 4x NVIDIA GPUs (CUDA) with torch.compile
 telos train --paradigm undlm --params 50M --tokens 500M --hardware cuda --devices 4 --compile
 
-# 3. Train COROSred Phase A (Causal AR + Learned Reliability Head)
-telos train --paradigm corosred --phase A --params 50M --tokens 1.0B
+# 3. Train Unified COROSred Continuous Multi-Objective Loop from Scratch (Recommended)
+# One continuous loop combining Causal AR, Infilling, and LRH routing from init with zero checkpoint dependency:
+telos train --paradigm corosred --params 50M --tokens 1.0B
 
-# 4. Chain into COROSred Phase B (15% Uniform Random Masking)
-telos train --paradigm corosred --phase B --params 50M --tokens 1.0B --init-checkpoint checkpoints/corosred/50m/phase_a/checkpoint_final.pt
+# 4. Train Unified COROSred with Custom Schedule or Dynamic Loss Rebalancing
+telos train --paradigm corosred --params 100M --tokens 2.5B --alpha-min 0.20 --hold-frac 0.20 --adaptive-rebalance
 
-# 5. Chain into COROSred Phase C (Confidence-Routed Self-Conditioned Re-Diffusion)
-telos train --paradigm corosred --phase C --params 50M --tokens 1.0B --init-checkpoint checkpoints/corosred/50m/phase_a/checkpoint_final.pt
+# 5. Legacy Phase-Based COROSred (Phase A -> B -> C) if explicitly desired
+telos train --paradigm corosred --phase A --params 50M --tokens 1.0B --legacy-phases
+telos train --paradigm corosred --phase C --params 50M --tokens 1.0B --legacy-phases --init-checkpoint checkpoints/corosred/phase_a/checkpoint_final.pt
 
-# 4. Train AR Baseline on Cloud TPU Pod (PyTorch-XLA)
+# 6. Train AR Baseline on Cloud TPU Pod (PyTorch-XLA)
 telos train --paradigm ar --params 100M --tokens 2.5B --hardware xla --devices 8
 
-# 5. Config File Bypass (for legacy experiments or reproducibility)
+# 7. Config File Bypass (for legacy experiments or reproducibility)
 telos train --config configs/unified/25m/telos_25m_r10.yaml
 ```
 
