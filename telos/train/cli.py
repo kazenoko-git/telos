@@ -6,12 +6,29 @@ from pathlib import Path
 # Allocator hygiene: Set expandable_segments BEFORE torch is imported
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
+# Thread hygiene: Restrict thread pools BEFORE torch / numpy load to stop multi-core thread storms
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
+os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
+
 from telos.configs import build_config
 
 
 def _mp_train_worker(index, kwargs):
     """Worker entrypoint executed on each spawned TPU core."""
     import torch
+    # Crucial for multi-core TPU VM: Restrict intra-op thread count to 1 per worker
+    # to stop 8 spawned processes from generating 64+ competing OpenMP spin-lock threads
+    # that pin CPU utilization at 650-800%.
+    torch.set_num_threads(1)
+    if hasattr(torch, "set_num_interop_threads"):
+        try:
+            torch.set_num_interop_threads(1)
+        except Exception:
+            pass
+
     try:
         import torch_xla
         if not hasattr(torch, "xla"):
