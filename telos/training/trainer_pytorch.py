@@ -904,6 +904,11 @@ class UnifiedPyTorchTrainer:
             if self.is_tpu and step % 50 == 0:
                 import gc
                 gc.collect()
+                try:
+                    import ctypes
+                    ctypes.CDLL("libc.so.6").malloc_trim(0)
+                except Exception:
+                    pass
 
             step_time_ms = (time.perf_counter() - t_step_start) * 1000.0
 
@@ -995,6 +1000,13 @@ class UnifiedPyTorchTrainer:
                 if self.is_tpu:
                     import torch_xla.core.xla_model as xm
                     xm.rendezvous(f"checkpoint_done_{step}")
+                    import gc
+                    gc.collect()
+                    try:
+                        import ctypes
+                        ctypes.CDLL("libc.so.6").malloc_trim(0)
+                    except Exception:
+                        pass
 
         total_time = time.time() - start_time
         if benchmark:
