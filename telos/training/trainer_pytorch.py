@@ -874,10 +874,12 @@ class UnifiedPyTorchTrainer:
                         # Cheap scalar all-reduce of 0D tensors across all replicas
                         if self.is_tpu:
                             import torch_xla.core.xla_model as xm
-                            world_size = xm.xrt_world_size()
+                            # Use cached world_size or xworld_size() to avoid non-existent xrt_world_size attribute
+                            world_size = xm.xworld_size() if hasattr(xm, "xworld_size") else getattr(self, "world_size", 1)
                             if world_size > 1:
+                                reduce_op = getattr(xm, "REDUCE_SUM", "sum")
                                 tensors_to_reduce = [auc_t] + ([acc_t] if acc_t is not None else [])
-                                reduced = xm.all_reduce("sum", tensors_to_reduce, scale=1.0 / float(world_size))
+                                reduced = xm.all_reduce(reduce_op, tensors_to_reduce, scale=1.0 / float(world_size))
                                 auc_t = reduced[0]
                                 if acc_t is not None:
                                     acc_t = reduced[1]
