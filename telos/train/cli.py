@@ -6,22 +6,30 @@ from pathlib import Path
 # Allocator hygiene: Set expandable_segments BEFORE torch is imported
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
+# Glibc memory allocator hygiene: Restrict glibc memory arenas to prevent multi-threaded RSS bloat
+os.environ.setdefault("MALLOC_ARENA_MAX", "2")
+
 # Thread hygiene: Restrict thread pools BEFORE torch / numpy load to stop multi-core thread storms
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
 os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
+os.environ.setdefault("OMP_WAIT_POLICY", "PASSIVE")
 
 from telos.configs import build_config
 
 
 def _mp_train_worker(index, kwargs):
     """Worker entrypoint executed on each spawned TPU core."""
+    import os
+    os.environ["MALLOC_ARENA_MAX"] = "2"
+    os.environ["OMP_NUM_THREADS"] = "1"
+    os.environ["OMP_WAIT_POLICY"] = "PASSIVE"
     import torch
     # Crucial for multi-core TPU VM: Restrict intra-op thread count to 1 per worker
-    # to stop 8 spawned processes from generating 64+ competing OpenMP spin-lock threads
-    # that pin CPU utilization at 650-800%.
+    # to stop 8 spawned processes from generating competing OpenMP spin-lock threads
+    # that pin CPU utilization at 100% per core.
     torch.set_num_threads(1)
     if hasattr(torch, "set_num_interop_threads"):
         try:
@@ -311,6 +319,7 @@ def train(
             if cand.exists():
                 init_ckpt_path = str(cand)
 
+        ckpt_state = None
         if init_ckpt_path:
             ckpt_file = Path(init_ckpt_path)
             if not ckpt_file.exists():
@@ -327,6 +336,12 @@ def train(
             print(f"  [Init] Successfully loaded weights from {init_ckpt_path}.")
 
         trainer = UnifiedPyTorchTrainer(paradigm=paradigm, model=model, cfg=cfg, device_type=device)
+        if ckpt_state is not None and resume_step > 0 and "optimizer_state_dict" in ckpt_state:
+            try:
+                trainer.optimizer.load_state_dict(ckpt_state["optimizer_state_dict"])
+                print(f"  [Resume] Successfully restored AdamW optimizer moment buffers from step {resume_step}.")
+            except Exception as e:
+                print(f"  [Resume Notice] Could not restore optimizer state ({e}). Proceeding with fresh optimizer states.")
 
     # Execute training or benchmark
     bench_dur = min(float(benchmark_duration), 300.0)
@@ -375,7 +390,7 @@ def main():
     parser.add_argument("--weight-decay", type=float, default=None, help="Weight decay regularization override")
     parser.add_argument("--checkpoint-dir", type=str, default=None, help="Directory to save model checkpoints")
     parser.add_argument("--save-every", type=int, default=None, help="Save checkpoint cadence (steps)")
-    parser.add_argument("--resume", type=int, default=0, help="Step to resume training from")
+    parser.add_argument("--resume", "--resume-step", dest="resume", type=int, default=0, help="Step to resume training from")
     parser.add_argument("--eval-policy", type=str, default="auto", choices=["auto", "eager", "step", "lazy"], help="Memory evaluation policy for Apple Silicon MLX")
 
     # Data & Config Bypass
