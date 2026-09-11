@@ -155,8 +155,8 @@ class COROSredSchedule:
             # Backward compatibility fallback if only raw accuracy telemetry is available
             head_is_competent = (lrh_acc_ema >= self.acc_gate_threshold)
         elif not head_is_competent and lrh_auc_ema is None and lrh_acc_ema is None:
-            # Fallback when no telemetry is provided: ramp in after initial 10% steps
-            head_is_competent = (t >= 0.10)
+            # Fallback when no telemetry is provided: Keep gamma strictly at 0.0 until empirical signal arrives
+            head_is_competent = False
 
         if head_is_competent:
             # Smooth linear ramp-in over 5% of training steps once competence threshold is met
@@ -173,8 +173,8 @@ class COROSredSchedule:
             auc_range = max(1e-6, self.auc_gate_target - self.auc_gate_min)
             mask_blend = max(0.0, min(1.0, (lrh_auc_ema - self.auc_gate_min) / auc_range))
         else:
-            # Fallback: follow decay phase progression
-            mask_blend = max(0.0, min(1.0, (t - self.hold_fraction) / max(1e-6, 1.0 - self.hold_fraction)))
+            # When telemetry is unestablished, remain on pure uniform random masking (zero overhead, static graph)
+            mask_blend = 0.0
 
         return {
             "alpha": float(alpha),
