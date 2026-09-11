@@ -48,7 +48,9 @@ def clean_tpu_environment():
         else:
             os.environ.pop("LIBTPU_INIT_ARGS", None)
 
-    # OpenMP / BLAS thread explosion prevention across spawned processes:
+    # OpenMP / BLAS thread explosion and glibc arena bloat prevention across spawned processes:
+    os.environ.setdefault("MALLOC_ARENA_MAX", "2")
+    os.environ.setdefault("OMP_WAIT_POLICY", "PASSIVE")
     os.environ.setdefault("OMP_NUM_THREADS", "1")
     os.environ.setdefault("MKL_NUM_THREADS", "1")
     os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
