@@ -394,49 +394,30 @@ class UnifiedPyTorchTrainer:
         if self.is_tpu:
             import torch_xla.core.xla_model as xm
             xm.mark_step()
+            str_path = str(path)
+
+            # Direct host CPU detachment on master rank:
+            # Avoids xm.save collective synchronization hangs across PJRT replicas and eliminates
+            # pulling ~400MB of unused AdamW momentum buffers across the TPU device bus.
+            raw_model = getattr(self.model, "module", self.model)
+            cpu_model = {
+                k.removeprefix("module."): v.detach().cpu().clone()
+                for k, v in raw_model.state_dict().items()
+            }
             checkpoint = {
                 "global_step": self.global_step,
-                "model_state_dict": self.model.state_dict(),
-                "optimizer_state_dict": self.optimizer.state_dict(),
+                "model_state_dict": cpu_model,
                 "scheduler_state_dict": self.scheduler.state_dict(),
                 "config": self.cfg,
                 "lrh_acc_ema": getattr(self, "metric_tracker", None).lrh_acc_ema if getattr(self, "metric_tracker", None) is not None else None,
                 "lrh_auc_ema": getattr(self, "metric_tracker", None).lrh_auc_ema if getattr(self, "metric_tracker", None) is not None else None,
             }
-            str_path = str(path)
-            # xm.save serializes XLA tensors to CPU host memory safely.
-            # master_only=False is required because self.is_master already guards this method,
-            # and PyTorch-XLA PJRT can evaluate is_master_ordinal inconsistently across processes.
-            try:
-                xm.save(checkpoint, str_path, master_only=False)
-            except Exception as e:
-                print(f"  [Checkpoint Warning] xm.save error: {e}. Falling back to CPU serialization.")
-
-            # Verification and robust fallback: ensure file was actually written to disk and is non-empty
-            if not path.exists() or path.stat().st_size == 0:
-                print(f"  [Checkpoint] xm.save produced no file at {str_path}. Converting state tensors to CPU explicitly...")
-                cpu_model = {k: v.detach().cpu().clone() for k, v in self.model.state_dict().items()}
-                raw_opt = self.optimizer.state_dict()
-                cpu_opt = {
-                    "state": {
-                        k: {sk: sv.detach().cpu().clone() if isinstance(sv, torch.Tensor) else sv for sk, sv in v.items()}
-                        for k, v in raw_opt.get("state", {}).items()
-                    },
-                    "param_groups": raw_opt.get("param_groups", [])
-                }
-                cpu_checkpoint = {
-                    "global_step": self.global_step,
-                    "model_state_dict": cpu_model,
-                    "optimizer_state_dict": cpu_opt,
-                    "scheduler_state_dict": self.scheduler.state_dict(),
-                    "config": self.cfg,
-                }
-                torch.save(cpu_checkpoint, str_path)
+            torch.save(checkpoint, str_path)
 
             if not path.exists() or path.stat().st_size == 0:
                 raise RuntimeError(f"FATAL: Checkpoint file could not be created at {str_path}!")
 
-            print(f"  [Checkpoint Verified] Successfully saved {str_path} ({path.stat().st_size / 1e6:.1f} MB)")
+            print(f"  [Checkpoint Verified] Successfully saved {str_path} ({path.stat().st_size / 1e6:.1f} MB)", flush=True)
             return
 
         # Clone state dicts to detached CPU tensors to prevent torn-state corruption from concurrent in-place mutations
@@ -680,7 +661,9 @@ class UnifiedPyTorchTrainer:
             )
 
         # Initialize DualMetricMonitor on held-out validation data if running unified COROSred (master rank only)
-        if getattr(self, "is_unified", False) and self.is_master:
+        # On TPU multi-core, in-loop probe evaluation causes cross-replica graph desynchronization and barrier deadlocks,
+        # so probe evaluation is deferred to standalone post-checkpoint evaluation suites.
+        if getattr(self, "is_unified", False) and self.is_master and not self.is_tpu:
             val_path = d_cfg.get("val_path", d_cfg.get("val_dataset_path", None))
             if val_path and Path(val_path).exists():
                 try:
@@ -976,16 +959,19 @@ class UnifiedPyTorchTrainer:
                 if self.is_master:
                     print(f"\n  [Checkpoint Step {step:>6d}] Saving checkpoint weights to {ckpt_file}...", flush=True)
 
-                if getattr(self, "is_unified", False) and getattr(self, "dual_monitor", None) is not None and self.is_master:
+                # On multi-core TPU, in-loop evaluation on a single rank causes XLA graph desynchronization
+                # and barrier deadlocks against non-master ranks. Only run on non-TPU / single-device configurations.
+                if getattr(self, "is_unified", False) and getattr(self, "dual_monitor", None) is not None and self.is_master and not self.is_tpu:
                     probe_res = self.dual_monitor.evaluate(self.model, current_step=step)
                     print(
                         f"  [Dual Probe Step {step:>6d}] Causal Top-1: {probe_res['causal_top1']*100:.1f}% | "
                         f"C-CE: {probe_res['causal_ce']:.3f} | Infill Top-1: {probe_res['infill_top1']*100:.1f}% | "
-                        f"I-CE: {probe_res['infill_ce']:.3f} | LRH AUC: {probe_res['lrh_auc']:.3f}"
+                        f"I-CE: {probe_res['infill_ce']:.3f} | LRH AUC: {probe_res['lrh_auc']:.3f}",
+                        flush=True
                     )
                     div_warn = self.dual_monitor.check_divergence()
                     if div_warn:
-                        print(f"  {div_warn}")
+                        print(f"  {div_warn}", flush=True)
                     if getattr(self, "metric_tracker", None) is not None:
                         self.metric_tracker.update_lrh(probe_res["lrh_acc"], probe_res["lrh_auc"])
 
