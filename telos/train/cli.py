@@ -336,12 +336,27 @@ def train(
             print(f"  [Init] Successfully loaded weights from {init_ckpt_path}.")
 
         trainer = UnifiedPyTorchTrainer(paradigm=paradigm, model=model, cfg=cfg, device_type=device)
-        if ckpt_state is not None and resume_step > 0 and "optimizer_state_dict" in ckpt_state:
-            try:
-                trainer.optimizer.load_state_dict(ckpt_state["optimizer_state_dict"])
-                print(f"  [Resume] Successfully restored AdamW optimizer moment buffers from step {resume_step}.")
-            except Exception as e:
-                print(f"  [Resume Notice] Could not restore optimizer state ({e}). Proceeding with fresh optimizer states.")
+        if ckpt_state is not None and resume_step > 0:
+            # On TPU / XLA, restoring CPU-serialized optimizer state dictionaries strands tensors on CPU
+            # while model parameters reside on TPU device, forcing catastrophic 10s/step CPU-TPU synchronization fallbacks.
+            # Only restore optimizer state dict on CUDA/CPU where tensor devices are unified.
+            if device != "xla" and not getattr(trainer, "is_tpu", False) and "optimizer_state_dict" in ckpt_state:
+                try:
+                    trainer.optimizer.load_state_dict(ckpt_state["optimizer_state_dict"])
+                    print(f"  [Resume] Successfully restored AdamW optimizer moment buffers from step {resume_step}.")
+                except Exception as e:
+                    print(f"  [Resume Notice] Could not restore optimizer state ({e}). Proceeding with fresh optimizer states.")
+            elif getattr(trainer, "is_tpu", False):
+                print("  [Resume TPU] Optimizer moments initialized natively on TPU device (avoiding cross-device bus stalls).")
+
+            # Restore metric tracker EMAs if available
+            tracker = getattr(trainer, "metric_tracker", None)
+            if tracker is not None:
+                acc_saved = ckpt_state.get("lrh_acc_ema", None)
+                auc_saved = ckpt_state.get("lrh_auc_ema", None)
+                if acc_saved is not None and auc_saved is not None:
+                    tracker.update_lrh(acc=float(acc_saved), auc=float(auc_saved))
+                    print(f"  [Resume] Restored LRH telemetry: Acc={acc_saved:.2f}, AUC={auc_saved:.2f}.")
 
     # Execute training or benchmark
     bench_dur = min(float(benchmark_duration), 300.0)
