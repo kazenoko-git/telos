@@ -167,13 +167,13 @@ class COROSredSchedule:
             gamma = 0.0
 
         # 3. Compute mask_blend ratio (Uniform random vs LRH confidence-routed)
-        # Driven by ROC-AUC ranking fidelity
-        if lrh_auc_ema is not None:
+        # Driven by ROC-AUC ranking fidelity (only if confidence routing / gamma_max is enabled)
+        if lrh_auc_ema is not None and self.gamma_max > 0.0:
             # Blend ratio = clamp((AUC - 0.50) / (0.75 - 0.50), 0.0, 1.0)
             auc_range = max(1e-6, self.auc_gate_target - self.auc_gate_min)
             mask_blend = max(0.0, min(1.0, (lrh_auc_ema - self.auc_gate_min) / auc_range))
         else:
-            # When telemetry is unestablished, remain on pure uniform random masking (zero overhead, static graph)
+            # When telemetry is unestablished or LRH routing is disabled, remain on pure uniform random masking
             mask_blend = 0.0
 
         return {
