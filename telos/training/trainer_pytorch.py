@@ -400,6 +400,8 @@ class UnifiedPyTorchTrainer:
                 "optimizer_state_dict": self.optimizer.state_dict(),
                 "scheduler_state_dict": self.scheduler.state_dict(),
                 "config": self.cfg,
+                "lrh_acc_ema": getattr(self, "metric_tracker", None).lrh_acc_ema if getattr(self, "metric_tracker", None) is not None else None,
+                "lrh_auc_ema": getattr(self, "metric_tracker", None).lrh_auc_ema if getattr(self, "metric_tracker", None) is not None else None,
             }
             str_path = str(path)
             # xm.save serializes XLA tensors to CPU host memory safely.
