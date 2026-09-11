@@ -61,5 +61,8 @@ def get_global_targets_contiguous_pytorch(dataset_matrix, idx_ptr: int, total_ba
         if not tensor.is_pinned():
             tensor = tensor.pin_memory()
             
-    return tensor.to(device, dtype=torch.long, non_blocking=non_blocking), next_ptr
+    res = tensor.to(device, dtype=torch.long, non_blocking=non_blocking)
+    # Explicitly unbind local host memory references to avoid retention in glibc arenas
+    del tensor, batch
+    return res, next_ptr
 
