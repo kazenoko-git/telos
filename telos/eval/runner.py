@@ -91,8 +91,8 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
         import torch
         state = torch.load(str(cp), map_location="cpu")
         sd = state.get("model_state_dict", state)
-        # Strip DataParallel 'module.' prefix if present
-        sd = {k.removeprefix("module."): v for k, v in sd.items()}
+        # Strip DataParallel 'module.' and torch.compile '_orig_mod.' prefixes if present
+        sd = {k.removeprefix("module.").removeprefix("_orig_mod."): v for k, v in sd.items()}
 
         # Auto-detect reliability head from state_dict keys if not explicitly defined in config
         if not use_reliability_head and any("reliability_head" in k for k in sd.keys()):
@@ -131,12 +131,21 @@ def evaluate_probes(model, tokenizer, backend: str, mask_token_id: int = 1) -> d
         if cat not in category_stats:
             category_stats[cat] = {"count": 0, "top1": 0, "top5": 0, "ce": [], "rank": []}
 
-        # Tokenize prompt and target
+        # Context-aware tokenization to handle ByteLevel BPE leading-space byte ('Ġ')
+        # If the target token starts with 'Ġ', we ensure proper prefix whitespace before encoding
         p_ids = tokenizer.encode(prompt).ids
-        target_ids = tokenizer.encode(target_str).ids
-        if not target_ids:
-            target_ids = [0]
-        target_tok = target_ids[0]
+        target_bpe = probe.get("target_bpe", "")
+        sep = " " if ("Ġ" in target_bpe and not prompt.endswith(" ")) else ""
+        full_text = prompt + sep + target_str
+        full_ids = tokenizer.encode(full_text).ids
+
+        # Extract the target token ID in-context directly following the prompt tokens
+        if len(full_ids) > len(p_ids):
+            target_tok = full_ids[len(p_ids)]
+        else:
+            # Fallback to isolated encoding if full text yields no trailing tokens
+            target_ids = tokenizer.encode(target_str).ids
+            target_tok = target_ids[0] if target_ids else 0
 
         # Prepare input with [MASK] at prediction position (incorporating suffix for true infilling)
         suffix = probe.get("suffix", "")
@@ -288,6 +297,12 @@ def evaluate(
 ) -> dict:
     """Master programmatic entrypoint for Télos evaluation."""
     model, backend, vocab_size = load_model_from_checkpoint(checkpoint)
+    if tokenizer_path is None:
+        # Match tokenizer to model vocabulary size (8192 for 50M/100M, 4096 for legacy/15M)
+        if vocab_size == 8192 and Path("configs/tokenizer_mac.json").exists():
+            tokenizer_path = "configs/tokenizer_mac.json"
+        elif Path("configs/shared/tokenizer_0.json").exists():
+            tokenizer_path = "configs/shared/tokenizer_0.json"
     tok = load_tokenizer(str(tokenizer_path) if tokenizer_path else None)
 
     if mode == "probes":
