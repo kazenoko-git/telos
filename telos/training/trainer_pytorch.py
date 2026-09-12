@@ -826,7 +826,10 @@ class UnifiedPyTorchTrainer:
                 if self.grad_clip > 0:
                     target_params = self.master_params if self.use_master_weights else self.model.parameters()
                     nn.utils.clip_grad_norm_(target_params, self.grad_clip)
-                xm.optimizer_step(self.optimizer)
+                # Apply optimizer parameter updates directly on XLA tensors.
+                # xm.reduce_gradients() above already averaged gradients across all TPU replicas.
+                # Calling xm.optimizer_step() here would execute an unintended 2nd all-reduce collective barrier.
+                self.optimizer.step()
 
                 # Synchronize updated float32 master weights back to bfloat16 model parameters
                 if self.use_master_weights:
