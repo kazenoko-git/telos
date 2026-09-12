@@ -62,7 +62,7 @@ def upload_telos_to_hub(repo_id: str, token: str | None = None, include_checkpoi
                         path_in_repo=f"checkpoints/{p}",
                         repo_id=repo_id,
                         repo_type="model",
-                        allow_patterns=["*.safetensors", "*.json"]
+                        allow_patterns=["*.safetensors", "*.pt", "*.json"]
                     )
                 
     # 4. Upload Model Card / README
