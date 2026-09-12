@@ -26,8 +26,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from mdiff.model.transformer import TelosTransformer, TelosConfig
-from mdiff.data.tokenizer import load_tokenizer
+from telos.models import TelosTransformer, TelosConfig
+from telos.data.tokenizer import load_tokenizer
 
 
 def compute_roc_auc(scores: np.ndarray, labels: np.ndarray) -> float:
