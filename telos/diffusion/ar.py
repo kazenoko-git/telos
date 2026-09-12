@@ -79,16 +79,9 @@ if TORCH_AVAILABLE:
             ce_loss_per_token = F.cross_entropy(shift_logits, shift_targets, reduction="none").view(batch_size, seq_len - 1)
 
 
-        if special_token_lut is not None:
-            shift_target_2d = batch_seqs[:, 1:]
-            content_mask = ~special_token_lut[shift_target_2d]
-            ce_loss_per_token = ce_loss_per_token * content_mask.float()
-            content_count = content_mask.sum(dim=1).float().clamp(min=1.0)
-            per_example_ce = ce_loss_per_token.sum(dim=1) / content_count
-        else:
-            per_example_ce = ce_loss_per_token.mean(dim=1)
-
-        loss = per_example_ce.mean()
+        # Standard flat cross-entropy across all tokens matching corosred_unified_step_pytorch
+        # All sequence positions (including delimiters/EOS) contribute equally to next-token likelihood.
+        loss = ce_loss_per_token.mean()
 
         metrics = {
             "loss": loss,
