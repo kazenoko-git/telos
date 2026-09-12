@@ -61,10 +61,12 @@ class TelosTransformer(nn.Module):
         else:
             self.reliability_head = None
 
+        self.apply(self._init_weights)
+        
+        # Enforce weight tying AFTER parameter initialization so output_projection.weight
+        # strictly shares the exact same memory pointer and tensor as tok_embeddings.weight.
         if self.config.tied_embeddings:
             self.output_projection.weight = self.tok_embeddings.weight
-
-        self.apply(self._init_weights)
 
     def _init_weights(self, module: nn.Module):
         if isinstance(module, nn.Linear):
