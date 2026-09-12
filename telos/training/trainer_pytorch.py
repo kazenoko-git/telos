@@ -827,7 +827,9 @@ class UnifiedPyTorchTrainer:
                 if self.grad_clip > 0:
                     target_params = self.master_params if self.use_master_weights else self.model.parameters()
                     nn.utils.clip_grad_norm_(target_params, self.grad_clip)
-                xm.optimizer_step(self.optimizer)
+                # Call self.optimizer.step() directly: xm.optimizer_step() would redundantly invoke
+                # reduce_gradients() a second time, multiplying gradients by 1/(world_size^2) (1/64x on 8 cores).
+                self.optimizer.step()
 
                 # Synchronize updated float32 master weights back to bfloat16 model parameters
                 if self.use_master_weights:
@@ -1006,10 +1008,12 @@ class UnifiedPyTorchTrainer:
         if self._save_thread is not None and self._save_thread.is_alive():
             self._save_thread.join()
 
+        if self.is_tpu:
+            import torch_xla.core.xla_model as xm
+            xm.mark_step()
+            xm.rendezvous("checkpoint_final_start")
+
         if self.is_master:
-            if self.is_tpu:
-                import torch_xla.core.xla_model as xm
-                xm.mark_step()
             self.save_checkpoint(ckpt_dir / "checkpoint_final.pt", sync=True)
             # Write standalone config.json for eval loader and downstream tools
             with open(ckpt_dir / "config.json", "w") as f:
@@ -1018,3 +1022,7 @@ class UnifiedPyTorchTrainer:
             print(f"  {self.paradigm.upper()} PyTorch Training Complete! Total time: {total_time/60.0:.2f} minutes.")
             print(f"  Saved standalone model artifact to {ckpt_dir}/")
             print("=" * 70)
+
+        if self.is_tpu:
+            import torch_xla.core.xla_model as xm
+            xm.rendezvous("checkpoint_final_done")
