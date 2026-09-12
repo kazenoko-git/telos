@@ -418,7 +418,7 @@ def train_paradigm(paradigm: str, config_path: str, dataset: np.ndarray, src_tie
             # Reduce gradients across Trillium TPU cores and enforce max grad norm
             xm.reduce_gradients(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            xm.optimizer_step(optimizer)
+            optimizer.step()
             xm.mark_step()
         else:
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
