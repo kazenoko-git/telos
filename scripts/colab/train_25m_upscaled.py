@@ -512,7 +512,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
             xm.reduce_gradients(optimizer)
             # Clip gradient norm to 1.0 to prevent training divergence & NaN weight explosion
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            xm.optimizer_step(optimizer)
+            optimizer.step()
             xm.mark_step()
         elif scaler.is_enabled():
             scaler.unscale_(optimizer)
