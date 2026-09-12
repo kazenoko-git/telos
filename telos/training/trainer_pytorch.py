@@ -212,10 +212,11 @@ class UnifiedPyTorchTrainer:
             if (cuda_gb > 0 and cuda_gb <= 16.0) or (self.m_cfg.get("d_model", 512) >= 1024):
                 cuda_needs_chkpt = True
 
-        # Only enable gradient checkpointing for large models (>=100M, d_model >= 768)
-        # or when explicitly requested. On 15M/25M/50M, HBM footprint is <3.5GB (out of 16GB),
-        # so gradient checkpointing unnecessarily burns ~35% throughput recomputing activations.
-        tpu_needs_chkpt = self.is_tpu and (self.m_cfg.get("d_model", 512) >= 768 or self.t_cfg.get("batch_size", 32) > 64)
+        # On TPU (v3/v4/v5e with 16GB-32GB HBM per core), models up to ~300M (d_model < 1536)
+        # easily fit in memory (<5GB HBM). Gradient checkpointing recomputation on PyTorch-XLA
+        # triggers subgraph rematerialization overhead and numerical instability during backward passes.
+        # Only auto-enable for very large architectures (d_model >= 1536) or huge microbatches (>128).
+        tpu_needs_chkpt = self.is_tpu and (self.m_cfg.get("d_model", 512) >= 1536 or self.t_cfg.get("batch_size", 32) > 128)
         auto_chkpt = (
             tpu_needs_chkpt
             or cuda_needs_chkpt
@@ -826,10 +827,7 @@ class UnifiedPyTorchTrainer:
                 if self.grad_clip > 0:
                     target_params = self.master_params if self.use_master_weights else self.model.parameters()
                     nn.utils.clip_grad_norm_(target_params, self.grad_clip)
-                # Apply optimizer parameter updates directly on XLA tensors.
-                # xm.reduce_gradients() above already averaged gradients across all TPU replicas.
-                # Calling xm.optimizer_step() here would execute an unintended 2nd all-reduce collective barrier.
-                self.optimizer.step()
+                xm.optimizer_step(self.optimizer)
 
                 # Synchronize updated float32 master weights back to bfloat16 model parameters
                 if self.use_master_weights:
