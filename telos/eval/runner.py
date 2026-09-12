@@ -118,8 +118,8 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
         raise ValueError(f"Unrecognized checkpoint format: {cp.name}")
 
 
-def evaluate_probes(model, tokenizer, backend: str, mask_token_id: int = 1) -> dict:
-    """Executes the 100 contextual probes benchmark and computes publication metrics."""
+def _evaluate_single_probe_type(model, tokenizer, backend: str, probe_type: str = "infill", mask_token_id: int = 1) -> dict:
+    """Executes a single pass (infill or causal) of the 100 contextual probes."""
     results = []
     category_stats = {}
 
@@ -147,26 +147,34 @@ def evaluate_probes(model, tokenizer, backend: str, mask_token_id: int = 1) -> d
             target_ids = tokenizer.encode(target_str).ids
             target_tok = target_ids[0] if target_ids else 0
 
-        # Prepare input with [MASK] at prediction position (incorporating suffix for true infilling)
-        suffix = probe.get("suffix", "")
-        s_ids = tokenizer.encode(suffix).ids if suffix else []
-        input_ids = list(p_ids) + [mask_token_id] + s_ids
-        mask_idx = len(p_ids)
+        if probe_type == "infill":
+            # Bidirectional Infilling: Model sees prefix + [MASK] + suffix
+            suffix = probe.get("suffix", "")
+            s_ids = tokenizer.encode(suffix).ids if suffix else []
+            input_ids = list(p_ids) + [mask_token_id] + s_ids
+            eval_idx = len(p_ids)
+            mask_override = False
+        else:
+            # Causal LM Continuation: Model sees prefix prompt only with causal masking
+            input_ids = list(p_ids)
+            eval_idx = len(p_ids) - 1
+            mask_override = True
 
         if backend == "mlx":
             import mlx.core as mx
             x = mx.array([input_ids], dtype=mx.int32)
-            logits = model(x, mask_override=False)
-            logits_pos = np.array(logits[0, mask_idx].astype(mx.float32))
+            logits = model(x, mask_override=mask_override)
+            logits_pos = np.array(logits[0, eval_idx].astype(mx.float32))
         else:
             import torch
             x = torch.tensor([input_ids], dtype=torch.long)
             with torch.no_grad():
-                logits = model(x, mask_override=False)
-            logits_pos = logits[0, mask_idx].detach().cpu().numpy()
+                logits = model(x, mask_override=mask_override)
+            logits_pos = logits[0, eval_idx].detach().cpu().numpy()
 
-        # Prevent predicting the [MASK] token itself
-        logits_pos[mask_token_id] = -1e9
+        if probe_type == "infill":
+            # Prevent predicting the [MASK] token itself
+            logits_pos[mask_token_id] = -1e9
 
         # Compute softmax probabilities & target rank
         shifted = logits_pos - np.max(logits_pos)
@@ -206,12 +214,6 @@ def evaluate_probes(model, tokenizer, backend: str, mask_token_id: int = 1) -> d
     overall_ce = float(np.mean([r["target_ce"] for r in results]))
     overall_rank = float(np.mean([r["rank"] for r in results]))
 
-    print("\n" + "=" * 78)
-    print("  TÉLOS CONTEXTUAL PROBES BENCHMARK REPORT (100 PROBES)")
-    print("=" * 78)
-    print(f"  {'Category':<24} | {'Count':<5} | {'Top-1 (%)':<9} | {'Top-5 (%)':<9} | {'Avg Rank':<8} | {'Avg CE':<6}")
-    print("-" * 78)
-
     cat_breakdown = {}
     for cat, s in category_stats.items():
         cnt = s["count"]
@@ -220,13 +222,24 @@ def evaluate_probes(model, tokenizer, backend: str, mask_token_id: int = 1) -> d
         avg_r = float(np.mean(s["rank"])) if cnt else 0.0
         avg_ce = float(np.mean(s["ce"])) if cnt else 0.0
         cat_breakdown[cat] = {"top1_pct": top1_pct, "top5_pct": top5_pct, "avg_rank": avg_r, "avg_ce": avg_ce}
-        print(f"  {cat:<24} | {cnt:<5d} | {top1_pct:>8.1f}% | {top5_pct:>8.1f}% | {avg_r:>8.1f} | {avg_ce:>6.2f}")
+
+    title = "BIDIRECTIONAL INFILLING PROBES" if probe_type == "infill" else "CAUSAL CONTINUATION PROBES"
+    print("\n" + "=" * 78)
+    print(f"  TÉLOS CONTEXTUAL PROBES REPORT: {title} (100 PROBES)")
+    print("=" * 78)
+    print(f"  {'Category':<24} | {'Count':<5} | {'Top-1 (%)':<9} | {'Top-5 (%)':<9} | {'Avg Rank':<8} | {'Avg CE':<6}")
+    print("-" * 78)
+
+    for cat, s in cat_breakdown.items():
+        cnt = category_stats[cat]["count"]
+        print(f"  {cat:<24} | {cnt:<5d} | {s['top1_pct']:>8.1f}% | {s['top5_pct']:>8.1f}% | {s['avg_rank']:>8.1f} | {s['avg_ce']:>6.2f}")
 
     print("-" * 78)
     print(f"  {'OVERALL SUMMARY':<24} | {total_count:<5d} | {overall_top1:>8.1f}% | {overall_top5:>8.1f}% | {overall_rank:>8.1f} | {overall_ce:>6.2f}")
     print("=" * 78 + "\n")
 
-    report_payload = {
+    return {
+        "probe_type": probe_type,
         "overall": {
             "top1_acc_pct": overall_top1,
             "top5_acc_pct": overall_top5,
@@ -237,6 +250,16 @@ def evaluate_probes(model, tokenizer, backend: str, mask_token_id: int = 1) -> d
         "categories": cat_breakdown,
         "probes": results,
     }
+
+
+def evaluate_probes(model, tokenizer, backend: str, mask_token_id: int = 1, probe_type: str = "both") -> dict:
+    """Executes the 100 contextual probes benchmark (infill, causal, or both) and computes metrics."""
+    modes = ["infill", "causal"] if probe_type == "both" else [probe_type]
+    report_payload = {}
+
+    for m in modes:
+        res = _evaluate_single_probe_type(model, tokenizer, backend, probe_type=m, mask_token_id=mask_token_id)
+        report_payload[m] = res
 
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
@@ -291,6 +314,7 @@ def evaluate_sample(model, tokenizer, backend: str, prompts: list[str] | None = 
 def evaluate(
     checkpoint: str | Path,
     mode: str = "probes",
+    probe_type: str = "both",
     tokenizer_path: str | Path | None = None,
     prompts: list[str] | None = None,
     **kwargs
@@ -306,7 +330,7 @@ def evaluate(
     tok = load_tokenizer(str(tokenizer_path) if tokenizer_path else None)
 
     if mode == "probes":
-        return evaluate_probes(model, tok, backend)
+        return evaluate_probes(model, tok, backend, probe_type=probe_type)
     elif mode == "sample":
         evaluate_sample(model, tok, backend, prompts=prompts)
         return {"mode": "sample", "status": "completed"}
@@ -318,10 +342,11 @@ def main():
     parser = argparse.ArgumentParser(description="Télos Model Evaluation Suite")
     parser.add_argument("--checkpoint", type=str, required=True, help="Path to checkpoint file (.safetensors, .pt) or directory")
     parser.add_argument("--mode", type=str, default="probes", choices=["probes", "sample"], help="Evaluation mode")
+    parser.add_argument("--probe-type", type=str, default="both", choices=["infill", "causal", "both"], help="Probe benchmark type ('infill', 'causal', or 'both')")
     parser.add_argument("--tokenizer", type=str, default=None, help="Path to BPE tokenizer JSON")
     args = parser.parse_args()
 
-    evaluate(checkpoint=args.checkpoint, mode=args.mode, tokenizer_path=args.tokenizer)
+    evaluate(checkpoint=args.checkpoint, mode=args.mode, probe_type=args.probe_type, tokenizer_path=args.tokenizer)
 
 
 if __name__ == "__main__":
