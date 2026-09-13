@@ -137,3 +137,26 @@ PROBE_SUITE_100 = [
     {"category": "Attribute names", "prompt": "os.", "prefix": "os.", "target": "path", "target_bpe": "path", "suffix": ".join(root, file)"},
     {"category": "Attribute names", "prompt": "sys.", "prefix": "sys.", "target": "path", "target_bpe": "path", "suffix": ".append(module_dir)"},
 ]
+
+import json
+from pathlib import Path
+
+def load_contextual_probes(num_probes: int = 1000) -> list[dict]:
+    """
+    Loads deterministic contextual probes for Télos evaluation.
+    Loads from evals/benchmarks/contextual_probes_1000.json if present,
+    falling back to PROBE_SUITE_100.
+    """
+    pkg_dir = Path(__file__).resolve().parents[2]
+    bench_file = pkg_dir / "evals" / "benchmarks" / "contextual_probes_1000.json"
+    
+    if bench_file.exists():
+        try:
+            with open(bench_file, "r") as f:
+                data = json.load(f)
+            return data[:num_probes] if num_probes else data
+        except Exception:
+            pass
+            
+    return PROBE_SUITE_100[:num_probes] if num_probes else PROBE_SUITE_100
+
