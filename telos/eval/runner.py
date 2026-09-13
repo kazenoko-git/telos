@@ -171,6 +171,7 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
                 use_reliability_head=use_reliability_head,
             )
             model.load_weights(str(cp))
+            model.paradigm = paradigm
             return model, "mlx", vocab_size
 
     elif cp.suffix in [".pt", ".bin"]:
@@ -200,6 +201,7 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
 
         model.load_state_dict(sd, strict=True)
         model.eval()
+        model.paradigm = paradigm
         return model, "pytorch", vocab_size
 
     else:
@@ -357,25 +359,58 @@ def evaluate_probes(
     model,
     tokenizer,
     backend: str,
-    num_probes: int = 1000,
+    paradigm: str = "corosred",
+    num_probes: int = 100,
     mask_token_id: int = 1,
     probe_type: str = "both"
 ) -> Dict[str, Any]:
-    """Runs contextual probes (infill, causal, or both) across loaded probe list."""
+    """
+    Runs contextual probes with paradigm differentiation:
+    - Pure causal AR models are evaluated ONLY on causal next-token completion.
+    - Bidirectional models (COROSred) are evaluated on both causal completion and masked infilling.
+    """
     probes_list = load_contextual_probes(num_probes)
-    modes = ["infill", "causal"] if probe_type == "both" else [probe_type]
     report_payload = {}
 
-    for m in modes:
-        res = _evaluate_single_probe_type(
+    # 1. Causal evaluation: Evaluates next-token prediction at prefix boundary across all models
+    if probe_type in ["causal", "both"]:
+        causal_probes = [p for p in probes_list if p.get("mode", "both") in ["both", "causal"]]
+        res_causal = _evaluate_single_probe_type(
             model=model,
             tokenizer=tokenizer,
             backend=backend,
-            probes_list=probes_list,
-            probe_type=m,
+            probes_list=causal_probes,
+            probe_type="causal",
             mask_token_id=mask_token_id
         )
-        report_payload[m] = res
+        report_payload["causal"] = res_causal
+
+    # 2. Infill evaluation: Evaluates bidirectional [MASK] infilling
+    # AR models cannot condition bidirectionally without infill conditioning; marked N/A.
+    if probe_type in ["infill", "both"]:
+        if str(paradigm).lower() == "ar":
+            report_payload["infill"] = {
+                "status": "not_applicable",
+                "reason": "AR models are strictly causal-only and cannot condition on bidirectional suffixes",
+                "overall": {
+                    "top1_acc_pct": None,
+                    "top5_acc_pct": None,
+                    "mean_ce": None,
+                    "mean_rank": None,
+                    "total_probes": 0,
+                },
+                "categories": {}
+            }
+        else:
+            res_infill = _evaluate_single_probe_type(
+                model=model,
+                tokenizer=tokenizer,
+                backend=backend,
+                probes_list=probes_list,
+                probe_type="infill",
+                mask_token_id=mask_token_id
+            )
+            report_payload["infill"] = res_infill
 
     return report_payload
 
@@ -644,16 +679,27 @@ def _evaluate_single(
             tokenizer_path = str(PROJECT_ROOT / "configs" / "shared" / "tokenizer_0.json")
     tok = load_tokenizer(str(tokenizer_path) if tokenizer_path else None)
 
+    paradigm = getattr(model, "paradigm", "")
+    if not paradigm:
+        for p in ["corosred", "ar", "mdlm", "undlm"]:
+            if p in str(checkpoint).lower():
+                paradigm = p
+                break
+    paradigm = paradigm or "corosred"
+
     report: Dict[str, Any] = {
         "model_checkpoint": str(checkpoint),
         "backend": backend,
+        "paradigm": paradigm,
         "vocab_size": vocab_size,
         "timestamp": int(time.time()),
         "mode": mode,
     }
 
     if mode == "probes":
-        report["probes"] = evaluate_probes(model, tok, backend, num_probes=num_probes, probe_type=probe_type)
+        report["probes"] = evaluate_probes(
+            model, tok, backend, paradigm=paradigm, num_probes=num_probes, probe_type=probe_type
+        )
     elif mode == "functional":
         report["functional"] = evaluate_functional(
             model, tok, backend, suite=suite, max_tasks=max_tasks, timeout_seconds=timeout
@@ -664,7 +710,9 @@ def _evaluate_single(
         evaluate_sample(model, tok, backend)
         report["sample"] = {"status": "completed"}
     elif mode == "full":
-        report["probes"] = evaluate_probes(model, tok, backend, num_probes=num_probes, probe_type=probe_type)
+        report["probes"] = evaluate_probes(
+            model, tok, backend, paradigm=paradigm, num_probes=num_probes, probe_type=probe_type
+        )
         report["functional"] = evaluate_functional(
             model, tok, backend, suite=suite, max_tasks=max_tasks, timeout_seconds=timeout
         )
@@ -701,13 +749,41 @@ def print_multimodel_scorecard(multi_reports: Dict[str, Any], mode: str):
             pr = rep.get("probes", {})
             inf = pr.get("infill", {}).get("overall", {})
             cau = pr.get("causal", {}).get("overall", {})
-            inf_t1 = f"{inf.get('top1_acc_pct', 0.0):.1f}%"
-            inf_ce = f"{inf.get('mean_ce', 0.0):.2f}"
-            cau_t1 = f"{cau.get('top1_acc_pct', 0.0):.1f}%"
-            cau_ce = f"{cau.get('mean_ce', 0.0):.2f}"
-            inf_rnk = f"{inf.get('mean_rank', 0.0):.1f}"
+            
+            if pr.get("infill", {}).get("status") == "not_applicable":
+                inf_t1 = "N/A (AR)"
+                inf_ce = "N/A"
+                inf_rnk = "N/A"
+            else:
+                inf_t1 = f"{inf.get('top1_acc_pct', 0.0):.1f}%" if inf.get('top1_acc_pct') is not None else "N/A"
+                inf_ce = f"{inf.get('mean_ce', 0.0):.2f}" if inf.get('mean_ce') is not None else "N/A"
+                inf_rnk = f"{inf.get('mean_rank', 0.0):.1f}" if inf.get('mean_rank') is not None else "N/A"
+
+            cau_t1 = f"{cau.get('top1_acc_pct', 0.0):.1f}%" if cau.get('top1_acc_pct') is not None else "N/A"
+            cau_ce = f"{cau.get('mean_ce', 0.0):.2f}" if cau.get('mean_ce') is not None else "N/A"
             disp_name = name if len(name) <= 38 else "..." + name[-35:]
             print(f"{disp_name:<38} | {b:<7} | {inf_t1:<11} | {inf_ce:<9} | {cau_t1:<11} | {cau_ce:<9} | {inf_rnk:<11}")
+
+        # Category breakdown for deterministic probes
+        print("\n  CATEGORY BREAKDOWN (TOP-1 ACCURACY):")
+        cat_header = f"{'Model / Checkpoint':<38} | {'Identifiers':<14} | {'Keywords':<14} | {'Imports & Calls':<17} | {'Suffix-Clued Infill'}"
+        print(cat_header)
+        print("-" * 115)
+        for name, rep in multi_reports.items():
+            pr = rep.get("probes", {})
+            cau_cats = pr.get("causal", {}).get("categories", {})
+            inf_cats = pr.get("infill", {}).get("categories", {})
+            id_t1 = f"{cau_cats.get('Contextually Deterministic Identifiers', {}).get('top1_pct', 0.0):.1f}%"
+            kw_t1 = f"{cau_cats.get('Syntactic Keywords', {}).get('top1_pct', 0.0):.1f}%"
+            imp_t1 = f"{cau_cats.get('Idiomatic Imports & Calls', {}).get('top1_pct', 0.0):.1f}%"
+            
+            if pr.get("infill", {}).get("status") == "not_applicable":
+                sc_t1 = "N/A (AR)"
+            else:
+                sc_t1 = f"{inf_cats.get('Suffix-Clued Bidirectional Infill', {}).get('top1_pct', 0.0):.1f}%"
+                
+            disp_name = name if len(name) <= 38 else "..." + name[-35:]
+            print(f"{disp_name:<38} | {id_t1:<14} | {kw_t1:<14} | {imp_t1:<17} | {sc_t1}")
 
     if mode in ["anticheat", "full"]:
         print("\n" + "-" * 115)
@@ -792,9 +868,15 @@ def evaluate(
     multi_reports: Dict[str, Any] = {}
     for idx, cp in enumerate(checkpoints, 1):
         cp_path = Path(cp)
-        name = cp_path.parent.name if cp_path.is_file() else cp_path.name
-        if name in ["unified", "ar", "corosred", "masked", "uniform"] or name.startswith("phase"):
-            name = f"{cp_path.parent.parent.name}/{name}"
+        rel_parts = cp_path.parts
+        if "corosred" in rel_parts:
+            sub = cp_path.parent.name if cp_path.is_file() else cp_path.name
+            name = f"corosred/{sub}"
+        elif "ar" in rel_parts:
+            sub = cp_path.parent.name if cp_path.is_file() else cp_path.name
+            name = f"ar/{sub}" if sub != "ar" else "ar/15m"
+        else:
+            name = cp_path.parent.name if cp_path.is_file() else cp_path.name
         if name in multi_reports:
             name = f"{name}_{idx}"
 
