@@ -141,12 +141,15 @@ PROBE_SUITE_100 = [
 import json
 from pathlib import Path
 
-def load_contextual_probes(num_probes: int = 1000) -> list[dict]:
+def load_contextual_probes(num_probes: int = 100) -> list[dict]:
     """
     Loads deterministic contextual probes for Télos evaluation.
-    Loads from evals/benchmarks/contextual_probes_1000.json if present,
-    falling back to PROBE_SUITE_100.
+    If num_probes <= 101, returns the standardized hand-crafted 8-category PROBE_SUITE_100.
+    Otherwise loads from evals/benchmarks/contextual_probes_1000.json if present.
     """
+    if num_probes <= 101:
+        return PROBE_SUITE_100[:num_probes] if num_probes else PROBE_SUITE_100
+
     pkg_dir = Path(__file__).resolve().parents[2]
     bench_file = pkg_dir / "evals" / "benchmarks" / "contextual_probes_1000.json"
     
