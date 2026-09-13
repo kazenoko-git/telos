@@ -1,165 +1,148 @@
 """
 Contextual Probes Suite for Télos Models.
-Contains 100 benchmark prompts across 8 syntactic code categories:
-1. Identifier recovery (13)
-2. Function names (13)
-3. Keywords (13)
-4. Operators (12)
-5. Literals (12)
-6. Imports (13)
-7. Class names (12)
-8. Attribute names (13)
-
-Each probe contains:
-- category: Syntactic category name
-- prompt: Prefix context (for backward compatibility and causal evaluation)
-- prefix: Alias for prompt
-- target: Target token string to predict
-- target_bpe: Expected BPE token representation
-- suffix: Subsequent context enabling realistic bidirectional [MASK] infilling
+Contains 100 deterministic benchmark prompts across 4 core syntactic & semantic categories:
+1. Contextually Deterministic Identifiers (25 probes)
+   - Deducible from local scope, method context, class structure, or function naming.
+2. Syntactic Keywords (25 probes)
+   - Strictly enforced by Python grammar & syntax rules (try/except, with/as, for/in, etc.).
+3. Idiomatic Imports & Calls (25 probes)
+   - Ubiquitous Python stdlib & framework idioms (json.loads, os.path.join, torch.nn as nn, etc.).
+4. Suffix-Clued Bidirectional Infilling (25 probes)
+   - Where the suffix provides the essential semantic clue that disambiguates the missing token.
+   - Evaluated on bidirectional models (COROSred); N/A for pure causal AR models.
 """
-
-PROBE_SUITE_100 = [
-    # --- 1. Identifier Recovery (13) ---
-    {"category": "Identifier recovery", "prompt": "return a +", "prefix": "return a +", "target": "b", "target_bpe": "b", "suffix": "\n"},
-    {"category": "Identifier recovery", "prompt": "x = 10\nprint(", "prefix": "x = 10\nprint(", "target": "x", "target_bpe": "x", "suffix": ")\n"},
-    {"category": "Identifier recovery", "prompt": "def __init__(self,", "prefix": "def __init__(self,", "target": "name", "target_bpe": "Ġname", "suffix": "):\n        self.name = name"},
-    {"category": "Identifier recovery", "prompt": "self.name =", "prefix": "self.name =", "target": "name", "target_bpe": "Ġname", "suffix": "\n        self.value = value"},
-    {"category": "Identifier recovery", "prompt": "total = sum(", "prefix": "total = sum(", "target": "items", "target_bpe": "Ġitems", "suffix": ")\n"},
-    {"category": "Identifier recovery", "prompt": "for elem in", "prefix": "for elem in", "target": "lst", "target_bpe": "Ġlst", "suffix": ":\n        process(elem)"},
-    {"category": "Identifier recovery", "prompt": "res = val *", "prefix": "res = val *", "target": "factor", "target_bpe": "Ġfactor", "suffix": "\n"},
-    {"category": "Identifier recovery", "prompt": "msg = str(", "prefix": "msg = str(", "target": "err", "target_bpe": "Ġerr", "suffix": ")\n"},
-    {"category": "Identifier recovery", "prompt": "dx = x2 -", "prefix": "dx = x2 -", "target": "x1", "target_bpe": "Ġx1", "suffix": "\n"},
-    {"category": "Identifier recovery", "prompt": "data = json.loads(", "prefix": "data = json.loads(", "target": "text", "target_bpe": "Ġtext", "suffix": ")\n"},
-    {"category": "Identifier recovery", "prompt": "res = []\nfor x in", "prefix": "res = []\nfor x in", "target": "items", "target_bpe": "Ġitems", "suffix": ":\n    res.append(x)"},
-    {"category": "Identifier recovery", "prompt": "left +", "prefix": "left +", "target": "right", "target_bpe": "Ġright", "suffix": "\n"},
-    {"category": "Identifier recovery", "prompt": "width *", "prefix": "width *", "target": "height", "target_bpe": "Ġheight", "suffix": "\n"},
-
-    # --- 2. Function Names (13) ---
-    {"category": "Function names", "prompt": "def get_", "prefix": "def get_", "target": "name", "target_bpe": "name", "suffix": "(self):\n    return self._name"},
-    {"category": "Function names", "prompt": "def set_", "prefix": "def set_", "target": "val", "target_bpe": "val", "suffix": "(self, val):\n    self._val = val"},
-    {"category": "Function names", "prompt": "def parse_", "prefix": "def parse_", "target": "data", "target_bpe": "data", "suffix": "(raw_str):\n    return json.loads(raw_str)"},
-    {"category": "Function names", "prompt": "def build_", "prefix": "def build_", "target": "model", "target_bpe": "model", "suffix": "(config):\n    return Model(config)"},
-    {"category": "Function names", "prompt": "def test_", "prefix": "def test_", "target": "func", "target_bpe": "func", "suffix": "():\n    assert True"},
-    {"category": "Function names", "prompt": "def process_", "prefix": "def process_", "target": "request", "target_bpe": "request", "suffix": "(req):\n    return req.json()"},
-    {"category": "Function names", "prompt": "def validate_", "prefix": "def validate_", "target": "input", "target_bpe": "input", "suffix": "(data):\n    assert data is not None"},
-    {"category": "Function names", "prompt": "def load_", "prefix": "def load_", "target": "config", "target_bpe": "config", "suffix": "(path):\n    with open(path) as f:\n        return yaml.safe_load(f)"},
-    {"category": "Function names", "prompt": "def save_", "prefix": "def save_", "target": "file", "target_bpe": "file", "suffix": "(path, content):\n    with open(path, 'w') as f:\n        f.write(content)"},
-    {"category": "Function names", "prompt": "def calculate_", "prefix": "def calculate_", "target": "total", "target_bpe": "total", "suffix": "(items):\n    return sum(items)"},
-    {"category": "Function names", "prompt": "def convert_", "prefix": "def convert_", "target": "type", "target_bpe": "type", "suffix": "(val, target_type):\n    return target_type(val)"},
-    {"category": "Function names", "prompt": "def read_", "prefix": "def read_", "target": "bytes", "target_bpe": "bytes", "suffix": "(path):\n    with open(path, 'rb') as f:\n        return f.read()"},
-    {"category": "Function names", "prompt": "def create_", "prefix": "def create_", "target": "instance", "target_bpe": "instance", "suffix": "(cls, *args):\n    return cls(*args)"},
-
-    # --- 3. Keywords (13) ---
-    {"category": "Keywords", "prompt": "if x == 1:\n    pass\n", "prefix": "if x == 1:\n    pass\n", "target": "else", "target_bpe": "else", "suffix": ":\n    pass"},
-    {"category": "Keywords", "prompt": "try:\n    pass\n", "prefix": "try:\n    pass\n", "target": "except", "target_bpe": "except", "suffix": " Exception:\n    pass"},
-    {"category": "Keywords", "prompt": "for i in", "prefix": "for i in", "target": "range", "target_bpe": "Ġrange", "suffix": "(10):\n    print(i)"},
-    {"category": "Keywords", "prompt": "with open(path) ", "prefix": "with open(path) ", "target": "as", "target_bpe": "Ġas", "suffix": " f:\n    data = f.read()"},
-    {"category": "Keywords", "prompt": "if not", "prefix": "if not", "target": "found", "target_bpe": "Ġfound", "suffix": ":\n    raise KeyError('Not found')"},
-    {"category": "Keywords", "prompt": "while", "prefix": "while", "target": "True", "target_bpe": "ĠTrue", "suffix": ":\n    break"},
-    {"category": "Keywords", "prompt": "from typing", "prefix": "from typing", "target": "import", "target_bpe": "Ġimport", "suffix": " List, Dict, Optional"},
-    {"category": "Keywords", "prompt": "assert x is", "prefix": "assert x is", "target": "not", "target_bpe": "Ġnot", "suffix": " None"},
-    {"category": "Keywords", "prompt": "if item", "prefix": "if item", "target": "in", "target_bpe": "Ġin", "suffix": " items:\n    return True"},
-    {"category": "Keywords", "prompt": "def func():\n   ", "prefix": "def func():\n   ", "target": "return", "target_bpe": "Ġreturn", "suffix": " 42"},
-    {"category": "Keywords", "prompt": "raise ValueError(", "prefix": "raise ValueError(", "target": "msg", "target_bpe": "msg", "suffix": ")\n"},
-    {"category": "Keywords", "prompt": "class MyClass(", "prefix": "class MyClass(", "target": "object", "target_bpe": "object", "suffix": "):\n    pass"},
-    {"category": "Keywords", "prompt": "yield", "prefix": "yield", "target": "from", "target_bpe": "Ġfrom", "suffix": " sub_generator()"},
-
-    # --- 4. Operators (12) ---
-    {"category": "Operators", "prompt": "x = a +", "prefix": "x = a +", "target": "b", "target_bpe": "Ġb", "suffix": "\n"},
-    {"category": "Operators", "prompt": "if a ==", "prefix": "if a ==", "target": "b", "target_bpe": "Ġb", "suffix": ":\n    return True"},
-    {"category": "Operators", "prompt": "x +=", "prefix": "x +=", "target": "1", "target_bpe": "Ġ1", "suffix": "\n"},
-    {"category": "Operators", "prompt": "a >", "prefix": "a >", "target": "0", "target_bpe": "Ġ0", "suffix": "\n"},
-    {"category": "Operators", "prompt": "x = y *", "prefix": "x = y *", "target": "z", "target_bpe": "Ġz", "suffix": "\n"},
-    {"category": "Operators", "prompt": "a !=", "prefix": "a !=", "target": "None", "target_bpe": "ĠNone", "suffix": ":\n    return a"},
-    {"category": "Operators", "prompt": "count = len(arr) -", "prefix": "count = len(arr) -", "target": "1", "target_bpe": "Ġ1", "suffix": "\n"},
-    {"category": "Operators", "prompt": "if x <=", "prefix": "if x <=", "target": "max_val", "target_bpe": "Ġmax_val", "suffix": ":\n    return x"},
-    {"category": "Operators", "prompt": "idx = (i + 1) %", "prefix": "idx = (i + 1) %", "target": "n", "target_bpe": "Ġn", "suffix": "\n"},
-    {"category": "Operators", "prompt": "res = a &", "prefix": "res = a &", "target": "b", "target_bpe": "Ġb", "suffix": "\n"},
-    {"category": "Operators", "prompt": "flags = A |", "prefix": "flags = A |", "target": "B", "target_bpe": "ĠB", "suffix": "\n"},
-    {"category": "Operators", "prompt": "val = x **", "prefix": "val = x **", "target": "2", "target_bpe": "Ġ2", "suffix": "\n"},
-
-    # --- 5. Literals (12) ---
-    {"category": "Literals", "prompt": "if x is", "prefix": "if x is", "target": "None", "target_bpe": "ĠNone", "suffix": ":\n    return None"},
-    {"category": "Literals", "prompt": "flag =", "prefix": "flag =", "target": "True", "target_bpe": "ĠTrue", "suffix": "\n"},
-    {"category": "Literals", "prompt": "status =", "prefix": "status =", "target": "False", "target_bpe": "ĠFalse", "suffix": "\n"},
-    {"category": "Literals", "prompt": "count =", "prefix": "count =", "target": "0", "target_bpe": "Ġ0", "suffix": "\n"},
-    {"category": "Literals", "prompt": "name =", "prefix": "name =", "target": "\"\"", "target_bpe": "Ġ\"\"", "suffix": "\n"},
-    {"category": "Literals", "prompt": "items =", "prefix": "items =", "target": "[]", "target_bpe": "Ġ[]", "suffix": "\n"},
-    {"category": "Literals", "prompt": "data =", "prefix": "data =", "target": "{}", "target_bpe": "Ġ{}", "suffix": "\n"},
-    {"category": "Literals", "prompt": "rate =", "prefix": "rate =", "target": "0.0", "target_bpe": "Ġ0.0", "suffix": "\n"},
-    {"category": "Literals", "prompt": "idx =", "prefix": "idx =", "target": "-1", "target_bpe": "Ġ-1", "suffix": "\n"},
-    {"category": "Literals", "prompt": "pi =", "prefix": "pi =", "target": "3.14", "target_bpe": "Ġ3.14", "suffix": "\n"},
-    {"category": "Literals", "prompt": "res =", "prefix": "res =", "target": "1", "target_bpe": "Ġ1", "suffix": "\n"},
-    {"category": "Literals", "prompt": "msg =", "prefix": "msg =", "target": "\"hello\"", "target_bpe": "Ġ\"hello\"", "suffix": "\n"},
-
-    # --- 6. Imports (13) ---
-    {"category": "Imports", "prompt": "import", "prefix": "import", "target": "os", "target_bpe": "Ġos", "suffix": "\n\npath = os.path.join(base, name)"},
-    {"category": "Imports", "prompt": "import", "prefix": "import", "target": "sys", "target_bpe": "Ġsys", "suffix": "\n\nsys.exit(0)"},
-    {"category": "Imports", "prompt": "import", "prefix": "import", "target": "json", "target_bpe": "Ġjson", "suffix": "\n\ndata = json.loads(text)"},
-    {"category": "Imports", "prompt": "import", "prefix": "import", "target": "time", "target_bpe": "Ġtime", "suffix": "\n\nstart = time.time()"},
-    {"category": "Imports", "prompt": "import", "prefix": "import", "target": "math", "target_bpe": "Ġmath", "suffix": "\n\nx = math.sqrt(val)"},
-    {"category": "Imports", "prompt": "import", "prefix": "import", "target": "re", "target_bpe": "Ġre", "suffix": "\n\npattern = re.compile(r\"\\d+\")"},
-    {"category": "Imports", "prompt": "import", "prefix": "import", "target": "random", "target_bpe": "Ġrandom", "suffix": "\n\nchoice = random.choice(items)"},
-    {"category": "Imports", "prompt": "from typing import", "prefix": "from typing import", "target": "List", "target_bpe": "ĠList", "suffix": ", Dict, Optional"},
-    {"category": "Imports", "prompt": "from pathlib import", "prefix": "from pathlib import", "target": "Path", "target_bpe": "ĠPath", "suffix": "\n\np = Path('data.txt')"},
-    {"category": "Imports", "prompt": "import numpy as", "prefix": "import numpy as", "target": "np", "target_bpe": "Ġnp", "suffix": "\n\narr = np.zeros(10)"},
-    {"category": "Imports", "prompt": "import torch.nn as", "prefix": "import torch.nn as", "target": "nn", "target_bpe": "Ġnn", "suffix": "\n\nclass Net(nn.Module): pass"},
-    {"category": "Imports", "prompt": "from collections import", "prefix": "from collections import", "target": "defaultdict", "target_bpe": "Ġdefaultdict", "suffix": "\n\nd = defaultdict(list)"},
-    {"category": "Imports", "prompt": "import logging", "prefix": "import logging", "target": "as", "target_bpe": "Ġas", "suffix": " log\nlog.basicConfig()"},
-
-    # --- 7. Class Names (12) ---
-    {"category": "Class names", "prompt": "class", "prefix": "class", "target": "Base", "target_bpe": "ĠBase", "suffix": ":\n    def __init__(self):\n        pass"},
-    {"category": "Class names", "prompt": "class", "prefix": "class", "target": "Model", "target_bpe": "ĠModel", "suffix": "(nn.Module):\n    def forward(self, x):\n        return x"},
-    {"category": "Class names", "prompt": "class", "prefix": "class", "target": "Config", "target_bpe": "ĠConfig", "suffix": ":\n    def __init__(self, lr=1e-3):\n        self.lr = lr"},
-    {"category": "Class names", "prompt": "class", "prefix": "class", "target": "Trainer", "target_bpe": "ĠTrainer", "suffix": ":\n    def train(self, steps):\n        pass"},
-    {"category": "Class names", "prompt": "class", "prefix": "class", "target": "User", "target_bpe": "ĠUser", "suffix": ":\n    def __init__(self, username, email):\n        pass"},
-    {"category": "Class names", "prompt": "class", "prefix": "class", "target": "Dataset", "target_bpe": "ĠDataset", "suffix": ":\n    def __len__(self):\n        return len(self.data)"},
-    {"category": "Class names", "prompt": "class", "prefix": "class", "target": "Engine", "target_bpe": "ĠEngine", "suffix": ":\n    def step(self):\n        pass"},
-    {"category": "Class names", "prompt": "class", "prefix": "class", "target": "Handler", "target_bpe": "ĠHandler", "suffix": ":\n    def handle(self, request):\n        pass"},
-    {"category": "Class names", "prompt": "class", "prefix": "class", "target": "Session", "target_bpe": "ĠSession", "suffix": ":\n    def close(self):\n        pass"},
-    {"category": "Class names", "prompt": "class", "prefix": "class", "target": "Exception", "target_bpe": "ĠException", "suffix": "(BaseException):\n    pass"},
-    {"category": "Class names", "prompt": "class", "prefix": "class", "target": "Node", "target_bpe": "ĠNode", "suffix": ":\n    def __init__(self, val, next=None):\n        self.val = val"},
-    {"category": "Class names", "prompt": "class", "prefix": "class", "target": "Server", "target_bpe": "ĠServer", "suffix": ":\n    def listen(self, port=8080):\n        pass"},
-
-    # --- 8. Attribute Names (13) ---
-    {"category": "Attribute names", "prompt": "self.", "prefix": "self.", "target": "name", "target_bpe": "name", "suffix": " = name\n        self.age = age"},
-    {"category": "Attribute names", "prompt": "self.", "prefix": "self.", "target": "value", "target_bpe": "value", "suffix": " = value\n        return self.value"},
-    {"category": "Attribute names", "prompt": "self.", "prefix": "self.", "target": "config", "target_bpe": "config", "suffix": " = config\n        self.lr = self.config.lr"},
-    {"category": "Attribute names", "prompt": "self.", "prefix": "self.", "target": "device", "target_bpe": "device", "suffix": " = device\n        self.model.to(self.device)"},
-    {"category": "Attribute names", "prompt": "self.", "prefix": "self.", "target": "logger", "target_bpe": "logger", "suffix": ".info('Starting run')"},
-    {"category": "Attribute names", "prompt": "self.", "prefix": "self.", "target": "state", "target_bpe": "state", "suffix": " = 'running'\n        return self.state"},
-    {"category": "Attribute names", "prompt": "obj.", "prefix": "obj.", "target": "data", "target_bpe": "data", "suffix": " = [1, 2, 3]"},
-    {"category": "Attribute names", "prompt": "req.", "prefix": "req.", "target": "json", "target_bpe": "json", "suffix": "()\n    return response"},
-    {"category": "Attribute names", "prompt": "path.", "prefix": "path.", "target": "exists", "target_bpe": "exists", "suffix": "():\n    return True"},
-    {"category": "Attribute names", "prompt": "res.", "prefix": "res.", "target": "status_code", "target_bpe": "status_code", "suffix": " == 200:\n    return True"},
-    {"category": "Attribute names", "prompt": "torch.", "prefix": "torch.", "target": "cuda", "target_bpe": "cuda", "suffix": ".is_available():\n    device = 'cuda'"},
-    {"category": "Attribute names", "prompt": "os.", "prefix": "os.", "target": "path", "target_bpe": "path", "suffix": ".join(root, file)"},
-    {"category": "Attribute names", "prompt": "sys.", "prefix": "sys.", "target": "path", "target_bpe": "path", "suffix": ".append(module_dir)"},
-]
 
 import json
 from pathlib import Path
+from typing import List, Dict, Any
 
-def load_contextual_probes(num_probes: int = 100) -> list[dict]:
+PROBE_SUITE_100: List[Dict[str, Any]] = [
+    # =========================================================================
+    # 1. Contextually Deterministic Identifiers (25 probes)
+    # Target is strictly forced by local variable scope, method context, or naming
+    # =========================================================================
+    {"category": "Contextually Deterministic Identifiers", "prompt": "x = 10\nprint(", "prefix": "x = 10\nprint(", "suffix": ")\n", "target": "x", "target_bpe": "x", "mode": "both", "description": "Local scope variable resolution"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "y = 20\nprint(", "prefix": "y = 20\nprint(", "suffix": ")\n", "target": "y", "target_bpe": "y", "mode": "both", "description": "Local scope variable resolution"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "def get_name(self):\n    return self._", "prefix": "def get_name(self):\n    return self._", "suffix": "\n", "target": "name", "target_bpe": "name", "mode": "both", "description": "Getter attribute resolution from function name"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "def get_value(self):\n    return self._", "prefix": "def get_value(self):\n    return self._", "suffix": "\n", "target": "value", "target_bpe": "value", "mode": "both", "description": "Getter attribute resolution from function name"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "def get_id(self):\n    return self._", "prefix": "def get_id(self):\n    return self._", "suffix": "\n", "target": "id", "target_bpe": "id", "mode": "both", "description": "Getter attribute resolution from function name"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "def get_path(self):\n    return self._", "prefix": "def get_path(self):\n    return self._", "suffix": "\n", "target": "path", "target_bpe": "path", "mode": "both", "description": "Getter attribute resolution from function name"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "def get_data(self):\n    return self._", "prefix": "def get_data(self):\n    return self._", "suffix": "\n", "target": "data", "target_bpe": "data", "mode": "both", "description": "Getter attribute resolution from function name"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "def get_status(self):\n    return self._", "prefix": "def get_status(self):\n    return self._", "suffix": "\n", "target": "status", "target_bpe": "status", "mode": "both", "description": "Getter attribute resolution from function name"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "def get_config(self):\n    return self._", "prefix": "def get_config(self):\n    return self._", "suffix": "\n", "target": "config", "target_bpe": "config", "mode": "both", "description": "Getter attribute resolution from function name"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "def set_count(self, count):\n    self._count =", "prefix": "def set_count(self, count):\n    self._count =", "suffix": "\n", "target": "count", "target_bpe": "Ġcount", "mode": "both", "description": "Setter parameter resolution"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "def set_timeout(self, timeout):\n    self.timeout =", "prefix": "def set_timeout(self, timeout):\n    self.timeout =", "suffix": "\n", "target": "timeout", "target_bpe": "Ġtimeout", "mode": "both", "description": "Setter parameter resolution"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "total = 0\nfor item in items:\n    total +=", "prefix": "total = 0\nfor item in items:\n    total +=", "suffix": "\n", "target": "item", "target_bpe": "Ġitem", "mode": "both", "description": "Loop accumulation variable"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "total = 0\nfor x in values:\n    total +=", "prefix": "total = 0\nfor x in values:\n    total +=", "suffix": "\n", "target": "x", "target_bpe": "Ġx", "mode": "both", "description": "Loop accumulation variable"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "for k, v in mapping.items():\n    print(", "prefix": "for k, v in mapping.items():\n    print(", "suffix": ", v)\n", "target": "k", "target_bpe": "k", "mode": "both", "description": "Dictionary key variable in iteration"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "for k, v in mapping.items():\n    print(k,", "prefix": "for k, v in mapping.items():\n    print(k,", "suffix": ")\n", "target": "v", "target_bpe": "Ġv", "mode": "both", "description": "Dictionary value variable in iteration"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "width, height = dims\narea = width *", "prefix": "width, height = dims\narea = width *", "suffix": "\n", "target": "height", "target_bpe": "Ġheight", "mode": "both", "description": "Paired dimensional identifier"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "left, right = bounds\nspan = right -", "prefix": "left, right = bounds\nspan = right -", "suffix": "\n", "target": "left", "target_bpe": "Ġleft", "mode": "both", "description": "Boundary interval subtraction"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "start, end = range_vals\nlength = end -", "prefix": "start, end = range_vals\nlength = end -", "suffix": "\n", "target": "start", "target_bpe": "Ġstart", "mode": "both", "description": "Range span subtraction"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "row, col = coord\nnext_pos = (row + 1,", "prefix": "row, col = coord\nnext_pos = (row + 1,", "suffix": ")\n", "target": "col", "target_bpe": "Ġcol", "mode": "both", "description": "Coordinate tuple completion"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "def __init__(self, name):\n    self.name =", "prefix": "def __init__(self, name):\n    self.name =", "suffix": "\n", "target": "name", "target_bpe": "Ġname", "mode": "both", "description": "Constructor attribute assignment"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "def __init__(self, config):\n    self.config =", "prefix": "def __init__(self, config):\n    self.config =", "suffix": "\n", "target": "config", "target_bpe": "Ġconfig", "mode": "both", "description": "Constructor attribute assignment"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "def __init__(self, model):\n    self.model =", "prefix": "def __init__(self, model):\n    self.model =", "suffix": "\n", "target": "model", "target_bpe": "Ġmodel", "mode": "both", "description": "Constructor attribute assignment"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "res = []\nfor elem in elements:\n    res.append(", "prefix": "res = []\nfor elem in elements:\n    res.append(", "suffix": ")\n", "target": "elem", "target_bpe": "elem", "mode": "both", "description": "List accumulation variable"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "key = 'user_id'\nval = cache[", "prefix": "key = 'user_id'\nval = cache[", "suffix": "]\n", "target": "key", "target_bpe": "key", "mode": "both", "description": "Dictionary lookup key"},
+    {"category": "Contextually Deterministic Identifiers", "prompt": "head, tail = split(lst)\nreturn", "prefix": "head, tail = split(lst)\nreturn", "suffix": "\n", "target": "head", "target_bpe": "Ġhead", "mode": "both", "description": "Unpacked head return"},
+
+    # =========================================================================
+    # 2. Syntactic Keywords (25 probes)
+    # Target is strictly enforced by Python grammar & syntax rules
+    # =========================================================================
+    {"category": "Syntactic Keywords", "prompt": "try:\n    do_something()\n", "prefix": "try:\n    do_something()\n", "suffix": " Exception:\n    pass\n", "target": "except", "target_bpe": "except", "mode": "both", "description": "try-except block syntax"},
+    {"category": "Syntactic Keywords", "prompt": "with open(f)", "prefix": "with open(f)", "suffix": " handle:\n    pass\n", "target": "as", "target_bpe": "Ġas", "mode": "both", "description": "with-as context manager syntax"},
+    {"category": "Syntactic Keywords", "prompt": "with open(path, 'r')", "prefix": "with open(path, 'r')", "suffix": " f:\n    text = f.read()\n", "target": "as", "target_bpe": "Ġas", "mode": "both", "description": "with-as context manager syntax"},
+    {"category": "Syntactic Keywords", "prompt": "for item", "prefix": "for item", "suffix": " collection:\n    pass\n", "target": "in", "target_bpe": "Ġin", "mode": "both", "description": "for-in iteration syntax"},
+    {"category": "Syntactic Keywords", "prompt": "for i", "prefix": "for i", "suffix": " range(10):\n    print(i)\n", "target": "in", "target_bpe": "Ġin", "mode": "both", "description": "for-in iteration syntax"},
+    {"category": "Syntactic Keywords", "prompt": "for idx, elem", "prefix": "for idx, elem", "suffix": " enumerate(lst):\n    pass\n", "target": "in", "target_bpe": "Ġin", "mode": "both", "description": "for-in iteration syntax"},
+    {"category": "Syntactic Keywords", "prompt": "while", "prefix": "while", "suffix": ":\n    break\n", "target": "True", "target_bpe": "ĠTrue", "mode": "both", "description": "Infinite loop condition"},
+    {"category": "Syntactic Keywords", "prompt": "from typing", "prefix": "from typing", "suffix": " List, Dict, Optional\n", "target": "import", "target_bpe": "Ġimport", "mode": "both", "description": "from-import statement"},
+    {"category": "Syntactic Keywords", "prompt": "from pathlib", "prefix": "from pathlib", "suffix": " Path\n", "target": "import", "target_bpe": "Ġimport", "mode": "both", "description": "from-import statement"},
+    {"category": "Syntactic Keywords", "prompt": "from collections", "prefix": "from collections", "suffix": " deque\n", "target": "import", "target_bpe": "Ġimport", "mode": "both", "description": "from-import statement"},
+    {"category": "Syntactic Keywords", "prompt": "assert x is", "prefix": "assert x is", "suffix": " None\n", "target": "not", "target_bpe": "Ġnot", "mode": "both", "description": "Identity assertion negation"},
+    {"category": "Syntactic Keywords", "prompt": "if item", "prefix": "if item", "suffix": " items:\n    return True\n", "target": "in", "target_bpe": "Ġin", "mode": "both", "description": "Membership condition"},
+    {"category": "Syntactic Keywords", "prompt": "if x == 1:\n    return 1\n", "prefix": "if x == 1:\n    return 1\n", "suffix": ":\n    return 0\n", "target": "else", "target_bpe": "else", "mode": "both", "description": "if-else branch"},
+    {"category": "Syntactic Keywords", "prompt": "yield", "prefix": "yield", "suffix": " sub_generator()\n", "target": "from", "target_bpe": "Ġfrom", "mode": "both", "description": "yield-from delegating generator"},
+    {"category": "Syntactic Keywords", "prompt": "if not", "prefix": "if not", "suffix": ":\n    return False\n", "target": "found", "target_bpe": "Ġfound", "mode": "both", "description": "Boolean flag check"},
+    {"category": "Syntactic Keywords", "prompt": "class MyModel(", "prefix": "class MyModel(", "suffix": "):\n    pass\n", "target": "object", "target_bpe": "object", "mode": "both", "description": "Base object inheritance"},
+    {"category": "Syntactic Keywords", "prompt": "if a is None or", "prefix": "if a is None or", "suffix": ":\n    pass\n", "target": "b", "target_bpe": "Ġb", "mode": "both", "description": "Boolean disjunction"},
+    {"category": "Syntactic Keywords", "prompt": "try:\n    pass\nexcept:\n    pass\n", "prefix": "try:\n    pass\nexcept:\n    pass\n", "suffix": ":\n    cleanup()\n", "target": "finally", "target_bpe": "finally", "mode": "both", "description": "try-except-finally cleanup"},
+    {"category": "Syntactic Keywords", "prompt": "def empty_func():\n    ", "prefix": "def empty_func():\n    ", "suffix": "\n", "target": "pass", "target_bpe": "pass", "mode": "both", "description": "No-op pass statement"},
+    {"category": "Syntactic Keywords", "prompt": "from abc import ABC,", "prefix": "from abc import ABC,", "suffix": "\n", "target": "abstractmethod", "target_bpe": "Ġabstractmethod", "mode": "both", "description": "Abstract method decorator import"},
+    {"category": "Syntactic Keywords", "prompt": "def generator():\n    ", "prefix": "def generator():\n    ", "suffix": " 42\n", "target": "yield", "target_bpe": "yield", "mode": "both", "description": "Generator yield"},
+    {"category": "Syntactic Keywords", "prompt": "assert len(arr) >=", "prefix": "assert len(arr) >=", "suffix": "\n", "target": "0", "target_bpe": "Ġ0", "mode": "both", "description": "Non-negative length assertion"},
+    {"category": "Syntactic Keywords", "prompt": "if condition:\n    return True\n", "prefix": "if condition:\n    return True\n", "suffix": " False\n", "target": "return", "target_bpe": "return", "mode": "both", "description": "Fallback return statement"},
+    {"category": "Syntactic Keywords", "prompt": "if x is not", "prefix": "if x is not", "suffix": ":\n    pass\n", "target": "None", "target_bpe": "ĠNone", "mode": "both", "description": "Non-None identity check"},
+    {"category": "Syntactic Keywords", "prompt": "while", "prefix": "while", "suffix": ":\n    step()\n", "target": "running", "target_bpe": "Ġrunning", "mode": "both", "description": "Loop flag condition"},
+
+    # =========================================================================
+    # 3. Idiomatic Imports & Calls (25 probes)
+    # Ubiquitous Python stdlib / framework idioms
+    # =========================================================================
+    {"category": "Idiomatic Imports & Calls", "prompt": "import torch.nn", "prefix": "import torch.nn", "suffix": " nn\n", "target": "as", "target_bpe": "Ġas", "mode": "both", "description": "PyTorch nn alias"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "import numpy", "prefix": "import numpy", "suffix": " np\n", "target": "as", "target_bpe": "Ġas", "mode": "both", "description": "NumPy alias"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "import pandas", "prefix": "import pandas", "suffix": " pd\n", "target": "as", "target_bpe": "Ġas", "mode": "both", "description": "Pandas alias"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "import matplotlib.pyplot", "prefix": "import matplotlib.pyplot", "suffix": " plt\n", "target": "as", "target_bpe": "Ġas", "mode": "both", "description": "Matplotlib alias"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "import os.path", "prefix": "import os.path", "suffix": " osp\n", "target": "as", "target_bpe": "Ġas", "mode": "both", "description": "os.path alias"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "data = json.", "prefix": "data = json.", "suffix": "(raw_text)\n", "target": "loads", "target_bpe": "loads", "mode": "both", "description": "JSON string deserialize"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "text = json.", "prefix": "text = json.", "suffix": "(data)\n", "target": "dumps", "target_bpe": "dumps", "mode": "both", "description": "JSON object serialize"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "path = os.path.", "prefix": "path = os.path.", "suffix": "(root, filename)\n", "target": "join", "target_bpe": "join", "mode": "both", "description": "File path concatenation"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "exists = os.path.", "prefix": "exists = os.path.", "suffix": "(filepath)\n", "target": "exists", "target_bpe": "exists", "mode": "both", "description": "File existence check"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "base = os.path.", "prefix": "base = os.path.", "suffix": "(path)\n", "target": "basename", "target_bpe": "basename", "mode": "both", "description": "Filename extraction"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "d = os.path.", "prefix": "d = os.path.", "suffix": "(path)\n", "target": "dirname", "target_bpe": "dirname", "mode": "both", "description": "Directory path extraction"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "sys.", "prefix": "sys.", "suffix": "(0)\n", "target": "exit", "target_bpe": "exit", "mode": "both", "description": "Process termination"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "time.", "prefix": "time.", "suffix": "(1)\n", "target": "sleep", "target_bpe": "sleep", "mode": "both", "description": "Process pause"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "now = time.", "prefix": "now = time.", "suffix": "()\n", "target": "time", "target_bpe": "time", "mode": "both", "description": "Timestamp retrieval"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "math.", "prefix": "math.", "suffix": "(x)\n", "target": "sqrt", "target_bpe": "sqrt", "mode": "both", "description": "Square root"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "val = math.", "prefix": "val = math.", "suffix": "(x)\n", "target": "log", "target_bpe": "log", "mode": "both", "description": "Natural logarithm"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "pattern = re.", "prefix": "pattern = re.", "suffix": "(r\"^\\d+$\")\n", "target": "compile", "target_bpe": "compile", "mode": "both", "description": "Regex pattern compile"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "match = re.", "prefix": "match = re.", "suffix": "(pattern, text)\n", "target": "search", "target_bpe": "search", "mode": "both", "description": "Regex pattern search"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "arr = np.", "prefix": "arr = np.", "suffix": "((10, 10))\n", "target": "zeros", "target_bpe": "zeros", "mode": "both", "description": "NumPy zeros initialization"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "ones = np.", "prefix": "ones = np.", "suffix": "(shape)\n", "target": "ones", "target_bpe": "ones", "mode": "both", "description": "NumPy ones initialization"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "t = torch.", "prefix": "t = torch.", "suffix": "((3, 3))\n", "target": "zeros", "target_bpe": "zeros", "mode": "both", "description": "PyTorch tensor zeros"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "device = torch.", "prefix": "device = torch.", "suffix": "('cuda' if torch.cuda.is_available() else 'cpu')\n", "target": "device", "target_bpe": "device", "mode": "both", "description": "PyTorch device selector"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "logging.", "prefix": "logging.", "suffix": "(level=logging.INFO)\n", "target": "basicConfig", "target_bpe": "basicConfig", "mode": "both", "description": "Logging configuration"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "res = requests.", "prefix": "res = requests.", "suffix": "(url)\n", "target": "get", "target_bpe": "get", "mode": "both", "description": "HTTP GET request"},
+    {"category": "Idiomatic Imports & Calls", "prompt": "torch.manual_seed(", "prefix": "torch.manual_seed(", "suffix": ")\n", "target": "42", "target_bpe": "42", "mode": "both", "description": "RNG deterministic seed"},
+
+    # =========================================================================
+    # 4. Suffix-Clued Bidirectional Infilling (25 probes)
+    # The suffix provides the essential semantic clue that the prefix alone lacks!
+    # (Evaluated on COROSred infill mode; N/A on AR causal models)
+    # =========================================================================
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "def get_", "prefix": "def get_", "suffix": "(self):\n    return self._name\n", "target": "name", "target_bpe": "name", "mode": "infill", "description": "Getter name derived from returned attribute"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "def get_", "prefix": "def get_", "suffix": "(self):\n    return self._value\n", "target": "value", "target_bpe": "value", "mode": "infill", "description": "Getter name derived from returned attribute"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "def get_", "prefix": "def get_", "suffix": "(self):\n    return self._status\n", "target": "status", "target_bpe": "status", "mode": "infill", "description": "Getter name derived from returned attribute"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "def get_", "prefix": "def get_", "suffix": "(self):\n    return self._config\n", "target": "config", "target_bpe": "config", "mode": "infill", "description": "Getter name derived from returned attribute"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "def get_", "prefix": "def get_", "suffix": "(self):\n    return self._id\n", "target": "id", "target_bpe": "id", "mode": "infill", "description": "Getter name derived from returned attribute"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "def get_", "prefix": "def get_", "suffix": "(self):\n    return self._data\n", "target": "data", "target_bpe": "data", "mode": "infill", "description": "Getter name derived from returned attribute"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "def get_", "prefix": "def get_", "suffix": "(self):\n    return self._path\n", "target": "path", "target_bpe": "path", "mode": "infill", "description": "Getter name derived from returned attribute"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "def set_", "prefix": "def set_", "suffix": "(self, name):\n    self._name = name\n", "target": "name", "target_bpe": "name", "mode": "infill", "description": "Setter name derived from mutated attribute"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "def set_", "prefix": "def set_", "suffix": "(self, value):\n    self._value = value\n", "target": "value", "target_bpe": "value", "mode": "infill", "description": "Setter name derived from mutated attribute"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "def set_", "prefix": "def set_", "suffix": "(self, timeout):\n    self._timeout = timeout\n", "target": "timeout", "target_bpe": "timeout", "mode": "infill", "description": "Setter name derived from mutated attribute"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "def set_", "prefix": "def set_", "suffix": "(self, count):\n    self._count = count\n", "target": "count", "target_bpe": "count", "mode": "infill", "description": "Setter name derived from mutated attribute"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "result = ", "prefix": "result = ", "suffix": ".loads(text)\n", "target": "json", "target_bpe": "json", "mode": "infill", "description": "Module name derived from .loads() call"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "serialized = ", "prefix": "serialized = ", "suffix": ".dumps(data)\n", "target": "json", "target_bpe": "json", "mode": "infill", "description": "Module name derived from .dumps() call"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "full_path = ", "prefix": "full_path = ", "suffix": ".path.join(root, file)\n", "target": "os", "target_bpe": "os", "mode": "infill", "description": "Module name derived from .path.join call"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "with ", "prefix": "with ", "suffix": "(path, 'r') as f:\n    data = f.read()\n", "target": "open", "target_bpe": "open", "mode": "infill", "description": "Built-in function derived from file read context"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "total = ", "prefix": "total = ", "suffix": "(numbers)\n    return total\n", "target": "sum", "target_bpe": "sum", "mode": "infill", "description": "Aggregation function derived from variable name & argument"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "n_items = ", "prefix": "n_items = ", "suffix": "(collection)\n", "target": "len", "target_bpe": "len", "mode": "infill", "description": "Collection length function derived from variable context"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "import torch.nn as ", "prefix": "import torch.nn as ", "suffix": "\n\nclass Net(nn.Module):\n    pass\n", "target": "nn", "target_bpe": "nn", "mode": "infill", "description": "Import alias derived from subclass inheritance nn.Module"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "import numpy as ", "prefix": "import numpy as ", "suffix": "\n\narr = np.zeros(10)\n", "target": "np", "target_bpe": "np", "mode": "infill", "description": "Import alias derived from np.zeros usage"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "import pandas as ", "prefix": "import pandas as ", "suffix": "\n\ndf = pd.DataFrame(data)\n", "target": "pd", "target_bpe": "pd", "mode": "infill", "description": "Import alias derived from pd.DataFrame usage"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "def is_", "prefix": "def is_", "suffix": "(obj) -> bool:\n    return obj.is_valid\n", "target": "valid", "target_bpe": "valid", "mode": "infill", "description": "Predicate name derived from returned boolean attribute"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "def is_", "prefix": "def is_", "suffix": "(container) -> bool:\n    return len(container) == 0\n", "target": "empty", "target_bpe": "empty", "mode": "infill", "description": "Predicate name derived from zero-length check"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "self._", "prefix": "self._", "suffix": " = {}\n        return self._cache[key]\n", "target": "cache", "target_bpe": "cache", "mode": "infill", "description": "Private dictionary attribute derived from indexed lookup"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "self._", "prefix": "self._", "suffix": " = threading.Lock()\n        with self._lock:\n", "target": "lock", "target_bpe": "lock", "mode": "infill", "description": "Private synchronization attribute derived from threading.Lock()"},
+    {"category": "Suffix-Clued Bidirectional Infill", "prompt": "def to_", "prefix": "def to_", "suffix": "(self):\n    return {'name': self.name, 'value': self.value}\n", "target": "dict", "target_bpe": "dict", "mode": "infill", "description": "Serialization method derived from returned dictionary"},
+]
+
+
+def load_contextual_probes(num_probes: int = 100) -> List[Dict[str, Any]]:
     """
     Loads deterministic contextual probes for Télos evaluation.
-    If num_probes <= 101, returns the standardized hand-crafted 8-category PROBE_SUITE_100.
-    Otherwise loads from evals/benchmarks/contextual_probes_1000.json if present.
+    Always returns the standardized 100-probe deterministic suite.
     """
-    if num_probes <= 101:
-        return PROBE_SUITE_100[:num_probes] if num_probes else PROBE_SUITE_100
-
-    pkg_dir = Path(__file__).resolve().parents[2]
-    bench_file = pkg_dir / "evals" / "benchmarks" / "contextual_probes_1000.json"
-    
-    if bench_file.exists():
-        try:
-            with open(bench_file, "r") as f:
-                data = json.load(f)
-            return data[:num_probes] if num_probes else data
-        except Exception:
-            pass
-            
     return PROBE_SUITE_100[:num_probes] if num_probes else PROBE_SUITE_100
-
