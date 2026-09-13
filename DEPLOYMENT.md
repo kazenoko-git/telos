@@ -135,17 +135,31 @@ telos dataprep --synthetic --tokens 100000 --output data/synthetic_corpus.bin
 
 ## 5. Model Evaluation Suite (`telos eval`)
 
-Runs the comprehensive 101 contextual probes benchmark or qualitative generation sampling on any MLX (`.safetensors`) or PyTorch (`.pt`) checkpoint:
+Runs the institutional-grade Python evaluation engine supporting contextual probes, sandboxed functional execution (Pass@1), AST syntax analysis, and anti-cheat suffix-copy detection on any MLX (`.safetensors`) or PyTorch (`.pt`) checkpoint:
 
 ```bash
-# 1. Run 100 contextual probes benchmark (across 8 syntactic categories)
-telos eval --checkpoint checkpoints/mdlm/model.safetensors --mode probes
+# 1. Run 1,000 contextual probes benchmark (across 8 syntactic categories with 95% Bootstrap CI)
+telos eval --checkpoint checkpoints/corosred/model.safetensors --mode probes --num-probes 1000
 
-# 2. Run qualitative code completion sampling
-telos eval --checkpoint checkpoints/12m/telos_12m_r1/model.safetensors --mode sample
+# 2. Run Functional Execution Benchmark (Pass@1 in an isolated subprocess sandbox with 3s timeout)
+telos eval --checkpoint checkpoints/corosred/model.safetensors --mode functional --suite private_unseen
+
+# 3. Run Anti-Cheat & Suffix-Copy Detection (multi-token span chunk masking K in {1, 2, 4, 8, 16})
+telos eval --checkpoint checkpoints/corosred/model.safetensors --mode anticheat
+
+# 4. Run Full Comprehensive Evaluation (Probes + Functional Execution + Anti-Cheat)
+telos eval --checkpoint checkpoints/corosred/model.safetensors --mode full
+
+# 5. Run Qualitative Generation Sampling
+telos eval --checkpoint checkpoints/corosred/model.safetensors --mode sample
 ```
 
-The probes suite outputs category breakdowns for Top-1 (%), Top-5 (%), Average Rank, and Target Cross-Entropy, saving a detailed JSON report to `logs/`.
+### Evaluation Modes & Features:
+- **`--mode probes`**: 1,000 deterministic probes across 8 categories (Algorithms, Data Structures, OOP, Control Flow, Strings, Built-ins, I/O & Exceptions, Typing & Imports). Reports Top-1, Top-5, Average Rank, Cross-Entropy, and 95% Bootstrap Confidence Intervals.
+- **`--mode functional`**: Executes model completions in an isolated subprocess (`multiprocessing.get_context("spawn")`) with hard $3.0\text{ s}$ timeout and $512\text{ MB}$ memory cap. Disambiguates outcomes into `PASSED`, `FAILED_ASSERTION`, `SYNTAX_ERROR`, `TIMEOUT`, `RUNTIME_EXCEPTION`, `MEMORY_EXCEEDED`.
+- **`--mode anticheat`**: Directly tests whether infill/diffusion models are cheating by copying the adjacent suffix boundary token (`suffix[0]`). Masks out multi-token chunks ($K \in \{1, 2, 4, 8, 16\}$) where boundary peeking fails, exposing degenerate shortcuts.
+- **`--suite private_unseen`**: Primary 500+ novel Python challenges with unit tests, screened via 13-gram rolling hashing against the training corpus.
+- **`--suite public_standard`**: Optional HumanEval (164) and sanitized MBPP (500) benchmark for external baseline parity.
 
 ---
 
