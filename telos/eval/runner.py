@@ -229,15 +229,19 @@ def _evaluate_single_probe_type(
         # Context-aware tokenization to handle ByteLevel BPE leading-space byte ('Ġ')
         p_ids = tokenizer.encode(prompt).ids
         target_bpe = probe.get("target_bpe", "")
-        sep = " " if ("Ġ" in target_bpe and not prompt.endswith(" ")) else ""
-        full_text = prompt + sep + target_str
-        full_ids = tokenizer.encode(full_text).ids
+        target_tok = None
+        if target_bpe:
+            target_tok = tokenizer.token_to_id(target_bpe)
 
-        if len(full_ids) > len(p_ids):
-            target_tok = full_ids[len(p_ids)]
-        else:
-            target_ids = tokenizer.encode(target_str).ids
-            target_tok = target_ids[0] if target_ids else 0
+        if target_tok is None:
+            sep = " " if ("Ġ" in target_bpe and not prompt.endswith(" ")) else ""
+            full_text = prompt + sep + target_str
+            full_ids = tokenizer.encode(full_text).ids
+            if len(full_ids) > len(p_ids):
+                target_tok = full_ids[len(p_ids)]
+            else:
+                target_ids = tokenizer.encode(target_str).ids
+                target_tok = target_ids[0] if target_ids else 0
 
         if probe_type == "infill":
             suffix = probe.get("suffix", "")
@@ -435,8 +439,16 @@ def evaluate_functional(
     with open(data_file, "r") as f:
         tasks = json.load(f)
 
-    if max_tasks:
-        tasks = tasks[:max_tasks]
+    if max_tasks and len(tasks) > max_tasks:
+        # Balanced sampling across categories
+        cats = {}
+        for t in tasks:
+            cats.setdefault(t.get("category", "General"), []).append(t)
+        sampled = []
+        per_cat = max(1, max_tasks // len(cats))
+        for cat, cat_tasks in cats.items():
+            sampled.extend(cat_tasks[:per_cat])
+        tasks = sampled[:max_tasks]
 
     print("\n" + "=" * 80)
     print(f"  TÉLOS FUNCTIONAL EXECUTION BENCHMARK: {suite.upper()} ({len(tasks)} TASKS)")
@@ -611,19 +623,19 @@ def evaluate_sample(model, tokenizer, backend: str, prompts: list[str] | None = 
     print("=" * 76 + "\n")
 
 
-def evaluate(
+def _evaluate_single(
     checkpoint: str | Path,
     mode: str = "probes",
     suite: str = "private_unseen",
     probe_type: str = "both",
-    num_probes: int = 1000,
+    num_probes: int = 100,
     max_tasks: Optional[int] = None,
     timeout: float = 3.0,
     tokenizer_path: str | Path | None = None,
     output_path: Optional[str | Path] = None,
     **kwargs
 ) -> Dict[str, Any]:
-    """Master programmatic entrypoint for Télos evaluation engine."""
+    """Evaluates a single model checkpoint."""
     model, backend, vocab_size = load_model_from_checkpoint(checkpoint)
     if tokenizer_path is None:
         if vocab_size == 8192 and (PROJECT_ROOT / "configs" / "tokenizer_mac.json").exists():
@@ -660,23 +672,174 @@ def evaluate(
     else:
         raise ValueError(f"Unknown evaluation mode: {mode}. Choose 'probes', 'functional', 'anticheat', 'full', or 'sample'.")
 
-    # Save report
-    out_file = Path(output_path) if output_path else (PROJECT_ROOT / "logs" / f"eval_report_{mode}_{int(time.time())}.json")
-    out_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_file, "w") as f:
-        json.dump(report, f, indent=2)
-    print(f"✓ Saved comprehensive evaluation report to {out_file}\n")
+    # Save single report if output_path is provided
+    if output_path:
+        out_file = Path(output_path)
+        out_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_file, "w") as f:
+            json.dump(report, f, indent=2)
+        print(f"✓ Saved evaluation report to {out_file}\n")
 
     return report
 
 
+def print_multimodel_scorecard(multi_reports: Dict[str, Any], mode: str):
+    """Renders a comparative scorecard across multiple evaluated models."""
+    print("\n" + "=" * 115)
+    print(f"                       TÉLOS MULTI-MODEL EVALUATION SCORECARD ({mode.upper()})")
+    print("=" * 115)
+
+    if mode in ["probes", "full"]:
+        header = (
+            f"{'Model / Checkpoint':<38} | {'Backend':<7} | {'Infill Top1':<11} | {'Infill CE':<9} | "
+            f"{'Causal Top1':<11} | {'Causal CE':<9} | {'Infill Rank':<11}"
+        )
+        print(header)
+        print("-" * 115)
+        for name, rep in multi_reports.items():
+            b = rep.get("backend", "unknown")
+            pr = rep.get("probes", {})
+            inf = pr.get("infill", {}).get("overall", {})
+            cau = pr.get("causal", {}).get("overall", {})
+            inf_t1 = f"{inf.get('top1_acc_pct', 0.0):.1f}%"
+            inf_ce = f"{inf.get('mean_ce', 0.0):.2f}"
+            cau_t1 = f"{cau.get('top1_acc_pct', 0.0):.1f}%"
+            cau_ce = f"{cau.get('mean_ce', 0.0):.2f}"
+            inf_rnk = f"{inf.get('mean_rank', 0.0):.1f}"
+            disp_name = name if len(name) <= 38 else "..." + name[-35:]
+            print(f"{disp_name:<38} | {b:<7} | {inf_t1:<11} | {inf_ce:<9} | {cau_t1:<11} | {cau_ce:<9} | {inf_rnk:<11}")
+
+    if mode in ["anticheat", "full"]:
+        print("\n" + "-" * 115)
+        print("  ANTI-CHEAT SUFFIX-COPY RATE & SPAN DEGRADATION:")
+        print(f"{'Model / Checkpoint':<38} | {'K=1 Suffix Copy':<16} | {'K=2 Suffix Copy':<16} | {'K=4 Suffix Copy':<16} | {'Cheat Detected'}")
+        print("-" * 115)
+        for name, rep in multi_reports.items():
+            ac = rep.get("anticheat", {})
+            spans = ac.get("span_breakdown", ac.get("span_results", {}))
+            k1 = f"{spans.get('span_1', {}).get('suffix_copy_rate_pct', spans.get('1', {}).get('suffix_copy_rate', 0.0)):.1f}%"
+            k2 = f"{spans.get('span_2', {}).get('suffix_copy_rate_pct', spans.get('2', {}).get('suffix_copy_rate', 0.0)):.1f}%"
+            k4 = f"{spans.get('span_4', {}).get('suffix_copy_rate_pct', spans.get('4', {}).get('suffix_copy_rate', 0.0)):.1f}%"
+            cheat = "YES (CHEAT)" if ac.get("is_suspect_cheater", ac.get("cheat_detected")) else "NO (ROBUST)"
+            disp_name = name if len(name) <= 38 else "..." + name[-35:]
+            print(f"{disp_name:<38} | {k1:<16} | {k2:<16} | {k4:<16} | {cheat}")
+
+    if mode in ["functional", "full"]:
+        print("\n" + "-" * 115)
+        print("  FUNCTIONAL PASS@1 & SYNTAX VALIDITY:")
+        print(f"{'Model / Checkpoint':<38} | {'Pass@1 (%)':<11} | {'AST Valid (%)':<13} | {'Syntax Errors':<13} | {'Assertion Fails'}")
+        print("-" * 115)
+        for name, rep in multi_reports.items():
+            fn = rep.get("functional", {})
+            p1 = f"{fn.get('pass_at_1_pct', 0.0):.1f}%"
+            ast = f"{fn.get('ast_validity_pct', 0.0):.1f}%"
+            outcomes = fn.get("execution_outcomes", {})
+            syn_err = outcomes.get("SYNTAX_ERROR", 0)
+            ast_fail = outcomes.get("FAILED_ASSERTION", 0)
+            disp_name = name if len(name) <= 38 else "..." + name[-35:]
+            print(f"{disp_name:<38} | {p1:<11} | {ast:<13} | {syn_err:<13} | {ast_fail}")
+
+    print("=" * 115 + "\n")
+
+
+def evaluate(
+    checkpoint: str | Path | list[str | Path] | tuple[str | Path, ...],
+    mode: str = "probes",
+    suite: str = "private_unseen",
+    probe_type: str = "both",
+    num_probes: int = 100,
+    max_tasks: Optional[int] = None,
+    timeout: float = 3.0,
+    tokenizer_path: str | Path | None = None,
+    output_path: Optional[str | Path] = None,
+    **kwargs
+) -> Dict[str, Any]:
+    """
+    Master programmatic entrypoint for Télos evaluation engine.
+    Supports evaluating a single checkpoint or multiple checkpoints side-by-side.
+    """
+    if isinstance(checkpoint, (list, tuple)):
+        checkpoints = list(checkpoint)
+    else:
+        checkpoints = [checkpoint]
+
+    if len(checkpoints) == 1:
+        rep = _evaluate_single(
+            checkpoint=checkpoints[0],
+            mode=mode,
+            suite=suite,
+            probe_type=probe_type,
+            num_probes=num_probes,
+            max_tasks=max_tasks,
+            timeout=timeout,
+            tokenizer_path=tokenizer_path,
+            output_path=output_path,
+            **kwargs
+        )
+        if not output_path:
+            out_file = PROJECT_ROOT / "logs" / f"eval_report_{mode}_{int(time.time())}.json"
+            out_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(out_file, "w") as f:
+                json.dump(rep, f, indent=2)
+            print(f"✓ Saved evaluation report to {out_file}\n")
+        return rep
+
+    # Multi-model evaluation workflow
+    print("\n" + "=" * 80)
+    print(f"  TÉLOS MULTI-MODEL BENCHMARK: EVALUATING {len(checkpoints)} MODELS ({mode.upper()})")
+    print("=" * 80)
+
+    multi_reports: Dict[str, Any] = {}
+    for idx, cp in enumerate(checkpoints, 1):
+        cp_path = Path(cp)
+        name = cp_path.parent.name if cp_path.is_file() else cp_path.name
+        if name in ["unified", "ar", "corosred", "masked", "uniform"] or name.startswith("phase"):
+            name = f"{cp_path.parent.parent.name}/{name}"
+        if name in multi_reports:
+            name = f"{name}_{idx}"
+
+        print(f"\n[{idx}/{len(checkpoints)}] Evaluating {name} ({cp})...")
+        single_rep = _evaluate_single(
+            checkpoint=cp,
+            mode=mode,
+            suite=suite,
+            probe_type=probe_type,
+            num_probes=num_probes,
+            max_tasks=max_tasks,
+            timeout=timeout,
+            tokenizer_path=tokenizer_path,
+            output_path=None,
+            **kwargs
+        )
+        multi_reports[name] = single_rep
+
+    # Print comparative scorecard
+    print_multimodel_scorecard(multi_reports, mode=mode)
+
+    # Save consolidated report
+    out_file = Path(output_path) if output_path else (PROJECT_ROOT / "logs" / f"eval_report_multimodel_{mode}_{int(time.time())}.json")
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_file, "w") as f:
+        json.dump(multi_reports, f, indent=2)
+    print(f"✓ Saved consolidated multi-model evaluation report to {out_file}\n")
+
+    return multi_reports
+
+
 def main():
     parser = argparse.ArgumentParser(description="Télos Next-Generation Evaluation Suite")
-    parser.add_argument("--checkpoint", type=str, required=True, help="Path to checkpoint file (.safetensors, .pt) or directory")
+    parser.add_argument(
+        "--checkpoint", "--checkpoints",
+        type=str,
+        nargs="+",
+        dest="checkpoints",
+        required=True,
+        help="One or more paths to checkpoint file(s) (.safetensors, .pt) or directory(ies)"
+    )
     parser.add_argument("--mode", type=str, default="probes", choices=["probes", "functional", "anticheat", "full", "sample"], help="Evaluation mode")
     parser.add_argument("--suite", type=str, default="private_unseen", choices=["private_unseen", "public_standard"], help="Benchmark suite track")
     parser.add_argument("--probe-type", type=str, default="both", choices=["infill", "causal", "both"], help="Probe benchmark type")
-    parser.add_argument("--num-probes", type=int, default=1000, help="Number of contextual probes to evaluate")
+    parser.add_argument("--num-probes", type=int, default=100, help="Number of contextual probes to evaluate")
     parser.add_argument("--max-tasks", type=int, default=None, help="Maximum number of functional execution tasks")
     parser.add_argument("--timeout", type=float, default=3.0, help="Sandbox subprocess timeout in seconds")
     parser.add_argument("--tokenizer", type=str, default=None, help="Path to BPE tokenizer JSON")
@@ -684,7 +847,7 @@ def main():
     args = parser.parse_args()
 
     evaluate(
-        checkpoint=args.checkpoint,
+        checkpoint=args.checkpoints,
         mode=args.mode,
         suite=args.suite,
         probe_type=args.probe_type,
@@ -698,3 +861,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
