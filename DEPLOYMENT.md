@@ -152,6 +152,9 @@ telos eval --checkpoint checkpoints/corosred/model.safetensors --mode full
 
 # 5. Run Qualitative Generation Sampling
 telos eval --checkpoint checkpoints/corosred/model.safetensors --mode sample
+
+# 6. Run Multi-Model Comparative Evaluation Scorecard
+telos eval --checkpoints checkpoints/corosred/unified/100m_5b/checkpoint_final.pt checkpoints/ar/100m_5b/checkpoint_final.pt --mode probes
 ```
 
 ### Evaluation Modes & Features:
