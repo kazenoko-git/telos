@@ -17,6 +17,7 @@ import sys
 import json
 import time
 import math
+import ast
 import argparse
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
@@ -415,6 +416,30 @@ def evaluate_probes(
     return report_payload
 
 
+def clean_functional_completion(prompt: str, raw_completion: str) -> str:
+    """
+    Cleans model completion for functional code execution:
+    1. Truncates at the start of any new top-level function or class definition.
+    2. Trims trailing incomplete lines caused by max_token limits to maximize valid AST recovery.
+    """
+    stop_phrases = ["\ndef ", "\nclass ", "\nif __name__", "\nprint("]
+    comp = raw_completion
+    for sp in stop_phrases:
+        if sp in comp:
+            comp = comp[:comp.index(sp)]
+
+    lines = comp.splitlines(keepends=True)
+    while lines:
+        test_code = prompt + "".join(lines)
+        try:
+            ast.parse(test_code)
+            return "".join(lines)
+        except SyntaxError:
+            lines.pop()
+
+    return comp
+
+
 def _generate_greedy_completion(
     model,
     tokenizer,
@@ -427,6 +452,7 @@ def _generate_greedy_completion(
     p_ids = tokenizer.encode(prompt).ids
     curr_ids = list(p_ids)
     stop_set = set(stop_tokens or [0, 3])  # EOS / PAD
+    stop_words = ["\ndef ", "\nclass ", "\nif __name__"]
 
     for _ in range(max_new_tokens):
         if backend == "mlx":
@@ -444,6 +470,11 @@ def _generate_greedy_completion(
         if next_tok in stop_set:
             break
         curr_ids.append(next_tok)
+
+        # Early stopping on function boundary
+        cur_text = tokenizer.decode(curr_ids[len(p_ids):])
+        if any(sw in cur_text for sw in stop_words):
+            break
 
     # Decode only the newly generated continuation tokens
     continuation_ids = curr_ids[len(p_ids):]
@@ -504,13 +535,14 @@ def evaluate_functional(
         test_harness = task.get("test_harness", "")
 
         # 1. Generate code completion with greedy decoding
-        completion = _generate_greedy_completion(
+        raw_completion = _generate_greedy_completion(
             model=model,
             tokenizer=tokenizer,
             backend=backend,
             prompt=prompt,
             max_new_tokens=max_new_tokens
         )
+        completion = clean_functional_completion(prompt, raw_completion)
         full_candidate_code = prompt + completion
 
         # 2. Check inline AST syntax validity
