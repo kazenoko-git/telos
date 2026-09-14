@@ -176,6 +176,14 @@ class UnifiedPyTorchTrainer:
             self.model.to(dtype=torch.float32)
             print("  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).")
 
+        # Crucial for PyTorch-XLA / Cloud TPU: Parameter tensor memory handles decouple across child
+        # modules during .to(device). Explicitly re-tie output_projection to tok_embeddings so PyTorch-XLA
+        # maintains a single unified weight tensor and backward updates accumulate jointly.
+        if hasattr(self.model, "tie_weights"):
+            self.model.tie_weights()
+        elif hasattr(getattr(self.model, "module", None), "tie_weights"):
+            self.model.module.tie_weights()
+
         # Multi-GPU wrapping: Prefer DDP over deprecated DataParallel
         if getattr(self, "is_ddp", False):
             # In legacy COROSred Phase B and C, reliability_head is frozen / only used for routing,
@@ -289,8 +297,16 @@ class UnifiedPyTorchTrainer:
         self.param_to_master = []
         decay_params = []
         no_decay_params = []
+        # In PyTorch, named_parameters() does not deduplicate if tensors are on separate memory addresses.
+        # Track seen parameter object IDs to strictly prevent tied embeddings from being placed in both groups.
+        seen_param_ids = set()
         for name, param in self.model.named_parameters():
             if param.requires_grad:
+                param_id = id(param)
+                if param_id in seen_param_ids:
+                    continue
+                seen_param_ids.add(param_id)
+
                 if self.use_master_weights:
                     # Allocate fp32 master parameter copy to prevent updates from rounding to zero in bf16
                     mp = param.detach().clone().float().requires_grad_(True)
@@ -459,6 +475,12 @@ class UnifiedPyTorchTrainer:
             self.model.module.load_state_dict(state_dict)
         else:
             self.model.load_state_dict(state_dict)
+
+        # Re-tie weights after loading checkpoint state dict
+        if hasattr(self.model, "tie_weights"):
+            self.model.tie_weights()
+        elif hasattr(getattr(self.model, "module", None), "tie_weights"):
+            self.model.module.tie_weights()
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
         self.global_step = checkpoint.get("global_step", 0)
