@@ -6,6 +6,7 @@ Hugging Face datasets, or synthetic stream) into memory-mapped binary token arra
 
 import os
 import sys
+import re
 import json
 import argparse
 from pathlib import Path
@@ -13,6 +14,80 @@ import numpy as np
 from tqdm import tqdm
 
 from telos.data.tokenizer import train_bpe_tokenizer, load_tokenizer
+
+_LICENSE_REGEX = re.compile(
+    r"(copyright\b|licensed?\s+under|apache\s+license|mit\s+license|gnu\s+general|mozilla\s+public|spdx-license|all\s+rights\s+reserved)",
+    re.IGNORECASE
+)
+
+
+def strip_license_header(code: str) -> str:
+    """
+    Strips top-of-file license, copyright, and disclaimer headers from Python source.
+    Scans the opening lines for comment blocks or docstrings containing legal boilerplate.
+    Preserves module-level code, imports, and regular functional docstrings.
+    """
+    lines = code.splitlines(keepends=True)
+    if not lines:
+        return code
+
+    header_end = 0
+    in_block_comment = False
+    block_quote_char = None
+    has_license_keyword = False
+
+    idx = 0
+    while idx < min(len(lines), 50):
+        line = lines[idx]
+        stripped = line.strip()
+
+        # Shebang (#!) or encoding header
+        if idx == 0 and (stripped.startswith("#!") or "coding:" in stripped or "coding=" in stripped):
+            idx += 1
+            continue
+
+        # Single-line comment (# ...)
+        if stripped.startswith("#"):
+            if _LICENSE_REGEX.search(stripped):
+                has_license_keyword = True
+            header_end = idx + 1
+            idx += 1
+            continue
+
+        # Module-level docstring starting with triple quotes
+        if not in_block_comment and (stripped.startswith('"""') or stripped.startswith("'''")):
+            block_quote_char = stripped[:3]
+            in_block_comment = True
+            if _LICENSE_REGEX.search(stripped):
+                has_license_keyword = True
+            # Single-line docstring
+            if len(stripped) > 3 and stripped[3:].endswith(block_quote_char):
+                in_block_comment = False
+                header_end = idx + 1
+            idx += 1
+            continue
+
+        # Multi-line docstring continuation
+        if in_block_comment:
+            if _LICENSE_REGEX.search(stripped):
+                has_license_keyword = True
+            if block_quote_char in stripped:
+                in_block_comment = False
+                header_end = idx + 1
+            idx += 1
+            continue
+
+        # Blank/empty lines within the opening header
+        if not stripped:
+            idx += 1
+            continue
+
+        # First line of actual executable Python code
+        break
+
+    if has_license_keyword and header_end > 0:
+        return "".join(lines[header_end:]).lstrip()
+    return code
 
 
 def iterate_text_sources(
@@ -40,10 +115,12 @@ def iterate_text_sources(
         for row in ds:
             text = row.get(text_key) or row.get("text") or row.get("code") or ""
             if text.strip():
-                yield text
-                doc_count += 1
-                if limit_docs and doc_count >= limit_docs:
-                    return
+                clean_text = strip_license_header(text)
+                if len(clean_text.strip()) >= 20:
+                    yield clean_text
+                    doc_count += 1
+                    if limit_docs and doc_count >= limit_docs:
+                        return
 
     # Source 2: Local path (Directory, Text File, or JSONL)
     elif source_path:
@@ -60,10 +137,12 @@ def iterate_text_sources(
                             with open(f_path, "r", encoding="utf-8", errors="ignore") as fl:
                                 content = fl.read()
                                 if content.strip():
-                                    yield content
-                                    doc_count += 1
-                                    if limit_docs and doc_count >= limit_docs:
-                                        return
+                                    clean_content = strip_license_header(content)
+                                    if len(clean_content.strip()) >= 20:
+                                        yield clean_content
+                                        doc_count += 1
+                                        if limit_docs and doc_count >= limit_docs:
+                                            return
                         except Exception:
                             continue
 
@@ -83,7 +162,9 @@ def iterate_text_sources(
             with open(p, "r", encoding="utf-8", errors="ignore") as fl:
                 content = fl.read()
                 if content.strip():
-                    yield content
+                    clean_content = strip_license_header(content)
+                    if len(clean_content.strip()) >= 20:
+                        yield clean_content
 
 
 def prepare_dataset(
@@ -179,8 +260,9 @@ def prepare_dataset(
     pbar = tqdm(total=max_tokens, unit="tokens", unit_scale=True, desc="Tokenizing")
     with open(output_path, "wb") as out_f:
         for doc in iterate_text_sources(corpus, dataset_name, dataset_split, text_key):
-            if len(doc.strip()) >= 20:
-                buffer.append(doc)
+            clean_doc = strip_license_header(doc)
+            if len(clean_doc.strip()) >= 20:
+                buffer.append(clean_doc)
             if len(buffer) >= batch_size:
                 encodings = tok.encode_batch(buffer)
                 flat_tokens = []
