@@ -188,18 +188,30 @@ def summarize_anticheat_suite(results: List[Dict[str, Any]]) -> Dict[str, Any]:
             "prefix_copy_rate_pct": round((prefix_copies / count) * 100.0, 2),
         }
 
-    # Flag potential cheating: high accuracy on span 1 with high suffix copy, dropping on span 4
+    # Flag potential cheating: high accuracy on span 1 with high suffix copy, dropping on span 4,
+    # OR degenerate copying where suffix copy is high (>15%) while semantic accuracy is near-zero.
     span_1 = summary.get("span_1", {})
     span_4 = summary.get("span_4", {})
     is_suspect_cheater = False
+    cheat_mode = None
     if span_1 and span_4:
-        # If suffix copy is > 15% and performance drops by more than 3x
-        if span_1.get("suffix_copy_rate_pct", 0) > 15.0:
-            if span_1.get("exact_match_pct", 0) > (span_4.get("exact_match_pct", 0) * 3.0):
+        s1_copy = span_1.get("suffix_copy_rate_pct", 0)
+        s1_acc = span_1.get("exact_match_pct", 0)
+        s4_acc = span_4.get("exact_match_pct", 0)
+        
+        if s1_copy > 15.0:
+            # Mode A: Classical boundary cheat (high span 1 match that plummets on span 4)
+            if s1_acc > (s4_acc * 3.0) and s1_acc > 5.0:
                 is_suspect_cheater = True
+                cheat_mode = "boundary_cheat"
+            # Mode B: Degenerate copying (high copy rate with near-zero semantic reasoning)
+            elif s1_acc < 10.0:
+                is_suspect_cheater = True
+                cheat_mode = "degenerate_copy"
 
     return {
         "total_probes_evaluated": total_samples,
         "span_breakdown": summary,
         "is_suspect_cheater": is_suspect_cheater,
+        "cheat_mode": cheat_mode,
     }
