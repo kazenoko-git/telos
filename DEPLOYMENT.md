@@ -276,7 +276,12 @@ TPU VMs often suffer from severe host CPU pegging (600%–800% CPU usage) due to
 2. **Zero-Copy Memory-Mapped Streaming**: Pretokenized `uint16` binary datasets are wrapped directly via `torch.from_numpy()` without intermediate CPU array reallocation.
 3. **Asynchronous Static Graphs**: Inner microbatch loss computation uses pure PyTorch tensor operations with zero `.item()` calls, keeping the XLA HLO execution graph 100% static and asynchronous.
 
-### 2. Sizing Effective Batch Size & Preventing OOM on Higher Models
+### 2. Preserving On-Device Weight Tying on TPU
+PyTorch-XLA creates independent tensor memory allocations for distinct module parameters during `model.to(device)`. If `tied_embeddings: true` is configured, Télos automatically re-ties `output_projection.weight = tok_embeddings.weight` on-device and deduplicates parameters in the AdamW optimizer. This guarantees:
+- Token embeddings and output projections remain identical tensors with combined gradient accumulation.
+- 0 weight decay is applied to the tied embedding matrix, preventing the output projection from decaying toward zero over long (20k+ step) training runs.
+
+### 3. Sizing Effective Batch Size & Preventing OOM on Higher Models
 TPU v5e chips provide **16 GB HBM** per tensor core. To strictly maintain a **medium Effective Batch Size = 256 sequences** ($131,072$ tokens/step) across 8 TPU cores without memory exhaustion:
 - **15M / 25M / 50M** ($d_{\text{model}} \le 512$): `batch_size=32`, `grad_accum=1` $\implies 32 \times 1 \times 8 = \mathbf{256\text{ sequences}}$ (~3.5 GB HBM per core, reaches **600k tok/s** at ~4.58 steps/s).
 - **100M+** ($d_{\text{model}} \ge 768$): `batch_size=16`, `grad_accum=2` $\implies 16 \times 2 \times 8 = \mathbf{256\text{ sequences}}$. Microbatch is halved to 16, cutting peak activation memory in half and preventing OOM while preserving the exact same effective batch size.
