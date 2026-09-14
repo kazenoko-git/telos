@@ -624,10 +624,28 @@ def evaluate_anticheat(
     model,
     tokenizer,
     backend: str,
+    paradigm: str = "corosred",
     num_probes: int = 100,
     span_lengths: Optional[List[int]] = None
 ) -> Dict[str, Any]:
     """Evaluates multi-token chunk masking and suffix-copying cheat rates."""
+    if str(paradigm).lower() == "ar":
+        print("\n" + "=" * 80)
+        print("  TÉLOS ANTI-CHEAT & SUFFIX-COPY BENCHMARK")
+        print("  [Notice] Model is AR (causal-only). Bidirectional infill and suffix copy N/A.")
+        print("=" * 80 + "\n")
+        return {
+            "status": "not_applicable",
+            "reason": "AR models are causal-only and cannot condition on bidirectional suffixes",
+            "is_suspect_cheater": False,
+            "span_breakdown": {
+                "span_1": {"suffix_copy_rate_pct": None, "exact_match_pct": None, "token_accuracy_pct": None},
+                "span_2": {"suffix_copy_rate_pct": None, "exact_match_pct": None, "token_accuracy_pct": None},
+                "span_4": {"suffix_copy_rate_pct": None, "exact_match_pct": None, "token_accuracy_pct": None},
+                "span_8": {"suffix_copy_rate_pct": None, "exact_match_pct": None, "token_accuracy_pct": None},
+            }
+        }
+
     probes = load_contextual_probes(num_probes)
     span_lengths = span_lengths or [1, 2, 4, 8]
 
@@ -662,9 +680,17 @@ def evaluate_anticheat(
 
     print("-" * 80)
     if summary.get("is_suspect_cheater"):
-        print("  [!] WARNING: Model exhibits high boundary suffix-copying cheat characteristics!")
+        cheat_mode = summary.get("cheat_mode")
+        if cheat_mode == "degenerate_copy":
+            print("  [!] FAILED (DEGENERATE): Model exhibits degenerate suffix-copying with near-zero accuracy.")
+        else:
+            print("  [!] WARNING: Model exhibits high boundary suffix-copying cheat characteristics!")
     else:
-        print("  [✓] PASSED: Model infilling performance shows robust multi-token semantic reasoning.")
+        s1_acc = summary.get("span_breakdown", {}).get("span_1", {}).get("exact_match_pct", 0.0)
+        if s1_acc < 5.0:
+            print("  [?] UNCONVERGED: Model infilling accuracy is near-zero; representations not yet formed.")
+        else:
+            print("  [✓] PASSED: Model infilling performance shows robust multi-token semantic reasoning.")
     print("=" * 80 + "\n")
 
     return summary
@@ -737,7 +763,7 @@ def _evaluate_single(
             model, tok, backend, suite=suite, max_tasks=max_tasks, timeout_seconds=timeout
         )
     elif mode == "anticheat":
-        report["anticheat"] = evaluate_anticheat(model, tok, backend, num_probes=min(num_probes, 200))
+        report["anticheat"] = evaluate_anticheat(model, tok, backend, paradigm=paradigm, num_probes=min(num_probes, 200))
     elif mode == "sample":
         evaluate_sample(model, tok, backend)
         report["sample"] = {"status": "completed"}
@@ -748,7 +774,7 @@ def _evaluate_single(
         report["functional"] = evaluate_functional(
             model, tok, backend, suite=suite, max_tasks=max_tasks, timeout_seconds=timeout
         )
-        report["anticheat"] = evaluate_anticheat(model, tok, backend, num_probes=min(num_probes, 200))
+        report["anticheat"] = evaluate_anticheat(model, tok, backend, paradigm=paradigm, num_probes=min(num_probes, 200))
     else:
         raise ValueError(f"Unknown evaluation mode: {mode}. Choose 'probes', 'functional', 'anticheat', 'full', or 'sample'.")
 
@@ -824,11 +850,21 @@ def print_multimodel_scorecard(multi_reports: Dict[str, Any], mode: str):
         print("-" * 115)
         for name, rep in multi_reports.items():
             ac = rep.get("anticheat", {})
-            spans = ac.get("span_breakdown", ac.get("span_results", {}))
-            k1 = f"{spans.get('span_1', {}).get('suffix_copy_rate_pct', spans.get('1', {}).get('suffix_copy_rate', 0.0)):.1f}%"
-            k2 = f"{spans.get('span_2', {}).get('suffix_copy_rate_pct', spans.get('2', {}).get('suffix_copy_rate', 0.0)):.1f}%"
-            k4 = f"{spans.get('span_4', {}).get('suffix_copy_rate_pct', spans.get('4', {}).get('suffix_copy_rate', 0.0)):.1f}%"
-            cheat = "YES (CHEAT)" if ac.get("is_suspect_cheater", ac.get("cheat_detected")) else "NO (ROBUST)"
+            if ac.get("status") == "not_applicable":
+                k1, k2, k4, cheat = "N/A (AR)", "N/A (AR)", "N/A (AR)", "N/A (AR)"
+            else:
+                spans = ac.get("span_breakdown", ac.get("span_results", {}))
+                k1 = f"{spans.get('span_1', {}).get('suffix_copy_rate_pct', spans.get('1', {}).get('suffix_copy_rate', 0.0)):.1f}%"
+                k2 = f"{spans.get('span_2', {}).get('suffix_copy_rate_pct', spans.get('2', {}).get('suffix_copy_rate', 0.0)):.1f}%"
+                k4 = f"{spans.get('span_4', {}).get('suffix_copy_rate_pct', spans.get('4', {}).get('suffix_copy_rate', 0.0)):.1f}%"
+                s1_acc = spans.get('span_1', {}).get('exact_match_pct', 0.0)
+                if ac.get("is_suspect_cheater", ac.get("cheat_detected")):
+                    cheat_mode = ac.get("cheat_mode")
+                    cheat = "YES (DEGEN)" if cheat_mode == "degenerate_copy" else "YES (CHEAT)"
+                elif s1_acc < 5.0:
+                    cheat = "NO (UNCONV)"
+                else:
+                    cheat = "NO (ROBUST)"
             disp_name = name if len(name) <= 38 else "..." + name[-35:]
             print(f"{disp_name:<38} | {k1:<16} | {k2:<16} | {k4:<16} | {cheat}")
 
