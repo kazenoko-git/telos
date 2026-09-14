@@ -79,16 +79,16 @@ telos train --paradigm mdlm --params 25M --tokens 300M --effective-batch 32
 # 2. Train a 50M UNDLM model on 4x NVIDIA GPUs (CUDA) with torch.compile
 telos train --paradigm undlm --params 50M --tokens 500M --hardware cuda --devices 4 --compile
 
-# 3. Train Unified COROSred 50M with Anti-Cheat Tuned Hyperparameters (Eliminates Suffix Copy)
-# Uses causal_ratio=0.60 (40% infill), mask_prob=0.20, hold_frac=0.10 for 2.5× infill gradient boost
-telos train --paradigm corosred --params 50M --tokens 2.5B --causal-ratio 0.60 --mask-prob 0.20 --hold-frac 0.10 --data data/python_corpus_2.5b.bin
+# 3. Train Unified COROSred 50M with Stabilized Causal Anchoring (Sequence-Normalized Pooling)
+# Uses causal_ratio=0.65, mask_prob=0.20, hold_frac=0.20, alpha_min=0.50, beta_max=0.35 on Cloud TPU (8 cores)
+telos train --paradigm corosred --params 50M --tokens 2.5B --causal-ratio 0.65 --mask-prob 0.20 --hold-frac 0.20 --alpha-min 0.50 --beta-max 0.35 --hardware xla --devices 8 --data data/python_corpus_5b.bin
 
 # 4. Retrain 100M AR Baseline on 5B Tokens (1param:50tokens Overtrain Ratio on Cloud TPU)
 # Built on hardened PyTorch-XLA backend (eliminated double reduction, static shape CE, tied weights enforced)
 telos train --paradigm ar --params 100M --tokens 5B --hardware xla --devices 8 --data data/python_corpus_5b.bin
 
-# 5. Retrain Unified COROSred 100M on 5B Tokens with Tuned Infill Allocation
-telos train --paradigm corosred --params 100M --tokens 5B --causal-ratio 0.60 --mask-prob 0.20 --hold-frac 0.10 --hardware xla --devices 8 --data data/python_corpus_5b.bin
+# 5. Retrain Unified COROSred 100M on 5B Tokens with Stabilized Infill Allocation
+telos train --paradigm corosred --params 100M --tokens 5B --causal-ratio 0.65 --mask-prob 0.20 --hold-frac 0.20 --alpha-min 0.50 --beta-max 0.35 --hardware xla --devices 8 --data data/python_corpus_5b.bin
 
 # 6. Legacy Phase-Based COROSred (Phase A -> B -> C) if explicitly desired
 telos train --paradigm corosred --phase A --params 50M --tokens 1.0B --legacy-phases
