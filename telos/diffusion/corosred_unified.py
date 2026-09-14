@@ -47,7 +47,7 @@ class RoutingMaskCache:
         model,
         upcoming_seqs: torch.Tensor,
         current_step: int,
-        mask_prob: float = 0.15,
+        mask_prob: float = 0.20,
     ):
         """
         Evaluates a block of upcoming infill sequences through the causal model
@@ -57,7 +57,7 @@ class RoutingMaskCache:
             model: Transformer model
             upcoming_seqs: Tensor of shape (K * B_m, T)
             current_step: Global step integer
-            mask_prob: Fraction of tokens to mask (default 0.15)
+            mask_prob: Fraction of tokens to mask (default 0.20)
         """
         raw_model = getattr(model, "module", model)
         has_reliability = (
@@ -104,7 +104,7 @@ class RoutingMaskCache:
         self,
         batch_seqs: torch.Tensor,
         mask_token_id: int,
-        mask_prob: float = 0.15,
+        mask_prob: float = 0.20,
         mask_blend: float = 0.0,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
@@ -164,10 +164,10 @@ def corosred_unified_step_pytorch(
     vocab_size: int,
     schedule_weights: dict[str, float],
     mask_token_id: int = 1,
-    mask_prob: float = 0.15,
+    mask_prob: float = 0.20,
     special_token_lut: torch.Tensor | None = None,
     k_amb: int = 5,
-    causal_ratio: float = 0.75,
+    causal_ratio: float = 0.60,
     routing_cache: RoutingMaskCache | None = None,
     metric_tracker=None,
     adaptive_rebalance: bool = False,
@@ -185,7 +185,7 @@ def corosred_unified_step_pytorch(
         mask_prob: Mask probability for infilling
         special_token_lut: Special token lookup table for exclusion
         k_amb: Ambiguity exclusion top-k for LRH
-        causal_ratio: Fraction of batch sequences dedicated to causal pass (default 0.75)
+        causal_ratio: Fraction of batch sequences dedicated to causal pass (default 0.60)
         routing_cache: Optional RoutingMaskCache instance
         metric_tracker: Optional DynamicMetricTracker instance
         adaptive_rebalance: Whether to apply safe trust-region loss rebalancing
