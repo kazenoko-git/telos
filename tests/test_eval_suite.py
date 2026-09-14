@@ -162,6 +162,25 @@ class TestAntiCheatEngine:
         assert metrics["copied_suffix_first"] is False
         assert metrics["copied_prefix_last"] is False
 
+    def test_summarize_anticheat_modes(self):
+        # Degenerate copy: 0% match, 100% suffix copy
+        degen_items = [
+            {"span_1": {"exact_match": False, "token_accuracy": 0.0, "copied_suffix_first": True, "copied_prefix_last": False},
+             "span_4": {"exact_match": False, "token_accuracy": 0.0, "copied_suffix_first": True, "copied_prefix_last": False}}
+        ]
+        res_degen = summarize_anticheat_suite(degen_items)
+        assert res_degen["is_suspect_cheater"] is True
+        assert res_degen["cheat_mode"] == "degenerate_copy"
+
+        # Robust model: high match, 0% suffix copy
+        robust_items = [
+            {"span_1": {"exact_match": True, "token_accuracy": 1.0, "copied_suffix_first": False, "copied_prefix_last": False},
+             "span_4": {"exact_match": True, "token_accuracy": 1.0, "copied_suffix_first": False, "copied_prefix_last": False}}
+        ]
+        res_robust = summarize_anticheat_suite(robust_items)
+        assert res_robust["is_suspect_cheater"] is False
+        assert res_robust["cheat_mode"] is None
+
 
 class TestContaminationDetector:
     """Tests for 13-gram token extraction and overlap detection."""
