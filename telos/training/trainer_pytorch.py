@@ -272,7 +272,7 @@ class UnifiedPyTorchTrainer:
                     k_targeted_ratio=float(self.crsr_cfg.get("k_targeted_ratio", 0.70)),
                 )
                 self.adaptive_rebalance = bool(self.crsr_cfg.get("adaptive_rebalance", False))
-                self.causal_ratio = float(self.crsr_cfg.get("causal_ratio", 0.75))
+                self.causal_ratio = float(self.crsr_cfg.get("causal_ratio", 0.60))
                 self.dual_monitor = None
                 if self.is_master:
                     print(
@@ -494,7 +494,7 @@ class UnifiedPyTorchTrainer:
         elif self.paradigm == "corosred":
             if getattr(self, "is_unified", False):
                 mask_token_id = self.m_cfg.get("mask_token_id", 1)
-                mask_prob = float(self.crsr_cfg.get("mask_prob", 0.15))
+                mask_prob = float(self.crsr_cfg.get("mask_prob", 0.20))
                 k_amb = int(self.crsr_cfg.get("k_amb", 5))
                 
                 # Fetch continuous schedule weights driven by step progress and empirical EMAs.
@@ -514,7 +514,7 @@ class UnifiedPyTorchTrainer:
                     mask_prob=mask_prob,
                     special_token_lut=self.special_lut,
                     k_amb=k_amb,
-                    causal_ratio=getattr(self, "causal_ratio", 0.75),
+                    causal_ratio=getattr(self, "causal_ratio", 0.60),
                     routing_cache=getattr(self, "routing_cache", None),
                     metric_tracker=getattr(self, "metric_tracker", None),
                     adaptive_rebalance=getattr(self, "adaptive_rebalance", False),
