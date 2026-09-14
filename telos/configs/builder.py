@@ -338,14 +338,14 @@ def build_config(
                 "beta_min": float(kwargs.get("beta_min", 0.15)),
                 "beta_max": float(kwargs.get("beta_max", 0.70)),
                 "gamma_max": float(kwargs.get("gamma_max", 0.10)),
-                "hold_fraction": float(kwargs.get("hold_fraction", 0.20)),
+                "hold_fraction": float(kwargs.get("hold_fraction", 0.10)),
                 "decay_power": float(kwargs.get("decay_power", 2.5)),
                 "gamma_gate_auc": float(kwargs.get("gamma_gate_auc", 0.55)),
                 "acc_gate_threshold": float(kwargs.get("acc_gate_threshold", 0.65)),
-                "causal_ratio": float(kwargs.get("causal_ratio", 0.75)),
+                "causal_ratio": float(kwargs.get("causal_ratio", 0.60)),
                 "routing_cache_steps": int(kwargs.get("routing_cache_steps", 50)),
                 "adaptive_rebalance": bool(kwargs.get("adaptive_rebalance", False)),
-                "mask_prob": float(kwargs.get("mask_prob", 0.15)),
+                "mask_prob": float(kwargs.get("mask_prob", 0.20)),
                 "k_amb": int(kwargs.get("k_amb", 5)),
             }
         else:
@@ -356,7 +356,7 @@ def build_config(
             cfg["corosred"] = {
                 "unified": False,
                 "phase": resolved_phase,
-                "mask_prob": float(kwargs.get("mask_prob", 0.15)),
+                "mask_prob": float(kwargs.get("mask_prob", 0.20)),
                 "k_amb": int(kwargs.get("k_amb", 5)),
                 "self_condition": bool(kwargs.get("self_condition", default_self_cond)),
                 "self_cond_prob": float(kwargs.get("self_cond_prob", default_sc_prob)),
