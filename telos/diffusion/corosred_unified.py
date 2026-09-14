@@ -327,11 +327,18 @@ def corosred_unified_step_pytorch(
         alpha, beta = alpha_nom, beta_nom
         rebal_telem = {"nominal_ratio": beta_nom / max(1e-6, alpha_nom), "clamped": False}
 
-    # 5. Unified Per-Token Task Normalization
-    # Normalizes causal and infill losses per evaluated token to strictly enforce nominal schedule ratio alpha:beta
-    # without allowing the ~20x causal-to-infill token count mismatch to starve infilling gradients.
-    task_weight_sum = max(1e-6, alpha + beta)
-    pooled_task_loss = (alpha * mean_causal_ce + beta * mean_infill_ce) / task_weight_sum
+    # 5. Sequence-Normalized Multi-Objective Loss Pooling
+    # Eliminates the ~7.6x per-token gradient amplification caused by dividing
+    # sparse masked tokens (~1,945) vs dense causal tokens (~14,819).
+    # Normalizing by sequence count and sequence length ensures that the per-token gradient
+    # ratio strictly adheres to beta / alpha without artificial token-count distortion.
+    w_c = float(B_c) / float(B)
+    w_m = float(B_m) / float(B)
+    causal_seq_norm = causal_loss_sum / max(1.0, float(B_c * (T - 1)))
+    infill_seq_norm = infill_loss_sum / max(1.0, float(B_m * (T - 1)))
+
+    task_weight_sum = max(1e-6, alpha * w_c + beta * w_m)
+    pooled_task_loss = (alpha * w_c * causal_seq_norm + beta * w_m * infill_seq_norm) / task_weight_sum
     total_loss = pooled_task_loss + gamma_nom * r_loss
 
     # 6. Metric Tracker Update
