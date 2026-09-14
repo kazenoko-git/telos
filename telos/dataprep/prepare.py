@@ -98,7 +98,9 @@ def prepare_dataset(
     synthetic: bool = False,
     synthetic_tokens: int = 100_000,
     seq_len: int = 512,
-    batch_size: int = 1000
+    batch_size: int = 2000,
+    max_tokens: int | None = None,
+    dtype: str = "uint16"
 ) -> str:
     """
     High-efficiency tokenization and binary packaging pipeline.
@@ -109,17 +111,18 @@ def prepare_dataset(
 
     # Fast path: Synthetic data stream
     if synthetic:
-        print(f"  [DataPrep] Generating {synthetic_tokens:,} synthetic tokens...")
-        dtype = np.uint16 if vocab_size <= 65536 else np.int32
-        dtype_str = "uint16" if dtype == np.uint16 else "int32"
-        arr = np.random.randint(0, vocab_size, (synthetic_tokens,), dtype=dtype)
+        n_synth = max_tokens if max_tokens is not None else synthetic_tokens
+        print(f"  [DataPrep] Generating {n_synth:,} synthetic tokens...")
+        np_dtype = np.uint16 if vocab_size <= 65536 else np.int32
+        dtype_str = "uint16" if np_dtype == np.uint16 else "int32"
+        arr = np.random.randint(0, vocab_size, (n_synth,), dtype=np_dtype)
         with open(output_path, "wb") as f:
             f.write(arr.tobytes())
         
         meta = {
             "dtype": dtype_str,
             "vocab_size": vocab_size,
-            "total_tokens": synthetic_tokens,
+            "total_tokens": n_synth,
             "synthetic": True,
         }
         meta_path = Path(str(output_path) + ".json")
@@ -150,40 +153,65 @@ def prepare_dataset(
         tok_save_path = str(tokenizer_path or "configs/shared/tokenizer_custom.json")
         tok = train_bpe_tokenizer(sample_files, vocab_size=vocab_size, save_path=tok_save_path)
     else:
+        # Check canonical candidate paths if tokenizer_path not explicitly supplied
+        if tokenizer_path is None:
+            for cand in [
+                Path("configs/shared/tokenizer_mac.json"),
+                Path("configs/tokenizer_mac.json"),
+                Path("configs/tokenizer_0.json"),
+                Path("configs/tokenizer.json"),
+            ]:
+                if cand.exists():
+                    tokenizer_path = cand
+                    break
         tok = load_tokenizer(str(tokenizer_path) if tokenizer_path else None)
 
     actual_vocab = tok.get_vocab_size() if tok else vocab_size
-    dtype = np.uint16 if actual_vocab <= 65536 else np.int32
-    dtype_str = "uint16" if dtype == np.uint16 else "int32"
+    np_dtype = np.uint16 if (dtype == "uint16" and actual_vocab <= 65536) else np.int32
+    dtype_str = "uint16" if np_dtype == np.uint16 else "int32"
 
     print(f"  [DataPrep] Processing corpus into {output_path} (vocab_size={actual_vocab}, dtype={dtype_str})...")
+    if max_tokens:
+        print(f"  [DataPrep] Target token limit: {max_tokens:,} tokens (~{max_tokens * (2 if np_dtype == np.uint16 else 4) / (1024**3):.2f} GB)")
     total_tokens = 0
     buffer = []
 
+    pbar = tqdm(total=max_tokens, unit="tokens", unit_scale=True, desc="Tokenizing")
     with open(output_path, "wb") as out_f:
-        for doc in tqdm(iterate_text_sources(corpus, dataset_name, dataset_split, text_key), desc="Tokenizing"):
-            buffer.append(doc)
+        for doc in iterate_text_sources(corpus, dataset_name, dataset_split, text_key):
+            if len(doc.strip()) >= 20:
+                buffer.append(doc)
             if len(buffer) >= batch_size:
                 encodings = tok.encode_batch(buffer)
                 flat_tokens = []
                 for enc in encodings:
                     flat_tokens.extend(enc.ids)
                 if flat_tokens:
-                    arr = np.array(flat_tokens, dtype=dtype)
+                    arr = np.array(flat_tokens, dtype=np_dtype)
                     out_f.write(arr.tobytes())
-                    total_tokens += len(flat_tokens)
+                    num_tok = len(flat_tokens)
+                    total_tokens += num_tok
+                    pbar.update(num_tok)
                 buffer = []
+                if max_tokens and total_tokens >= max_tokens:
+                    break
 
         # Flush remainder
-        if buffer:
+        if buffer and (max_tokens is None or total_tokens < max_tokens):
             encodings = tok.encode_batch(buffer)
             flat_tokens = []
             for enc in encodings:
                 flat_tokens.extend(enc.ids)
             if flat_tokens:
-                arr = np.array(flat_tokens, dtype=dtype)
+                if max_tokens and (total_tokens + len(flat_tokens) > max_tokens):
+                    flat_tokens = flat_tokens[:max_tokens - total_tokens]
+                arr = np.array(flat_tokens, dtype=np_dtype)
                 out_f.write(arr.tobytes())
-                total_tokens += len(flat_tokens)
+                num_tok = len(flat_tokens)
+                total_tokens += num_tok
+                pbar.update(num_tok)
+
+    pbar.close()
 
     # Save metadata sidecar
     meta = {
@@ -212,7 +240,9 @@ def main():
     parser.add_argument("--train-tokenizer", action="store_true", help="Train a new BPE tokenizer on the corpus")
     parser.add_argument("--vocab-size", type=int, default=8192, help="Vocabulary size")
     parser.add_argument("--synthetic", action="store_true", help="Generate synthetic token stream directly")
-    parser.add_argument("--tokens", type=int, default=100_000, help="Number of synthetic tokens to generate")
+    parser.add_argument("--tokens", type=int, default=None, help="Target total tokens (e.g. 15000000000 for 15B)")
+    parser.add_argument("--batch-size", type=int, default=2000, help="Batch size for parallel Rust tokenization")
+    parser.add_argument("--dtype", type=str, default="uint16", choices=["uint16", "uint32"], help="Data type for token storage")
 
     args = parser.parse_args()
     prepare_dataset(
@@ -225,7 +255,10 @@ def main():
         train_tokenizer=args.train_tokenizer,
         vocab_size=args.vocab_size,
         synthetic=args.synthetic,
-        synthetic_tokens=args.tokens
+        synthetic_tokens=args.tokens or 100_000,
+        batch_size=args.batch_size,
+        max_tokens=args.tokens,
+        dtype=args.dtype,
     )
 
 
