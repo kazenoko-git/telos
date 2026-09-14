@@ -189,9 +189,9 @@ class UnifiedMLXTrainer:
         elif self.paradigm == "corosred":
             if self.is_unified or self.phase == "UNIFIED":
                 mask_token_id = self.m_cfg.get("mask_token_id", 1)
-                mask_prob = float(self.crsr_cfg.get("mask_prob", 0.15))
+                mask_prob = float(self.crsr_cfg.get("mask_prob", 0.20))
                 k_amb = int(self.crsr_cfg.get("k_amb", 5))
-                causal_ratio = float(self.crsr_cfg.get("causal_ratio", 0.75))
+                causal_ratio = float(self.crsr_cfg.get("causal_ratio", 0.60))
 
                 loss_and_grad_fn = mx_nn.value_and_grad(self.model, corosred_unified_loss_fn_mlx)
                 compilation_targets = [self.model.state]
