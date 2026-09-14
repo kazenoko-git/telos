@@ -225,9 +225,9 @@ if MLX_AVAILABLE:
         beta: float = 0.15,
         gamma: float = 0.0,
         mask_token_id: int = 1,
-        mask_prob: float = 0.15,
+        mask_prob: float = 0.20,
         k_amb: int = 5,
-        causal_ratio: float = 0.75,
+        causal_ratio: float = 0.60,
         special_token_lut: mx.array | None = None,
     ):
         """
