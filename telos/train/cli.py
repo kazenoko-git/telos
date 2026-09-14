@@ -380,10 +380,11 @@ def main():
     parser.add_argument("--beta-min", type=float, default=0.15, help="Initial infilling weight beta_min (default: 0.15)")
     parser.add_argument("--beta-max", type=float, default=0.70, help="Peak infilling weight beta_max (default: 0.70)")
     parser.add_argument("--gamma-max", type=float, default=0.10, help="Peak reliability head weight gamma_max (default: 0.10)")
-    parser.add_argument("--hold-frac", type=float, default=0.20, help="Fraction of steps to hold alpha at alpha_max (default: 0.20)")
+    parser.add_argument("--hold-frac", type=float, default=0.10, help="Fraction of steps to hold alpha at alpha_max (default: 0.10)")
     parser.add_argument("--decay-power", type=float, default=2.5, help="Polynomial exponent p for hold-then-decay schedule (default: 2.5)")
     parser.add_argument("--acc-gate", type=float, default=0.65, help="LRH classification accuracy threshold to activate gamma (default: 0.65)")
-    parser.add_argument("--causal-ratio", type=float, default=0.75, help="Fraction of microbatch sequences dedicated to causal pass (default: 0.75)")
+    parser.add_argument("--causal-ratio", type=float, default=0.60, help="Fraction of microbatch sequences dedicated to causal pass (default: 0.60)")
+    parser.add_argument("--mask-prob", type=float, default=0.20, help="Fraction of infill tokens to mask (default: 0.20)")
     parser.add_argument("--routing-cache-steps", type=int, default=50, help="Steps between pre-computed routing mask refreshes (default: 50)")
     parser.add_argument("--adaptive-rebalance", action="store_true", help="Enable trust-region dynamic loss rebalancing")
     parser.add_argument("--params", type=str, default="12M", help="Target parameter budget (e.g. 12M, 25M, 50M, 100M, 500M)")
@@ -467,6 +468,7 @@ def main():
             decay_power=args.decay_power,
             acc_gate_threshold=args.acc_gate,
             causal_ratio=args.causal_ratio,
+            mask_prob=args.mask_prob,
             routing_cache_steps=args.routing_cache_steps,
             adaptive_rebalance=args.adaptive_rebalance,
         )
