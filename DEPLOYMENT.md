@@ -189,10 +189,15 @@ telos eval --checkpoints checkpoints/corosred/model.safetensors checkpoints/ar/m
   - Evaluates **Tool Selection Accuracy (%)**, **Schema Validity (%)**, and **Argument Correctness (%)** with 95% Bootstrap Confidence Intervals.
 - **`--type code` (Python Suite)**:
   - **`--mode probes`**: 100 Python contextual probes (Identifiers, Keywords, Imports, Suffix-Clued Infill). Pure AR models are evaluated causal-only, while COROSred models are evaluated on both causal completion and bidirectional infilling.
-  - **`--mode functional`**: Executes code completions in an isolated subprocess sandbox (`spawn`) with hard 3.0s timeout and 512 MB memory limit.
+  - **`--mode functional`**: Executes code completions in an isolated subprocess sandbox (`spawn`) with hard 3.0s timeout and 512 MB memory limit. Reports:
+    - **Pass@1 (%)** with 95% Bootstrap Confidence Intervals.
+    - **AST Syntax Validity (%)** and execution outcome breakdown (`PASSED`, `FAILED_ASSERTION`, `RUNTIME_EXCEPTION`, `SYNTAX_ERROR`, `TIMEOUT`).
+    - **Repetition & Degenerate Loop Dynamics**: 2-gram, 3-gram, 4-gram repetition rates, line-level code redundancy, consecutive duplicate lines, and degenerate loop streaks.
+    - **Numerical & Constant Retention**: Precision, recall, exact constant matching, and zero-number omission rates on numerical/algorithmic tasks with explicit prompt constants.
   - **`--mode anticheat`**: Tests boundary suffix copying across chunk masking spans $K \in \{1, 2, 4, 8, 16\}$.
 - **`--suite private_unseen`**: Primary 500+ novel Python challenges with unit tests, screened via 13-gram rolling hashing.
 - **`--suite public_standard`**: Optional HumanEval (164) and sanitized MBPP (500) benchmark for external baseline parity.
+
 
 ---
 
