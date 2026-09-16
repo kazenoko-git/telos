@@ -46,9 +46,12 @@ CANONICAL_TIERS = {
     "12M": {"d_model": 256, "n_layers": 8, "n_heads": 4, "n_kv_heads": 4},
     "25M": {"d_model": 384, "n_layers": 10, "n_heads": 6, "n_kv_heads": 6},
     "50M": {"d_model": 512, "n_layers": 14, "n_heads": 8, "n_kv_heads": 8},
-    "100M": {"d_model": 768, "n_layers": 14, "n_heads": 12, "n_kv_heads": 12},
+    "75M": {"d_model": 768, "n_layers": 10, "n_heads": 12, "n_kv_heads": 12},
+    "100M": {"d_model": 896, "n_layers": 10, "n_heads": 14, "n_kv_heads": 14},
     "300M": {"d_model": 1024, "n_layers": 23, "n_heads": 16, "n_kv_heads": 16},
+    "500M": {"d_model": 1280, "n_layers": 28, "n_heads": 20, "n_kv_heads": 20},
 }
+
 
 
 def solve_transformer_geometry(
