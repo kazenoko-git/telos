@@ -1,0 +1,6572 @@
+{
+  "ar_2b": {
+    "name": "50M Pure AR Baseline (2.0B tok)",
+    "tokens": "2.0B",
+    "val_causal": {
+      "val_loss": 6.0261,
+      "perplexity": 414.1,
+      "top1_acc": 21.23,
+      "top5_acc": 35.17
+    },
+    "val_bidir": {
+      "val_loss": 8.0596,
+      "perplexity": 3164.0,
+      "top1_acc": 7.11,
+      "top5_acc": 19.72
+    },
+    "probes_bidir": {
+      "top1_pct": 0.0,
+      "top5_pct": 0.0,
+      "median_rank": 3182.0,
+      "avg_rank": 3358.4,
+      "avg_ce": 12.03,
+      "categories": {
+        "Identifier recovery": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 2089.0,
+          "avg_rank": 2092.0,
+          "avg_ce": 11.55
+        },
+        "Function names": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 1306.0,
+          "avg_rank": 2367.7,
+          "avg_ce": 11.08
+        },
+        "Keywords": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 5213.0,
+          "avg_rank": 4903.8,
+          "avg_ce": 13.82
+        },
+        "Operators": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 2209.5,
+          "avg_rank": 3238.5,
+          "avg_ce": 11.73
+        },
+        "Literals": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 3332.0,
+          "avg_rank": 3546.8,
+          "avg_ce": 12.13
+        },
+        "Imports": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 4344.0,
+          "avg_rank": 3862.9,
+          "avg_ce": 11.91
+        },
+        "Class names": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 3310.0,
+          "avg_rank": 3390.3,
+          "avg_ce": 12.15
+        },
+        "Attribute names": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 4099.0,
+          "avg_rank": 3473.0,
+          "avg_ce": 11.87
+        }
+      },
+      "probes": [
+        {
+          "category": "Identifier recovery",
+          "prompt": "return a +",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 2089,
+          "ce": 11.696,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "x = 10\nprint(",
+          "target": "x",
+          "suffix": ")\n",
+          "rank": 1219,
+          "ce": 12.002,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "def __init__(self,",
+          "target": "name",
+          "suffix": "):\n        self.name = name",
+          "rank": 2875,
+          "ce": 11.057,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "self.name =",
+          "target": "name",
+          "suffix": "\n        self.value = value",
+          "rank": 3327,
+          "ce": 12.612,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "total = sum(",
+          "target": "items",
+          "suffix": ")\n",
+          "rank": 2716,
+          "ce": 13.353,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "for elem in",
+          "target": "lst",
+          "suffix": ":\n        process(elem)",
+          "rank": 2602,
+          "ce": 11.714,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "res = val *",
+          "target": "factor",
+          "suffix": "\n",
+          "rank": 3196,
+          "ce": 12.421,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "msg = str(",
+          "target": "err",
+          "suffix": ")\n",
+          "rank": 967,
+          "ce": 11.603,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "dx = x2 -",
+          "target": "x1",
+          "suffix": "\n",
+          "rank": 670,
+          "ce": 8.531,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "data = json.loads(",
+          "target": "text",
+          "suffix": ")\n",
+          "rank": 2209,
+          "ce": 12.77,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "res = []\nfor x in",
+          "target": "items",
+          "suffix": ":\n    res.append(x)",
+          "rank": 1921,
+          "ce": 10.423,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "left +",
+          "target": "right",
+          "suffix": "\n",
+          "rank": 1865,
+          "ce": 11.204,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "width *",
+          "target": "height",
+          "suffix": "\n",
+          "rank": 1540,
+          "ce": 10.813,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def get_",
+          "target": "name",
+          "suffix": "(self):\n    return self._name",
+          "rank": 4111,
+          "ce": 12.752,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def set_",
+          "target": "val",
+          "suffix": "(self, val):\n    self._val = val",
+          "rank": 3182,
+          "ce": 10.727,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def parse_",
+          "target": "data",
+          "suffix": "(raw_str):\n    return json.loads(raw_str)",
+          "rank": 2977,
+          "ce": 12.044,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def build_",
+          "target": "model",
+          "suffix": "(config):\n    return Model(config)",
+          "rank": 4252,
+          "ce": 14.391,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def test_",
+          "target": "func",
+          "suffix": "():\n    assert True",
+          "rank": 894,
+          "ce": 10.835,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def process_",
+          "target": "request",
+          "suffix": "(req):\n    return req.json()",
+          "rank": 714,
+          "ce": 9.766,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def validate_",
+          "target": "input",
+          "suffix": "(data):\n    assert data is not None",
+          "rank": 924,
+          "ce": 9.9,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def load_",
+          "target": "config",
+          "suffix": "(path):\n    with open(path) as f:\n        return yaml.safe_load(f)",
+          "rank": 901,
+          "ce": 10.004,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def save_",
+          "target": "file",
+          "suffix": "(path, content):\n    with open(path, 'w') as f:\n        f.write(content)",
+          "rank": 7936,
+          "ce": 15.53,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def calculate_",
+          "target": "total",
+          "suffix": "(items):\n    return sum(items)",
+          "rank": 2568,
+          "ce": 11.116,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def convert_",
+          "target": "type",
+          "suffix": "(val, target_type):\n    return target_type(val)",
+          "rank": 15,
+          "ce": 5.095,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def read_",
+          "target": "bytes",
+          "suffix": "(path):\n    with open(path, 'rb') as f:\n        return f.read()",
+          "rank": 1306,
+          "ce": 10.012,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def create_",
+          "target": "instance",
+          "suffix": "(cls, *args):\n    return cls(*args)",
+          "rank": 1000,
+          "ce": 11.843,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if x == 1:\n    pass\n",
+          "target": "else",
+          "suffix": ":\n    pass",
+          "rank": 6542,
+          "ce": 15.185,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "try:\n    pass\n",
+          "target": "except",
+          "suffix": " Exception:\n    pass",
+          "rank": 5213,
+          "ce": 13.91,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "for i in",
+          "target": "range",
+          "suffix": "(10):\n    print(i)",
+          "rank": 1062,
+          "ce": 10.677,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "with open(path) ",
+          "target": "as",
+          "suffix": " f:\n    data = f.read()",
+          "rank": 3707,
+          "ce": 12.6,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if not",
+          "target": "found",
+          "suffix": ":\n    raise KeyError('Not found')",
+          "rank": 6553,
+          "ce": 15.06,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "while",
+          "target": "True",
+          "suffix": ":\n    break",
+          "rank": 1198,
+          "ce": 11.633,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "from typing",
+          "target": "import",
+          "suffix": " List, Dict, Optional",
+          "rank": 3062,
+          "ce": 10.629,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "assert x is",
+          "target": "not",
+          "suffix": " None",
+          "rank": 2857,
+          "ce": 11.949,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if item",
+          "target": "in",
+          "suffix": " items:\n    return True",
+          "rank": 6878,
+          "ce": 16.617,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "def func():\n   ",
+          "target": "return",
+          "suffix": " 42",
+          "rank": 7926,
+          "ce": 15.957,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "raise ValueError(",
+          "target": "msg",
+          "suffix": ")\n",
+          "rank": 5088,
+          "ce": 14.404,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "class MyClass(",
+          "target": "object",
+          "suffix": "):\n    pass",
+          "rank": 5574,
+          "ce": 13.724,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "yield",
+          "target": "from",
+          "suffix": " sub_generator()",
+          "rank": 8090,
+          "ce": 17.319,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x = a +",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 7398,
+          "ce": 15.753,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "if a ==",
+          "target": "b",
+          "suffix": ":\n    return True",
+          "rank": 7039,
+          "ce": 15.816,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x +=",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 476,
+          "ce": 8.45,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "a >",
+          "target": "0",
+          "suffix": "\n",
+          "rank": 399,
+          "ce": 8.381,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x = y *",
+          "target": "z",
+          "suffix": "\n",
+          "rank": 3499,
+          "ce": 12.876,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "a !=",
+          "target": "None",
+          "suffix": ":\n    return a",
+          "rank": 297,
+          "ce": 8.69,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "count = len(arr) -",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 394,
+          "ce": 8.496,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "if x <=",
+          "target": "max_val",
+          "suffix": ":\n    return x",
+          "rank": 4629,
+          "ce": 13.261,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "idx = (i + 1) %",
+          "target": "n",
+          "suffix": "\n",
+          "rank": 6319,
+          "ce": 14.452,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "res = a &",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 6783,
+          "ce": 15.113,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "flags = A |",
+          "target": "B",
+          "suffix": "\n",
+          "rank": 920,
+          "ce": 9.869,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "val = x **",
+          "target": "2",
+          "suffix": "\n",
+          "rank": 709,
+          "ce": 9.573,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "if x is",
+          "target": "None",
+          "suffix": ":\n    return None",
+          "rank": 181,
+          "ce": 7.974,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "flag =",
+          "target": "True",
+          "suffix": "\n",
+          "rank": 3365,
+          "ce": 12.772,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "status =",
+          "target": "False",
+          "suffix": "\n",
+          "rank": 5103,
+          "ce": 13.933,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "count =",
+          "target": "0",
+          "suffix": "\n",
+          "rank": 230,
+          "ce": 8.11,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "name =",
+          "target": "\"\"",
+          "suffix": "\n",
+          "rank": 6777,
+          "ce": 15.174,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "items =",
+          "target": "[]",
+          "suffix": "\n",
+          "rank": 6884,
+          "ce": 15.199,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "data =",
+          "target": "{}",
+          "suffix": "\n",
+          "rank": 5839,
+          "ce": 14.352,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "rate =",
+          "target": "0.0",
+          "suffix": "\n",
+          "rank": 792,
+          "ce": 10.109,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "idx =",
+          "target": "-1",
+          "suffix": "\n",
+          "rank": 2029,
+          "ce": 11.594,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "pi =",
+          "target": "3.14",
+          "suffix": "\n",
+          "rank": 8003,
+          "ce": 16.81,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "res =",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 59,
+          "ce": 6.116,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "msg =",
+          "target": "\"hello\"",
+          "suffix": "\n",
+          "rank": 3299,
+          "ce": 13.409,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "os",
+          "suffix": "\n\npath = os.path.join(base, name)",
+          "rank": 1243,
+          "ce": 10.099,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "sys",
+          "suffix": "\n\nsys.exit(0)",
+          "rank": 4615,
+          "ce": 12.146,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "json",
+          "suffix": "\n\ndata = json.loads(text)",
+          "rank": 6617,
+          "ce": 14.235,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "time",
+          "suffix": "\n\nstart = time.time()",
+          "rank": 5080,
+          "ce": 13.684,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "math",
+          "suffix": "\n\nx = math.sqrt(val)",
+          "rank": 1897,
+          "ce": 10.572,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "re",
+          "suffix": "\n\npattern = re.compile(r\"\\d+\")",
+          "rank": 7068,
+          "ce": 14.192,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "random",
+          "suffix": "\n\nchoice = random.choice(items)",
+          "rank": 4133,
+          "ce": 12.87,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from typing import",
+          "target": "List",
+          "suffix": ", Dict, Optional",
+          "rank": 4344,
+          "ce": 11.751,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from pathlib import",
+          "target": "Path",
+          "suffix": "\n\np = Path('data.txt')",
+          "rank": 3768,
+          "ce": 12.511,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import numpy as",
+          "target": "np",
+          "suffix": "\n\narr = np.zeros(10)",
+          "rank": 161,
+          "ce": 7.234,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import torch.nn as",
+          "target": "nn",
+          "suffix": "\n\nclass Net(nn.Module): pass",
+          "rank": 5954,
+          "ce": 12.915,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from collections import",
+          "target": "defaultdict",
+          "suffix": "\n\nd = defaultdict(list)",
+          "rank": 936,
+          "ce": 9.713,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import logging",
+          "target": "as",
+          "suffix": " log\nlog.basicConfig()",
+          "rank": 4402,
+          "ce": 12.858,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Base",
+          "suffix": ":\n    def __init__(self):\n        pass",
+          "rank": 511,
+          "ce": 9.521,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Model",
+          "suffix": "(nn.Module):\n    def forward(self, x):\n        return x",
+          "rank": 5686,
+          "ce": 13.789,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Config",
+          "suffix": ":\n    def __init__(self, lr=1e-3):\n        self.lr = lr",
+          "rank": 936,
+          "ce": 9.549,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Trainer",
+          "suffix": ":\n    def train(self, steps):\n        pass",
+          "rank": 4105,
+          "ce": 12.806,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "User",
+          "suffix": ":\n    def __init__(self, username, email):\n        pass",
+          "rank": 3975,
+          "ce": 12.375,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Dataset",
+          "suffix": ":\n    def __len__(self):\n        return len(self.data)",
+          "rank": 5480,
+          "ce": 13.489,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Engine",
+          "suffix": ":\n    def step(self):\n        pass",
+          "rank": 7769,
+          "ce": 16.371,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Handler",
+          "suffix": ":\n    def handle(self, request):\n        pass",
+          "rank": 6507,
+          "ce": 14.073,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Session",
+          "suffix": ":\n    def close(self):\n        pass",
+          "rank": 145,
+          "ce": 7.467,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Exception",
+          "suffix": "(BaseException):\n    pass",
+          "rank": 2645,
+          "ce": 15.711,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Node",
+          "suffix": ":\n    def __init__(self, val, next=None):\n        self.val = val",
+          "rank": 778,
+          "ce": 9.385,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Server",
+          "suffix": ":\n    def listen(self, port=8080):\n        pass",
+          "rank": 2147,
+          "ce": 11.265,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "name",
+          "suffix": " = name\n        self.age = age",
+          "rank": 6773,
+          "ce": 14.754,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "value",
+          "suffix": " = value\n        return self.value",
+          "rank": 525,
+          "ce": 9.111,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "config",
+          "suffix": " = config\n        self.lr = self.config.lr",
+          "rank": 6215,
+          "ce": 13.85,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "device",
+          "suffix": " = device\n        self.model.to(self.device)",
+          "rank": 3807,
+          "ce": 12.846,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "logger",
+          "suffix": ".info('Starting run')",
+          "rank": 1824,
+          "ce": 11.472,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "state",
+          "suffix": " = 'running'\n        return self.state",
+          "rank": 7102,
+          "ce": 14.955,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "obj.",
+          "target": "data",
+          "suffix": " = [1, 2, 3]",
+          "rank": 446,
+          "ce": 8.324,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "req.",
+          "target": "json",
+          "suffix": "()\n    return response",
+          "rank": 4200,
+          "ce": 12.837,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "path.",
+          "target": "exists",
+          "suffix": "():\n    return True",
+          "rank": 4099,
+          "ce": 13.035,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "res.",
+          "target": "status_code",
+          "suffix": " == 200:\n    return True",
+          "rank": 693,
+          "ce": 8.916,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "torch.",
+          "target": "cuda",
+          "suffix": ".is_available():\n    device = 'cuda'",
+          "rank": 210,
+          "ce": 8.119,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "os.",
+          "target": "path",
+          "suffix": ".join(root, file)",
+          "rank": 4467,
+          "ce": 13.273,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "sys.",
+          "target": "path",
+          "suffix": ".append(module_dir)",
+          "rank": 4788,
+          "ce": 12.85,
+          "top1": false,
+          "top5": false
+        }
+      ]
+    },
+    "probes_causal": {
+      "top1_pct": 0.0,
+      "top5_pct": 0.0,
+      "median_rank": 3052.0,
+      "avg_rank": 3487.7,
+      "avg_ce": 11.61,
+      "categories": {
+        "Identifier recovery": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 1826.0,
+          "avg_rank": 2435.2,
+          "avg_ce": 10.53
+        },
+        "Function names": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 4232.0,
+          "avg_rank": 3784.1,
+          "avg_ce": 11.59
+        },
+        "Keywords": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 4795.0,
+          "avg_rank": 4895.2,
+          "avg_ce": 13.01
+        },
+        "Operators": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 3067.5,
+          "avg_rank": 3235.1,
+          "avg_ce": 11.36
+        },
+        "Literals": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 2685.5,
+          "avg_rank": 3311.8,
+          "avg_ce": 12.16
+        },
+        "Imports": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 3222.0,
+          "avg_rank": 4044.9,
+          "avg_ce": 12.79
+        },
+        "Class names": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 2615.5,
+          "avg_rank": 3231.8,
+          "avg_ce": 11.28
+        },
+        "Attribute names": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 1162.0,
+          "avg_rank": 2910.6,
+          "avg_ce": 10.14
+        }
+      },
+      "probes": [
+        {
+          "category": "Identifier recovery",
+          "prompt": "return a +",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 896,
+          "ce": 9.169,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "x = 10\nprint(",
+          "target": "x",
+          "suffix": ")\n",
+          "rank": 43,
+          "ce": 5.796,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "def __init__(self,",
+          "target": "name",
+          "suffix": "):\n        self.name = name",
+          "rank": 1826,
+          "ce": 10.299,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "self.name =",
+          "target": "name",
+          "suffix": "\n        self.value = value",
+          "rank": 3804,
+          "ce": 12.064,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "total = sum(",
+          "target": "items",
+          "suffix": ")\n",
+          "rank": 771,
+          "ce": 8.801,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "for elem in",
+          "target": "lst",
+          "suffix": ":\n        process(elem)",
+          "rank": 3082,
+          "ce": 11.867,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "res = val *",
+          "target": "factor",
+          "suffix": "\n",
+          "rank": 4785,
+          "ce": 12.556,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "msg = str(",
+          "target": "err",
+          "suffix": ")\n",
+          "rank": 2456,
+          "ce": 10.569,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "dx = x2 -",
+          "target": "x1",
+          "suffix": "\n",
+          "rank": 6293,
+          "ce": 13.247,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "data = json.loads(",
+          "target": "text",
+          "suffix": ")\n",
+          "rank": 765,
+          "ce": 8.471,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "res = []\nfor x in",
+          "target": "items",
+          "suffix": ":\n    res.append(x)",
+          "rank": 3959,
+          "ce": 13.615,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "left +",
+          "target": "right",
+          "suffix": "\n",
+          "rank": 1447,
+          "ce": 10.433,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "width *",
+          "target": "height",
+          "suffix": "\n",
+          "rank": 1530,
+          "ce": 10.02,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def get_",
+          "target": "name",
+          "suffix": "(self):\n    return self._name",
+          "rank": 4232,
+          "ce": 12.84,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def set_",
+          "target": "val",
+          "suffix": "(self, val):\n    self._val = val",
+          "rank": 3742,
+          "ce": 12.729,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def parse_",
+          "target": "data",
+          "suffix": "(raw_str):\n    return json.loads(raw_str)",
+          "rank": 6601,
+          "ce": 14.044,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def build_",
+          "target": "model",
+          "suffix": "(config):\n    return Model(config)",
+          "rank": 2884,
+          "ce": 11.63,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def test_",
+          "target": "func",
+          "suffix": "():\n    assert True",
+          "rank": 7,
+          "ce": 4.518,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def process_",
+          "target": "request",
+          "suffix": "(req):\n    return req.json()",
+          "rank": 119,
+          "ce": 6.752,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def validate_",
+          "target": "input",
+          "suffix": "(data):\n    assert data is not None",
+          "rank": 486,
+          "ce": 8.43,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def load_",
+          "target": "config",
+          "suffix": "(path):\n    with open(path) as f:\n        return yaml.safe_load(f)",
+          "rank": 7272,
+          "ce": 14.0,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def save_",
+          "target": "file",
+          "suffix": "(path, content):\n    with open(path, 'w') as f:\n        f.write(content)",
+          "rank": 8113,
+          "ce": 16.847,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def calculate_",
+          "target": "total",
+          "suffix": "(items):\n    return sum(items)",
+          "rank": 4633,
+          "ce": 12.871,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def convert_",
+          "target": "type",
+          "suffix": "(val, target_type):\n    return target_type(val)",
+          "rank": 1215,
+          "ce": 9.63,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def read_",
+          "target": "bytes",
+          "suffix": "(path):\n    with open(path, 'rb') as f:\n        return f.read()",
+          "rank": 4989,
+          "ce": 13.468,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def create_",
+          "target": "instance",
+          "suffix": "(cls, *args):\n    return cls(*args)",
+          "rank": 4900,
+          "ce": 12.846,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if x == 1:\n    pass\n",
+          "target": "else",
+          "suffix": ":\n    pass",
+          "rank": 426,
+          "ce": 8.535,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "try:\n    pass\n",
+          "target": "except",
+          "suffix": " Exception:\n    pass",
+          "rank": 3965,
+          "ce": 12.396,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "for i in",
+          "target": "range",
+          "suffix": "(10):\n    print(i)",
+          "rank": 111,
+          "ce": 7.088,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "with open(path) ",
+          "target": "as",
+          "suffix": " f:\n    data = f.read()",
+          "rank": 6487,
+          "ce": 15.057,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if not",
+          "target": "found",
+          "suffix": ":\n    raise KeyError('Not found')",
+          "rank": 3868,
+          "ce": 12.912,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "while",
+          "target": "True",
+          "suffix": ":\n    break",
+          "rank": 4657,
+          "ce": 12.725,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "from typing",
+          "target": "import",
+          "suffix": " List, Dict, Optional",
+          "rank": 6112,
+          "ce": 14.113,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "assert x is",
+          "target": "not",
+          "suffix": " None",
+          "rank": 2005,
+          "ce": 10.993,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if item",
+          "target": "in",
+          "suffix": " items:\n    return True",
+          "rank": 7926,
+          "ce": 16.348,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "def func():\n   ",
+          "target": "return",
+          "suffix": " 42",
+          "rank": 7822,
+          "ce": 16.362,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "raise ValueError(",
+          "target": "msg",
+          "suffix": ")\n",
+          "rank": 4795,
+          "ce": 12.594,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "class MyClass(",
+          "target": "object",
+          "suffix": "):\n    pass",
+          "rank": 7536,
+          "ce": 14.498,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "yield",
+          "target": "from",
+          "suffix": " sub_generator()",
+          "rank": 7928,
+          "ce": 15.492,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x = a +",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 7318,
+          "ce": 15.133,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "if a ==",
+          "target": "b",
+          "suffix": ":\n    return True",
+          "rank": 7026,
+          "ce": 15.356,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x +=",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 312,
+          "ce": 8.386,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "a >",
+          "target": "0",
+          "suffix": "\n",
+          "rank": 2657,
+          "ce": 11.104,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x = y *",
+          "target": "z",
+          "suffix": "\n",
+          "rank": 3478,
+          "ce": 11.514,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "a !=",
+          "target": "None",
+          "suffix": ":\n    return a",
+          "rank": 218,
+          "ce": 7.562,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "count = len(arr) -",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 204,
+          "ce": 7.049,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "if x <=",
+          "target": "max_val",
+          "suffix": ":\n    return x",
+          "rank": 3937,
+          "ce": 12.552,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "idx = (i + 1) %",
+          "target": "n",
+          "suffix": "\n",
+          "rank": 4417,
+          "ce": 12.045,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "res = a &",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 7305,
+          "ce": 15.756,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "flags = A |",
+          "target": "B",
+          "suffix": "\n",
+          "rank": 1484,
+          "ce": 10.594,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "val = x **",
+          "target": "2",
+          "suffix": "\n",
+          "rank": 465,
+          "ce": 9.269,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "if x is",
+          "target": "None",
+          "suffix": ":\n    return None",
+          "rank": 114,
+          "ce": 7.484,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "flag =",
+          "target": "True",
+          "suffix": "\n",
+          "rank": 3052,
+          "ce": 11.993,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "status =",
+          "target": "False",
+          "suffix": "\n",
+          "rank": 6215,
+          "ce": 13.971,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "count =",
+          "target": "0",
+          "suffix": "\n",
+          "rank": 1914,
+          "ce": 11.95,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "name =",
+          "target": "\"\"",
+          "suffix": "\n",
+          "rank": 5175,
+          "ce": 13.595,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "items =",
+          "target": "[]",
+          "suffix": "\n",
+          "rank": 5075,
+          "ce": 13.533,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "data =",
+          "target": "{}",
+          "suffix": "\n",
+          "rank": 5718,
+          "ce": 13.641,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "rate =",
+          "target": "0.0",
+          "suffix": "\n",
+          "rank": 981,
+          "ce": 10.513,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "idx =",
+          "target": "-1",
+          "suffix": "\n",
+          "rank": 1893,
+          "ce": 11.115,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "pi =",
+          "target": "3.14",
+          "suffix": "\n",
+          "rank": 5455,
+          "ce": 13.658,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "res =",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 1830,
+          "ce": 10.832,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "msg =",
+          "target": "\"hello\"",
+          "suffix": "\n",
+          "rank": 2319,
+          "ce": 13.599,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "os",
+          "suffix": "\n\npath = os.path.join(base, name)",
+          "rank": 867,
+          "ce": 10.314,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "sys",
+          "suffix": "\n\nsys.exit(0)",
+          "rank": 6960,
+          "ce": 15.162,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "json",
+          "suffix": "\n\ndata = json.loads(text)",
+          "rank": 1009,
+          "ce": 10.528,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "time",
+          "suffix": "\n\nstart = time.time()",
+          "rank": 3222,
+          "ce": 12.552,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "math",
+          "suffix": "\n\nx = math.sqrt(val)",
+          "rank": 3407,
+          "ce": 12.676,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "re",
+          "suffix": "\n\npattern = re.compile(r\"\\d+\")",
+          "rank": 7308,
+          "ce": 15.515,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "random",
+          "suffix": "\n\nchoice = random.choice(items)",
+          "rank": 1841,
+          "ce": 11.508,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from typing import",
+          "target": "List",
+          "suffix": ", Dict, Optional",
+          "rank": 7772,
+          "ce": 15.639,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from pathlib import",
+          "target": "Path",
+          "suffix": "\n\np = Path('data.txt')",
+          "rank": 7330,
+          "ce": 14.96,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import numpy as",
+          "target": "np",
+          "suffix": "\n\narr = np.zeros(10)",
+          "rank": 366,
+          "ce": 8.285,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import torch.nn as",
+          "target": "nn",
+          "suffix": "\n\nclass Net(nn.Module): pass",
+          "rank": 7210,
+          "ce": 15.906,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from collections import",
+          "target": "defaultdict",
+          "suffix": "\n\nd = defaultdict(list)",
+          "rank": 2296,
+          "ce": 11.206,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import logging",
+          "target": "as",
+          "suffix": " log\nlog.basicConfig()",
+          "rank": 2996,
+          "ce": 12.047,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Base",
+          "suffix": ":\n    def __init__(self):\n        pass",
+          "rank": 358,
+          "ce": 8.338,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Model",
+          "suffix": "(nn.Module):\n    def forward(self, x):\n        return x",
+          "rank": 5444,
+          "ce": 13.088,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Config",
+          "suffix": ":\n    def __init__(self, lr=1e-3):\n        self.lr = lr",
+          "rank": 489,
+          "ce": 8.732,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Trainer",
+          "suffix": ":\n    def train(self, steps):\n        pass",
+          "rank": 7145,
+          "ce": 14.543,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "User",
+          "suffix": ":\n    def __init__(self, username, email):\n        pass",
+          "rank": 1821,
+          "ce": 10.657,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Dataset",
+          "suffix": ":\n    def __len__(self):\n        return len(self.data)",
+          "rank": 2489,
+          "ce": 11.206,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Engine",
+          "suffix": ":\n    def step(self):\n        pass",
+          "rank": 6824,
+          "ce": 14.169,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Handler",
+          "suffix": ":\n    def handle(self, request):\n        pass",
+          "rank": 7772,
+          "ce": 15.574,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Session",
+          "suffix": ":\n    def close(self):\n        pass",
+          "rank": 2742,
+          "ce": 11.392,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Exception",
+          "suffix": "(BaseException):\n    pass",
+          "rank": 853,
+          "ce": 9.505,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Node",
+          "suffix": ":\n    def __init__(self, val, next=None):\n        self.val = val",
+          "rank": 102,
+          "ce": 6.744,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Server",
+          "suffix": ":\n    def listen(self, port=8080):\n        pass",
+          "rank": 2742,
+          "ce": 11.392,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "name",
+          "suffix": " = name\n        self.age = age",
+          "rank": 5809,
+          "ce": 12.883,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "value",
+          "suffix": " = value\n        return self.value",
+          "rank": 441,
+          "ce": 7.763,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "config",
+          "suffix": " = config\n        self.lr = self.config.lr",
+          "rank": 1472,
+          "ce": 9.365,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "device",
+          "suffix": " = device\n        self.model.to(self.device)",
+          "rank": 1162,
+          "ce": 8.978,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "logger",
+          "suffix": ".info('Starting run')",
+          "rank": 7400,
+          "ce": 14.198,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "state",
+          "suffix": " = 'running'\n        return self.state",
+          "rank": 7671,
+          "ce": 14.571,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "obj.",
+          "target": "data",
+          "suffix": " = [1, 2, 3]",
+          "rank": 5954,
+          "ce": 13.269,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "req.",
+          "target": "json",
+          "suffix": "()\n    return response",
+          "rank": 515,
+          "ce": 8.023,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "path.",
+          "target": "exists",
+          "suffix": "():\n    return True",
+          "rank": 230,
+          "ce": 7.347,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "res.",
+          "target": "status_code",
+          "suffix": " == 200:\n    return True",
+          "rank": 5973,
+          "ce": 13.459,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "torch.",
+          "target": "cuda",
+          "suffix": ".is_available():\n    device = 'cuda'",
+          "rank": 33,
+          "ce": 6.054,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "os.",
+          "target": "path",
+          "suffix": ".join(root, file)",
+          "rank": 866,
+          "ce": 8.423,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "sys.",
+          "target": "path",
+          "suffix": ".append(module_dir)",
+          "rank": 312,
+          "ce": 7.494,
+          "top1": false,
+          "top5": false
+        }
+      ]
+    }
+  },
+  "phase_a_1b": {
+    "name": "50M CoroSRED Phase A (1.0B tok)",
+    "tokens": "1.0B",
+    "val_causal": {
+      "val_loss": 5.3893,
+      "perplexity": 219.04,
+      "top1_acc": 24.75,
+      "top5_acc": 40.69,
+      "mean_reliability": 1.2159,
+      "high_rel_acc": 32.14,
+      "low_rel_acc": 11.12
+    },
+    "val_bidir": {
+      "val_loss": 7.6438,
+      "perplexity": 2087.73,
+      "top1_acc": 7.72,
+      "top5_acc": 18.91,
+      "mean_reliability": 0.7837,
+      "high_rel_acc": 0.0,
+      "low_rel_acc": 0.0
+    },
+    "probes_bidir": {
+      "top1_pct": 0.0,
+      "top5_pct": 0.0,
+      "median_rank": 2682.0,
+      "avg_rank": 3198.0,
+      "avg_ce": 11.37,
+      "categories": {
+        "Identifier recovery": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 1733.0,
+          "avg_rank": 1777.9,
+          "avg_ce": 10.69
+        },
+        "Function names": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 1887.0,
+          "avg_rank": 2591.8,
+          "avg_ce": 10.49
+        },
+        "Keywords": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 5440.0,
+          "avg_rank": 4924.6,
+          "avg_ce": 13.24
+        },
+        "Operators": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 3117.5,
+          "avg_rank": 3677.5,
+          "avg_ce": 11.87
+        },
+        "Literals": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 2140.0,
+          "avg_rank": 3287.4,
+          "avg_ce": 11.88
+        },
+        "Imports": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 2938.0,
+          "avg_rank": 3290.9,
+          "avg_ce": 10.68
+        },
+        "Class names": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 2134.5,
+          "avg_rank": 2439.1,
+          "avg_ce": 10.53
+        },
+        "Attribute names": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 3975.0,
+          "avg_rank": 3580.2,
+          "avg_ce": 11.6
+        }
+      },
+      "probes": [
+        {
+          "category": "Identifier recovery",
+          "prompt": "return a +",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 641,
+          "ce": 9.637,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "x = 10\nprint(",
+          "target": "x",
+          "suffix": ")\n",
+          "rank": 325,
+          "ce": 10.577,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "def __init__(self,",
+          "target": "name",
+          "suffix": "):\n        self.name = name",
+          "rank": 1372,
+          "ce": 9.326,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "self.name =",
+          "target": "name",
+          "suffix": "\n        self.value = value",
+          "rank": 2008,
+          "ce": 9.891,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "total = sum(",
+          "target": "items",
+          "suffix": ")\n",
+          "rank": 1890,
+          "ce": 12.131,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "for elem in",
+          "target": "lst",
+          "suffix": ":\n        process(elem)",
+          "rank": 1302,
+          "ce": 10.109,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "res = val *",
+          "target": "factor",
+          "suffix": "\n",
+          "rank": 4050,
+          "ce": 12.416,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "msg = str(",
+          "target": "err",
+          "suffix": ")\n",
+          "rank": 113,
+          "ce": 8.916,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "dx = x2 -",
+          "target": "x1",
+          "suffix": "\n",
+          "rank": 2081,
+          "ce": 10.899,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "data = json.loads(",
+          "target": "text",
+          "suffix": ")\n",
+          "rank": 2841,
+          "ce": 13.465,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "res = []\nfor x in",
+          "target": "items",
+          "suffix": ":\n    res.append(x)",
+          "rank": 888,
+          "ce": 9.285,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "left +",
+          "target": "right",
+          "suffix": "\n",
+          "rank": 3869,
+          "ce": 12.441,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "width *",
+          "target": "height",
+          "suffix": "\n",
+          "rank": 1733,
+          "ce": 9.908,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def get_",
+          "target": "name",
+          "suffix": "(self):\n    return self._name",
+          "rank": 6654,
+          "ce": 13.064,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def set_",
+          "target": "val",
+          "suffix": "(self, val):\n    self._val = val",
+          "rank": 1887,
+          "ce": 10.421,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def parse_",
+          "target": "data",
+          "suffix": "(raw_str):\n    return json.loads(raw_str)",
+          "rank": 409,
+          "ce": 8.889,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def build_",
+          "target": "model",
+          "suffix": "(config):\n    return Model(config)",
+          "rank": 4913,
+          "ce": 12.837,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def test_",
+          "target": "func",
+          "suffix": "():\n    assert True",
+          "rank": 183,
+          "ce": 7.719,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def process_",
+          "target": "request",
+          "suffix": "(req):\n    return req.json()",
+          "rank": 1448,
+          "ce": 9.503,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def validate_",
+          "target": "input",
+          "suffix": "(data):\n    assert data is not None",
+          "rank": 955,
+          "ce": 9.188,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def load_",
+          "target": "config",
+          "suffix": "(path):\n    with open(path) as f:\n        return yaml.safe_load(f)",
+          "rank": 6345,
+          "ce": 13.518,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def save_",
+          "target": "file",
+          "suffix": "(path, content):\n    with open(path, 'w') as f:\n        f.write(content)",
+          "rank": 4337,
+          "ce": 12.39,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def calculate_",
+          "target": "total",
+          "suffix": "(items):\n    return sum(items)",
+          "rank": 797,
+          "ce": 9.365,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def convert_",
+          "target": "type",
+          "suffix": "(val, target_type):\n    return target_type(val)",
+          "rank": 93,
+          "ce": 7.367,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def read_",
+          "target": "bytes",
+          "suffix": "(path):\n    with open(path, 'rb') as f:\n        return f.read()",
+          "rank": 1956,
+          "ce": 10.251,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def create_",
+          "target": "instance",
+          "suffix": "(cls, *args):\n    return cls(*args)",
+          "rank": 3717,
+          "ce": 11.901,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if x == 1:\n    pass\n",
+          "target": "else",
+          "suffix": ":\n    pass",
+          "rank": 5981,
+          "ce": 13.011,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "try:\n    pass\n",
+          "target": "except",
+          "suffix": " Exception:\n    pass",
+          "rank": 3625,
+          "ce": 12.715,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "for i in",
+          "target": "range",
+          "suffix": "(10):\n    print(i)",
+          "rank": 3465,
+          "ce": 11.865,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "with open(path) ",
+          "target": "as",
+          "suffix": " f:\n    data = f.read()",
+          "rank": 3303,
+          "ce": 11.25,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if not",
+          "target": "found",
+          "suffix": ":\n    raise KeyError('Not found')",
+          "rank": 5362,
+          "ce": 12.672,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "while",
+          "target": "True",
+          "suffix": ":\n    break",
+          "rank": 2236,
+          "ce": 16.184,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "from typing",
+          "target": "import",
+          "suffix": " List, Dict, Optional",
+          "rank": 7689,
+          "ce": 15.346,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "assert x is",
+          "target": "not",
+          "suffix": " None",
+          "rank": 5984,
+          "ce": 13.919,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if item",
+          "target": "in",
+          "suffix": " items:\n    return True",
+          "rank": 5440,
+          "ce": 12.933,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "def func():\n   ",
+          "target": "return",
+          "suffix": " 42",
+          "rank": 5819,
+          "ce": 12.436,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "raise ValueError(",
+          "target": "msg",
+          "suffix": ")\n",
+          "rank": 399,
+          "ce": 10.065,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "class MyClass(",
+          "target": "object",
+          "suffix": "):\n    pass",
+          "rank": 6701,
+          "ce": 13.181,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "yield",
+          "target": "from",
+          "suffix": " sub_generator()",
+          "rank": 8016,
+          "ce": 16.511,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x = a +",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 4679,
+          "ce": 13.169,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "if a ==",
+          "target": "b",
+          "suffix": ":\n    return True",
+          "rank": 7687,
+          "ce": 14.586,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x +=",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 3575,
+          "ce": 11.539,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "a >",
+          "target": "0",
+          "suffix": "\n",
+          "rank": 1777,
+          "ce": 10.844,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x = y *",
+          "target": "z",
+          "suffix": "\n",
+          "rank": 3894,
+          "ce": 12.487,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "a !=",
+          "target": "None",
+          "suffix": ":\n    return a",
+          "rank": 2541,
+          "ce": 10.189,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "count = len(arr) -",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 2660,
+          "ce": 10.663,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "if x <=",
+          "target": "max_val",
+          "suffix": ":\n    return x",
+          "rank": 975,
+          "ce": 10.11,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "idx = (i + 1) %",
+          "target": "n",
+          "suffix": "\n",
+          "rank": 5746,
+          "ce": 12.771,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "res = a &",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 6592,
+          "ce": 14.244,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "flags = A |",
+          "target": "B",
+          "suffix": "\n",
+          "rank": 1893,
+          "ce": 10.382,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "val = x **",
+          "target": "2",
+          "suffix": "\n",
+          "rank": 2111,
+          "ce": 11.481,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "if x is",
+          "target": "None",
+          "suffix": ":\n    return None",
+          "rank": 398,
+          "ce": 8.842,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "flag =",
+          "target": "True",
+          "suffix": "\n",
+          "rank": 3075,
+          "ce": 11.421,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "status =",
+          "target": "False",
+          "suffix": "\n",
+          "rank": 1205,
+          "ce": 10.929,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "count =",
+          "target": "0",
+          "suffix": "\n",
+          "rank": 808,
+          "ce": 10.258,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "name =",
+          "target": "\"\"",
+          "suffix": "\n",
+          "rank": 7122,
+          "ce": 14.727,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "items =",
+          "target": "[]",
+          "suffix": "\n",
+          "rank": 3328,
+          "ce": 11.326,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "data =",
+          "target": "{}",
+          "suffix": "\n",
+          "rank": 7770,
+          "ce": 15.677,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "rate =",
+          "target": "0.0",
+          "suffix": "\n",
+          "rank": 693,
+          "ce": 10.586,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "idx =",
+          "target": "-1",
+          "suffix": "\n",
+          "rank": 887,
+          "ce": 9.377,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "pi =",
+          "target": "3.14",
+          "suffix": "\n",
+          "rank": 6277,
+          "ce": 14.54,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "res =",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 876,
+          "ce": 10.165,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "msg =",
+          "target": "\"hello\"",
+          "suffix": "\n",
+          "rank": 7010,
+          "ce": 14.752,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "os",
+          "suffix": "\n\npath = os.path.join(base, name)",
+          "rank": 73,
+          "ce": 6.292,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "sys",
+          "suffix": "\n\nsys.exit(0)",
+          "rank": 5615,
+          "ce": 12.369,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "json",
+          "suffix": "\n\ndata = json.loads(text)",
+          "rank": 1259,
+          "ce": 9.419,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "time",
+          "suffix": "\n\nstart = time.time()",
+          "rank": 2938,
+          "ce": 11.592,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "math",
+          "suffix": "\n\nx = math.sqrt(val)",
+          "rank": 371,
+          "ce": 7.86,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "re",
+          "suffix": "\n\npattern = re.compile(r\"\\d+\")",
+          "rank": 5847,
+          "ce": 12.373,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "random",
+          "suffix": "\n\nchoice = random.choice(items)",
+          "rank": 2158,
+          "ce": 10.49,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from typing import",
+          "target": "List",
+          "suffix": ", Dict, Optional",
+          "rank": 5631,
+          "ce": 13.9,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from pathlib import",
+          "target": "Path",
+          "suffix": "\n\np = Path('data.txt')",
+          "rank": 6270,
+          "ce": 12.566,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import numpy as",
+          "target": "np",
+          "suffix": "\n\narr = np.zeros(10)",
+          "rank": 317,
+          "ce": 7.688,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import torch.nn as",
+          "target": "nn",
+          "suffix": "\n\nclass Net(nn.Module): pass",
+          "rank": 5731,
+          "ce": 11.906,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from collections import",
+          "target": "defaultdict",
+          "suffix": "\n\nd = defaultdict(list)",
+          "rank": 2224,
+          "ce": 10.804,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import logging",
+          "target": "as",
+          "suffix": " log\nlog.basicConfig()",
+          "rank": 4348,
+          "ce": 11.64,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Base",
+          "suffix": ":\n    def __init__(self):\n        pass",
+          "rank": 1600,
+          "ce": 10.126,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Model",
+          "suffix": "(nn.Module):\n    def forward(self, x):\n        return x",
+          "rank": 2534,
+          "ce": 11.656,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Config",
+          "suffix": ":\n    def __init__(self, lr=1e-3):\n        self.lr = lr",
+          "rank": 1063,
+          "ce": 9.352,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Trainer",
+          "suffix": ":\n    def train(self, steps):\n        pass",
+          "rank": 4221,
+          "ce": 11.483,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "User",
+          "suffix": ":\n    def __init__(self, username, email):\n        pass",
+          "rank": 2682,
+          "ce": 10.282,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Dataset",
+          "suffix": ":\n    def __len__(self):\n        return len(self.data)",
+          "rank": 1894,
+          "ce": 11.39,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Engine",
+          "suffix": ":\n    def step(self):\n        pass",
+          "rank": 1196,
+          "ce": 9.553,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Handler",
+          "suffix": ":\n    def handle(self, request):\n        pass",
+          "rank": 7949,
+          "ce": 15.092,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Session",
+          "suffix": ":\n    def close(self):\n        pass",
+          "rank": 56,
+          "ce": 6.176,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Exception",
+          "suffix": "(BaseException):\n    pass",
+          "rank": 3650,
+          "ce": 13.006,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Node",
+          "suffix": ":\n    def __init__(self, val, next=None):\n        self.val = val",
+          "rank": 2375,
+          "ce": 10.077,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Server",
+          "suffix": ":\n    def listen(self, port=8080):\n        pass",
+          "rank": 49,
+          "ce": 8.122,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "name",
+          "suffix": " = name\n        self.age = age",
+          "rank": 5460,
+          "ce": 12.03,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "value",
+          "suffix": " = value\n        return self.value",
+          "rank": 173,
+          "ce": 6.99,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "config",
+          "suffix": " = config\n        self.lr = self.config.lr",
+          "rank": 8122,
+          "ce": 17.088,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "device",
+          "suffix": " = device\n        self.model.to(self.device)",
+          "rank": 6341,
+          "ce": 13.168,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "logger",
+          "suffix": ".info('Starting run')",
+          "rank": 5253,
+          "ce": 14.647,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "state",
+          "suffix": " = 'running'\n        return self.state",
+          "rank": 6415,
+          "ce": 13.072,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "obj.",
+          "target": "data",
+          "suffix": " = [1, 2, 3]",
+          "rank": 22,
+          "ce": 5.23,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "req.",
+          "target": "json",
+          "suffix": "()\n    return response",
+          "rank": 257,
+          "ce": 7.437,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "path.",
+          "target": "exists",
+          "suffix": "():\n    return True",
+          "rank": 2928,
+          "ce": 11.755,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "res.",
+          "target": "status_code",
+          "suffix": " == 200:\n    return True",
+          "rank": 3027,
+          "ce": 10.585,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "torch.",
+          "target": "cuda",
+          "suffix": ".is_available():\n    device = 'cuda'",
+          "rank": 479,
+          "ce": 9.028,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "os.",
+          "target": "path",
+          "suffix": ".join(root, file)",
+          "rank": 3975,
+          "ce": 16.229,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "sys.",
+          "target": "path",
+          "suffix": ".append(module_dir)",
+          "rank": 4091,
+          "ce": 13.545,
+          "top1": false,
+          "top5": false
+        }
+      ]
+    },
+    "probes_causal": {
+      "top1_pct": 0.0,
+      "top5_pct": 0.0,
+      "median_rank": 2657.0,
+      "avg_rank": 3223.0,
+      "avg_ce": 11.02,
+      "categories": {
+        "Identifier recovery": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 1621.0,
+          "avg_rank": 1661.9,
+          "avg_ce": 9.86
+        },
+        "Function names": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 2960.0,
+          "avg_rank": 3252.9,
+          "avg_ce": 11.4
+        },
+        "Keywords": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 5061.0,
+          "avg_rank": 4771.9,
+          "avg_ce": 12.47
+        },
+        "Operators": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 2555.5,
+          "avg_rank": 2937.7,
+          "avg_ce": 10.87
+        },
+        "Literals": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 1399.0,
+          "avg_rank": 2978.1,
+          "avg_ce": 11.04
+        },
+        "Imports": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 4463.0,
+          "avg_rank": 4064.8,
+          "avg_ce": 11.88
+        },
+        "Class names": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 1538.0,
+          "avg_rank": 2658.2,
+          "avg_ce": 9.99
+        },
+        "Attribute names": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 3019.0,
+          "avg_rank": 3374.1,
+          "avg_ce": 10.59
+        }
+      },
+      "probes": [
+        {
+          "category": "Identifier recovery",
+          "prompt": "return a +",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 217,
+          "ce": 8.114,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "x = 10\nprint(",
+          "target": "x",
+          "suffix": ")\n",
+          "rank": 7,
+          "ce": 4.198,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "def __init__(self,",
+          "target": "name",
+          "suffix": "):\n        self.name = name",
+          "rank": 2635,
+          "ce": 11.97,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "self.name =",
+          "target": "name",
+          "suffix": "\n        self.value = value",
+          "rank": 2046,
+          "ce": 11.954,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "total = sum(",
+          "target": "items",
+          "suffix": ")\n",
+          "rank": 1137,
+          "ce": 9.627,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "for elem in",
+          "target": "lst",
+          "suffix": ":\n        process(elem)",
+          "rank": 1621,
+          "ce": 11.417,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "res = val *",
+          "target": "factor",
+          "suffix": "\n",
+          "rank": 3591,
+          "ce": 11.84,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "msg = str(",
+          "target": "err",
+          "suffix": ")\n",
+          "rank": 429,
+          "ce": 8.115,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "dx = x2 -",
+          "target": "x1",
+          "suffix": "\n",
+          "rank": 2025,
+          "ce": 10.732,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "data = json.loads(",
+          "target": "text",
+          "suffix": ")\n",
+          "rank": 384,
+          "ce": 7.728,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "res = []\nfor x in",
+          "target": "items",
+          "suffix": ":\n    res.append(x)",
+          "rank": 1393,
+          "ce": 10.603,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "left +",
+          "target": "right",
+          "suffix": "\n",
+          "rank": 4135,
+          "ce": 11.803,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "width *",
+          "target": "height",
+          "suffix": "\n",
+          "rank": 1985,
+          "ce": 10.015,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def get_",
+          "target": "name",
+          "suffix": "(self):\n    return self._name",
+          "rank": 3819,
+          "ce": 12.646,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def set_",
+          "target": "val",
+          "suffix": "(self, val):\n    self._val = val",
+          "rank": 4594,
+          "ce": 13.298,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def parse_",
+          "target": "data",
+          "suffix": "(raw_str):\n    return json.loads(raw_str)",
+          "rank": 1404,
+          "ce": 10.615,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def build_",
+          "target": "model",
+          "suffix": "(config):\n    return Model(config)",
+          "rank": 2892,
+          "ce": 11.727,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def test_",
+          "target": "func",
+          "suffix": "():\n    assert True",
+          "rank": 131,
+          "ce": 6.614,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def process_",
+          "target": "request",
+          "suffix": "(req):\n    return req.json()",
+          "rank": 70,
+          "ce": 5.881,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def validate_",
+          "target": "input",
+          "suffix": "(data):\n    assert data is not None",
+          "rank": 544,
+          "ce": 8.413,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def load_",
+          "target": "config",
+          "suffix": "(path):\n    with open(path) as f:\n        return yaml.safe_load(f)",
+          "rank": 4714,
+          "ce": 13.17,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def save_",
+          "target": "file",
+          "suffix": "(path, content):\n    with open(path, 'w') as f:\n        f.write(content)",
+          "rank": 7857,
+          "ce": 15.027,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def calculate_",
+          "target": "total",
+          "suffix": "(items):\n    return sum(items)",
+          "rank": 2960,
+          "ce": 12.39,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def convert_",
+          "target": "type",
+          "suffix": "(val, target_type):\n    return target_type(val)",
+          "rank": 3338,
+          "ce": 12.478,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def read_",
+          "target": "bytes",
+          "suffix": "(path):\n    with open(path, 'rb') as f:\n        return f.read()",
+          "rank": 2807,
+          "ce": 11.989,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def create_",
+          "target": "instance",
+          "suffix": "(cls, *args):\n    return cls(*args)",
+          "rank": 7158,
+          "ce": 13.94,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if x == 1:\n    pass\n",
+          "target": "else",
+          "suffix": ":\n    pass",
+          "rank": 362,
+          "ce": 8.241,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "try:\n    pass\n",
+          "target": "except",
+          "suffix": " Exception:\n    pass",
+          "rank": 3752,
+          "ce": 12.023,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "for i in",
+          "target": "range",
+          "suffix": "(10):\n    print(i)",
+          "rank": 647,
+          "ce": 9.964,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "with open(path) ",
+          "target": "as",
+          "suffix": " f:\n    data = f.read()",
+          "rank": 496,
+          "ce": 9.258,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if not",
+          "target": "found",
+          "suffix": ":\n    raise KeyError('Not found')",
+          "rank": 4771,
+          "ce": 12.826,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "while",
+          "target": "True",
+          "suffix": ":\n    break",
+          "rank": 3851,
+          "ce": 11.866,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "from typing",
+          "target": "import",
+          "suffix": " List, Dict, Optional",
+          "rank": 6777,
+          "ce": 14.313,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "assert x is",
+          "target": "not",
+          "suffix": " None",
+          "rank": 5106,
+          "ce": 13.131,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if item",
+          "target": "in",
+          "suffix": " items:\n    return True",
+          "rank": 7808,
+          "ce": 13.284,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "def func():\n   ",
+          "target": "return",
+          "suffix": " 42",
+          "rank": 7757,
+          "ce": 14.087,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "raise ValueError(",
+          "target": "msg",
+          "suffix": ")\n",
+          "rank": 5061,
+          "ce": 12.565,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "class MyClass(",
+          "target": "object",
+          "suffix": "):\n    pass",
+          "rank": 7845,
+          "ce": 16.213,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "yield",
+          "target": "from",
+          "suffix": " sub_generator()",
+          "rank": 7802,
+          "ce": 14.334,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x = a +",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 5264,
+          "ce": 12.77,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "if a ==",
+          "target": "b",
+          "suffix": ":\n    return True",
+          "rank": 6379,
+          "ce": 12.71,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x +=",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 163,
+          "ce": 7.295,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "a >",
+          "target": "0",
+          "suffix": "\n",
+          "rank": 4557,
+          "ce": 12.413,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x = y *",
+          "target": "z",
+          "suffix": "\n",
+          "rank": 2089,
+          "ce": 10.325,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "a !=",
+          "target": "None",
+          "suffix": ":\n    return a",
+          "rank": 296,
+          "ce": 8.187,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "count = len(arr) -",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 1798,
+          "ce": 11.392,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "if x <=",
+          "target": "max_val",
+          "suffix": ":\n    return x",
+          "rank": 2927,
+          "ce": 11.821,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "idx = (i + 1) %",
+          "target": "n",
+          "suffix": "\n",
+          "rank": 3183,
+          "ce": 11.648,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "res = a &",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 6252,
+          "ce": 13.984,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "flags = A |",
+          "target": "B",
+          "suffix": "\n",
+          "rank": 160,
+          "ce": 6.864,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "val = x **",
+          "target": "2",
+          "suffix": "\n",
+          "rank": 2184,
+          "ce": 11.08,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "if x is",
+          "target": "None",
+          "suffix": ":\n    return None",
+          "rank": 421,
+          "ce": 9.305,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "flag =",
+          "target": "True",
+          "suffix": "\n",
+          "rank": 846,
+          "ce": 9.242,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "status =",
+          "target": "False",
+          "suffix": "\n",
+          "rank": 1667,
+          "ce": 10.643,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "count =",
+          "target": "0",
+          "suffix": "\n",
+          "rank": 1131,
+          "ce": 9.887,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "name =",
+          "target": "\"\"",
+          "suffix": "\n",
+          "rank": 6998,
+          "ce": 13.834,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "items =",
+          "target": "[]",
+          "suffix": "\n",
+          "rank": 2739,
+          "ce": 10.942,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "data =",
+          "target": "{}",
+          "suffix": "\n",
+          "rank": 6827,
+          "ce": 13.645,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "rate =",
+          "target": "0.0",
+          "suffix": "\n",
+          "rank": 1036,
+          "ce": 10.109,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "idx =",
+          "target": "-1",
+          "suffix": "\n",
+          "rank": 979,
+          "ce": 8.756,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "pi =",
+          "target": "3.14",
+          "suffix": "\n",
+          "rank": 7578,
+          "ce": 14.55,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "res =",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 499,
+          "ce": 9.267,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "msg =",
+          "target": "\"hello\"",
+          "suffix": "\n",
+          "rank": 5016,
+          "ce": 12.335,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "os",
+          "suffix": "\n\npath = os.path.join(base, name)",
+          "rank": 4970,
+          "ce": 12.473,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "sys",
+          "suffix": "\n\nsys.exit(0)",
+          "rank": 6725,
+          "ce": 13.484,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "json",
+          "suffix": "\n\ndata = json.loads(text)",
+          "rank": 1475,
+          "ce": 10.411,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "time",
+          "suffix": "\n\nstart = time.time()",
+          "rank": 2603,
+          "ce": 11.215,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "math",
+          "suffix": "\n\nx = math.sqrt(val)",
+          "rank": 7863,
+          "ce": 14.739,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "re",
+          "suffix": "\n\npattern = re.compile(r\"\\d+\")",
+          "rank": 6578,
+          "ce": 13.372,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "random",
+          "suffix": "\n\nchoice = random.choice(items)",
+          "rank": 4463,
+          "ce": 12.231,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from typing import",
+          "target": "List",
+          "suffix": ", Dict, Optional",
+          "rank": 5194,
+          "ce": 12.901,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from pathlib import",
+          "target": "Path",
+          "suffix": "\n\np = Path('data.txt')",
+          "rank": 3421,
+          "ce": 12.124,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import numpy as",
+          "target": "np",
+          "suffix": "\n\narr = np.zeros(10)",
+          "rank": 31,
+          "ce": 5.68,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import torch.nn as",
+          "target": "nn",
+          "suffix": "\n\nclass Net(nn.Module): pass",
+          "rank": 6594,
+          "ce": 14.046,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from collections import",
+          "target": "defaultdict",
+          "suffix": "\n\nd = defaultdict(list)",
+          "rank": 1319,
+          "ce": 10.6,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import logging",
+          "target": "as",
+          "suffix": " log\nlog.basicConfig()",
+          "rank": 1607,
+          "ce": 11.146,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Base",
+          "suffix": ":\n    def __init__(self):\n        pass",
+          "rank": 1422,
+          "ce": 9.393,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Model",
+          "suffix": "(nn.Module):\n    def forward(self, x):\n        return x",
+          "rank": 1919,
+          "ce": 9.742,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Config",
+          "suffix": ":\n    def __init__(self, lr=1e-3):\n        self.lr = lr",
+          "rank": 857,
+          "ce": 8.781,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Trainer",
+          "suffix": ":\n    def train(self, steps):\n        pass",
+          "rank": 1654,
+          "ce": 9.573,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "User",
+          "suffix": ":\n    def __init__(self, username, email):\n        pass",
+          "rank": 5960,
+          "ce": 11.842,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Dataset",
+          "suffix": ":\n    def __len__(self):\n        return len(self.data)",
+          "rank": 220,
+          "ce": 7.399,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Engine",
+          "suffix": ":\n    def step(self):\n        pass",
+          "rank": 8044,
+          "ce": 14.625,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Handler",
+          "suffix": ":\n    def handle(self, request):\n        pass",
+          "rank": 2657,
+          "ce": 10.17,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Session",
+          "suffix": ":\n    def close(self):\n        pass",
+          "rank": 551,
+          "ce": 8.345,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Exception",
+          "suffix": "(BaseException):\n    pass",
+          "rank": 1285,
+          "ce": 9.253,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Node",
+          "suffix": ":\n    def __init__(self, val, next=None):\n        self.val = val",
+          "rank": 6778,
+          "ce": 12.392,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Server",
+          "suffix": ":\n    def listen(self, port=8080):\n        pass",
+          "rank": 551,
+          "ce": 8.345,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "name",
+          "suffix": " = name\n        self.age = age",
+          "rank": 3682,
+          "ce": 11.315,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "value",
+          "suffix": " = value\n        return self.value",
+          "rank": 1227,
+          "ce": 8.807,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "config",
+          "suffix": " = config\n        self.lr = self.config.lr",
+          "rank": 3019,
+          "ce": 10.586,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "device",
+          "suffix": " = device\n        self.model.to(self.device)",
+          "rank": 3060,
+          "ce": 10.628,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "logger",
+          "suffix": ".info('Starting run')",
+          "rank": 7774,
+          "ce": 14.608,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "state",
+          "suffix": " = 'running'\n        return self.state",
+          "rank": 8087,
+          "ce": 15.902,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "obj.",
+          "target": "data",
+          "suffix": " = [1, 2, 3]",
+          "rank": 6063,
+          "ce": 12.94,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "req.",
+          "target": "json",
+          "suffix": "()\n    return response",
+          "rank": 240,
+          "ce": 7.142,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "path.",
+          "target": "exists",
+          "suffix": "():\n    return True",
+          "rank": 963,
+          "ce": 8.664,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "res.",
+          "target": "status_code",
+          "suffix": " == 200:\n    return True",
+          "rank": 7424,
+          "ce": 13.873,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "torch.",
+          "target": "cuda",
+          "suffix": ".is_available():\n    device = 'cuda'",
+          "rank": 17,
+          "ce": 5.172,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "os.",
+          "target": "path",
+          "suffix": ".join(root, file)",
+          "rank": 452,
+          "ce": 7.747,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "sys.",
+          "target": "path",
+          "suffix": ".append(module_dir)",
+          "rank": 1855,
+          "ce": 10.272,
+          "top1": false,
+          "top5": false
+        }
+      ]
+    }
+  },
+  "phase_b_tpu_new": {
+    "name": "50M CoroSRED Phase B (TPU Retrained)",
+    "tokens": "2.0B total (1B A + 1B B)",
+    "val_causal": {
+      "val_loss": 4.2983,
+      "perplexity": 73.57,
+      "top1_acc": 24.46,
+      "top5_acc": 52.27,
+      "mean_reliability": 2.4962,
+      "high_rel_acc": 26.23,
+      "low_rel_acc": 11.6
+    },
+    "val_bidir": {
+      "val_loss": 3.3702,
+      "perplexity": 29.08,
+      "top1_acc": 45.85,
+      "top5_acc": 61.98,
+      "mean_reliability": 2.745,
+      "high_rel_acc": 0.0,
+      "low_rel_acc": 0.0
+    },
+    "probes_bidir": {
+      "top1_pct": 0.99,
+      "top5_pct": 1.98,
+      "median_rank": 2649.0,
+      "avg_rank": 3165.4,
+      "avg_ce": 10.06,
+      "categories": {
+        "Identifier recovery": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 736.0,
+          "avg_rank": 1731.8,
+          "avg_ce": 8.84
+        },
+        "Function names": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 7.7,
+          "median_rank": 2625.0,
+          "avg_rank": 2947.2,
+          "avg_ce": 9.9
+        },
+        "Keywords": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 3862.0,
+          "avg_rank": 4024.3,
+          "avg_ce": 11.01
+        },
+        "Operators": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 2844.0,
+          "avg_rank": 3537.9,
+          "avg_ce": 10.53
+        },
+        "Literals": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 5256.0,
+          "avg_rank": 4696.4,
+          "avg_ce": 11.54
+        },
+        "Imports": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 3158.0,
+          "avg_rank": 3361.7,
+          "avg_ce": 10.1
+        },
+        "Class names": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 2503.5,
+          "avg_rank": 2578.6,
+          "avg_ce": 9.95
+        },
+        "Attribute names": {
+          "count": 13,
+          "top1_pct": 7.7,
+          "top5_pct": 7.7,
+          "median_rank": 1036.0,
+          "avg_rank": 2546.5,
+          "avg_ce": 8.73
+        }
+      },
+      "probes": [
+        {
+          "category": "Identifier recovery",
+          "prompt": "return a +",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 268,
+          "ce": 7.387,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "x = 10\nprint(",
+          "target": "x",
+          "suffix": ")\n",
+          "rank": 261,
+          "ce": 7.579,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "def __init__(self,",
+          "target": "name",
+          "suffix": "):\n        self.name = name",
+          "rank": 1678,
+          "ce": 9.234,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "self.name =",
+          "target": "name",
+          "suffix": "\n        self.value = value",
+          "rank": 7165,
+          "ce": 12.668,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "total = sum(",
+          "target": "items",
+          "suffix": ")\n",
+          "rank": 100,
+          "ce": 6.754,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "for elem in",
+          "target": "lst",
+          "suffix": ":\n        process(elem)",
+          "rank": 736,
+          "ce": 8.453,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "res = val *",
+          "target": "factor",
+          "suffix": "\n",
+          "rank": 1870,
+          "ce": 9.452,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "msg = str(",
+          "target": "err",
+          "suffix": ")\n",
+          "rank": 257,
+          "ce": 7.305,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "dx = x2 -",
+          "target": "x1",
+          "suffix": "\n",
+          "rank": 1051,
+          "ce": 8.643,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "data = json.loads(",
+          "target": "text",
+          "suffix": ")\n",
+          "rank": 557,
+          "ce": 8.234,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "res = []\nfor x in",
+          "target": "items",
+          "suffix": ":\n    res.append(x)",
+          "rank": 3603,
+          "ce": 10.496,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "left +",
+          "target": "right",
+          "suffix": "\n",
+          "rank": 161,
+          "ce": 6.917,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "width *",
+          "target": "height",
+          "suffix": "\n",
+          "rank": 4806,
+          "ce": 11.796,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def get_",
+          "target": "name",
+          "suffix": "(self):\n    return self._name",
+          "rank": 2625,
+          "ce": 10.011,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def set_",
+          "target": "val",
+          "suffix": "(self, val):\n    self._val = val",
+          "rank": 1673,
+          "ce": 9.282,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def parse_",
+          "target": "data",
+          "suffix": "(raw_str):\n    return json.loads(raw_str)",
+          "rank": 3206,
+          "ce": 10.375,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def build_",
+          "target": "model",
+          "suffix": "(config):\n    return Model(config)",
+          "rank": 6443,
+          "ce": 12.072,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def test_",
+          "target": "func",
+          "suffix": "():\n    assert True",
+          "rank": 2207,
+          "ce": 9.585,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def process_",
+          "target": "request",
+          "suffix": "(req):\n    return req.json()",
+          "rank": 1877,
+          "ce": 9.943,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def validate_",
+          "target": "input",
+          "suffix": "(data):\n    assert data is not None",
+          "rank": 148,
+          "ce": 7.239,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def load_",
+          "target": "config",
+          "suffix": "(path):\n    with open(path) as f:\n        return yaml.safe_load(f)",
+          "rank": 2716,
+          "ce": 10.158,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def save_",
+          "target": "file",
+          "suffix": "(path, content):\n    with open(path, 'w') as f:\n        f.write(content)",
+          "rank": 4275,
+          "ce": 10.864,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def calculate_",
+          "target": "total",
+          "suffix": "(items):\n    return sum(items)",
+          "rank": 6557,
+          "ce": 12.433,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def convert_",
+          "target": "type",
+          "suffix": "(val, target_type):\n    return target_type(val)",
+          "rank": 3,
+          "ce": 5.682,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Function names",
+          "prompt": "def read_",
+          "target": "bytes",
+          "suffix": "(path):\n    with open(path, 'rb') as f:\n        return f.read()",
+          "rank": 4624,
+          "ce": 11.461,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def create_",
+          "target": "instance",
+          "suffix": "(cls, *args):\n    return cls(*args)",
+          "rank": 1959,
+          "ce": 9.563,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if x == 1:\n    pass\n",
+          "target": "else",
+          "suffix": ":\n    pass",
+          "rank": 3686,
+          "ce": 10.696,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "try:\n    pass\n",
+          "target": "except",
+          "suffix": " Exception:\n    pass",
+          "rank": 6035,
+          "ce": 11.971,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "for i in",
+          "target": "range",
+          "suffix": "(10):\n    print(i)",
+          "rank": 7059,
+          "ce": 12.842,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "with open(path) ",
+          "target": "as",
+          "suffix": " f:\n    data = f.read()",
+          "rank": 5064,
+          "ce": 11.115,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if not",
+          "target": "found",
+          "suffix": ":\n    raise KeyError('Not found')",
+          "rank": 1603,
+          "ce": 9.285,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "while",
+          "target": "True",
+          "suffix": ":\n    break",
+          "rank": 2869,
+          "ce": 10.5,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "from typing",
+          "target": "import",
+          "suffix": " List, Dict, Optional",
+          "rank": 2005,
+          "ce": 10.042,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "assert x is",
+          "target": "not",
+          "suffix": " None",
+          "rank": 1276,
+          "ce": 9.605,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if item",
+          "target": "in",
+          "suffix": " items:\n    return True",
+          "rank": 4364,
+          "ce": 10.769,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "def func():\n   ",
+          "target": "return",
+          "suffix": " 42",
+          "rank": 3862,
+          "ce": 11.075,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "raise ValueError(",
+          "target": "msg",
+          "suffix": ")\n",
+          "rank": 2649,
+          "ce": 10.703,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "class MyClass(",
+          "target": "object",
+          "suffix": "):\n    pass",
+          "rank": 7500,
+          "ce": 12.933,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "yield",
+          "target": "from",
+          "suffix": " sub_generator()",
+          "rank": 4344,
+          "ce": 11.532,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x = a +",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 3205,
+          "ce": 10.45,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "if a ==",
+          "target": "b",
+          "suffix": ":\n    return True",
+          "rank": 6437,
+          "ce": 11.812,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x +=",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 1475,
+          "ce": 10.021,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "a >",
+          "target": "0",
+          "suffix": "\n",
+          "rank": 5703,
+          "ce": 12.255,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x = y *",
+          "target": "z",
+          "suffix": "\n",
+          "rank": 2174,
+          "ce": 9.759,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "a !=",
+          "target": "None",
+          "suffix": ":\n    return a",
+          "rank": 2455,
+          "ce": 9.949,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "count = len(arr) -",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 2420,
+          "ce": 9.846,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "if x <=",
+          "target": "max_val",
+          "suffix": ":\n    return x",
+          "rank": 2810,
+          "ce": 10.068,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "idx = (i + 1) %",
+          "target": "n",
+          "suffix": "\n",
+          "rank": 5545,
+          "ce": 11.348,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "res = a &",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 6038,
+          "ce": 11.689,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "flags = A |",
+          "target": "B",
+          "suffix": "\n",
+          "rank": 2878,
+          "ce": 10.077,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "val = x **",
+          "target": "2",
+          "suffix": "\n",
+          "rank": 1315,
+          "ce": 9.092,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "if x is",
+          "target": "None",
+          "suffix": ":\n    return None",
+          "rank": 5851,
+          "ce": 11.854,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "flag =",
+          "target": "True",
+          "suffix": "\n",
+          "rank": 6453,
+          "ce": 12.143,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "status =",
+          "target": "False",
+          "suffix": "\n",
+          "rank": 2062,
+          "ce": 10.951,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "count =",
+          "target": "0",
+          "suffix": "\n",
+          "rank": 6109,
+          "ce": 12.124,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "name =",
+          "target": "\"\"",
+          "suffix": "\n",
+          "rank": 7628,
+          "ce": 13.88,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "items =",
+          "target": "[]",
+          "suffix": "\n",
+          "rank": 4661,
+          "ce": 11.608,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "data =",
+          "target": "{}",
+          "suffix": "\n",
+          "rank": 6868,
+          "ce": 12.721,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "rate =",
+          "target": "0.0",
+          "suffix": "\n",
+          "rank": 4316,
+          "ce": 11.01,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "idx =",
+          "target": "-1",
+          "suffix": "\n",
+          "rank": 1623,
+          "ce": 9.415,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "pi =",
+          "target": "3.14",
+          "suffix": "\n",
+          "rank": 6830,
+          "ce": 13.03,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "res =",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 2112,
+          "ce": 10.412,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "msg =",
+          "target": "\"hello\"",
+          "suffix": "\n",
+          "rank": 1844,
+          "ce": 9.39,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "os",
+          "suffix": "\n\npath = os.path.join(base, name)",
+          "rank": 179,
+          "ce": 7.118,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "sys",
+          "suffix": "\n\nsys.exit(0)",
+          "rank": 444,
+          "ce": 7.893,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "json",
+          "suffix": "\n\ndata = json.loads(text)",
+          "rank": 6055,
+          "ce": 11.554,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "time",
+          "suffix": "\n\nstart = time.time()",
+          "rank": 2395,
+          "ce": 9.554,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "math",
+          "suffix": "\n\nx = math.sqrt(val)",
+          "rank": 3237,
+          "ce": 10.364,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "re",
+          "suffix": "\n\npattern = re.compile(r\"\\d+\")",
+          "rank": 3411,
+          "ce": 10.499,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "random",
+          "suffix": "\n\nchoice = random.choice(items)",
+          "rank": 3158,
+          "ce": 10.036,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from typing import",
+          "target": "List",
+          "suffix": ", Dict, Optional",
+          "rank": 5592,
+          "ce": 11.784,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from pathlib import",
+          "target": "Path",
+          "suffix": "\n\np = Path('data.txt')",
+          "rank": 6718,
+          "ce": 11.977,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import numpy as",
+          "target": "np",
+          "suffix": "\n\narr = np.zeros(10)",
+          "rank": 1612,
+          "ce": 9.181,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import torch.nn as",
+          "target": "nn",
+          "suffix": "\n\nclass Net(nn.Module): pass",
+          "rank": 2319,
+          "ce": 9.584,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from collections import",
+          "target": "defaultdict",
+          "suffix": "\n\nd = defaultdict(list)",
+          "rank": 5506,
+          "ce": 11.152,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import logging",
+          "target": "as",
+          "suffix": " log\nlog.basicConfig()",
+          "rank": 3076,
+          "ce": 10.636,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Base",
+          "suffix": ":\n    def __init__(self):\n        pass",
+          "rank": 737,
+          "ce": 8.91,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Model",
+          "suffix": "(nn.Module):\n    def forward(self, x):\n        return x",
+          "rank": 6759,
+          "ce": 12.621,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Config",
+          "suffix": ":\n    def __init__(self, lr=1e-3):\n        self.lr = lr",
+          "rank": 350,
+          "ce": 7.791,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Trainer",
+          "suffix": ":\n    def train(self, steps):\n        pass",
+          "rank": 1131,
+          "ce": 8.971,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "User",
+          "suffix": ":\n    def __init__(self, username, email):\n        pass",
+          "rank": 1727,
+          "ce": 9.787,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Dataset",
+          "suffix": ":\n    def __len__(self):\n        return len(self.data)",
+          "rank": 4204,
+          "ce": 10.617,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Engine",
+          "suffix": ":\n    def step(self):\n        pass",
+          "rank": 2748,
+          "ce": 10.451,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Handler",
+          "suffix": ":\n    def handle(self, request):\n        pass",
+          "rank": 1280,
+          "ce": 9.036,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Session",
+          "suffix": ":\n    def close(self):\n        pass",
+          "rank": 2592,
+          "ce": 10.103,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Exception",
+          "suffix": "(BaseException):\n    pass",
+          "rank": 2511,
+          "ce": 9.901,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Node",
+          "suffix": ":\n    def __init__(self, val, next=None):\n        self.val = val",
+          "rank": 2496,
+          "ce": 10.48,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Server",
+          "suffix": ":\n    def listen(self, port=8080):\n        pass",
+          "rank": 4408,
+          "ce": 10.787,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "name",
+          "suffix": " = name\n        self.age = age",
+          "rank": 496,
+          "ce": 7.826,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "value",
+          "suffix": " = value\n        return self.value",
+          "rank": 1,
+          "ce": 0.509,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "config",
+          "suffix": " = config\n        self.lr = self.config.lr",
+          "rank": 781,
+          "ce": 8.475,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "device",
+          "suffix": " = device\n        self.model.to(self.device)",
+          "rank": 4783,
+          "ce": 10.954,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "logger",
+          "suffix": ".info('Starting run')",
+          "rank": 7882,
+          "ce": 14.023,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "state",
+          "suffix": " = 'running'\n        return self.state",
+          "rank": 3744,
+          "ce": 10.362,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "obj.",
+          "target": "data",
+          "suffix": " = [1, 2, 3]",
+          "rank": 17,
+          "ce": 5.283,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "req.",
+          "target": "json",
+          "suffix": "()\n    return response",
+          "rank": 1036,
+          "ce": 8.585,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "path.",
+          "target": "exists",
+          "suffix": "():\n    return True",
+          "rank": 5812,
+          "ce": 11.813,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "res.",
+          "target": "status_code",
+          "suffix": " == 200:\n    return True",
+          "rank": 5651,
+          "ce": 11.949,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "torch.",
+          "target": "cuda",
+          "suffix": ".is_available():\n    device = 'cuda'",
+          "rank": 32,
+          "ce": 5.943,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "os.",
+          "target": "path",
+          "suffix": ".join(root, file)",
+          "rank": 2329,
+          "ce": 9.702,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "sys.",
+          "target": "path",
+          "suffix": ".append(module_dir)",
+          "rank": 541,
+          "ce": 8.128,
+          "top1": false,
+          "top5": false
+        }
+      ]
+    },
+    "probes_causal": {
+      "top1_pct": 0.0,
+      "top5_pct": 0.99,
+      "median_rank": 2447.0,
+      "avg_rank": 2957.0,
+      "avg_ce": 11.31,
+      "categories": {
+        "Identifier recovery": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 1155.0,
+          "avg_rank": 1556.3,
+          "avg_ce": 9.61
+        },
+        "Function names": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 2958.0,
+          "avg_rank": 3596.5,
+          "avg_ce": 12.43
+        },
+        "Keywords": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 4330.0,
+          "avg_rank": 3746.0,
+          "avg_ce": 11.33
+        },
+        "Operators": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 2255.5,
+          "avg_rank": 3328.8,
+          "avg_ce": 11.61
+        },
+        "Literals": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 3097.0,
+          "avg_rank": 3202.4,
+          "avg_ce": 10.95
+        },
+        "Imports": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 2414.0,
+          "avg_rank": 2783.8,
+          "avg_ce": 11.01
+        },
+        "Class names": {
+          "count": 12,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "median_rank": 2178.5,
+          "avg_rank": 2285.1,
+          "avg_ce": 13.18
+        },
+        "Attribute names": {
+          "count": 13,
+          "top1_pct": 0.0,
+          "top5_pct": 7.7,
+          "median_rank": 2447.0,
+          "avg_rank": 3152.8,
+          "avg_ce": 10.46
+        }
+      },
+      "probes": [
+        {
+          "category": "Identifier recovery",
+          "prompt": "return a +",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 25,
+          "ce": 9.035,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "x = 10\nprint(",
+          "target": "x",
+          "suffix": ")\n",
+          "rank": 17,
+          "ce": 5.941,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "def __init__(self,",
+          "target": "name",
+          "suffix": "):\n        self.name = name",
+          "rank": 3269,
+          "ce": 10.813,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "self.name =",
+          "target": "name",
+          "suffix": "\n        self.value = value",
+          "rank": 1117,
+          "ce": 9.49,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "total = sum(",
+          "target": "items",
+          "suffix": ")\n",
+          "rank": 1155,
+          "ce": 10.151,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "for elem in",
+          "target": "lst",
+          "suffix": ":\n        process(elem)",
+          "rank": 2176,
+          "ce": 9.98,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "res = val *",
+          "target": "factor",
+          "suffix": "\n",
+          "rank": 222,
+          "ce": 7.469,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "msg = str(",
+          "target": "err",
+          "suffix": ")\n",
+          "rank": 46,
+          "ce": 6.595,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "dx = x2 -",
+          "target": "x1",
+          "suffix": "\n",
+          "rank": 1609,
+          "ce": 10.485,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "data = json.loads(",
+          "target": "text",
+          "suffix": ")\n",
+          "rank": 1946,
+          "ce": 10.715,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "res = []\nfor x in",
+          "target": "items",
+          "suffix": ":\n    res.append(x)",
+          "rank": 1894,
+          "ce": 9.993,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "left +",
+          "target": "right",
+          "suffix": "\n",
+          "rank": 5782,
+          "ce": 15.262,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Identifier recovery",
+          "prompt": "width *",
+          "target": "height",
+          "suffix": "\n",
+          "rank": 974,
+          "ce": 9.05,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def get_",
+          "target": "name",
+          "suffix": "(self):\n    return self._name",
+          "rank": 5219,
+          "ce": 13.703,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def set_",
+          "target": "val",
+          "suffix": "(self, val):\n    self._val = val",
+          "rank": 1498,
+          "ce": 10.575,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def parse_",
+          "target": "data",
+          "suffix": "(raw_str):\n    return json.loads(raw_str)",
+          "rank": 2460,
+          "ce": 11.527,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def build_",
+          "target": "model",
+          "suffix": "(config):\n    return Model(config)",
+          "rank": 2678,
+          "ce": 11.367,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def test_",
+          "target": "func",
+          "suffix": "():\n    assert True",
+          "rank": 1239,
+          "ce": 10.571,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def process_",
+          "target": "request",
+          "suffix": "(req):\n    return req.json()",
+          "rank": 2345,
+          "ce": 10.991,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def validate_",
+          "target": "input",
+          "suffix": "(data):\n    assert data is not None",
+          "rank": 2958,
+          "ce": 11.237,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def load_",
+          "target": "config",
+          "suffix": "(path):\n    with open(path) as f:\n        return yaml.safe_load(f)",
+          "rank": 4479,
+          "ce": 14.19,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def save_",
+          "target": "file",
+          "suffix": "(path, content):\n    with open(path, 'w') as f:\n        f.write(content)",
+          "rank": 8142,
+          "ce": 17.915,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def calculate_",
+          "target": "total",
+          "suffix": "(items):\n    return sum(items)",
+          "rank": 4024,
+          "ce": 12.016,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def convert_",
+          "target": "type",
+          "suffix": "(val, target_type):\n    return target_type(val)",
+          "rank": 402,
+          "ce": 9.401,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def read_",
+          "target": "bytes",
+          "suffix": "(path):\n    with open(path, 'rb') as f:\n        return f.read()",
+          "rank": 7494,
+          "ce": 14.864,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Function names",
+          "prompt": "def create_",
+          "target": "instance",
+          "suffix": "(cls, *args):\n    return cls(*args)",
+          "rank": 3816,
+          "ce": 13.256,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if x == 1:\n    pass\n",
+          "target": "else",
+          "suffix": ":\n    pass",
+          "rank": 88,
+          "ce": 7.914,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "try:\n    pass\n",
+          "target": "except",
+          "suffix": " Exception:\n    pass",
+          "rank": 1720,
+          "ce": 11.616,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "for i in",
+          "target": "range",
+          "suffix": "(10):\n    print(i)",
+          "rank": 3430,
+          "ce": 10.816,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "with open(path) ",
+          "target": "as",
+          "suffix": " f:\n    data = f.read()",
+          "rank": 220,
+          "ce": 8.745,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if not",
+          "target": "found",
+          "suffix": ":\n    raise KeyError('Not found')",
+          "rank": 4740,
+          "ce": 11.941,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "while",
+          "target": "True",
+          "suffix": ":\n    break",
+          "rank": 6959,
+          "ce": 12.876,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "from typing",
+          "target": "import",
+          "suffix": " List, Dict, Optional",
+          "rank": 2319,
+          "ce": 10.525,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "assert x is",
+          "target": "not",
+          "suffix": " None",
+          "rank": 1227,
+          "ce": 9.039,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "if item",
+          "target": "in",
+          "suffix": " items:\n    return True",
+          "rank": 5765,
+          "ce": 12.225,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "def func():\n   ",
+          "target": "return",
+          "suffix": " 42",
+          "rank": 5630,
+          "ce": 11.884,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "raise ValueError(",
+          "target": "msg",
+          "suffix": ")\n",
+          "rank": 5908,
+          "ce": 13.317,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "class MyClass(",
+          "target": "object",
+          "suffix": "):\n    pass",
+          "rank": 4330,
+          "ce": 12.009,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Keywords",
+          "prompt": "yield",
+          "target": "from",
+          "suffix": " sub_generator()",
+          "rank": 6362,
+          "ce": 14.438,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x = a +",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 6868,
+          "ce": 16.767,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "if a ==",
+          "target": "b",
+          "suffix": ":\n    return True",
+          "rank": 5973,
+          "ce": 12.518,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x +=",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 517,
+          "ce": 8.806,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "a >",
+          "target": "0",
+          "suffix": "\n",
+          "rank": 2858,
+          "ce": 11.193,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "x = y *",
+          "target": "z",
+          "suffix": "\n",
+          "rank": 8092,
+          "ce": 14.645,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "a !=",
+          "target": "None",
+          "suffix": ":\n    return a",
+          "rank": 1653,
+          "ce": 10.748,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "count = len(arr) -",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 575,
+          "ce": 9.875,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "if x <=",
+          "target": "max_val",
+          "suffix": ":\n    return x",
+          "rank": 3545,
+          "ce": 10.585,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "idx = (i + 1) %",
+          "target": "n",
+          "suffix": "\n",
+          "rank": 182,
+          "ce": 7.994,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "res = a &",
+          "target": "b",
+          "suffix": "\n",
+          "rank": 7280,
+          "ce": 14.131,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "flags = A |",
+          "target": "B",
+          "suffix": "\n",
+          "rank": 902,
+          "ce": 11.088,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Operators",
+          "prompt": "val = x **",
+          "target": "2",
+          "suffix": "\n",
+          "rank": 1501,
+          "ce": 10.97,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "if x is",
+          "target": "None",
+          "suffix": ":\n    return None",
+          "rank": 3214,
+          "ce": 10.688,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "flag =",
+          "target": "True",
+          "suffix": "\n",
+          "rank": 5373,
+          "ce": 12.969,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "status =",
+          "target": "False",
+          "suffix": "\n",
+          "rank": 3668,
+          "ce": 11.316,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "count =",
+          "target": "0",
+          "suffix": "\n",
+          "rank": 843,
+          "ce": 8.875,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "name =",
+          "target": "\"\"",
+          "suffix": "\n",
+          "rank": 4455,
+          "ce": 11.939,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "items =",
+          "target": "[]",
+          "suffix": "\n",
+          "rank": 6322,
+          "ce": 12.781,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "data =",
+          "target": "{}",
+          "suffix": "\n",
+          "rank": 2616,
+          "ce": 11.676,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "rate =",
+          "target": "0.0",
+          "suffix": "\n",
+          "rank": 1745,
+          "ce": 9.613,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "idx =",
+          "target": "-1",
+          "suffix": "\n",
+          "rank": 2980,
+          "ce": 10.804,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "pi =",
+          "target": "3.14",
+          "suffix": "\n",
+          "rank": 5326,
+          "ce": 12.2,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "res =",
+          "target": "1",
+          "suffix": "\n",
+          "rank": 1138,
+          "ce": 9.868,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Literals",
+          "prompt": "msg =",
+          "target": "\"hello\"",
+          "suffix": "\n",
+          "rank": 749,
+          "ce": 8.69,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "os",
+          "suffix": "\n\npath = os.path.join(base, name)",
+          "rank": 2791,
+          "ce": 11.37,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "sys",
+          "suffix": "\n\nsys.exit(0)",
+          "rank": 806,
+          "ce": 9.646,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "json",
+          "suffix": "\n\ndata = json.loads(text)",
+          "rank": 1837,
+          "ce": 10.665,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "time",
+          "suffix": "\n\nstart = time.time()",
+          "rank": 1377,
+          "ce": 10.296,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "math",
+          "suffix": "\n\nx = math.sqrt(val)",
+          "rank": 6146,
+          "ce": 13.412,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "re",
+          "suffix": "\n\npattern = re.compile(r\"\\d+\")",
+          "rank": 7435,
+          "ce": 14.576,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import",
+          "target": "random",
+          "suffix": "\n\nchoice = random.choice(items)",
+          "rank": 2414,
+          "ce": 11.114,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from typing import",
+          "target": "List",
+          "suffix": ", Dict, Optional",
+          "rank": 4555,
+          "ce": 11.819,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from pathlib import",
+          "target": "Path",
+          "suffix": "\n\np = Path('data.txt')",
+          "rank": 1507,
+          "ce": 10.526,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import numpy as",
+          "target": "np",
+          "suffix": "\n\narr = np.zeros(10)",
+          "rank": 305,
+          "ce": 9.155,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import torch.nn as",
+          "target": "nn",
+          "suffix": "\n\nclass Net(nn.Module): pass",
+          "rank": 3083,
+          "ce": 10.265,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "from collections import",
+          "target": "defaultdict",
+          "suffix": "\n\nd = defaultdict(list)",
+          "rank": 3360,
+          "ce": 11.585,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Imports",
+          "prompt": "import logging",
+          "target": "as",
+          "suffix": " log\nlog.basicConfig()",
+          "rank": 574,
+          "ce": 8.697,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Base",
+          "suffix": ":\n    def __init__(self):\n        pass",
+          "rank": 2226,
+          "ce": 13.54,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Model",
+          "suffix": "(nn.Module):\n    def forward(self, x):\n        return x",
+          "rank": 2131,
+          "ce": 13.474,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Config",
+          "suffix": ":\n    def __init__(self, lr=1e-3):\n        self.lr = lr",
+          "rank": 5591,
+          "ce": 15.463,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Trainer",
+          "suffix": ":\n    def train(self, steps):\n        pass",
+          "rank": 2094,
+          "ce": 13.449,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "User",
+          "suffix": ":\n    def __init__(self, username, email):\n        pass",
+          "rank": 2773,
+          "ce": 13.885,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Dataset",
+          "suffix": ":\n    def __len__(self):\n        return len(self.data)",
+          "rank": 416,
+          "ce": 11.415,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Engine",
+          "suffix": ":\n    def step(self):\n        pass",
+          "rank": 5224,
+          "ce": 15.241,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Handler",
+          "suffix": ":\n    def handle(self, request):\n        pass",
+          "rank": 2779,
+          "ce": 13.889,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Session",
+          "suffix": ":\n    def close(self):\n        pass",
+          "rank": 298,
+          "ce": 11.093,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Exception",
+          "suffix": "(BaseException):\n    pass",
+          "rank": 3142,
+          "ce": 14.091,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Node",
+          "suffix": ":\n    def __init__(self, val, next=None):\n        self.val = val",
+          "rank": 449,
+          "ce": 11.492,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Class names",
+          "prompt": "class",
+          "target": "Server",
+          "suffix": ":\n    def listen(self, port=8080):\n        pass",
+          "rank": 298,
+          "ce": 11.093,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "name",
+          "suffix": " = name\n        self.age = age",
+          "rank": 3030,
+          "ce": 10.931,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "value",
+          "suffix": " = value\n        return self.value",
+          "rank": 6,
+          "ce": 5.007,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "config",
+          "suffix": " = config\n        self.lr = self.config.lr",
+          "rank": 2447,
+          "ce": 10.555,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "device",
+          "suffix": " = device\n        self.model.to(self.device)",
+          "rank": 6034,
+          "ce": 12.673,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "logger",
+          "suffix": ".info('Starting run')",
+          "rank": 8152,
+          "ce": 15.78,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "self.",
+          "target": "state",
+          "suffix": " = 'running'\n        return self.state",
+          "rank": 6838,
+          "ce": 13.26,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "obj.",
+          "target": "data",
+          "suffix": " = [1, 2, 3]",
+          "rank": 1834,
+          "ce": 11.054,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "req.",
+          "target": "json",
+          "suffix": "()\n    return response",
+          "rank": 218,
+          "ce": 7.515,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "path.",
+          "target": "exists",
+          "suffix": "():\n    return True",
+          "rank": 1095,
+          "ce": 10.811,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "res.",
+          "target": "status_code",
+          "suffix": " == 200:\n    return True",
+          "rank": 4420,
+          "ce": 12.541,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "torch.",
+          "target": "cuda",
+          "suffix": ".is_available():\n    device = 'cuda'",
+          "rank": 5,
+          "ce": 4.294,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "os.",
+          "target": "path",
+          "suffix": ".join(root, file)",
+          "rank": 693,
+          "ce": 9.172,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Attribute names",
+          "prompt": "sys.",
+          "target": "path",
+          "suffix": ".append(module_dir)",
+          "rank": 6214,
+          "ce": 12.374,
+          "top1": false,
+          "top5": false
+        }
+      ]
+    }
+  }
+}

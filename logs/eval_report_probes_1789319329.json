@@ -1,0 +1,724 @@
+{
+  "model_checkpoint": "checkpoints/ar/100m/checkpoint_final.pt",
+  "backend": "pytorch",
+  "paradigm": "ar",
+  "vocab_size": 8192,
+  "timestamp": 1789319328,
+  "mode": "probes",
+  "probes": {
+    "causal": {
+      "probe_type": "causal",
+      "overall": {
+        "top1_acc_pct": 62.67,
+        "top1_95ci": [
+          52.0,
+          73.33
+        ],
+        "top5_acc_pct": 85.33,
+        "mean_rank": 14.1,
+        "mean_ce": 1.7,
+        "total_probes": 75
+      },
+      "categories": {
+        "Contextually Deterministic Identifiers": {
+          "count": 25,
+          "top1_pct": 96.0,
+          "top5_pct": 100.0,
+          "avg_rank": 1.0,
+          "avg_ce": 0.71
+        },
+        "Syntactic Keywords": {
+          "count": 25,
+          "top1_pct": 48.0,
+          "top5_pct": 68.0,
+          "avg_rank": 37.3,
+          "avg_ce": 2.65
+        },
+        "Idiomatic Imports & Calls": {
+          "count": 25,
+          "top1_pct": 44.0,
+          "top5_pct": 88.0,
+          "avg_rank": 4.1,
+          "avg_ce": 1.75
+        }
+      },
+      "probes": [
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "x = 10\nprint(",
+          "target": "x",
+          "rank": 1,
+          "target_ce": 2.319805886420537,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "y = 20\nprint(",
+          "target": "y",
+          "rank": 2,
+          "target_ce": 3.180073396117418,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def get_name(self):\n    return self._",
+          "target": "name",
+          "rank": 1,
+          "target_ce": 0.4782620280800821,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def get_value(self):\n    return self._",
+          "target": "value",
+          "rank": 1,
+          "target_ce": 0.5067335657346812,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def get_id(self):\n    return self._",
+          "target": "id",
+          "rank": 1,
+          "target_ce": 0.39502570561644285,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def get_path(self):\n    return self._",
+          "target": "path",
+          "rank": 1,
+          "target_ce": 0.9889870272741261,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def get_data(self):\n    return self._",
+          "target": "data",
+          "rank": 1,
+          "target_ce": 0.4913065670071568,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def get_status(self):\n    return self._",
+          "target": "status",
+          "rank": 1,
+          "target_ce": 0.7465554876203665,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def get_config(self):\n    return self._",
+          "target": "config",
+          "rank": 1,
+          "target_ce": 0.5392480299046523,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def set_count(self, count):\n    self._count =",
+          "target": "count",
+          "rank": 1,
+          "target_ce": 0.09338216638917227,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def set_timeout(self, timeout):\n    self.timeout =",
+          "target": "timeout",
+          "rank": 1,
+          "target_ce": 0.025358193239084965,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "total = 0\nfor item in items:\n    total +=",
+          "target": "item",
+          "rank": 1,
+          "target_ce": 0.5653349045484478,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "total = 0\nfor x in values:\n    total +=",
+          "target": "x",
+          "rank": 1,
+          "target_ce": 0.804194249086073,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "for k, v in mapping.items():\n    print(",
+          "target": "k",
+          "rank": 1,
+          "target_ce": 0.448133312536385,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "for k, v in mapping.items():\n    print(k,",
+          "target": "v",
+          "rank": 1,
+          "target_ce": 0.439506666507579,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "width, height = dims\narea = width *",
+          "target": "height",
+          "rank": 1,
+          "target_ce": 1.5986563042991042,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "left, right = bounds\nspan = right -",
+          "target": "left",
+          "rank": 1,
+          "target_ce": 1.2572519753552636,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "start, end = range_vals\nlength = end -",
+          "target": "start",
+          "rank": 1,
+          "target_ce": 0.41730125384528155,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "row, col = coord\nnext_pos = (row + 1,",
+          "target": "col",
+          "rank": 1,
+          "target_ce": 0.35821923187141014,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def __init__(self, name):\n    self.name =",
+          "target": "name",
+          "rank": 1,
+          "target_ce": 0.00683672417491177,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def __init__(self, config):\n    self.config =",
+          "target": "config",
+          "rank": 1,
+          "target_ce": 0.02578396992335664,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def __init__(self, model):\n    self.model =",
+          "target": "model",
+          "rank": 1,
+          "target_ce": 0.0186937007280006,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "res = []\nfor elem in elements:\n    res.append(",
+          "target": "elem",
+          "rank": 1,
+          "target_ce": 0.4850618489793418,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "key = 'user_id'\nval = cache[",
+          "target": "key",
+          "rank": 1,
+          "target_ce": 0.3978573943851051,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "head, tail = split(lst)\nreturn",
+          "target": "head",
+          "rank": 1,
+          "target_ce": 1.235236251439688,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "try:\n    do_something()\n",
+          "target": "except",
+          "rank": 1,
+          "target_ce": 1.1784097458541742,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "with open(f)",
+          "target": "as",
+          "rank": 1,
+          "target_ce": 0.7002193655767154,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "with open(path, 'r')",
+          "target": "as",
+          "rank": 1,
+          "target_ce": 0.09547715827539867,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "for item",
+          "target": "in",
+          "rank": 1,
+          "target_ce": 0.2381790713629829,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "for i",
+          "target": "in",
+          "rank": 1,
+          "target_ce": 0.12412033934508697,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "for idx, elem",
+          "target": "in",
+          "rank": 1,
+          "target_ce": 0.25656483881129427,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "while",
+          "target": "True",
+          "rank": 3,
+          "target_ce": 2.837742743427597,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "from typing",
+          "target": "import",
+          "rank": 1,
+          "target_ce": 0.011679220175116842,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "from pathlib",
+          "target": "import",
+          "rank": 1,
+          "target_ce": 0.13517169461691192,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "from collections",
+          "target": "import",
+          "rank": 1,
+          "target_ce": 0.02717813852994199,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "assert x is",
+          "target": "not",
+          "rank": 1,
+          "target_ce": 0.9279151364325,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "if item",
+          "target": "in",
+          "rank": 6,
+          "target_ce": 2.9644891052167104,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "if x == 1:\n    return 1\n",
+          "target": "else",
+          "rank": 3,
+          "target_ce": 2.4168659984865974,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "yield",
+          "target": "from",
+          "rank": 4,
+          "target_ce": 3.1623639439860747,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "if not",
+          "target": "found",
+          "rank": 14,
+          "target_ce": 4.863601906008407,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "class MyModel(",
+          "target": "object",
+          "rank": 4,
+          "target_ce": 2.749527781236195,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "if a is None or",
+          "target": "b",
+          "rank": 4,
+          "target_ce": 2.766754268627334,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "try:\n    pass\nexcept:\n    pass\n",
+          "target": "finally",
+          "rank": 17,
+          "target_ce": 6.062882663012509,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "def empty_func():\n    ",
+          "target": "pass",
+          "rank": 563,
+          "target_ce": 9.60735622479806,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "from abc import ABC,",
+          "target": "abstractmethod",
+          "rank": 1,
+          "target_ce": 0.13101080912663032,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "def generator():\n    ",
+          "target": "yield",
+          "rank": 20,
+          "target_ce": 4.931289631384092,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "assert len(arr) >=",
+          "target": "0",
+          "rank": 7,
+          "target_ce": 3.6225232696299674,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "if condition:\n    return True\n",
+          "target": "return",
+          "rank": 41,
+          "target_ce": 8.244731347255826,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "if x is not",
+          "target": "None",
+          "rank": 1,
+          "target_ce": 0.290103440191536,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Syntactic Keywords",
+          "prompt": "while",
+          "target": "running",
+          "rank": 234,
+          "target_ce": 7.956627276394374,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "import torch.nn",
+          "target": "as",
+          "rank": 2,
+          "target_ce": 1.869743615612053,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "import numpy",
+          "target": "as",
+          "rank": 1,
+          "target_ce": 0.10115976651211284,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "import pandas",
+          "target": "as",
+          "rank": 1,
+          "target_ce": 0.3237918104151256,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "import matplotlib.pyplot",
+          "target": "as",
+          "rank": 1,
+          "target_ce": 0.016707819887941133,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "import os.path",
+          "target": "as",
+          "rank": 2,
+          "target_ce": 1.206509574238507,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "data = json.",
+          "target": "loads",
+          "rank": 2,
+          "target_ce": 0.9795948480176908,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "text = json.",
+          "target": "dumps",
+          "rank": 1,
+          "target_ce": 0.42652132760553757,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "path = os.path.",
+          "target": "join",
+          "rank": 1,
+          "target_ce": 0.2858119978672378,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "exists = os.path.",
+          "target": "exists",
+          "rank": 1,
+          "target_ce": 0.3848716191015952,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "base = os.path.",
+          "target": "basename",
+          "rank": 2,
+          "target_ce": 2.4966154197818824,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "d = os.path.",
+          "target": "dirname",
+          "rank": 2,
+          "target_ce": 2.7625574362121967,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "sys.",
+          "target": "exit",
+          "rank": 5,
+          "target_ce": 2.4710449234591305,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "time.",
+          "target": "sleep",
+          "rank": 2,
+          "target_ce": 1.9157914791592987,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "now = time.",
+          "target": "time",
+          "rank": 1,
+          "target_ce": 0.7103225859966578,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "math.",
+          "target": "sqrt",
+          "rank": 1,
+          "target_ce": 1.6441655381614144,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "val = math.",
+          "target": "log",
+          "rank": 5,
+          "target_ce": 2.746529474950437,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "pattern = re.",
+          "target": "compile",
+          "rank": 1,
+          "target_ce": 0.030518845860821982,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "match = re.",
+          "target": "search",
+          "rank": 2,
+          "target_ce": 1.1755155090099958,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "arr = np.",
+          "target": "zeros",
+          "rank": 2,
+          "target_ce": 1.7575944192749164,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "ones = np.",
+          "target": "ones",
+          "rank": 2,
+          "target_ce": 1.6267304910051832,
+          "top1": false,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "t = torch.",
+          "target": "zeros",
+          "rank": 21,
+          "target_ce": 5.232341520058999,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "device = torch.",
+          "target": "device",
+          "rank": 1,
+          "target_ce": 3.0090292583433156,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "logging.",
+          "target": "basicConfig",
+          "rank": 14,
+          "target_ce": 4.702807796729682,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "res = requests.",
+          "target": "get",
+          "rank": 1,
+          "target_ce": 0.2843434339765569,
+          "top1": true,
+          "top5": true
+        },
+        {
+          "category": "Idiomatic Imports & Calls",
+          "prompt": "torch.manual_seed(",
+          "target": "42",
+          "rank": 28,
+          "target_ce": 5.47646713892684,
+          "top1": false,
+          "top5": false
+        }
+      ]
+    }
+  }
+}

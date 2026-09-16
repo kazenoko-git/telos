@@ -1,0 +1,62 @@
+{
+  "model_checkpoint": "checkpoints/ar/100m_5b/checkpoint_final.pt",
+  "backend": "pytorch",
+  "paradigm": "ar",
+  "vocab_size": 8192,
+  "timestamp": 1789387249,
+  "mode": "functional",
+  "functional": {
+    "suite": "public_standard",
+    "total_tasks": 2,
+    "pass_at_1_pct": 0.0,
+    "pass_at_1_95ci": [
+      0.0,
+      0.0
+    ],
+    "ast_validity_pct": 50.0,
+    "execution_outcomes": {
+      "PASSED": 0,
+      "FAILED_ASSERTION": 1,
+      "SYNTAX_ERROR": 1,
+      "TIMEOUT": 0,
+      "RUNTIME_EXCEPTION": 0,
+      "MEMORY_EXCEEDED": 0
+    },
+    "category_breakdown": {
+      "Algorithms & Numerical": {
+        "count": 1,
+        "pass_at_1_pct": 0.0,
+        "ast_valid_pct": 0.0,
+        "outcomes": {
+          "SYNTAX_ERROR": 1
+        }
+      },
+      "String & Text Processing": {
+        "count": 1,
+        "pass_at_1_pct": 0.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "FAILED_ASSERTION": 1
+        }
+      }
+    },
+    "tasks": [
+      {
+        "id": "HumanEval/0",
+        "category": "Algorithms & Numerical",
+        "outcome": "SYNTAX_ERROR",
+        "ast_valid": false,
+        "ast_error": "IndentationError: unexpected indent (line 4)",
+        "details": "IndentationError: unexpected indent"
+      },
+      {
+        "id": "HumanEval/1",
+        "category": "String & Text Processing",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed"
+      }
+    ]
+  }
+}
