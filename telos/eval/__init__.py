@@ -18,6 +18,8 @@ from .runner import evaluate, main, evaluate_probes, evaluate_functional, evalua
 from .probes import PROBE_SUITE_100, load_contextual_probes
 from .syntax import check_ast_validity, categorize_syntax_error
 from .executor import execute_code_sandboxed, ExecutionResult
+from .linguistic import evaluate_linguistic, load_english_probes, ENGLISH_PROBES_100
+from .tooluse import evaluate_tooluse, load_tooluse_suite, TOOLUSE_BENCHMARK_SUITE
 
 
 class _EvalModule(types.ModuleType):
@@ -34,6 +36,12 @@ __all__ = [
     "evaluate_probes",
     "evaluate_functional",
     "evaluate_anticheat",
+    "evaluate_linguistic",
+    "load_english_probes",
+    "ENGLISH_PROBES_100",
+    "evaluate_tooluse",
+    "load_tooluse_suite",
+    "TOOLUSE_BENCHMARK_SUITE",
     "check_ast_validity",
     "categorize_syntax_error",
     "execute_code_sandboxed",
@@ -41,3 +49,4 @@ __all__ = [
     "PROBE_SUITE_100",
     "load_contextual_probes",
 ]
+
