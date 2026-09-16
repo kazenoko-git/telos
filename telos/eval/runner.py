@@ -30,6 +30,7 @@ from .anticheat import evaluate_span_infill_probe, summarize_anticheat_suite
 from .linguistic import evaluate_linguistic, load_english_probes
 from .tooluse import evaluate_tooluse, load_tooluse_suite
 from .stats import bootstrap_confidence_interval
+from .metrics import analyze_task_completion, aggregate_extended_metrics
 from telos.data.tokenizer import load_tokenizer
 from telos.models import TelosConfig
 
@@ -536,6 +537,14 @@ def evaluate_functional(
             timeout_seconds=timeout_seconds
         )
 
+        # 4. Analyze extended generation dynamics & numerical accuracy
+        comp_metrics = analyze_task_completion(
+            prompt=prompt,
+            raw_completion=raw_completion,
+            clean_completion=completion,
+            tokenizer=tokenizer
+        )
+
         outcome_counts[outcome.value] += 1
         is_passed = (outcome == ExecutionResult.PASSED)
         category_stats[cat]["total"] += 1
@@ -552,6 +561,7 @@ def evaluate_functional(
             "ast_valid": is_ast_valid,
             "ast_error": ast_err,
             "details": details,
+            "extended_metrics": comp_metrics,
         })
 
         if idx % 10 == 0 or idx == len(tasks):
@@ -564,27 +574,55 @@ def evaluate_functional(
 
     ci_pass1 = bootstrap_confidence_interval([1.0 if r["outcome"] == ExecutionResult.PASSED.value else 0.0 for r in task_results])
 
-    print("\n" + "-" * 80)
-    print(f"  {'Category':<28} | {'Total':<5} | {'Pass@1 (%)':<10} | {'AST Valid (%)':<13}")
-    print("-" * 80)
+    # Aggregate extended repetition and numerical metrics
+    all_extended = [r["extended_metrics"] for r in task_results]
+    overall_ext = aggregate_extended_metrics(all_extended)
+
+    print("\n" + "-" * 105)
+    print(f"  {'Category':<28} | {'Total':<5} | {'Pass@1 (%)':<10} | {'AST Valid (%)':<13} | {'Rep-3 (%)':<9} | {'Num Recall':<10} | {'Num Prec'}")
+    print("-" * 105)
     cat_summary = {}
     for cat, s in category_stats.items():
         cnt = s["total"]
         pass_pct = round((s["passed"] / cnt) * 100.0, 1) if cnt else 0.0
         ast_pct = round((s["ast_valid"] / cnt) * 100.0, 1) if cnt else 0.0
+        cat_ext = aggregate_extended_metrics([r["extended_metrics"] for r in task_results if r["category"] == cat])
+        
+        rep3_pct = cat_ext.get("rep_3gram_pct", 0.0)
+        num_rec = cat_ext.get("numerical", {}).get("numeric_recall_pct")
+        num_prc = cat_ext.get("numerical", {}).get("numeric_precision_pct")
+        rec_str = f"{num_rec:.1f}%" if num_rec is not None else "N/A"
+        prc_str = f"{num_prc:.1f}%" if num_prc is not None else "N/A"
+
         cat_summary[cat] = {
             "count": cnt,
             "pass_at_1_pct": pass_pct,
             "ast_valid_pct": ast_pct,
             "outcomes": s["outcomes"],
+            "extended_metrics": cat_ext,
         }
-        print(f"  {cat:<28} | {cnt:<5d} | {pass_pct:>9.1f}% | {ast_pct:>12.1f}%")
+        print(f"  {cat:<28} | {cnt:<5d} | {pass_pct:>9.1f}% | {ast_pct:>12.1f}% | {rep3_pct:>8.1f}% | {rec_str:>10} | {prc_str}")
 
-    print("-" * 80)
+    print("-" * 105)
     print(f"  OVERALL PASS@1:       {overall_pass1:.2f}% (95% CI: [{ci_pass1[0]}%, {ci_pass1[1]}%])")
     print(f"  OVERALL AST VALIDITY: {overall_ast_valid:.2f}%")
     print(f"  Execution Breakdown:  {outcome_counts}")
-    print("=" * 80 + "\n")
+
+    print("\n  [GENERATION DYNAMICS & REPETITION METRICS]")
+    print(f"  Avg Token Length:     {overall_ext.get('avg_token_length', 0.0)} tokens | Early Exits (<=4 tok): {overall_ext.get('early_exit_pct', 0.0)}%")
+    print(f"  N-Gram Repetition:    2-gram: {overall_ext.get('rep_2gram_pct', 0.0)}% | 3-gram: {overall_ext.get('rep_3gram_pct', 0.0)}% | 4-gram: {overall_ext.get('rep_4gram_pct', 0.0)}%")
+    print(f"  Redundancy & Loops:   Line Repetition: {overall_ext.get('line_repetition_pct', 0.0)}% | Consecutive Dups: {overall_ext.get('consecutive_dup_line_pct', 0.0)}% | Degenerate Loops: {overall_ext.get('degenerate_loop_pct', 0.0)}%")
+
+    num_stats = overall_ext.get("numerical", {})
+    if num_stats.get("tasks_with_prompt_numbers", 0) > 0:
+        print("\n  [NUMERICAL & CONSTANT RETENTION (TASKS WITH PROMPT/DOCSTRING NUMBERS)]")
+        print(f"  Evaluated Tasks:      {num_stats.get('tasks_with_prompt_numbers')} tasks containing explicit numeric specifications")
+        print(f"  Numeric Recall:       {num_stats.get('numeric_recall_pct', 0.0)}% of required numbers appeared in completions")
+        print(f"  Numeric Precision:    {num_stats.get('numeric_precision_pct', 0.0)}% of generated numbers were ground-truth matches")
+        print(f"  Exact Constant Match: {num_stats.get('exact_number_match_pct', 0.0)}% of tasks preserved ALL required numbers")
+        print(f"  Zero Numbers Emitted: {num_stats.get('zero_numbers_emitted_pct', 0.0)}% of tasks omitted numbers entirely (e.g. 'return val')")
+        print(f"  Hallucinated Numbers: {num_stats.get('hallucinated_numbers_pct', 0.0)}% of tasks generated invented numbers")
+    print("=" * 105 + "\n")
 
     return {
         "suite": suite,
@@ -593,6 +631,18 @@ def evaluate_functional(
         "pass_at_1_95ci": ci_pass1,
         "ast_validity_pct": round(overall_ast_valid, 2),
         "execution_outcomes": outcome_counts,
+        "repetition": {
+            "avg_token_length": overall_ext.get("avg_token_length"),
+            "early_exit_pct": overall_ext.get("early_exit_pct"),
+            "rep_2gram_pct": overall_ext.get("rep_2gram_pct"),
+            "rep_3gram_pct": overall_ext.get("rep_3gram_pct"),
+            "rep_4gram_pct": overall_ext.get("rep_4gram_pct"),
+            "line_repetition_pct": overall_ext.get("line_repetition_pct"),
+            "consecutive_dup_line_pct": overall_ext.get("consecutive_dup_line_pct"),
+            "degenerate_loop_pct": overall_ext.get("degenerate_loop_pct"),
+        },
+        "numerical_accuracy": num_stats,
+        "extended_metrics": overall_ext,
         "category_breakdown": cat_summary,
         "tasks": task_results,
     }
