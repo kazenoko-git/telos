@@ -20,6 +20,15 @@ from .syntax import check_ast_validity, categorize_syntax_error
 from .executor import execute_code_sandboxed, ExecutionResult
 from .linguistic import evaluate_linguistic, load_english_probes, ENGLISH_PROBES_100
 from .tooluse import evaluate_tooluse, load_tooluse_suite, TOOLUSE_BENCHMARK_SUITE
+from .metrics import (
+    compute_ngram_repetition,
+    detect_degenerate_loop,
+    compute_line_repetition,
+    extract_numeric_literals,
+    evaluate_numerical_accuracy,
+    analyze_task_completion,
+    aggregate_extended_metrics,
+)
 
 
 class _EvalModule(types.ModuleType):
@@ -48,5 +57,13 @@ __all__ = [
     "ExecutionResult",
     "PROBE_SUITE_100",
     "load_contextual_probes",
+    "compute_ngram_repetition",
+    "detect_degenerate_loop",
+    "compute_line_repetition",
+    "extract_numeric_literals",
+    "evaluate_numerical_accuracy",
+    "analyze_task_completion",
+    "aggregate_extended_metrics",
 ]
+
 
