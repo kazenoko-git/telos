@@ -27,38 +27,13 @@ from .probes import load_contextual_probes, PROBE_SUITE_100
 from .syntax import check_ast_validity, categorize_syntax_error, analyze_syntax_batch
 from .executor import execute_code_sandboxed, ExecutionResult
 from .anticheat import evaluate_span_infill_probe, summarize_anticheat_suite
+from .linguistic import evaluate_linguistic, load_english_probes
+from .tooluse import evaluate_tooluse, load_tooluse_suite
+from .stats import bootstrap_confidence_interval
 from telos.data.tokenizer import load_tokenizer
 from telos.models import TelosConfig
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
-
-def bootstrap_confidence_interval(
-    binary_outcomes: List[float],
-    n_resamples: int = 1000,
-    confidence_level: float = 0.95
-) -> Tuple[float, float]:
-    """
-    Computes empirical bootstrap confidence interval for binary outcomes.
-    Returns (ci_lower_pct, ci_upper_pct).
-    """
-    if not binary_outcomes:
-        return 0.0, 0.0
-    arr = np.array(binary_outcomes, dtype=np.float32)
-    n = len(arr)
-    if n <= 1:
-        val = float(arr[0] * 100.0) if n == 1 else 0.0
-        return val, val
-
-    np.random.seed(42)
-    resample_means = [
-        float(np.mean(np.random.choice(arr, size=n, replace=True)))
-        for _ in range(n_resamples)
-    ]
-    alpha = (1.0 - confidence_level) / 2.0
-    lower = float(np.percentile(resample_means, alpha * 100.0)) * 100.0
-    upper = float(np.percentile(resample_means, (1.0 - alpha) * 100.0)) * 100.0
-    return round(lower, 2), round(upper, 2)
 
 
 def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None = None):
@@ -128,6 +103,9 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
         from safetensors import safe_open
         with safe_open(str(cp), framework="numpy") as f:
             keys = list(f.keys())
+        if not use_reliability_head and any("reliability_head" in k for k in keys):
+            use_reliability_head = True
+
         is_pytorch_keys = any("tok_embeddings" in k or ".attn." in k or "final_norm" in k for k in keys)
 
         if is_pytorch_keys:
@@ -726,9 +704,28 @@ def _evaluate_single(
     timeout: float = 3.0,
     tokenizer_path: str | Path | None = None,
     output_path: Optional[str | Path] = None,
+    benchmark_type: str = "all",
+    language: str = "auto",
     **kwargs
 ) -> Dict[str, Any]:
-    """Evaluates a single model checkpoint."""
+    """Evaluates a single model checkpoint across requested benchmark types."""
+    b_type = str(kwargs.get("type", benchmark_type)).lower()
+    lang = str(language).lower()
+
+    # Determine which benchmark suites to run
+    # Default 'all' attempts code, English linguistic, and tool-use
+    if b_type == "all":
+        if lang == "english":
+            types_to_run = ["linguistic", "tooluse"]
+        elif lang == "python":
+            types_to_run = ["code"]
+        else:
+            types_to_run = ["code", "linguistic", "tooluse"]
+    elif b_type in ["code", "linguistic", "tooluse"]:
+        types_to_run = [b_type]
+    else:
+        types_to_run = ["code", "linguistic", "tooluse"]
+
     model, backend, vocab_size = load_model_from_checkpoint(checkpoint)
     if tokenizer_path is None:
         if vocab_size == 8192 and (PROJECT_ROOT / "configs" / "tokenizer_mac.json").exists():
@@ -752,31 +749,68 @@ def _evaluate_single(
         "vocab_size": vocab_size,
         "timestamp": int(time.time()),
         "mode": mode,
+        "benchmark_type": b_type,
+        "language": lang,
+        "suites_evaluated": types_to_run,
     }
 
-    if mode == "probes":
-        report["probes"] = evaluate_probes(
-            model, tok, backend, paradigm=paradigm, num_probes=num_probes, probe_type=probe_type
+    # 1. Code Benchmarks (Python)
+    if "code" in types_to_run:
+        code_report = {}
+        if mode == "probes":
+            code_report["probes"] = evaluate_probes(
+                model, tok, backend, paradigm=paradigm, num_probes=num_probes, probe_type=probe_type
+            )
+        elif mode == "functional":
+            code_report["functional"] = evaluate_functional(
+                model, tok, backend, suite=suite, max_tasks=max_tasks, timeout_seconds=timeout
+            )
+        elif mode == "anticheat":
+            code_report["anticheat"] = evaluate_anticheat(model, tok, backend, paradigm=paradigm, num_probes=min(num_probes, 200))
+        elif mode == "sample":
+            evaluate_sample(model, tok, backend)
+            code_report["sample"] = {"status": "completed"}
+        elif mode == "full":
+            code_report["probes"] = evaluate_probes(
+                model, tok, backend, paradigm=paradigm, num_probes=num_probes, probe_type=probe_type
+            )
+            code_report["functional"] = evaluate_functional(
+                model, tok, backend, suite=suite, max_tasks=max_tasks, timeout_seconds=timeout
+            )
+            code_report["anticheat"] = evaluate_anticheat(model, tok, backend, paradigm=paradigm, num_probes=min(num_probes, 200))
+        else:
+            raise ValueError(f"Unknown evaluation mode: {mode}. Choose 'probes', 'functional', 'anticheat', 'full', or 'sample'.")
+
+        report["code"] = code_report
+        # Keep top-level keys for backward compatibility with scripts expecting report["probes"]
+        for k, v in code_report.items():
+            report[k] = v
+
+    # 2. Linguistic Benchmarks (English)
+    if "linguistic" in types_to_run:
+        target_lang = "english" if lang in ["auto", "english"] else lang
+        ling_mode = mode if mode in ["probes", "perplexity", "sample", "full"] else "probes"
+        report["linguistic"] = evaluate_linguistic(
+            model=model,
+            tokenizer=tok,
+            backend=backend,
+            paradigm=paradigm,
+            language=target_lang,
+            mode=ling_mode,
+            num_probes=num_probes,
+            probe_type=probe_type,
+            **kwargs
         )
-    elif mode == "functional":
-        report["functional"] = evaluate_functional(
-            model, tok, backend, suite=suite, max_tasks=max_tasks, timeout_seconds=timeout
+
+    # 3. Tool-Use Benchmarks
+    if "tooluse" in types_to_run:
+        report["tooluse"] = evaluate_tooluse(
+            model=model,
+            tokenizer=tok,
+            backend=backend,
+            max_tasks=max_tasks,
+            **kwargs
         )
-    elif mode == "anticheat":
-        report["anticheat"] = evaluate_anticheat(model, tok, backend, paradigm=paradigm, num_probes=min(num_probes, 200))
-    elif mode == "sample":
-        evaluate_sample(model, tok, backend)
-        report["sample"] = {"status": "completed"}
-    elif mode == "full":
-        report["probes"] = evaluate_probes(
-            model, tok, backend, paradigm=paradigm, num_probes=num_probes, probe_type=probe_type
-        )
-        report["functional"] = evaluate_functional(
-            model, tok, backend, suite=suite, max_tasks=max_tasks, timeout_seconds=timeout
-        )
-        report["anticheat"] = evaluate_anticheat(model, tok, backend, paradigm=paradigm, num_probes=min(num_probes, 200))
-    else:
-        raise ValueError(f"Unknown evaluation mode: {mode}. Choose 'probes', 'functional', 'anticheat', 'full', or 'sample'.")
 
     # Save single report if output_path is provided
     if output_path:
@@ -795,16 +829,21 @@ def print_multimodel_scorecard(multi_reports: Dict[str, Any], mode: str):
     print(f"                       TÉLOS MULTI-MODEL EVALUATION SCORECARD ({mode.upper()})")
     print("=" * 115)
 
-    if mode in ["probes", "full"]:
+    has_code = any("code" in rep or "probes" in rep for rep in multi_reports.values())
+    has_linguistic = any("linguistic" in rep for rep in multi_reports.values())
+    has_tooluse = any("tooluse" in rep for rep in multi_reports.values())
+
+    if has_code and mode in ["probes", "full"]:
         header = (
             f"{'Model / Checkpoint':<38} | {'Backend':<7} | {'Infill Top1':<11} | {'Infill CE':<9} | "
             f"{'Causal Top1':<11} | {'Causal CE':<9} | {'Infill Rank':<11}"
         )
+        print("\n  [CODE BENCHMARK: CONTEXTUAL PROBES]")
         print(header)
         print("-" * 115)
         for name, rep in multi_reports.items():
             b = rep.get("backend", "unknown")
-            pr = rep.get("probes", {})
+            pr = rep.get("code", {}).get("probes") or rep.get("probes", {})
             inf = pr.get("infill", {}).get("overall", {})
             cau = pr.get("causal", {}).get("overall", {})
             
@@ -822,66 +861,46 @@ def print_multimodel_scorecard(multi_reports: Dict[str, Any], mode: str):
             disp_name = name if len(name) <= 38 else "..." + name[-35:]
             print(f"{disp_name:<38} | {b:<7} | {inf_t1:<11} | {inf_ce:<9} | {cau_t1:<11} | {cau_ce:<9} | {inf_rnk:<11}")
 
-        # Category breakdown for deterministic probes
-        print("\n  CATEGORY BREAKDOWN (TOP-1 ACCURACY):")
-        cat_header = f"{'Model / Checkpoint':<38} | {'Identifiers':<14} | {'Keywords':<14} | {'Imports & Calls':<17} | {'Suffix-Clued Infill'}"
-        print(cat_header)
+    if has_linguistic:
+        print("\n  [ENGLISH LINGUISTIC BENCHMARK: SYNTAX & COMMON SENSE]")
+        ling_header = (
+            f"{'Model / Checkpoint':<38} | {'Backend':<7} | {'Causal Top1':<11} | {'Infill Top1':<11} | "
+            f"{'Causal CE':<10} | {'Perplexity':<10}"
+        )
+        print(ling_header)
         print("-" * 115)
         for name, rep in multi_reports.items():
-            pr = rep.get("probes", {})
-            cau_cats = pr.get("causal", {}).get("categories", {})
-            inf_cats = pr.get("infill", {}).get("categories", {})
-            id_t1 = f"{cau_cats.get('Contextually Deterministic Identifiers', {}).get('top1_pct', 0.0):.1f}%"
-            kw_t1 = f"{cau_cats.get('Syntactic Keywords', {}).get('top1_pct', 0.0):.1f}%"
-            imp_t1 = f"{cau_cats.get('Idiomatic Imports & Calls', {}).get('top1_pct', 0.0):.1f}%"
-            
+            b = rep.get("backend", "unknown")
+            lr = rep.get("linguistic", {})
+            pr = lr.get("probes", {})
+            cau = pr.get("causal", {}).get("overall", {})
+            inf = pr.get("infill", {}).get("overall", {})
+            c_t1 = f"{cau.get('top1_acc_pct', 0.0):.1f}%" if cau.get('top1_acc_pct') is not None else "N/A"
+            c_ce = f"{cau.get('mean_ce', 0.0):.2f}" if cau.get('mean_ce') is not None else "N/A"
             if pr.get("infill", {}).get("status") == "not_applicable":
-                sc_t1 = "N/A (AR)"
+                i_t1 = "N/A (AR)"
             else:
-                sc_t1 = f"{inf_cats.get('Suffix-Clued Bidirectional Infill', {}).get('top1_pct', 0.0):.1f}%"
-                
+                i_t1 = f"{inf.get('top1_acc_pct', 0.0):.1f}%" if inf.get('top1_acc_pct') is not None else "N/A"
+            ppl_val = lr.get("perplexity", {}).get("overall_ppl")
+            ppl_str = f"{ppl_val:.2f}" if ppl_val is not None else "N/A"
             disp_name = name if len(name) <= 38 else "..." + name[-35:]
-            print(f"{disp_name:<38} | {id_t1:<14} | {kw_t1:<14} | {imp_t1:<17} | {sc_t1}")
+            print(f"{disp_name:<38} | {b:<7} | {c_t1:<11} | {i_t1:<11} | {c_ce:<10} | {ppl_str:<10}")
 
-    if mode in ["anticheat", "full"]:
-        print("\n" + "-" * 115)
-        print("  ANTI-CHEAT SUFFIX-COPY RATE & SPAN DEGRADATION:")
-        print(f"{'Model / Checkpoint':<38} | {'K=1 Suffix Copy':<16} | {'K=2 Suffix Copy':<16} | {'K=4 Suffix Copy':<16} | {'Cheat Detected'}")
+    if has_tooluse:
+        print("\n  [TOOL-USE & FUNCTION CALLING BENCHMARK]")
+        tool_header = (
+            f"{'Model / Checkpoint':<38} | {'Backend':<7} | {'Tool Acc (%)':<13} | {'Syntax (%)':<11} | {'Pass Rate (%)'}"
+        )
+        print(tool_header)
         print("-" * 115)
         for name, rep in multi_reports.items():
-            ac = rep.get("anticheat", {})
-            if ac.get("status") == "not_applicable":
-                k1, k2, k4, cheat = "N/A (AR)", "N/A (AR)", "N/A (AR)", "N/A (AR)"
-            else:
-                spans = ac.get("span_breakdown", ac.get("span_results", {}))
-                k1 = f"{spans.get('span_1', {}).get('suffix_copy_rate_pct', spans.get('1', {}).get('suffix_copy_rate', 0.0)):.1f}%"
-                k2 = f"{spans.get('span_2', {}).get('suffix_copy_rate_pct', spans.get('2', {}).get('suffix_copy_rate', 0.0)):.1f}%"
-                k4 = f"{spans.get('span_4', {}).get('suffix_copy_rate_pct', spans.get('4', {}).get('suffix_copy_rate', 0.0)):.1f}%"
-                s1_acc = spans.get('span_1', {}).get('exact_match_pct', 0.0)
-                if ac.get("is_suspect_cheater", ac.get("cheat_detected")):
-                    cheat_mode = ac.get("cheat_mode")
-                    cheat = "YES (DEGEN)" if cheat_mode == "degenerate_copy" else "YES (CHEAT)"
-                elif s1_acc < 5.0:
-                    cheat = "NO (UNCONV)"
-                else:
-                    cheat = "NO (ROBUST)"
+            b = rep.get("backend", "unknown")
+            tr = rep.get("tooluse", {})
+            t_acc = f"{tr.get('tool_accuracy_pct', 0.0):.1f}%"
+            s_acc = f"{tr.get('syntax_validity_pct', 0.0):.1f}%"
+            p_acc = f"{tr.get('pass_rate_pct', 0.0):.1f}%"
             disp_name = name if len(name) <= 38 else "..." + name[-35:]
-            print(f"{disp_name:<38} | {k1:<16} | {k2:<16} | {k4:<16} | {cheat}")
-
-    if mode in ["functional", "full"]:
-        print("\n" + "-" * 115)
-        print("  FUNCTIONAL PASS@1 & SYNTAX VALIDITY:")
-        print(f"{'Model / Checkpoint':<38} | {'Pass@1 (%)':<11} | {'AST Valid (%)':<13} | {'Syntax Errors':<13} | {'Assertion Fails'}")
-        print("-" * 115)
-        for name, rep in multi_reports.items():
-            fn = rep.get("functional", {})
-            p1 = f"{fn.get('pass_at_1_pct', 0.0):.1f}%"
-            ast = f"{fn.get('ast_validity_pct', 0.0):.1f}%"
-            outcomes = fn.get("execution_outcomes", {})
-            syn_err = outcomes.get("SYNTAX_ERROR", 0)
-            ast_fail = outcomes.get("FAILED_ASSERTION", 0)
-            disp_name = name if len(name) <= 38 else "..." + name[-35:]
-            print(f"{disp_name:<38} | {p1:<11} | {ast:<13} | {syn_err:<13} | {ast_fail}")
+            print(f"{disp_name:<38} | {b:<7} | {t_acc:<13} | {s_acc:<11} | {p_acc}")
 
     print("=" * 115 + "\n")
 
@@ -896,12 +915,17 @@ def evaluate(
     timeout: float = 3.0,
     tokenizer_path: str | Path | None = None,
     output_path: Optional[str | Path] = None,
+    benchmark_type: str = "all",
+    language: str = "auto",
     **kwargs
 ) -> Dict[str, Any]:
     """
     Master programmatic entrypoint for Télos evaluation engine.
-    Supports evaluating a single checkpoint or multiple checkpoints side-by-side.
+    Supports evaluating a single checkpoint or multiple checkpoints side-by-side across
+    benchmark types ('all', 'code', 'linguistic', 'tooluse') and languages ('auto', 'english', 'python').
     """
+    b_type = str(kwargs.get("type", benchmark_type)).lower()
+
     if isinstance(checkpoint, (list, tuple)):
         checkpoints = list(checkpoint)
     else:
@@ -918,10 +942,12 @@ def evaluate(
             timeout=timeout,
             tokenizer_path=tokenizer_path,
             output_path=output_path,
+            benchmark_type=b_type,
+            language=language,
             **kwargs
         )
         if not output_path:
-            out_file = PROJECT_ROOT / "logs" / f"eval_report_{mode}_{int(time.time())}.json"
+            out_file = PROJECT_ROOT / "logs" / f"eval_report_{b_type}_{mode}_{int(time.time())}.json"
             out_file.parent.mkdir(parents=True, exist_ok=True)
             with open(out_file, "w") as f:
                 json.dump(rep, f, indent=2)
@@ -930,7 +956,7 @@ def evaluate(
 
     # Multi-model evaluation workflow
     print("\n" + "=" * 80)
-    print(f"  TÉLOS MULTI-MODEL BENCHMARK: EVALUATING {len(checkpoints)} MODELS ({mode.upper()})")
+    print(f"  TÉLOS MULTI-MODEL BENCHMARK: EVALUATING {len(checkpoints)} MODELS (TYPE: {b_type.upper()}, MODE: {mode.upper()})")
     print("=" * 80)
 
     multi_reports: Dict[str, Any] = {}
@@ -959,6 +985,8 @@ def evaluate(
             timeout=timeout,
             tokenizer_path=tokenizer_path,
             output_path=None,
+            benchmark_type=b_type,
+            language=language,
             **kwargs
         )
         multi_reports[name] = single_rep
@@ -967,7 +995,7 @@ def evaluate(
     print_multimodel_scorecard(multi_reports, mode=mode)
 
     # Save consolidated report
-    out_file = Path(output_path) if output_path else (PROJECT_ROOT / "logs" / f"eval_report_multimodel_{mode}_{int(time.time())}.json")
+    out_file = Path(output_path) if output_path else (PROJECT_ROOT / "logs" / f"eval_report_multimodel_{b_type}_{mode}_{int(time.time())}.json")
     out_file.parent.mkdir(parents=True, exist_ok=True)
     with open(out_file, "w") as f:
         json.dump(multi_reports, f, indent=2)
@@ -986,7 +1014,23 @@ def main():
         required=True,
         help="One or more paths to checkpoint file(s) (.safetensors, .pt) or directory(ies)"
     )
-    parser.add_argument("--mode", type=str, default="probes", choices=["probes", "functional", "anticheat", "full", "sample"], help="Evaluation mode")
+    parser.add_argument(
+        "--type", "--benchmark-type",
+        type=str,
+        default="all",
+        choices=["all", "code", "linguistic", "tooluse"],
+        dest="benchmark_type",
+        help="Type of benchmark to execute ('all', 'code', 'linguistic', 'tooluse'). Default is 'all'."
+    )
+    parser.add_argument(
+        "--language", "--lang",
+        type=str,
+        default="auto",
+        choices=["auto", "english", "python"],
+        dest="language",
+        help="Target benchmark language ('auto', 'english', 'python'). Default is 'auto'."
+    )
+    parser.add_argument("--mode", type=str, default="probes", choices=["probes", "functional", "anticheat", "perplexity", "full", "sample"], help="Evaluation mode")
     parser.add_argument("--suite", type=str, default="private_unseen", choices=["private_unseen", "public_standard"], help="Benchmark suite track")
     parser.add_argument("--probe-type", type=str, default="both", choices=["infill", "causal", "both"], help="Probe benchmark type")
     parser.add_argument("--num-probes", type=int, default=100, help="Number of contextual probes to evaluate")
@@ -1005,10 +1049,13 @@ def main():
         max_tasks=args.max_tasks,
         timeout=args.timeout,
         tokenizer_path=args.tokenizer,
-        output_path=args.output
+        output_path=args.output,
+        benchmark_type=args.benchmark_type,
+        language=args.language
     )
 
 
 if __name__ == "__main__":
     main()
+
 
