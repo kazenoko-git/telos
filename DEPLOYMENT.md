@@ -136,33 +136,62 @@ telos dataprep --synthetic --tokens 100000 --output data/synthetic_corpus.bin
 
 ## 5. Model Evaluation Suite (`telos eval`)
 
-Runs the institutional-grade Python evaluation engine supporting contextual probes, sandboxed functional execution (Pass@1), AST syntax analysis, and anti-cheat suffix-copy detection on any MLX (`.safetensors`) or PyTorch (`.pt`) checkpoint:
+Runs the institutional-grade evaluation engine supporting multi-domain benchmarks across Python code, English linguistics, and tool use on any MLX (`.safetensors`) or PyTorch (`.pt`) checkpoint.
+
+### Benchmark Type & Language Selection (`--type`, `--language`)
+
+| Flag | Options | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `--type` | `all`, `code`, `linguistic`, `tooluse` | `all` | Benchmark domain to evaluate. When omitted or set to `all`, evaluates across all three suites sequentially. |
+| `--language` | `auto`, `english`, `python` | `auto` | Target language (`english` for linguistic benchmarks, `python` for code benchmarks). |
 
 ```bash
-# 1. Run 1,000 contextual probes benchmark (across 8 syntactic categories with 95% Bootstrap CI)
-telos eval --checkpoint checkpoints/corosred/model.safetensors --mode probes --num-probes 1000
+# 1. Run ALL Benchmark Suites (Code + English Linguistics + Tool-Use)
+telos eval --checkpoint checkpoints/corosred/model.safetensors
 
-# 2. Run Functional Execution Benchmark (Pass@1 in an isolated subprocess sandbox with 3s timeout)
-telos eval --checkpoint checkpoints/corosred/model.safetensors --mode functional --suite private_unseen
+# 2. Run English Linguistic Benchmark Suite (100 deterministic probes across 5 syntax/semantic categories)
+telos eval --checkpoint checkpoints/corosred/model.safetensors --type linguistic --language english --mode probes
 
-# 3. Run Anti-Cheat & Suffix-Copy Detection (multi-token span chunk masking K in {1, 2, 4, 8, 16})
-telos eval --checkpoint checkpoints/corosred/model.safetensors --mode anticheat
+# 3. Run English Perplexity Evaluation (token cross-entropy and perplexity on natural text)
+telos eval --checkpoint checkpoints/corosred/model.safetensors --type linguistic --mode perplexity
 
-# 4. Run Full Comprehensive Evaluation (Probes + Functional Execution + Anti-Cheat)
-telos eval --checkpoint checkpoints/corosred/model.safetensors --mode full
+# 4. Run Tool-Use & Function Calling Benchmark (JSON schema adherence and argument extraction)
+telos eval --checkpoint checkpoints/corosred/model.safetensors --type tooluse
 
-# 5. Run Qualitative Generation Sampling
-telos eval --checkpoint checkpoints/corosred/model.safetensors --mode sample
+# 5. Run Python Code Contextual Probes Suite (1,000 contextual probes with 95% Bootstrap CI)
+telos eval --checkpoint checkpoints/corosred/model.safetensors --type code --language python --mode probes --num-probes 1000
 
-# 6. Run Multi-Model Comparative Evaluation Scorecard
-telos eval --checkpoints checkpoints/corosred/unified/100m_5b/checkpoint_final.pt checkpoints/ar/100m_5b/checkpoint_final.pt --mode probes
+# 6. Run Functional Execution Benchmark (Pass@1 in an isolated subprocess sandbox with 3s timeout)
+telos eval --checkpoint checkpoints/corosred/model.safetensors --type code --mode functional --suite private_unseen
+
+# 7. Run Anti-Cheat & Suffix-Copy Detection (multi-token span chunk masking K in {1, 2, 4, 8, 16})
+telos eval --checkpoint checkpoints/corosred/model.safetensors --type code --mode anticheat
+
+# 8. Run Full Evaluation Across All Suites & Modes
+telos eval --checkpoint checkpoints/corosred/model.safetensors --type all --mode full
+
+# 9. Run Multi-Model Comparative Evaluation Scorecard (Side-by-side comparative table)
+telos eval --checkpoints checkpoints/corosred/model.safetensors checkpoints/ar/model.safetensors
 ```
 
-### Evaluation Modes & Features:
-- **`--mode probes`**: Contextual Probes Suite featuring 100 strictly deterministic probes across 4 core categories: (1) Contextually Deterministic Identifiers (`x = 10\nprint([MASK]) -> x`, `def get_name(self):\n return self._[MASK] -> name`), (2) Syntactic Keywords (`try:\n ...\n[MASK] -> except`, `with open(f) [MASK] handle: -> as`), (3) Idiomatic Imports & Calls (`import torch.nn [MASK] nn -> as`, `data = json.[MASK](text) -> loads`), and (4) Suffix-Clued Bidirectional Infilling (`def get_[MASK](self):\n return self._name -> name`). Strictly differentiates paradigms: pure AR models are evaluated causal-only (prefix $\to$ next token), while COROSred models are evaluated on both causal completion and bidirectional infilling. Reports Top-1, Top-5, Average Rank, Cross-Entropy, and 95% Bootstrap Confidence Intervals.
-- **`--mode functional`**: Executes model completions in an isolated subprocess (`multiprocessing.get_context("spawn")`) with hard $3.0\text{ s}$ timeout and $512\text{ MB}$ memory cap. Disambiguates outcomes into `PASSED`, `FAILED_ASSERTION`, `SYNTAX_ERROR`, `TIMEOUT`, `RUNTIME_EXCEPTION`, `MEMORY_EXCEEDED`.
-- **`--mode anticheat`**: Directly tests whether infill/diffusion models are cheating by copying the adjacent suffix boundary token (`suffix[0]`). Masks out multi-token chunks ($K \in \{1, 2, 4, 8, 16\}$) where boundary peeking fails, exposing degenerate shortcuts.
-- **`--suite private_unseen`**: Primary 500+ novel Python challenges with unit tests, screened via 13-gram rolling hashing against the training corpus.
+### Benchmark Suites & Evaluation Modes:
+- **`--type linguistic` (English Suite)**:
+  - **Contextual Probes**: 100 strictly deterministic probes across 5 linguistic categories:
+    1. *Subject-Verb Agreement & Morphology* (number, person, irregular tense across intervening clauses).
+    2. *Lexical Collocations & Prepositional Idioms* (*interested in*, *rely on*, *according to*, *pay attention to*).
+    3. *Connectives & Paired Correlatives* (*either...or*, *neither...nor*, *not only...but*, *unless*, *although*).
+    4. *Common Sense & World Knowledge Cloze* (geography, physical constants, basic science).
+    5. *Suffix-Clued Bidirectional Infilling* (context where trailing sentence disambiguates the target word; evaluates diffusion/COROSred vs causal AR on English text).
+  - **`--mode perplexity`**: Token-level cross-entropy and perplexity (PPL) on high-quality English evaluation passages.
+  - **`--mode sample`**: Qualitative generation sampling from English prompts.
+- **`--type tooluse`**:
+  - Benchmarks function calling across 50+ challenges with tools like `calculator`, `web_search`, `get_weather`, `file_search`, `send_email`, `database_query`, and `run_command`.
+  - Evaluates **Tool Selection Accuracy (%)**, **Schema Validity (%)**, and **Argument Correctness (%)** with 95% Bootstrap Confidence Intervals.
+- **`--type code` (Python Suite)**:
+  - **`--mode probes`**: 100 Python contextual probes (Identifiers, Keywords, Imports, Suffix-Clued Infill). Pure AR models are evaluated causal-only, while COROSred models are evaluated on both causal completion and bidirectional infilling.
+  - **`--mode functional`**: Executes code completions in an isolated subprocess sandbox (`spawn`) with hard 3.0s timeout and 512 MB memory limit.
+  - **`--mode anticheat`**: Tests boundary suffix copying across chunk masking spans $K \in \{1, 2, 4, 8, 16\}$.
+- **`--suite private_unseen`**: Primary 500+ novel Python challenges with unit tests, screened via 13-gram rolling hashing.
 - **`--suite public_standard`**: Optional HumanEval (164) and sanitized MBPP (500) benchmark for external baseline parity.
 
 ---
