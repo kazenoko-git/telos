@@ -77,21 +77,24 @@ def _evaluate_single_linguistic_probe_type(
             category_stats[cat] = {"count": 0, "top1": 0, "top5": 0, "ce": [], "rank": []}
 
         # Context-aware tokenization handling leading-space byte ('Ġ')
-        p_ids = tokenizer.encode(prompt).ids
+        prompt_clean = prompt.rstrip()
+        p_ids = tokenizer.encode(prompt_clean).ids
         target_bpe = probe.get("target_bpe", "")
         target_tok = None
         if target_bpe:
             target_tok = tokenizer.token_to_id(target_bpe)
 
         if target_tok is None:
-            sep = " " if ("Ġ" in target_bpe and not prompt.endswith(" ")) else ""
-            full_text = prompt + sep + target_str
+            # Extract first token of target word preceded by space
+            full_text = prompt_clean + " " + target_str.lstrip()
             full_ids = tokenizer.encode(full_text).ids
             if len(full_ids) > len(p_ids):
                 target_tok = full_ids[len(p_ids)]
             else:
-                target_ids = tokenizer.encode(target_str).ids
+                target_ids = tokenizer.encode(" " + target_str.lstrip()).ids
                 target_tok = target_ids[0] if target_ids else 0
+
+        target_token_str = tokenizer.id_to_token(target_tok) or str(target_tok)
 
         # Construct input sequence based on probe type
         if probe_type == "infill":
@@ -149,8 +152,10 @@ def _evaluate_single_linguistic_probe_type(
         results.append({
             "id": probe.get("id"),
             "category": cat,
-            "prompt": prompt,
+            "prompt": prompt_clean,
             "target": target_str,
+            "target_token": int(target_tok),
+            "target_token_str": target_token_str,
             "rank": rank,
             "target_ce": round(target_ce, 3),
             "top1": is_top1,
