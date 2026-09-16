@@ -61,6 +61,8 @@ def build_config(
     batch_size: int | None = None,
     grad_accum: int | None = None,
     seq_len: int = 512,
+    d_model: int | None = None,
+    n_layers: int | None = None,
     tokenizer: str | None = None,
     vocab_size: int | None = None,
     hardware: str | None = "auto",
@@ -103,8 +105,29 @@ def build_config(
     m_cfg["seq_len"] = seq_len
     m_cfg["max_seq_len"] = seq_len
 
-    # 3. Model Architecture Resolution from Parameters
-    if params is not None and not (m_cfg.get("d_model") and m_cfg.get("n_layers") and config_path):
+    # 3. Model Architecture Resolution from Explicit Dimensions or Parameters
+    if d_model is not None and n_layers is not None:
+        # Explicit architecture override (e.g. shallow-wide or non-canonical experiments)
+        head_dim = 64
+        heads = max(2, int(d_model) // head_dim)
+        m_cfg["d_model"] = int(d_model)
+        m_cfg["n_layers"] = int(n_layers)
+        m_cfg["n_heads"] = heads
+        m_cfg["n_kv_heads"] = heads
+        m_cfg["tied_embeddings"] = True
+        
+        from telos.models.config import TelosConfig
+        from telos.models.param_counter import count_parameters
+        cfg_obj = TelosConfig(
+            vocab_size=actual_vocab,
+            d_model=int(d_model),
+            n_layers=int(n_layers),
+            n_heads=heads,
+            n_kv_heads=heads,
+            tied_embeddings=True
+        )
+        cfg["_resolved_params"] = count_parameters(cfg_obj)["total"]
+    elif params is not None and not (m_cfg.get("d_model") and m_cfg.get("n_layers") and config_path):
         geometry = solve_transformer_geometry(params, vocab_size=actual_vocab)
         m_cfg["d_model"] = geometry["d_model"]
         m_cfg["n_layers"] = geometry["n_layers"]
