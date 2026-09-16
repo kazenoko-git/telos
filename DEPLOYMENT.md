@@ -51,7 +51,7 @@ Télos provides a unified command line interface with 5 core commands:
 
 ### The 6 Fundamental Training Dimensions
 
-1. **Amount of Parameters**: `--params` (e.g. `12M`, `25M`, `50M`, `100M`, `500M`, or raw integer). An analytical geometry solver automatically computes optimal $(d_{\text{model}}, n_{\text{layers}}, n_{\text{heads}})$.
+1. **Amount of Parameters**: `--params` (e.g. `12M`, `25M`, `50M`, `100M`, `500M`, or raw integer). An analytical geometry solver automatically computes optimal $(d_{\text{model}}, n_{\text{layers}}, n_{\text{heads}})$. Custom architectures can be explicitly specified via `--d-model` and `--n-layers`.
 2. **Amount of Training Tokens**: `--tokens` (e.g. `2.5B`, `300M`, `50M`). Total steps are automatically calculated from effective batch tokens per step (or pass `--max-steps`).
 3. **Batch Size**: `--effective-batch` (sequences or token count) with automatic gradient accumulation calculation, OR direct `--batch-size` + `--grad-accum`.
 4. **Tokenizer**: `--tokenizer` (path to custom JSON, Hugging Face model, or default) with automatic `--vocab-size` inference.
