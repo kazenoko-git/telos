@@ -137,6 +137,8 @@ def train(
     batch_size: int | None = None,
     grad_accum: int | None = None,
     seq_len: int = 512,
+    d_model: int | None = None,
+    n_layers: int | None = None,
     tokenizer: str | None = None,
     vocab_size: int | None = None,
     hardware: str | None = "auto",
@@ -173,6 +175,8 @@ def train(
         batch_size=batch_size,
         grad_accum=grad_accum,
         seq_len=seq_len,
+        d_model=d_model,
+        n_layers=n_layers,
         tokenizer=tokenizer,
         vocab_size=vocab_size,
         hardware=hardware,
@@ -230,6 +234,8 @@ def train(
                     batch_size=t_cfg["batch_size"],
                     grad_accum=t_cfg["gradient_accumulation"],
                     seq_len=seq_len,
+                    d_model=d_model,
+                    n_layers=n_layers,
                     tokenizer=tokenizer,
                     vocab_size=vocab_size,
                     hardware=hardware,
@@ -389,6 +395,8 @@ def main():
     parser.add_argument("--routing-cache-steps", type=int, default=50, help="Steps between pre-computed routing mask refreshes (default: 50)")
     parser.add_argument("--adaptive-rebalance", action="store_true", help="Enable trust-region dynamic loss rebalancing")
     parser.add_argument("--params", type=str, default="12M", help="Target parameter budget (e.g. 12M, 25M, 50M, 100M, 500M)")
+    parser.add_argument("--d-model", type=int, default=None, help="Explicit hidden dimension d_model override")
+    parser.add_argument("--n-layers", "--layers", dest="n_layers", type=int, default=None, help="Explicit layer count n_layers override")
     parser.add_argument("--tokens", type=str, default=None, help="Target total training tokens (e.g. 2.5B, 300M, 50M)")
     parser.add_argument("--effective-batch", type=str, default=None, help="Target effective batch size in sequences or tokens (e.g. 32, 64, 32k)")
     parser.add_argument("--batch-size", type=int, default=None, help="Microbatch size override")
@@ -437,6 +445,8 @@ def main():
             batch_size=args.batch_size,
             grad_accum=args.grad_accum,
             seq_len=args.seq_len,
+            d_model=args.d_model,
+            n_layers=args.n_layers,
             tokenizer=args.tokenizer,
             vocab_size=args.vocab_size,
             hardware=args.hardware,
