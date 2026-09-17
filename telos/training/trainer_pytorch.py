@@ -342,8 +342,9 @@ class UnifiedPyTorchTrainer:
             **opt_kwargs
         )
 
-        # On TPU, quantize LR updates to 10-step cadence to avoid XLA graph recompilations from Python float changes
-        lr_cadence = 10 if self.is_tpu else 1
+        # On TPU, quantize LR updates to 10-step cadence by default to avoid XLA graph recompilations from Python float changes, unless overridden
+        default_lr_cadence = 10 if self.is_tpu else 1
+        lr_cadence = int(self.t_cfg.get("lr_cadence", default_lr_cadence) or default_lr_cadence)
         self.scheduler = WarmupCosineLR(
             self.optimizer,
             warmup_steps=self.warmup_steps,
@@ -520,8 +521,10 @@ class UnifiedPyTorchTrainer:
                 k_amb = int(self.crsr_cfg.get("k_amb", 5))
                 
                 # Fetch continuous schedule weights driven by step progress and empirical EMAs.
-                # Continuous schedule updates (sched_step = global_step) match CUDA dynamics without staircase jumps.
-                sched_step = self.global_step
+                # Defaults to 25 on TPU (to avoid XLA recompilations) and 1 on CUDA/CPU unless manually specified.
+                default_sched_cadence = 25 if self.is_tpu else 1
+                sched_cadence = int(self.crsr_cfg.get("sched_cadence", self.t_cfg.get("sched_cadence", default_sched_cadence)) or default_sched_cadence)
+                sched_step = (self.global_step // sched_cadence) * sched_cadence if sched_cadence > 1 else self.global_step
                 lrh_acc_ema = self.metric_tracker.lrh_acc_ema if hasattr(self, "metric_tracker") else None
                 lrh_auc_ema = self.metric_tracker.lrh_auc_ema if hasattr(self, "metric_tracker") else None
                 sched_w = self.schedule.get_weights(sched_step, lrh_acc_ema, lrh_auc_ema)
@@ -871,7 +874,8 @@ class UnifiedPyTorchTrainer:
 
             # Synchronized cadence all-reduce of LRH AUC / balanced accuracy across all 8 replicas.
             # Executed synchronously by ALL ranks outside `if self.is_master` to ensure 100% identical schedule EMAs.
-            cadence = 25
+            default_cadence = 25 if self.is_tpu else 1
+            cadence = int(self.crsr_cfg.get("cadence", self.t_cfg.get("cadence", default_cadence)) or default_cadence)
             if getattr(self, "is_unified", False) and (step % cadence == 0 or step == 1) and last_metrics is not None:
                 raw_auc = last_metrics.get("lrh_bal_acc", last_metrics.get("lrh_auc", None))
                 raw_acc = last_metrics.get("lrh_acc", None)
