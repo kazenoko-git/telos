@@ -431,12 +431,18 @@ def main():
     parser.add_argument("--self-condition", action=argparse.BooleanOptionalAction, default=True, help="Enable self-conditioned draft training in COROSred Phase B")
     parser.add_argument("--self-cond-prob", type=float, default=0.5, help="Probability of training on model drafts vs clean masks in Phase B")
     parser.add_argument("--init-checkpoint", type=str, default=None, help="Path to initial checkpoint to load weights from before training")
-    parser.add_argument("--compile", action=argparse.BooleanOptionalAction, default=None, help="Enable torch.compile for PyTorch CUDA execution")
+    # Cadence & Dynamics Overrides
+    parser.add_argument("--sched-step", "--sched-cadence", dest="sched_step", type=int, default=None, help="Cadence for schedule updates (default: 25 on TPU, 1 on CUDA/CPU)")
+    parser.add_argument("--lr-cadence", type=int, default=None, help="Cadence for learning rate updates (default: 10 on TPU, 1 on CUDA/CPU)")
+    parser.add_argument("--cadence", type=int, default=None, help="Cadence for metric reduction and synchronization (default: 25 on TPU, 1 on CUDA/CPU)")
 
     args = parser.parse_args()
 
     try:
         train(
+            sched_step=args.sched_step,
+            lr_cadence=args.lr_cadence,
+            cadence=args.cadence,
             paradigm=args.paradigm,
             phase=args.phase,
             params=args.params,
