@@ -520,9 +520,8 @@ class UnifiedPyTorchTrainer:
                 k_amb = int(self.crsr_cfg.get("k_amb", 5))
                 
                 # Fetch continuous schedule weights driven by step progress and empirical EMAs.
-                # On TPU, quantize schedule updates to 25-step cadence (like lr_cadence) to prevent
-                # per-step floating-point constant changes in HLO from triggering continuous graph recompilations.
-                sched_step = (self.global_step // 25) * 25 if self.is_tpu else self.global_step
+                # Continuous schedule updates (sched_step = global_step) match CUDA dynamics without staircase jumps.
+                sched_step = self.global_step
                 lrh_acc_ema = self.metric_tracker.lrh_acc_ema if hasattr(self, "metric_tracker") else None
                 lrh_auc_ema = self.metric_tracker.lrh_auc_ema if hasattr(self, "metric_tracker") else None
                 sched_w = self.schedule.get_weights(sched_step, lrh_acc_ema, lrh_auc_ema)
