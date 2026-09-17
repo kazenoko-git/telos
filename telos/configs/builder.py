@@ -392,6 +392,21 @@ def build_config(
         m_cfg["use_reliability_head"] = False
         m_cfg["mask_token_id"] = 1
 
+    # Cadence overrides (learning rate, schedule weights, metric reduction)
+    if "lr_cadence" in kwargs and kwargs["lr_cadence"] is not None:
+        t_cfg["lr_cadence"] = int(kwargs["lr_cadence"])
+
+    sched_cad = kwargs.get("sched_step", kwargs.get("sched_cadence"))
+    if sched_cad is not None:
+        t_cfg["sched_cadence"] = int(sched_cad)
+        if "corosred" in cfg:
+            cfg["corosred"]["sched_cadence"] = int(sched_cad)
+
+    if "cadence" in kwargs and kwargs["cadence"] is not None:
+        t_cfg["cadence"] = int(kwargs["cadence"])
+        if "corosred" in cfg:
+            cfg["corosred"]["cadence"] = int(kwargs["cadence"])
+
     cfg["paradigm"] = paradigm
     m_cfg["paradigm"] = paradigm
     m_cfg["is_causal"] = paradigm in ("ar", "corosred")
