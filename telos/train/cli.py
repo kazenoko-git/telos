@@ -431,6 +431,7 @@ def main():
     parser.add_argument("--self-condition", action=argparse.BooleanOptionalAction, default=True, help="Enable self-conditioned draft training in COROSred Phase B")
     parser.add_argument("--self-cond-prob", type=float, default=0.5, help="Probability of training on model drafts vs clean masks in Phase B")
     parser.add_argument("--init-checkpoint", type=str, default=None, help="Path to initial checkpoint to load weights from before training")
+    parser.add_argument("--compile", action=argparse.BooleanOptionalAction, default=None, help="Enable torch.compile for model execution")
     # Cadence & Dynamics Overrides
     parser.add_argument("--sched-step", "--sched-cadence", dest="sched_step", type=int, default=None, help="Cadence for schedule updates (default: 25 on TPU, 1 on CUDA/CPU)")
     parser.add_argument("--lr-cadence", type=int, default=None, help="Cadence for learning rate updates (default: 10 on TPU, 1 on CUDA/CPU)")
@@ -474,7 +475,7 @@ def main():
             self_condition=args.self_condition,
             self_cond_prob=args.self_cond_prob,
             init_checkpoint=args.init_checkpoint,
-            compile=args.compile,
+            compile=getattr(args, "compile", None),
             legacy_phases=args.legacy_phases,
             alpha_max=args.alpha_max,
             alpha_min=args.alpha_min,
