@@ -121,7 +121,7 @@ def execute_javascript(full_code: str, timeout_seconds: float = 4.0) -> Tuple[Ex
     """Executes JavaScript / Node.js test harness in isolated subprocess."""
     if not check_runtime_available("node"):
         is_valid, msg = validate_code_structural_contract("javascript", full_code)
-        return (ExecutionResult.PASSED if is_valid else ExecutionResult.RUNTIME_ERROR), f"[Static Contract Validation] {msg}"
+        return (ExecutionResult.PASSED if is_valid else ExecutionResult.RUNTIME_EXCEPTION), f"[Static Contract Validation] {msg}"
 
     with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as f:
         f.write("const assert = require('assert');\n" + full_code)
@@ -140,7 +140,7 @@ def execute_javascript(full_code: str, timeout_seconds: float = 4.0) -> Tuple[Ex
     except subprocess.TimeoutExpired:
         return ExecutionResult.TIMEOUT, f"Timed out after {timeout_seconds}s"
     except Exception as exc:
-        return ExecutionResult.RUNTIME_ERROR, str(exc)
+        return ExecutionResult.RUNTIME_EXCEPTION, str(exc)
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
@@ -150,7 +150,7 @@ def execute_rust(full_code: str, timeout_seconds: float = 6.0) -> Tuple[Executio
     """Compiles and executes Rust code snippet."""
     if not check_runtime_available("rustc"):
         is_valid, msg = validate_code_structural_contract("rust", full_code)
-        return (ExecutionResult.PASSED if is_valid else ExecutionResult.RUNTIME_ERROR), f"[Static Contract Validation] {msg}"
+        return (ExecutionResult.PASSED if is_valid else ExecutionResult.RUNTIME_EXCEPTION), f"[Static Contract Validation] {msg}"
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         src_path = os.path.join(tmp_dir, "solution.rs")
@@ -180,7 +180,7 @@ def execute_rust(full_code: str, timeout_seconds: float = 6.0) -> Tuple[Executio
         except subprocess.TimeoutExpired:
             return ExecutionResult.TIMEOUT, f"Timed out after {timeout_seconds}s"
         except Exception as exc:
-            return ExecutionResult.RUNTIME_ERROR, str(exc)
+            return ExecutionResult.RUNTIME_EXCEPTION, str(exc)
 
 
 def execute_polyglot_task(
@@ -202,5 +202,5 @@ def execute_polyglot_task(
     else:
         # Fall back to structural contract validation when native compiler is absent
         is_valid, msg = validate_code_structural_contract(language, full_code, required_keywords)
-        outcome = ExecutionResult.PASSED if is_valid else ExecutionResult.RUNTIME_ERROR
+        outcome = ExecutionResult.PASSED if is_valid else ExecutionResult.RUNTIME_EXCEPTION
         return outcome, f"[{language.upper()} Contract Check] {msg}"
