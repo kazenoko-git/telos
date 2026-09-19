@@ -618,11 +618,17 @@ def evaluate_functional(
 
         test_harness = task.get("test_harness", "")
 
-        # 1. Generate completion with greedy decoding or universal adapter
+        # 1. Allocate token budget: deep science and competition math require 1024 tokens
+        if any(x in suite for x in ["gpqa", "competition_math"]):
+            token_budget = max(max_new_tokens, 1024)
+        elif (is_arc or is_math or is_gsm8k):
+            token_budget = max(max_new_tokens, 384)
+        else:
+            token_budget = max_new_tokens
         if isinstance(model, BaseModelAdapter):
             raw_completion = model.generate(
                 prompt=prompt,
-                max_new_tokens=max_new_tokens,
+                max_new_tokens=token_budget,
                 temperature=0.0,
                 stop=task.get("stop_tokens")
             )
@@ -632,7 +638,7 @@ def evaluate_functional(
                 tokenizer=tokenizer,
                 backend=backend,
                 prompt=prompt,
-                max_new_tokens=max_new_tokens
+                max_new_tokens=token_budget
             )
 
         # 2. Domain-Specific Execution & Evaluation
