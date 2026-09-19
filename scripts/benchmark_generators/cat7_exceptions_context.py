@@ -55,14 +55,14 @@ def build_exceptions_context_category() -> List[Dict[str, Any]]:
 
     # 5. Bank Account with Custom Exception
     tasks.append(create_task(
-        name="BankAccount",
-        signature="class BankAccount:",
+        name="GuardedBankAccount",
+        signature="class GuardedBankAccount:",
         prefix_code="class InsufficientFundsError(Exception):\n    def __init__(self, balance: float, amount: float):\n        super().__init__(f'Cannot withdraw {amount} with balance {balance}')\n        self.balance = balance\n        self.amount = amount\n",
         doc_desc="Bank account tracking float balance. withdraw(amount) raises InsufficientFundsError if amount > balance, ValueError if amount <= 0.",
-        doctests=[">>> acc = BankAccount(100.0)", ">>> acc.deposit(50.0)", "150.0"],
+        doctests=[">>> acc = GuardedBankAccount(100.0)", ">>> acc.deposit(50.0)", "150.0"],
         hint="In withdraw(), check amount <= 0 first (raise ValueError), then check amount > self.balance (raise InsufficientFundsError).",
         solution="    def __init__(self, initial_balance: float = 0.0):\n        self.balance = float(initial_balance)\n    def deposit(self, amount: float) -> float:\n        if amount <= 0:\n            raise ValueError('Deposit amount must be positive')\n        self.balance += amount\n        return self.balance\n    def withdraw(self, amount: float) -> float:\n        if amount <= 0:\n            raise ValueError('Withdrawal amount must be positive')\n        if amount > self.balance:\n            raise InsufficientFundsError(self.balance, amount)\n        self.balance -= amount\n        return self.balance",
-        test="acc = BankAccount(100.0)\nassert acc.deposit(50.0) == 150.0\nassert acc.withdraw(70.0) == 80.0\ntry:\n    acc.withdraw(100.0)\n    assert False\nexcept InsufficientFundsError as e:\n    assert e.balance == 80.0 and e.amount == 100.0\ntry:\n    acc.withdraw(-10.0)\n    assert False\nexcept ValueError:\n    pass\n"
+        test="acc = GuardedBankAccount(100.0)\nassert acc.deposit(50.0) == 150.0\nassert acc.withdraw(70.0) == 80.0\ntry:\n    acc.withdraw(100.0)\n    assert False\nexcept InsufficientFundsError as e:\n    assert e.balance == 80.0 and e.amount == 100.0\ntry:\n    acc.withdraw(-10.0)\n    assert False\nexcept ValueError:\n    pass\n"
     ))
 
     # 6. Retry Operation with Allowed Exceptions
