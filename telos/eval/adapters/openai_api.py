@@ -106,7 +106,7 @@ class OpenAIAPIAdapter(BaseModelAdapter):
             if not choices:
                 return ""
             msg = choices[0].get("message", {})
-            return msg.get("content", "")
+            return msg.get("content") or ""
         else:
             payload = {
                 "model": self.model_name,
@@ -121,7 +121,7 @@ class OpenAIAPIAdapter(BaseModelAdapter):
             choices = resp.get("choices", [])
             if not choices:
                 return ""
-            return choices[0].get("text", "")
+            return choices[0].get("text") or ""
 
     def generate_batch(
         self,

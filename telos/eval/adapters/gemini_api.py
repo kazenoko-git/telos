@@ -75,8 +75,11 @@ class GeminiAPIAdapter(BaseModelAdapter):
                     if not candidates:
                         return ""
                     parts = candidates[0].get("content", {}).get("parts", [])
+                    non_thought = [p.get("text", "") for p in parts if "text" in p and not p.get("thought", False)]
+                    if non_thought:
+                        return "".join(non_thought).strip()
                     text_pieces = [p.get("text", "") for p in parts if "text" in p]
-                    return "".join(text_pieces)
+                    return "".join(text_pieces).strip()
             except urllib.error.HTTPError as err:
                 status = err.code
                 error_body = err.read().decode("utf-8", errors="replace")

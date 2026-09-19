@@ -51,11 +51,11 @@ def load_adapter(
         from .mlx_lm import MLXLMAdapter
         return MLXLMAdapter(model_path=model_identifier, **kwargs)
 
-    # Google Gemini API routing
-    if backend == "gemini_api" or "gemini" in m_lower:
+    # Google Gemini / Gemma API routing
+    if backend == "gemini_api" or "gemini" in m_lower or "gemma-4" in m_lower:
         gemini_model = model_identifier
-        if "gemini-4" in m_lower or "26b" in m_lower:
-            gemini_model = os.environ.get("GEMINI_4_MODEL_NAME", "gemini-1.5-pro")
+        if "gemini-4" in m_lower and "gemma" not in m_lower:
+            gemini_model = os.environ.get("GEMINI_4_MODEL_NAME", "gemini-2.5-flash")
         return GeminiAPIAdapter(
             model_name=gemini_model,
             api_key=api_key,
