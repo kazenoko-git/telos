@@ -46,9 +46,13 @@ def load_adapter(
     """
     m_lower = model_identifier.lower().strip()
 
-    # 1. Google Gemini models
+    # Explicit MLX-LM backend override
+    if backend == "mlx_lm":
+        from .mlx_lm import MLXLMAdapter
+        return MLXLMAdapter(model_path=model_identifier, **kwargs)
+
+    # Google Gemini API routing
     if backend == "gemini_api" or "gemini" in m_lower:
-        # Standardize Gemini model identifiers
         gemini_model = model_identifier
         if "gemini-4" in m_lower or "26b" in m_lower:
             gemini_model = os.environ.get("GEMINI_4_MODEL_NAME", "gemini-1.5-pro")
@@ -58,14 +62,24 @@ def load_adapter(
             concurrency=concurrency,
         )
 
-    # 2. OpenAI-compatible / Remote REST endpoints (vLLM, SGLang, Ollama, AFM 3 Core)
+    # AFM models: route to local MLX-LM by default, or OpenAI API if api_base is supplied
+    if "afm-3" in m_lower or "afm_3" in m_lower:
+        if api_base is not None or backend == "openai_api":
+            return OpenAIAPIAdapter(
+                model_name=model_identifier,
+                api_base=api_base,
+                api_key=api_key,
+                concurrency=concurrency,
+            )
+        from .mlx_lm import MLXLMAdapter
+        return MLXLMAdapter(model_path=model_identifier, **kwargs)
+
+    # OpenAI-compatible REST endpoints
     if (
         backend == "openai_api"
         or api_base is not None
         or m_lower.startswith("http://")
         or m_lower.startswith("https://")
-        or "afm-3" in m_lower
-        or "afm_3" in m_lower
     ):
         base_url = api_base or "http://localhost:8000/v1"
         return OpenAIAPIAdapter(
@@ -75,7 +89,7 @@ def load_adapter(
             concurrency=concurrency,
         )
 
-    # 3. Local Télos Checkpoints (.safetensors, .pt, or directory containing them)
+    # Local Télos Checkpoints (.safetensors, .pt, or directory containing them)
     path_obj = Path(model_identifier)
     if (
         backend == "telos_native"
@@ -88,12 +102,7 @@ def load_adapter(
     ):
         return TelosNativeAdapter(checkpoint_path=path_obj, **kwargs)
 
-    # 4. Apple Silicon MLX-LM
-    if backend == "mlx_lm":
-        from .mlx_lm import MLXLMAdapter
-        return MLXLMAdapter(model_path=model_identifier, **kwargs)
-
-    # 5. Hugging Face Transformers (Default for outside open-weights: Gemma 4, Ternary Bonsai 27B, etc.)
+    # Hugging Face Transformers (Default for outside open-weights: Gemma 4, Ternary Bonsai 27B, etc.)
     try:
         from .huggingface import HuggingFaceAdapter
         return HuggingFaceAdapter(

@@ -31,25 +31,23 @@ def evaluate_cybersecurity_challenge(
     resp_lower = candidate_response.lower()
     resp_raw = candidate_response
 
-    # 1. CWE Identification Check
-    # Look for exact CWE or normalized number (e.g. 'CWE-89' or 'cwe 89')
+    # Match CWE identifier or normalized number
     cwe_num = target_cwe.replace("CWE-", "")
     cwe_pattern = rf"\bcwe[-_\s]?{cwe_num}\b"
     cwe_detected = bool(re.search(cwe_pattern, resp_lower))
 
-    # 2. Audit Explanation Keywords
+    # Calculate audit keyword coverage score
     matched_audit_kw = 0
     for kw in req_audit_kw:
         if kw.lower() in resp_lower:
             matched_audit_kw += 1
     explanation_score = matched_audit_kw / max(1, len(req_audit_kw))
 
-    # 3. Remediation Code Check
     # Extract code blocks from candidate response
     code_blocks = re.findall(r"```(?:python|javascript|csharp|java)?\s*(.*?)```", resp_raw, re.DOTALL)
     remediation_code = "\n".join(code_blocks) if code_blocks else resp_raw
 
-    # Check for forbidden patterns (e.g. recurring vulnerability)
+    # Check for forbidden vulnerable code patterns
     has_forbidden_pattern = False
     for pat in forbidden_patterns:
         try:

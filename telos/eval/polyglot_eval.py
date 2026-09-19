@@ -40,7 +40,6 @@ def clean_polyglot_completion(language: str, prompt: str, raw_completion: str) -
     """
     comp = raw_completion.strip()
 
-    # If wrapped in markdown fences, extract code between fences
     if "```" in comp:
         lines = comp.splitlines()
         code_lines = []
@@ -78,12 +77,8 @@ def validate_code_structural_contract(
 ) -> Tuple[bool, str]:
     """
     Fallback structural validator when native compiler is not available.
-    Verifies:
-    1. Balanced curly braces, parentheses, and brackets.
-    2. Presence of required keywords/constructs.
-    3. Non-trivial code body length.
+    Verifies bracket balance, required keywords, and non-empty body.
     """
-    # 1. Bracket balance check
     stack = []
     pairs = {')': '(', '}': '{', ']': '['}
     in_string = False
@@ -111,13 +106,11 @@ def validate_code_structural_contract(
     if stack:
         return False, f"Unclosed bracket '{stack[-1]}'"
 
-    # 2. Required semantic keywords check
     if required_keywords:
         missing = [kw for kw in required_keywords if kw not in full_code]
         if missing:
             return False, f"Missing required constructs: {', '.join(missing)}"
 
-    # 3. Non-empty functional logic
     if len(full_code.strip().splitlines()) < 2:
         return False, "Candidate code is trivially short or empty"
 
@@ -131,9 +124,7 @@ def execute_javascript(full_code: str, timeout_seconds: float = 4.0) -> Tuple[Ex
         return (ExecutionResult.PASSED if is_valid else ExecutionResult.RUNTIME_ERROR), f"[Static Contract Validation] {msg}"
 
     with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as f:
-        # Prepend standard assert shim if not imported
-        shim = "const assert = require('assert');\n"
-        f.write(shim + full_code)
+        f.write("const assert = require('assert');\n" + full_code)
         tmp_path = f.name
 
     try:
@@ -168,7 +159,6 @@ def execute_rust(full_code: str, timeout_seconds: float = 6.0) -> Tuple[Executio
             f.write(full_code)
 
         try:
-            # Compile with rustc
             compile_proc = subprocess.run(
                 ["rustc", src_path, "-o", bin_path],
                 capture_output=True,
@@ -178,7 +168,6 @@ def execute_rust(full_code: str, timeout_seconds: float = 6.0) -> Tuple[Executio
             if compile_proc.returncode != 0:
                 return ExecutionResult.SYNTAX_ERROR, compile_proc.stderr[:300]
 
-            # Execute binary
             run_proc = subprocess.run(
                 [bin_path],
                 capture_output=True,
@@ -202,9 +191,7 @@ def execute_polyglot_task(
     timeout_seconds: float = 4.0,
     required_keywords: Optional[List[str]] = None,
 ) -> Tuple[ExecutionResult, str]:
-    """
-    Unified dispatcher for polyglot code execution across C#, Java, JS, TS, Rust, React.
-    """
+    """Unified dispatcher for polyglot code execution across C#, Java, JS, TS, Rust, React."""
     clean_comp = clean_polyglot_completion(language, prompt, completion)
     full_code = prompt + "\n" + clean_comp + "\n" + test_harness
 
@@ -213,7 +200,7 @@ def execute_polyglot_task(
     elif language == "rust":
         return execute_rust(full_code, timeout_seconds=timeout_seconds)
     else:
-        # For C#, Java, TypeScript: if compiler exists, invoke; otherwise use structural contract validation
+        # Fall back to structural contract validation when native compiler is absent
         is_valid, msg = validate_code_structural_contract(language, full_code, required_keywords)
         outcome = ExecutionResult.PASSED if is_valid else ExecutionResult.RUNTIME_ERROR
         return outcome, f"[{language.upper()} Contract Check] {msg}"

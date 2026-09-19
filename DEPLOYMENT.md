@@ -162,42 +162,45 @@ Runs the institutional-grade, multi-domain evaluation engine supporting:
 ### CLI Evaluation Commands
 
 ```bash
-# 1. Evaluate Any Outside Model via OpenAI-Compatible Endpoint (e.g. AFM 3 Core or vLLM)
+# 1. Evaluate Apple AFM 3 Core Advanced Locally on Apple Silicon (MLX)
+telos eval --model /path/to/afm_3_core_advanced --backend mlx_lm --type all
+
+# 2. Evaluate Outside Model via OpenAI-Compatible Endpoint (vLLM or Private Cloud Compute)
 telos eval --model afm-3-core --api-base http://localhost:8000/v1 --concurrency 16 --type all
 
-# 2. Evaluate Google Gemini 4 26B A4B
+# 3. Evaluate Google Gemini 4 26B A4B
 export GEMINI_API_KEY="AIza..."
 telos eval --model gemini-4-26b-a4b --backend gemini_api --type all
 
-# 3. Evaluate Gemma 4 12B or Ternary Bonsai 27B via Hugging Face Open-Weights
+# 4. Evaluate Gemma 4 12B or Ternary Bonsai 27B via Hugging Face Open-Weights
 telos eval --model google/gemma-4-12b --backend huggingface --torch-dtype bfloat16 --quantization 4bit --type all
 
-# 4. Evaluate Télos Native Checkpoint Across All Benchmark Tracks
+# 5. Evaluate Télos Native Checkpoint Across All Benchmark Tracks
 telos eval --checkpoint checkpoints/corosred/model.safetensors --type all
 
-# 5. Run Grade School Math (GSM8K) Reasoning Benchmark
+# 6. Run Grade School Math (GSM8K) Reasoning Benchmark
 telos eval --checkpoint checkpoints/ar/model.safetensors --type math --suite gsm8k
 
-# 6. Run AI2 Reasoning Challenge Science Benchmark
+# 7. Run AI2 Reasoning Challenge Science Benchmark
 telos eval --checkpoint checkpoints/ar/model.safetensors --type science --suite arc
 
-# 7. Run Polyglot C# (.NET) Evaluation
+# 8. Run Polyglot C# (.NET) Evaluation
 telos eval --checkpoint checkpoints/ar/model.safetensors --type code --suite humaneval_cs
 
-# 8. Run React & Frontend Component Suite
+# 9. Run React & Frontend Component Suite
 telos eval --checkpoint checkpoints/ar/model.safetensors --type code --suite react
 
-# 9. Run Cybersecurity Auditing & Remediation Benchmark
+# 10. Run Cybersecurity Auditing & Remediation Benchmark
 telos eval --checkpoint checkpoints/ar/model.safetensors --type cyber
 
-# 10. Run Multi-Tool Function Calling Suite (100 Challenges across 10 Tools)
+# 11. Run Multi-Tool Function Calling Suite (100 Challenges across 10 Tools)
 telos eval --checkpoint checkpoints/ar/model.safetensors --type tooluse
 
-# 11. Run Python Private Unseen Suites (BASE vs HINT tracks)
+# 12. Run Python Private Unseen Suites (BASE vs HINT tracks)
 telos eval --checkpoint checkpoints/corosred/model.safetensors --suite private_unseen_base
 telos eval --checkpoint checkpoints/corosred/model.safetensors --suite private_unseen_hint
 
-# 12. Run Multi-Model Side-by-Side Comparative Scorecard
+# 13. Run Multi-Model Side-by-Side Comparative Scorecard
 telos eval --checkpoints checkpoints/corosred/model.safetensors checkpoints/ar/model.safetensors --type all
 ```
 
