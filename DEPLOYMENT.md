@@ -134,75 +134,72 @@ telos dataprep --synthetic --tokens 100000 --output data/synthetic_corpus.bin
 
 ---
 
-## 5. Model Evaluation Suite (`telos eval`)
+## 5. Universal Model Evaluation Suite (`telos eval`)
 
-Runs the institutional-grade evaluation engine supporting multi-domain benchmarks across Python code, English linguistics, and tool use on any MLX (`.safetensors`) or PyTorch (`.pt`) checkpoint.
+Runs the institutional-grade, multi-domain evaluation engine supporting:
+- **Télos Native Architectures**: Continuous Relaxed Diffusion (`COROSred`), Causal Autoregressive (`AR`), Masked Discrete Diffusion (`MDLM`), Uniform Discrete Diffusion (`UNDLM`).
+- **Outside Frontier & Open-Weight Models**:
+  * **AFM 3 Core & AFM 3 Core Advanced**: Evaluated via high-throughput concurrent OpenAI-compatible REST adapter (`--backend openai_api --api-base http://...`).
+  * **Ternary Bonsai 27B**: Evaluated via Hugging Face `transformers` open-weights (`--backend huggingface`) or vLLM server.
+  * **Gemma 4 e4b & Gemma 4 12B**: Evaluated via Hugging Face open-weights with optional 4-bit/8-bit quantization (`--quantization 4bit`) or Apple Silicon `mlx_lm`.
+  * **Gemini 4 26B A4B & Gemini Frontier Models**: Evaluated via zero-dependency Google Generative Language REST adapter (`--backend gemini_api --api-key $GEMINI_API_KEY`).
+  * **Any vLLM / SGLang / Ollama / Local Server**: Full support with concurrent worker threads (`--concurrency N`).
 
-### Benchmark Type & Language Selection (`--type`, `--language`)
+### Multi-Domain Benchmark Tracks (`--type`, `--suite`)
 
-| Flag | Options | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `--type` | `all`, `code`, `linguistic`, `tooluse` | `all` | Benchmark domain to evaluate. When omitted or set to `all`, evaluates across all three suites sequentially. |
-| `--language` | `auto`, `english`, `python` | `auto` | Target language (`english` for linguistic benchmarks, `python` for code benchmarks). |
+| Track | Type Flag | Suite Options | Problems | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **Python Code** | `--type code` | `private_unseen`, `private_unseen_base`, `private_unseen_hint`, `humaneval`, `mbpp` | 1,779 | Full functional unit testing in sandboxed subprocesses (`spawn`) with Pass@1, AST validity, and loop detection. |
+| **Polyglot & Systems** | `--type code` | `humaneval_cs`, `humaneval_java`, `humaneval_js`, `humaneval_ts`, `humaneval_rust` | 792 | Standardized MultiPL-E suites for C# (.NET), Java, JavaScript, TypeScript, and Rust with native compilation or structural contract validation. |
+| **React Frontend** | `--type code` | `react`, `react_javascript` | 50 | Modern JSX components testing hooks (`useState`, `useEffect`, `useCallback`), event handling, and UI state logic. |
+| **Math Reasoning** | `--type math` | `gsm8k`, `competition_math` | 2,019 | Exact numeric evaluation on OpenAI GSM8K (1,319) and Olympiad-level Hendrycks MATH LaTeX `\boxed{...}` (700). |
+| **Science & Commonsense** | `--type science` | `arc`, `arc_challenge` | 1,172 | AI2 Reasoning Challenge scientific multiple-choice reasoning with letter choice extraction. |
+| **Cybersecurity** | `--type cyber` | `cyber`, `cybersecurity` | 50 | OWASP Top 10 & CWE auditing (SQLi, XSS, Command Injection, SSRF, Deserialization, XXE, ReDoS) testing CWE classification, exploit vector analysis, and secure code repair. |
+| **Tool-Use & Function Calling** | `--type tooluse` | `tooluse` | 100 | BFCL-style function calling across 10 tools (`calculator`, `web_search`, `get_weather`, `file_search`, `send_email`, `database_query`, `run_command`, `python_repl`, `git_log`, `fetch_url`). |
+| **English Linguistic** | `--type linguistic` | `linguistic` | 100 | Deterministic causal and infill probes across morphology, collocations, connectives, and common sense. |
+| **All Domains** | `--type all` | *(executes all tracks)* | 7,474 | Unified institutional scorecard evaluating models across all dimensions simultaneously. |
+
+### CLI Evaluation Commands
 
 ```bash
-# 1. Run ALL Benchmark Suites (Code + English Linguistics + Tool-Use)
-telos eval --checkpoint checkpoints/corosred/model.safetensors
+# 1. Evaluate Any Outside Model via OpenAI-Compatible Endpoint (e.g. AFM 3 Core or vLLM)
+telos eval --model afm-3-core --api-base http://localhost:8000/v1 --concurrency 16 --type all
 
-# 2. Run English Linguistic Benchmark Suite (100 deterministic probes across 5 syntax/semantic categories)
-telos eval --checkpoint checkpoints/corosred/model.safetensors --type linguistic --language english --mode probes
+# 2. Evaluate Google Gemini 4 26B A4B
+export GEMINI_API_KEY="AIza..."
+telos eval --model gemini-4-26b-a4b --backend gemini_api --type all
 
-# 3. Run English Perplexity Evaluation (token cross-entropy and perplexity on natural text)
-telos eval --checkpoint checkpoints/corosred/model.safetensors --type linguistic --mode perplexity
+# 3. Evaluate Gemma 4 12B or Ternary Bonsai 27B via Hugging Face Open-Weights
+telos eval --model google/gemma-4-12b --backend huggingface --torch-dtype bfloat16 --quantization 4bit --type all
 
-# 4. Run Tool-Use & Function Calling Benchmark (JSON schema adherence and argument extraction)
-telos eval --checkpoint checkpoints/corosred/model.safetensors --type tooluse
+# 4. Evaluate Télos Native Checkpoint Across All Benchmark Tracks
+telos eval --checkpoint checkpoints/corosred/model.safetensors --type all
 
-# 5. Run Python Code Contextual Probes Suite (1,000 contextual probes with 95% Bootstrap CI)
-telos eval --checkpoint checkpoints/corosred/model.safetensors --type code --language python --mode probes --num-probes 1000
+# 5. Run Grade School Math (GSM8K) Reasoning Benchmark
+telos eval --checkpoint checkpoints/ar/model.safetensors --type math --suite gsm8k
 
-# 6. Run Functional Execution Benchmark (Pass@1 in an isolated subprocess sandbox with 3s timeout)
-telos eval --checkpoint checkpoints/corosred/model.safetensors --type code --mode functional --suite private_unseen
+# 6. Run AI2 Reasoning Challenge Science Benchmark
+telos eval --checkpoint checkpoints/ar/model.safetensors --type science --suite arc
 
-# 7. Run Anti-Cheat & Suffix-Copy Detection (multi-token span chunk masking K in {1, 2, 4, 8, 16})
-telos eval --checkpoint checkpoints/corosred/model.safetensors --type code --mode anticheat
+# 7. Run Polyglot C# (.NET) Evaluation
+telos eval --checkpoint checkpoints/ar/model.safetensors --type code --suite humaneval_cs
 
-# 8. Run Full Evaluation Across All Suites & Modes
-telos eval --checkpoint checkpoints/corosred/model.safetensors --type all --mode full
+# 8. Run React & Frontend Component Suite
+telos eval --checkpoint checkpoints/ar/model.safetensors --type code --suite react
 
-# 9. Run Multi-Model Comparative Evaluation Scorecard (Side-by-side comparative table)
-telos eval --checkpoints checkpoints/corosred/model.safetensors checkpoints/ar/model.safetensors
+# 9. Run Cybersecurity Auditing & Remediation Benchmark
+telos eval --checkpoint checkpoints/ar/model.safetensors --type cyber
+
+# 10. Run Multi-Tool Function Calling Suite (100 Challenges across 10 Tools)
+telos eval --checkpoint checkpoints/ar/model.safetensors --type tooluse
+
+# 11. Run Python Private Unseen Suites (BASE vs HINT tracks)
+telos eval --checkpoint checkpoints/corosred/model.safetensors --suite private_unseen_base
+telos eval --checkpoint checkpoints/corosred/model.safetensors --suite private_unseen_hint
+
+# 12. Run Multi-Model Side-by-Side Comparative Scorecard
+telos eval --checkpoints checkpoints/corosred/model.safetensors checkpoints/ar/model.safetensors --type all
 ```
-
-### Benchmark Suites & Evaluation Modes:
-- **`--type linguistic` (English Suite)**:
-  - **Contextual Probes**: 100 strictly deterministic probes across 5 linguistic categories:
-    1. *Subject-Verb Agreement & Morphology* (number, person, irregular tense across intervening clauses).
-    2. *Lexical Collocations & Prepositional Idioms* (*interested in*, *rely on*, *according to*, *pay attention to*).
-    3. *Connectives & Paired Correlatives* (*either...or*, *neither...nor*, *not only...but*, *unless*, *although*).
-    4. *Common Sense & World Knowledge Cloze* (geography, physical constants, basic science).
-    5. *Suffix-Clued Bidirectional Infilling* (context where trailing sentence disambiguates the target word; evaluates diffusion/COROSred vs causal AR on English text).
-  - **`--mode perplexity`**: Token-level cross-entropy and perplexity (PPL) on high-quality English evaluation passages.
-  - **`--mode sample`**: Qualitative generation sampling from English prompts.
-- **`--type tooluse`**:
-  - Benchmarks function calling across 50+ challenges with tools like `calculator`, `web_search`, `get_weather`, `file_search`, `send_email`, `database_query`, and `run_command`.
-  - Evaluates **Tool Selection Accuracy (%)**, **Schema Validity (%)**, and **Argument Correctness (%)** with 95% Bootstrap Confidence Intervals.
-- **`--type code` (Python Suite)**:
-  - **`--mode probes`**: 100 Python contextual probes (Identifiers, Keywords, Imports, Suffix-Clued Infill). Pure AR models are evaluated causal-only, while COROSred models are evaluated on both causal completion and bidirectional infilling.
-  - **`--mode functional`**: Executes code completions in an isolated subprocess sandbox (`spawn`) with hard 3.0s timeout and 512 MB memory limit. Reports:
-    - **Pass@1 (%)** with 95% Bootstrap Confidence Intervals.
-    - **AST Syntax Validity (%)** and execution outcome breakdown (`PASSED`, `FAILED_ASSERTION`, `RUNTIME_EXCEPTION`, `SYNTAX_ERROR`, `TIMEOUT`).
-    - **Repetition & Degenerate Loop Dynamics**: 2-gram, 3-gram, 4-gram repetition rates, line-level code redundancy, consecutive duplicate lines, and degenerate loop streaks.
-    - **Numerical & Constant Retention**: Precision, recall, exact constant matching, and zero-number omission rates on numerical/algorithmic tasks with explicit prompt constants.
-  - **`--mode anticheat`**: Tests boundary suffix copying across chunk masking spans $K \in \{1, 2, 4, 8, 16\}$.
-- **Benchmark Suites (`--suite`)**:
-  - **`--suite private_unseen`**: Master private suite of 512 novel, non-duplicated Python functional challenges across 8 distinct categories (64 tasks each), screened with rolling n-gram anti-leakage filters and 100% self-verified test harnesses.
-  - **`--suite private_unseen_base`**: Dedicated 512-task BASE track containing clean, unambiguous docstrings and doctests without algorithmic hints.
-  - **`--suite private_unseen_hint`**: Dedicated 512-task HINT track augmenting tasks with step-by-step algorithmic guidance, data structure advice, and edge-case checklists.
-  - **`--prompt-mode {base, hint}`**: Selects prompt style dynamically (`base` for clean specs, `hint` for algorithmic hints; default `base`).
-  - **`--suite humaneval`**: Standard HumanEval evaluation suite (164 tasks) for external parity against standard code models.
-  - **`--suite mbpp`**: Standalone Mostly Basic Python Problems benchmark (427 sanitized tasks) with standardized signatures and verified test assertions.
-  - **`--suite public_standard`**: Backward-compatible alias for the HumanEval benchmark suite.
 
 
 ---
