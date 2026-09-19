@@ -62,8 +62,13 @@ def load_adapter(
             concurrency=concurrency,
         )
 
-    # AFM models: route to local MLX-LM by default, or OpenAI API if api_base is supplied
-    if "afm-3" in m_lower or "afm_3" in m_lower:
+    # Explicit Swift FoundationModels backend override
+    if backend in ["swift", "swift_afm"]:
+        from .swift_afm import SwiftAFMAdapter
+        return SwiftAFMAdapter(model_identifier=model_identifier, **kwargs)
+
+    # AFM models: route to native Swift FoundationModels on Apple Silicon by default
+    if "afm-3" in m_lower or "afm_3" in m_lower or "afm" in m_lower:
         if api_base is not None or backend == "openai_api":
             return OpenAIAPIAdapter(
                 model_name=model_identifier,
@@ -71,8 +76,11 @@ def load_adapter(
                 api_key=api_key,
                 concurrency=concurrency,
             )
-        from .mlx_lm import MLXLMAdapter
-        return MLXLMAdapter(model_path=model_identifier, **kwargs)
+        if backend == "mlx_lm":
+            from .mlx_lm import MLXLMAdapter
+            return MLXLMAdapter(model_path=model_identifier, **kwargs)
+        from .swift_afm import SwiftAFMAdapter
+        return SwiftAFMAdapter(model_identifier=model_identifier, **kwargs)
 
     # OpenAI-compatible REST endpoints
     if (
