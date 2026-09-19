@@ -183,34 +183,42 @@ def evaluate_tooluse(
         expected_tool = task["expected_tool"]
         expected_args = task["expected_args"]
 
-        # Greedy decoding for deterministic tool call generation
-        p_ids = tokenizer.encode(prompt).ids
-        curr_ids = list(p_ids)
-        stop_set = {0, 3}  # EOS / PAD
+        # Generate completion with model adapter or native autoregressive loop
+        if hasattr(model, "generate"):
+            completion = model.generate(
+                prompt=prompt,
+                max_new_tokens=max_new_tokens,
+                temperature=0.0,
+                stop=stop_words
+            ).strip()
+        else:
+            p_ids = tokenizer.encode(prompt).ids
+            curr_ids = list(p_ids)
+            stop_set = {0, 3}  # EOS / PAD
 
-        for _ in range(max_new_tokens):
-            if backend == "mlx":
-                import mlx.core as mx
-                x = mx.array([curr_ids], dtype=mx.int32)
-                logits = model(x)
-                next_tok = int(np.argmax(np.array(logits[0, -1].astype(mx.float32))))
-            else:
-                import torch
-                device = next(model.parameters()).device if hasattr(model, "parameters") else "cpu"
-                x = torch.tensor([curr_ids], dtype=torch.long, device=device)
-                with torch.no_grad():
+            for _ in range(max_new_tokens):
+                if backend == "mlx":
+                    import mlx.core as mx
+                    x = mx.array([curr_ids], dtype=mx.int32)
                     logits = model(x)
-                next_tok = int(torch.argmax(logits[0, -1]).item())
+                    next_tok = int(np.argmax(np.array(logits[0, -1].astype(mx.float32))))
+                else:
+                    import torch
+                    device = next(model.parameters()).device if hasattr(model, "parameters") else "cpu"
+                    x = torch.tensor([curr_ids], dtype=torch.long, device=device)
+                    with torch.no_grad():
+                        logits = model(x)
+                    next_tok = int(torch.argmax(logits[0, -1]).item())
 
-            if next_tok in stop_set:
-                break
-            curr_ids.append(next_tok)
+                if next_tok in stop_set:
+                    break
+                curr_ids.append(next_tok)
 
-            cur_text = tokenizer.decode(curr_ids[len(p_ids):])
-            if any(sw in cur_text for sw in stop_words):
-                break
+                cur_text = tokenizer.decode(curr_ids[len(p_ids):])
+                if any(sw in cur_text for sw in stop_words):
+                    break
 
-        completion = tokenizer.decode(curr_ids[len(p_ids):]).strip()
+            completion = tokenizer.decode(curr_ids[len(p_ids):]).strip()
 
         # Parse generated tool call
         parsed_tool, parsed_args, parse_status = parse_tool_call(completion)
