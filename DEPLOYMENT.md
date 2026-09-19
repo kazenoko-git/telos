@@ -195,8 +195,14 @@ telos eval --checkpoints checkpoints/corosred/model.safetensors checkpoints/ar/m
     - **Repetition & Degenerate Loop Dynamics**: 2-gram, 3-gram, 4-gram repetition rates, line-level code redundancy, consecutive duplicate lines, and degenerate loop streaks.
     - **Numerical & Constant Retention**: Precision, recall, exact constant matching, and zero-number omission rates on numerical/algorithmic tasks with explicit prompt constants.
   - **`--mode anticheat`**: Tests boundary suffix copying across chunk masking spans $K \in \{1, 2, 4, 8, 16\}$.
-- **`--suite private_unseen`**: Primary 500+ novel Python challenges with unit tests, screened via 13-gram rolling hashing.
-- **`--suite public_standard`**: Optional HumanEval (164) and sanitized MBPP (500) benchmark for external baseline parity.
+- **Benchmark Suites (`--suite`)**:
+  - **`--suite private_unseen`**: Master private suite of 512 novel, non-duplicated Python functional challenges across 8 distinct categories (64 tasks each), screened with rolling n-gram anti-leakage filters and 100% self-verified test harnesses.
+  - **`--suite private_unseen_base`**: Dedicated 512-task BASE track containing clean, unambiguous docstrings and doctests without algorithmic hints.
+  - **`--suite private_unseen_hint`**: Dedicated 512-task HINT track augmenting tasks with step-by-step algorithmic guidance, data structure advice, and edge-case checklists.
+  - **`--prompt-mode {base, hint}`**: Selects prompt style dynamically (`base` for clean specs, `hint` for algorithmic hints; default `base`).
+  - **`--suite humaneval`**: Standard HumanEval evaluation suite (164 tasks) for external parity against standard code models.
+  - **`--suite mbpp`**: Standalone Mostly Basic Python Problems benchmark (427 sanitized tasks) with standardized signatures and verified test assertions.
+  - **`--suite public_standard`**: Backward-compatible alias for the HumanEval benchmark suite.
 
 
 ---
