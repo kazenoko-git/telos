@@ -33,26 +33,26 @@ def extract_gsm8k_numeric_answer(completion_text: str) -> Optional[str]:
     """
     Extracts final numeric answer from model generation.
     Supports:
-    1. Standard '#### 42'
-    2. 'The answer is: 42' or 'Answer: 42'
-    3. Final standalone number on the last line
+    1. Standard '#### 42' or '#### 1,250'
+    2. 'The answer is: 42' or 'Answer: 1,250.50'
+    3. Final standalone number in generation
     """
     text = completion_text.strip()
 
     # Pattern 1: #### <number>
-    match_hash = re.search(r"####\s*([+-]?\d+(?:\.\d+)?)", text)
+    match_hash = re.search(r"####\s*([+-]?[\d,]+(?:\.\d+)?)", text)
     if match_hash:
-        return match_hash.group(1).strip()
+        return match_hash.group(1).replace(",", "").strip()
 
-    # Pattern 2: (?:the answer is|answer is|final answer:?)\s*([+-]?\d+(?:\.\d+)?)
-    match_ans = re.search(r"(?:answer is|final answer:?|answer:)\s*([+-]?\d+(?:\.\d+)?)", text, re.IGNORECASE)
+    # Pattern 2: (?:the answer is|answer is|final answer:?)\s*([+-]?[\d,]+(?:\.\d+)?)
+    match_ans = re.search(r"(?:answer is|final answer:?|answer:)\s*([+-]?[\d,]+(?:\.\d+)?)", text, re.IGNORECASE)
     if match_ans:
-        return match_ans.group(1).strip()
+        return match_ans.group(1).replace(",", "").strip()
 
     # Pattern 3: Search backwards for any number
-    numbers = re.findall(r"[-+]?\d+(?:\.\d+)?", text)
+    numbers = re.findall(r"[-+]?[\d,]+(?:\.\d+)?", text)
     if numbers:
-        return numbers[-1].strip()
+        return numbers[-1].replace(",", "").strip()
 
     return None
 
