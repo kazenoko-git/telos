@@ -476,18 +476,25 @@ def evaluate_functional(
     tokenizer,
     backend: str,
     suite: str = "private_unseen",
+    prompt_mode: str = "base",
     max_tasks: Optional[int] = None,
     timeout_seconds: float = 3.0,
     max_new_tokens: int = 128
 ) -> Dict[str, Any]:
     """
     Executes functional unit testing benchmark (Pass@1 with sandboxed subprocesses).
+    Supports 'humaneval', 'mbpp', 'private_unseen', 'private_unseen_base', and 'private_unseen_hint'.
     """
     bench_dir = PROJECT_ROOT / "evals" / "benchmarks"
-    if suite == "public_standard":
-        data_file = bench_dir / "public_standard_suite.json"
-    else:
-        data_file = bench_dir / "private_unseen_suite.json"
+    suite_files = {
+        "humaneval": bench_dir / "humaneval_suite.json",
+        "public_standard": bench_dir / "humaneval_suite.json",  # Backward-compatible alias
+        "mbpp": bench_dir / "mbpp_suite.json",
+        "private_unseen": bench_dir / "private_unseen_suite.json",
+        "private_unseen_base": bench_dir / "private_unseen_base.json",
+        "private_unseen_hint": bench_dir / "private_unseen_hint.json",
+    }
+    data_file = suite_files.get(suite, bench_dir / f"{suite}_suite.json")
 
     if not data_file.exists():
         raise FileNotFoundError(f"Benchmark dataset not found at {data_file}. Run scripts/build_evaluation_benchmarks.py first.")
@@ -506,8 +513,9 @@ def evaluate_functional(
             sampled.extend(cat_tasks[:per_cat])
         tasks = sampled[:max_tasks]
 
+    mode_label = f" ({prompt_mode.upper()} PROMPTS)" if "private_unseen" in suite else ""
     print("\n" + "=" * 80)
-    print(f"  TÉLOS FUNCTIONAL EXECUTION BENCHMARK: {suite.upper()} ({len(tasks)} TASKS)")
+    print(f"  TÉLOS FUNCTIONAL EXECUTION BENCHMARK: {suite.upper()}{mode_label} ({len(tasks)} TASKS)")
     print(f"  Subprocess Sandbox: spawn | Timeout: {timeout_seconds}s | Decoding: Greedy (T=0.0)")
     print("=" * 80)
 
@@ -521,7 +529,14 @@ def evaluate_functional(
         if cat not in category_stats:
             category_stats[cat] = {"total": 0, "passed": 0, "ast_valid": 0, "outcomes": {}}
 
-        prompt = task["prompt"]
+        # Select prompt variant based on prompt_mode
+        if prompt_mode == "hint" and task.get("prompt_hint"):
+            prompt = task["prompt_hint"]
+        elif prompt_mode == "base" and task.get("prompt_base"):
+            prompt = task["prompt_base"]
+        else:
+            prompt = task["prompt"]
+
         test_harness = task.get("test_harness", "")
 
         # 1. Generate code completion with greedy decoding
@@ -818,13 +833,14 @@ def _evaluate_single(
     # 1. Code Benchmarks (Python)
     if "code" in types_to_run:
         code_report = {}
+        prompt_mode = str(kwargs.get("prompt_mode", "base")).lower()
         if mode == "probes":
             code_report["probes"] = evaluate_probes(
                 model, tok, backend, paradigm=paradigm, num_probes=num_probes, probe_type=probe_type
             )
         elif mode == "functional":
             code_report["functional"] = evaluate_functional(
-                model, tok, backend, suite=suite, max_tasks=max_tasks, timeout_seconds=timeout
+                model, tok, backend, suite=suite, prompt_mode=prompt_mode, max_tasks=max_tasks, timeout_seconds=timeout
             )
         elif mode == "anticheat":
             code_report["anticheat"] = evaluate_anticheat(model, tok, backend, paradigm=paradigm, num_probes=min(num_probes, 200))
@@ -836,7 +852,7 @@ def _evaluate_single(
                 model, tok, backend, paradigm=paradigm, num_probes=num_probes, probe_type=probe_type
             )
             code_report["functional"] = evaluate_functional(
-                model, tok, backend, suite=suite, max_tasks=max_tasks, timeout_seconds=timeout
+                model, tok, backend, suite=suite, prompt_mode=prompt_mode, max_tasks=max_tasks, timeout_seconds=timeout
             )
             code_report["anticheat"] = evaluate_anticheat(model, tok, backend, paradigm=paradigm, num_probes=min(num_probes, 200))
         else:
@@ -978,6 +994,7 @@ def evaluate(
     output_path: Optional[str | Path] = None,
     benchmark_type: str = "all",
     language: str = "auto",
+    prompt_mode: str = "base",
     **kwargs
 ) -> Dict[str, Any]:
     """
@@ -1005,6 +1022,7 @@ def evaluate(
             output_path=output_path,
             benchmark_type=b_type,
             language=language,
+            prompt_mode=prompt_mode,
             **kwargs
         )
         if not output_path:
@@ -1048,6 +1066,7 @@ def evaluate(
             output_path=None,
             benchmark_type=b_type,
             language=language,
+            prompt_mode=prompt_mode,
             **kwargs
         )
         multi_reports[name] = single_rep
@@ -1092,7 +1111,21 @@ def main():
         help="Target benchmark language ('auto', 'english', 'python'). Default is 'auto'."
     )
     parser.add_argument("--mode", type=str, default="probes", choices=["probes", "functional", "anticheat", "perplexity", "full", "sample"], help="Evaluation mode")
-    parser.add_argument("--suite", type=str, default="private_unseen", choices=["private_unseen", "public_standard"], help="Benchmark suite track")
+    parser.add_argument(
+        "--suite",
+        type=str,
+        default="private_unseen",
+        choices=["private_unseen", "private_unseen_base", "private_unseen_hint", "humaneval", "mbpp", "public_standard"],
+        help="Benchmark suite track ('private_unseen', 'private_unseen_base', 'private_unseen_hint', 'humaneval', 'mbpp', 'public_standard'). Default is 'private_unseen'."
+    )
+    parser.add_argument(
+        "--prompt-mode",
+        type=str,
+        default="base",
+        choices=["base", "hint"],
+        dest="prompt_mode",
+        help="Prompt variant to use ('base' for standard problem spec, 'hint' for algorithmic guidance). Default is 'base'."
+    )
     parser.add_argument("--probe-type", type=str, default="both", choices=["infill", "causal", "both"], help="Probe benchmark type")
     parser.add_argument("--num-probes", type=int, default=100, help="Number of contextual probes to evaluate")
     parser.add_argument("--max-tasks", type=int, default=None, help="Maximum number of functional execution tasks")
@@ -1112,7 +1145,8 @@ def main():
         tokenizer_path=args.tokenizer,
         output_path=args.output,
         benchmark_type=args.benchmark_type,
-        language=args.language
+        language=args.language,
+        prompt_mode=args.prompt_mode
     )
 
 
