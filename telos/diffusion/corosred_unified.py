@@ -252,12 +252,16 @@ def corosred_unified_step_pytorch(
 
         # Balanced classification accuracy: 0.5 * (TPR + TNR), fully immune to ~9:1 class imbalance
         # Evaluates to 0.50 under chance / constant predictions, establishing an uncorrupted discrimination baseline
-        pos_mask = (labels == 1.0) & valid_mask
-        neg_mask = (labels == 0.0) & valid_mask
-        pos_count = pos_mask.sum().float().clamp(min=1.0)
-        neg_count = neg_mask.sum().float().clamp(min=1.0)
-        tpr = ((valid_preds == 1.0) & pos_mask).sum().float() / pos_count
-        tnr = ((valid_preds == 0.0) & neg_mask).sum().float() / neg_count
+        valid_count = valid_mask.float().sum().clamp(min=1.0)
+
+        preds = (torch.sigmoid(raw_r_scores[:, :-1]) >= 0.5)
+        correct_preds = (preds == (labels > 0.5)) & valid_mask
+        batch_lrh_acc = correct_preds.float().sum() / valid_count
+
+        pos_mask = (labels > 0.5) & valid_mask
+        neg_mask = (labels <= 0.5) & valid_mask
+        tpr = (preds & pos_mask).float().sum() / pos_mask.float().sum().clamp(min=1.0)
+        tnr = ((~preds) & neg_mask).float().sum() / neg_mask.float().sum().clamp(min=1.0)
         batch_lrh_bal_acc = 0.5 * (tpr + tnr)
 
         if not is_accelerator:
@@ -267,21 +271,18 @@ def corosred_unified_step_pytorch(
             flat_y = labels[valid_mask]
             batch_lrh_auc_val = compute_vectorized_roc_auc(flat_r, flat_y)
         else:
-            # On TPU/GPU accelerators, maintain 100% static computation graph:
-            # Avoid mid-forward device-to-host .cpu() synchronization and dynamic-shape boolean masking.
-            # Balanced accuracy (0.50-1.00 scale) is a shape-stable 0D device tensor proxy for ROC-AUC.
+            # Use balanced accuracy as 0D tensor proxy on accelerators to avoid device sync
             batch_lrh_acc_val = batch_lrh_acc
             batch_lrh_bal_acc_val = batch_lrh_bal_acc
             batch_lrh_auc_val = batch_lrh_bal_acc
 
-    # LRH Binary Cross Entropy Loss (always evaluated to ensure 100% static XLA computation graph across all steps)
+    # LRH Binary Cross Entropy Loss
     shift_r_scores = raw_r_scores[:, :-1]
     bce_raw = F.binary_cross_entropy_with_logits(shift_r_scores, labels, reduction="none")
     masked_bce = bce_raw * valid_mask.float()
     r_loss = masked_bce.sum() / valid_count
 
-    # 3. Sub-batch 2: Bidirectional Infill Pass
-    # Enables is_causal=False in SDPA (native fused FlashAttention-2 full attention)
+    # Bidirectional Infill Pass
     mask_blend = schedule_weights.get("mask_blend", 0.0)
     if routing_cache is not None:
         corrupted_infill, mask_positions = routing_cache.pop_or_generate_mask(
@@ -316,7 +317,7 @@ def corosred_unified_step_pytorch(
     infill_token_count_t = mask_positions.sum().float().clamp(min=1.0)
     mean_infill_ce = infill_loss_sum / infill_token_count_t
 
-    # 4. Schedule Weight Extraction and Safe Dynamic Rebalancing
+    # Schedule Weight Extraction
     alpha_nom = float(schedule_weights.get("alpha", 0.85))
     beta_nom = float(schedule_weights.get("beta", 0.15))
     gamma_nom = float(schedule_weights.get("gamma", 0.0))
@@ -327,11 +328,7 @@ def corosred_unified_step_pytorch(
         alpha, beta = alpha_nom, beta_nom
         rebal_telem = {"nominal_ratio": beta_nom / max(1e-6, alpha_nom), "clamped": False}
 
-    # 5. Sequence-Normalized Multi-Objective Loss Pooling
-    # Eliminates the ~7.6x per-token gradient amplification caused by dividing
-    # sparse masked tokens (~1,945) vs dense causal tokens (~14,819).
-    # Normalizing by sequence count and sequence length ensures that the per-token gradient
-    # ratio strictly adheres to beta / alpha without artificial token-count distortion.
+    # Sequence-normalized loss pooling balances gradient scales between causal and infill tasks
     w_c = float(B_c) / float(B)
     w_m = float(B_m) / float(B)
     causal_seq_norm = causal_loss_sum / max(1.0, float(B_c * (T - 1)))

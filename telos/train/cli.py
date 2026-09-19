@@ -27,9 +27,7 @@ def _mp_train_worker(index, kwargs):
     os.environ["OMP_NUM_THREADS"] = "1"
     os.environ["OMP_WAIT_POLICY"] = "PASSIVE"
     import torch
-    # Crucial for multi-core TPU VM: Restrict intra-op thread count to 1 per worker
-    # to stop 8 spawned processes from generating competing OpenMP spin-lock threads
-    # that pin CPU utilization at 100% per core.
+    # Set single intra-op thread per worker to prevent CPU thread contention on TPU
     torch.set_num_threads(1)
     if hasattr(torch, "set_num_interop_threads"):
         try:
@@ -344,9 +342,7 @@ def train(
 
         trainer = UnifiedPyTorchTrainer(paradigm=paradigm, model=model, cfg=cfg, device_type=device)
         if ckpt_state is not None and resume_step > 0:
-            # On TPU / XLA, restoring CPU-serialized optimizer state dictionaries strands tensors on CPU
-            # while model parameters reside on TPU device, forcing catastrophic 10s/step CPU-TPU synchronization fallbacks.
-            # Only restore optimizer state dict on CUDA/CPU where tensor devices are unified.
+            # Restore optimizer state only on CUDA/CPU to avoid host-device tensor desync on XLA
             if device != "xla" and not getattr(trainer, "is_tpu", False) and "optimizer_state_dict" in ckpt_state:
                 try:
                     trainer.optimizer.load_state_dict(ckpt_state["optimizer_state_dict"])

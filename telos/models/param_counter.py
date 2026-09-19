@@ -23,20 +23,15 @@ def count_parameters(config: TelosConfig) -> dict[str, int]:
     # token embeddings: V * d
     embedding_params = v * d
 
-    # attention per block:
-    # Q proj: d * d
-    # K proj: d * (n_kv * head_dim)
-    # V proj: d * (n_kv * head_dim)
-    # Out proj: d * d
+    # Attention projections per block: Q, K, V, and Output
     attn_params_per_layer = (d * d) + 2 * (d * (n_kv * head_dim)) + (d * d)
 
-    # SwiGLU MLP per block:
+    # SwiGLU MLP per block: gate, up, down projections
     hidden_dim = int(2 * 4 * d / 3)
     hidden_dim = 64 * ((hidden_dim + 63) // 64)
-    # W1 (gate), V (up), W2 (down): 3 * d * hidden_dim
     mlp_params_per_layer = 3 * d * hidden_dim
 
-    # RMSNorms per block (2 norms)
+    # RMSNorm layers per block
     norm_params_per_layer = 2 * d
 
     total_per_layer = attn_params_per_layer + mlp_params_per_layer + norm_params_per_layer

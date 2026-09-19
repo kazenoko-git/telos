@@ -203,13 +203,7 @@ def build_config(
     d_model = m_cfg["d_model"]
     
     if final_device == "xla":
-        # TPU (v5e / v6e / v4 / v3) per-core microbatch sizing:
-        # Microbatch 32 (for d_model <= 512) or 16 (for d_model >= 768)
-        # Strictly maintains a solid medium effective batch size of 256 sequences across 8 TPU cores:
-        # - d_model <= 512 (15M, 25M, 50M): batch_size = 32, grad_accum = 1 -> 32 * 1 * 8 = 256 sequences (131k tok/step).
-        # - d_model >= 768 (100M+): batch_size = 16, grad_accum = 2 -> 16 * 2 * 8 = 256 sequences (131k tok/step).
-        # Cuts peak activation memory in half for 100M+ to eliminate OOM on 16GB HBM TPU v5e
-        # while keeping the effective batch size strictly at 256 (never <= 128).
+        # Set TPU microbatch size based on model width to maintain target batch size
         auto_microbatch = 32 if d_model <= 512 else 16
         auto_accum = 1 if d_model <= 512 else 2
     elif final_backend == "mlx":
@@ -241,23 +235,19 @@ def build_config(
                 cuda_gb = 0.0
 
         if cuda_gb >= 70.0:
-            # Flagship Datacenter GPUs (H100 80GB SXM5/PCIe, A100 80GB):
-            # Massive 80GB HBM3 bandwidth (3.35 TB/s) permits large microbatches (up to 384+)
-            # Saturates all 132 SMs with FlashAttention-2 and zero activation spilling
+            # High-memory GPU batch configuration (>=70GB VRAM)
             auto_microbatch = 384 if d_model <= 384 else (192 if d_model <= 512 else (128 if d_model <= 768 else 64))
             auto_accum = 1 if d_model <= 384 else (2 if d_model <= 512 else (3 if d_model <= 768 else 4))
         elif cuda_gb >= 40.0:
-            # Datacenter GPUs (A100 40GB, L40S 48GB, RTX 6000 Ada 48GB):
-            # Microbatch 64 maximally saturates Tensor Cores with FlashAttention-2
-            # Defaults to medium effective batch of 256 sequences
+            # Datacenter GPU batch configuration (40GB-48GB VRAM)
             auto_microbatch = 64 if d_model <= 512 else (32 if d_model <= 768 else 16)
             auto_accum = 4 if d_model <= 512 else (8 if d_model <= 768 else 16)
         elif cuda_gb >= 24.0:
-            # High-end Consumer GPUs (RTX 3090/4090 24GB):
+            # 24GB GPU batch configuration
             auto_microbatch = 32 if d_model <= 512 else (16 if d_model <= 768 else 8)
             auto_accum = 8 if d_model <= 512 else 16
         elif cuda_gb >= 16.0:
-            # Mid-tier GPUs (T4 / V100 16GB):
+            # 16GB GPU batch configuration
             auto_microbatch = 16 if d_model <= 512 else (8 if d_model <= 768 else 4)
             auto_accum = 16 if d_model <= 512 else 32
         else:

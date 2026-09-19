@@ -40,9 +40,7 @@ def detect_apple_silicon_profile(user_policy: str = "auto") -> HardwareProfile:
     if user_policy in ["eager", "step", "lazy"]:
         eval_policy = user_policy
     else:
-        # Low RAM (<24GB): M1/M2 8-16GB, M5 Pro 24GB base -> eager microbatch eval
-        # Balanced (24GB-48GB): M5 Pro 24GB, M5 Max 36GB -> step-boundary eval
-        # High RAM (>48GB): M5 Max 64GB+, M2-M5 Ultra 96-192GB -> lazy pipelining
+        # Select evaluation policy based on unified memory capacity
         if total_mem_gb < 24.0:
             eval_policy = "eager"
         elif total_mem_gb <= 48.0:

@@ -108,10 +108,7 @@ def execute_mlx_training_step(
         accum_loss = accum_loss + loss
         accum_ce = accum_ce + ce
         
-        # On memory-constrained devices (<24GB RAM), evaluate intermediate graph
-        # using a 1-microbatch lagged double-buffer:
-        # submit microbatch i to the Metal stream before waiting on microbatch (i-1)'s accumulated grads.
-        # This keeps the GPU queue constantly saturated while CPU handles evaluation.
+        # Double-buffer microbatch evaluation to overlap Metal execution with CPU handling
         if eval_every_microbatch:
             if prev_accum_grads is not None:
                 mx.eval(prev_accum_grads, prev_accum_loss, prev_accum_ce)
@@ -129,8 +126,7 @@ def execute_mlx_training_step(
         optimizer.master_params = tree_map(lambda p: p.astype(mx.float32), model.parameters())
 
     if is_first_step:
-        # Fallback to eager update on the first step because we cast AdamW moments
-        # to bfloat16 afterwards.
+        # Run eager update on first step before casting optimizer moments to bfloat16
         if grad_clip > 0.0:
             accum_grads, _ = clip_grad_norm_mlx(accum_grads, max_norm=grad_clip, scale=float(grad_accum))
         else:

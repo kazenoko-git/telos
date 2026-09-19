@@ -166,19 +166,13 @@ class UnifiedPyTorchTrainer:
         self.model.to(self.device)
         self.special_lut = self.special_lut.to(self.device)
 
-        # In mixed-precision training (bfloat16), model parameters in memory MUST remain in float32
-        # so AdamW gradient updates (order 10^-5 to 10^-6) do not mathematically underflow to zero
-        # against bfloat16's 7-bit mantissa (machine epsilon 2^-7 ~ 0.0078).
-        # On TPU, Matrix Multiply Units (MXUs) execute systolic GEMMs in bfloat16 via hardware autocast
-        # while optimizer states and parameter weights remain unadulterated in float32.
+        # Keep model parameters in float32 on TPU to prevent optimizer update underflow
         self.use_master_weights = False
         if self.is_tpu and self.precision in ["bfloat16", "bf16"]:
             self.model.to(dtype=torch.float32)
             print("  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).")
 
-        # Crucial for PyTorch-XLA / Cloud TPU: Parameter tensor memory handles decouple across child
-        # modules during .to(device). Explicitly re-tie output_projection to tok_embeddings so PyTorch-XLA
-        # maintains a single unified weight tensor and backward updates accumulate jointly.
+        # Re-tie weights after moving to device for PyTorch-XLA compatibility
         if hasattr(self.model, "tie_weights"):
             self.model.tie_weights()
         elif hasattr(getattr(self.model, "module", None), "tie_weights"):
@@ -186,10 +180,7 @@ class UnifiedPyTorchTrainer:
 
         # Multi-GPU wrapping: Prefer DDP over deprecated DataParallel
         if getattr(self, "is_ddp", False):
-            # In legacy COROSred Phase B and C, reliability_head is frozen / only used for routing,
-            # so find_unused_parameters=True prevents DDP unused parameter reduction assertions.
-            # In Unified COROSred, both causal backbone and reliability head receive gradients,
-            # so find_unused_parameters=False eliminates per-step DDP parameter tree traversal overhead.
+            # Allow unused parameters in DDP only when reliability head is frozen
             find_unused = (
                 self.paradigm == "corosred"
                 and not getattr(self, "is_unified", False)
@@ -206,9 +197,7 @@ class UnifiedPyTorchTrainer:
             print("  [Hardware Notice] Multi-GPU detected without torchrun. For 1.8x-7x throughput scaling, launch with 'torchrun'. Falling back to DataParallel.")
             self.model = nn.DataParallel(self.model)
 
-        # Gradient checkpointing activation:
-        # Avoid auto-enabling on high-VRAM CUDA GPUs (A100/H100/4090) for small/medium models (<=100M),
-        # preserving ~33% compute FLOPs by eliminating backward activation recomputation.
+        # Select gradient checkpointing based on device VRAM and model dimension
         cuda_needs_chkpt = False
         if self.device.type == "cuda" and not self.is_tpu:
             cuda_gb = 0.0
@@ -216,14 +205,10 @@ class UnifiedPyTorchTrainer:
                 cuda_gb = torch.cuda.get_device_properties(self.device).total_memory / (1024 ** 3)
             except Exception:
                 pass
-            # Auto-enable only if VRAM <= 16GB or model width >= 1024
             if (cuda_gb > 0 and cuda_gb <= 16.0) or (self.m_cfg.get("d_model", 512) >= 1024):
                 cuda_needs_chkpt = True
 
-        # On TPU (v3/v4/v5e with 16GB-32GB HBM per core), models up to ~300M (d_model < 1536)
-        # easily fit in memory (<5GB HBM). Gradient checkpointing recomputation on PyTorch-XLA
-        # triggers subgraph rematerialization overhead and numerical instability during backward passes.
-        # Only auto-enable for very large architectures (d_model >= 1536) or huge microbatches (>128).
+        # Enable checkpointing on TPU only for large models (d_model >= 1536)
         tpu_needs_chkpt = self.is_tpu and (self.m_cfg.get("d_model", 512) >= 1536 or self.t_cfg.get("batch_size", 32) > 128)
         auto_chkpt = (
             tpu_needs_chkpt
@@ -414,9 +399,7 @@ class UnifiedPyTorchTrainer:
             xm.mark_step()
             str_path = str(path)
 
-            # Direct host CPU detachment on master rank:
-            # Avoids xm.save collective synchronization hangs across PJRT replicas and eliminates
-            # pulling ~400MB of unused AdamW momentum buffers across the TPU device bus.
+            # Detach model parameters to host CPU on master rank without saving optimizer state
             raw_model = getattr(self.model, "module", self.model)
             cpu_model = {
                 k.removeprefix("module."): v.detach().cpu().clone()
@@ -685,9 +668,7 @@ class UnifiedPyTorchTrainer:
                 "or pass '--synthetic' to train on synthetic random tokens."
             )
 
-        # Initialize DualMetricMonitor on held-out validation data if running unified COROSred (master rank only)
-        # On TPU multi-core, in-loop probe evaluation causes cross-replica graph desynchronization and barrier deadlocks,
-        # so probe evaluation is deferred to standalone post-checkpoint evaluation suites.
+        # Initialize DualMetricMonitor on validation split for unified COROSred on single-node GPU/CPU
         if getattr(self, "is_unified", False) and self.is_master and not self.is_tpu:
             val_path = d_cfg.get("val_path", d_cfg.get("val_dataset_path", None))
             if val_path and Path(val_path).exists():
@@ -700,7 +681,7 @@ class UnifiedPyTorchTrainer:
                         print(f"  [Dual Monitor] Initialized on validation split ({val_seqs} sequences).")
                 except Exception as e:
                     if self.is_master:
-                        print(f"  [Dual Monitor] Could not load val data: {e}")
+                        print(f"  Notice: Failed to initialize DualMetricMonitor ({e}).")
             if getattr(self, "dual_monitor", None) is None and len(dataset_matrix) > 200:
                 self.dual_monitor = DualMetricMonitor(dataset_matrix[-200:], self.vocab_size, self.seq_len, self.device)
                 if self.is_master:
@@ -748,9 +729,7 @@ class UnifiedPyTorchTrainer:
         if self.use_master_weights:
             self.model.zero_grad()
 
-        # Background asynchronous batch prefetcher (CUDA only)
-        # PyTorch-XLA does NOT support multi-threaded tensor allocation/transfer to device;
-        # transfers on background worker threads cause heavy XLA runtime mutex serialization.
+        # Background asynchronous batch prefetcher (CUDA only; disabled on XLA)
         if self.is_tpu:
             prefetch_queue = None
         else:

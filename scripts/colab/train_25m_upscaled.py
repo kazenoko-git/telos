@@ -387,10 +387,7 @@ def _train_worker(index: int, paradigm: str, config_path: str, src_tier: str = "
     # Multi-GPU DataParallel for 2x T4 or cloud multi-GPU
     if device_type == "cuda" and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
-    # NOTE: torch.compile(backend='openxla') is intentionally NOT used.
-    # XLA lazy tensors already perform full graph tracing and fusion via xm.mark_step().
-    # Layering torch.compile on top creates redundant compiled graph buffers that
-    # consume ~2-4 GB extra HBM per chip, causing OOM on v5e (16GB HBM).
+    # XLA lazy tensors handle graph fusion directly; avoid torch.compile to prevent memory overhead
         
     decay_params = []
     nodecay_params = []
