@@ -11,6 +11,46 @@ import re
 from typing import Dict, Any, List, Optional, Tuple
 
 
+def extract_remediation_code(candidate_response: str, req_rem_patterns: List[str]) -> str:
+    """
+    Extracts the isolated remediation code block from a model completion.
+    Prevents false positive forbidden pattern detection from quoted vulnerabilities.
+    """
+    resp_lower = candidate_response.lower()
+
+    # Check if an explicit remediation section marker exists
+    remediation_markers = [
+        "remediated code", "secure, remediated code", "secure code",
+        "fixed code", "remediation:", "solution:", "patched code"
+    ]
+    for marker in remediation_markers:
+        if marker in resp_lower:
+            idx = resp_lower.rfind(marker)
+            section = candidate_response[idx:]
+            # Extract code blocks within the remediation section
+            sub_blocks = re.findall(r"```(?:\w+)?\s*(.*?)```", section, re.DOTALL)
+            if sub_blocks:
+                return sub_blocks[-1]
+            return section
+
+    # Extract all markdown code blocks
+    code_blocks = re.findall(r"```(?:\w+)?\s*(.*?)```", candidate_response, re.DOTALL)
+    if len(code_blocks) > 1:
+        # Select the block matching the highest number of required remediation patterns
+        best_block = code_blocks[-1]
+        best_score = -1
+        for block in code_blocks:
+            score = sum(1 for pat in req_rem_patterns if pat.lower() in block.lower())
+            if score > best_score:
+                best_score = score
+                best_block = block
+        return best_block
+    elif code_blocks:
+        return code_blocks[0]
+
+    return candidate_response
+
+
 def evaluate_cybersecurity_challenge(
     candidate_response: str,
     challenge_meta: Dict[str, Any]
@@ -43,9 +83,8 @@ def evaluate_cybersecurity_challenge(
             matched_audit_kw += 1
     explanation_score = matched_audit_kw / max(1, len(req_audit_kw))
 
-    # Extract code blocks from candidate response
-    code_blocks = re.findall(r"```(?:python|javascript|csharp|java)?\s*(.*?)```", resp_raw, re.DOTALL)
-    remediation_code = "\n".join(code_blocks) if code_blocks else resp_raw
+    # Extract isolated remediation code block to avoid evaluating quoted vulnerable code
+    remediation_code = extract_remediation_code(resp_raw, req_rem_patterns)
 
     # Check for forbidden vulnerable code patterns
     has_forbidden_pattern = False
