@@ -556,6 +556,10 @@ def evaluate_functional(
         "gsm8k": bench_dir / "gsm8k_suite.json",
         "arc": bench_dir / "arc_challenge_suite.json",
         "arc_challenge": bench_dir / "arc_challenge_suite.json",
+        "gpqa": bench_dir / "gpqa_diamond_suite.json",
+        "gpqa_diamond": bench_dir / "gpqa_diamond_suite.json",
+        "mmlu": bench_dir / "mmlu_science_suite.json",
+        "mmlu_science": bench_dir / "mmlu_science_suite.json",
         "math": bench_dir / "competition_math_suite.json",
         "competition_math": bench_dir / "competition_math_suite.json",
         "cyber": bench_dir / "cybersecurity_suite.json",
@@ -594,7 +598,7 @@ def evaluate_functional(
 
     # Track classification
     is_gsm8k = "gsm8k" in suite
-    is_arc = "arc" in suite
+    is_arc = any(x in suite for x in ["arc", "gpqa", "mmlu"])
     is_math = "math" in suite
     is_cyber = "cyber" in suite
     is_polyglot = any(x in suite for x in ["csharp", "cs", "java", "js", "javascript", "ts", "typescript", "rust", "react"])
@@ -941,8 +945,8 @@ def _evaluate_single(
     elif (
         kwargs.get("api_base")
         or kwargs.get("api_key")
-        or kwargs.get("backend") in ["openai_api", "gemini_api", "huggingface", "mlx_lm"]
-        or any(x in str(checkpoint).lower() for x in ["afm-3", "ternary-bonsai", "gemma", "gemini", "http://", "https://"])
+        or kwargs.get("backend") in ["openai_api", "gemini_api", "huggingface", "mlx_lm", "swift", "swift_afm"]
+        or any(x in str(checkpoint).lower() for x in ["afm-3", "afm", "ternary-bonsai", "gemma", "gemini", "http://", "https://"])
     ):
         adapter = load_adapter(
             model_identifier=str(checkpoint),
@@ -1036,10 +1040,11 @@ def _evaluate_single(
             model, tok, backend, suite=m_suite, max_tasks=max_tasks, timeout_seconds=timeout
         )
 
-    # 3. Science Benchmarks (ARC-Challenge)
-    if "science" in types_to_run or suite in ["arc", "arc_challenge"]:
+    # 3. Science Benchmarks (ARC-Challenge, GPQA Diamond, MMLU Science)
+    if "science" in types_to_run or any(x in suite for x in ["arc", "arc_challenge", "gpqa", "gpqa_diamond", "mmlu", "mmlu_science"]):
+        s_suite = suite if suite in ["arc", "arc_challenge", "gpqa", "gpqa_diamond", "mmlu", "mmlu_science"] else "arc"
         report["science"] = evaluate_functional(
-            model, tok, backend, suite="arc", max_tasks=max_tasks, timeout_seconds=timeout
+            model, tok, backend, suite=s_suite, max_tasks=max_tasks, timeout_seconds=timeout
         )
 
     # 4. Cybersecurity Benchmarks
@@ -1288,7 +1293,7 @@ def main():
         "--backend",
         type=str,
         default="auto",
-        choices=["auto", "telos_native", "openai_api", "gemini_api", "huggingface", "mlx_lm"],
+        choices=["auto", "telos_native", "openai_api", "gemini_api", "huggingface", "mlx_lm", "swift", "swift_afm"],
         help="Model runtime backend. 'auto' selects based on model string."
     )
     parser.add_argument("--api-base", type=str, default=None, help="Base URL for OpenAI-compatible REST server (e.g. http://localhost:8000/v1)")
@@ -1322,7 +1327,8 @@ def main():
             "private_unseen", "private_unseen_base", "private_unseen_hint",
             "humaneval", "mbpp", "public_standard",
             "humaneval_cs", "humaneval_java", "humaneval_js", "humaneval_ts", "humaneval_rust",
-            "react", "gsm8k", "arc", "competition_math", "cyber", "tooluse"
+            "react", "gsm8k", "arc", "gpqa", "gpqa_diamond", "mmlu", "mmlu_science",
+            "competition_math", "cyber", "tooluse"
         ],
         help="Benchmark suite track. Default is 'private_unseen'."
     )
