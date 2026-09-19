@@ -429,11 +429,21 @@ def _generate_greedy_completion(
 ) -> str:
     """Generates code completion using deterministic greedy decoding (Temperature = 0.0)."""
     p_ids = tokenizer.encode(prompt).ids
+
+    # Sequence length guardrail for models with fixed max_seq_len (e.g. 512)
+    max_seq_len = getattr(getattr(model, "config", None), "max_seq_len", 512)
+    if len(p_ids) >= max_seq_len - 16:
+        # Left-truncate prompt to preserve function signature & docstring tail
+        p_ids = p_ids[-(max_seq_len - 16):]
+
     curr_ids = list(p_ids)
     stop_set = set(stop_tokens or [0, 3])  # EOS / PAD
     stop_words = ["\ndef ", "\nclass ", "\nif __name__"]
 
-    for _ in range(max_new_tokens):
+    # Bound max generation so sequence length never exceeds max_seq_len
+    actual_max_new = min(max_new_tokens, max_seq_len - len(curr_ids))
+
+    for _ in range(actual_max_new):
         if backend == "mlx":
             import mlx.core as mx
             x = mx.array([curr_ids], dtype=mx.int32)
@@ -441,7 +451,8 @@ def _generate_greedy_completion(
             next_tok = int(np.argmax(np.array(logits[0, -1].astype(mx.float32))))
         else:
             import torch
-            x = torch.tensor([curr_ids], dtype=torch.long)
+            device = next(model.parameters()).device if hasattr(model, "parameters") else torch.device("cpu")
+            x = torch.tensor([curr_ids], dtype=torch.long, device=device)
             with torch.no_grad():
                 logits = model(x)
             next_tok = int(torch.argmax(logits[0, -1]).item())
