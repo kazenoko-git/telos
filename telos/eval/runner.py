@@ -433,7 +433,21 @@ def clean_functional_completion(prompt: str, raw_completion: str) -> str:
     if "```" in comp:
         blocks = re.findall(r"```(?:python)?\s*(.*?)```", comp, re.DOTALL)
         if blocks:
-            comp = blocks[0].strip()
+            candidate = blocks[0].strip()
+            # If candidate is a standalone complete Python function definition
+            try:
+                tree = ast.parse(candidate)
+                if any(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) for n in ast.walk(tree)):
+                    prompt_imports = [
+                        l for l in prompt.splitlines()
+                        if l.strip().startswith("import ") or l.strip().startswith("from ")
+                    ]
+                    if prompt_imports and not any(candidate.startswith(imp.split()[0]) for imp in prompt_imports):
+                        return "\n".join(prompt_imports) + "\n" + candidate
+                    return candidate
+            except SyntaxError:
+                pass
+            comp = candidate
         else:
             lines = comp.splitlines()
             code_lines = [l for l in lines if not l.strip().startswith("```")]
@@ -623,6 +637,8 @@ def evaluate_functional(
             token_budget = max(max_new_tokens, 1024)
         elif (is_arc or is_math or is_gsm8k):
             token_budget = max(max_new_tokens, 384)
+        elif isinstance(model, BaseModelAdapter):
+            token_budget = max(max_new_tokens, 2048)
         else:
             token_budget = max_new_tokens
         if isinstance(model, BaseModelAdapter):
@@ -695,7 +711,15 @@ def evaluate_functional(
         else:
             # Standard Python code execution
             completion = clean_functional_completion(prompt, raw_completion)
-            full_candidate_code = prompt + ("\n" if not prompt.endswith("\n") else "") + completion
+            # Use standalone definition directly if candidate already contains the target function
+            try:
+                tree = ast.parse(completion)
+                if any(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) for n in ast.walk(tree)):
+                    full_candidate_code = completion
+                else:
+                    full_candidate_code = prompt + ("\n" if not prompt.endswith("\n") else "") + completion
+            except SyntaxError:
+                full_candidate_code = prompt + ("\n" if not prompt.endswith("\n") else "") + completion
 
             is_ast_valid, ast_err = check_ast_validity(full_candidate_code)
             outcome, details = execute_code_sandboxed(
