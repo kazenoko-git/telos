@@ -3882,12 +3882,12 @@
   {
     "id": "task_0388",
     "category": "Exception Handling & Context Managers",
-    "name": "BankAccount",
-    "entry_point": "BankAccount",
-    "prompt": "class InsufficientFundsError(Exception):\n    def __init__(self, balance: float, amount: float):\n        super().__init__(f'Cannot withdraw {amount} with balance {balance}')\n        self.balance = balance\n        self.amount = amount\n\nclass BankAccount:\n    \"\"\"\n    Bank account tracking float balance. withdraw(amount) raises InsufficientFundsError if amount > balance, ValueError if amount <= 0.\n\n    >>> acc = BankAccount(100.0)\n    >>> acc.deposit(50.0)\n    150.0\n    \"\"\"\n",
+    "name": "GuardedBankAccount",
+    "entry_point": "GuardedBankAccount",
+    "prompt": "class InsufficientFundsError(Exception):\n    def __init__(self, balance: float, amount: float):\n        super().__init__(f'Cannot withdraw {amount} with balance {balance}')\n        self.balance = balance\n        self.amount = amount\n\nclass GuardedBankAccount:\n    \"\"\"\n    Bank account tracking float balance. withdraw(amount) raises InsufficientFundsError if amount > balance, ValueError if amount <= 0.\n\n    >>> acc = GuardedBankAccount(100.0)\n    >>> acc.deposit(50.0)\n    150.0\n    \"\"\"\n",
     "ground_truth_solution": "    def __init__(self, initial_balance: float = 0.0):\n        self.balance = float(initial_balance)\n    def deposit(self, amount: float) -> float:\n        if amount <= 0:\n            raise ValueError('Deposit amount must be positive')\n        self.balance += amount\n        return self.balance\n    def withdraw(self, amount: float) -> float:\n        if amount <= 0:\n            raise ValueError('Withdrawal amount must be positive')\n        if amount > self.balance:\n            raise InsufficientFundsError(self.balance, amount)\n        self.balance -= amount\n        return self.balance",
-    "test_harness": "acc = BankAccount(100.0)\nassert acc.deposit(50.0) == 150.0\nassert acc.withdraw(70.0) == 80.0\ntry:\n    acc.withdraw(100.0)\n    assert False\nexcept InsufficientFundsError as e:\n    assert e.balance == 80.0 and e.amount == 100.0\ntry:\n    acc.withdraw(-10.0)\n    assert False\nexcept ValueError:\n    pass\n",
-    "sha256": "af48deafab0af23951e5a93ba7e20e9df2ab728960c3995b0228228a2897d3b9"
+    "test_harness": "acc = GuardedBankAccount(100.0)\nassert acc.deposit(50.0) == 150.0\nassert acc.withdraw(70.0) == 80.0\ntry:\n    acc.withdraw(100.0)\n    assert False\nexcept InsufficientFundsError as e:\n    assert e.balance == 80.0 and e.amount == 100.0\ntry:\n    acc.withdraw(-10.0)\n    assert False\nexcept ValueError:\n    pass\n",
+    "sha256": "e43425cdcd951259e15fe043e390fc6551c6dd72c1ad3014cc0bac7ea30becc1"
   },
   {
     "id": "task_0389",

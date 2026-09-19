@@ -1,0 +1,1407 @@
+[
+  {
+    "id": "cyber/sqli_login_bypass",
+    "domain": "cybersecurity",
+    "category": "SQL Injection",
+    "cwe": "CWE-89",
+    "description": "Authentication Login Bypass via Raw String Concatenation",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\ndef authenticate_user(db_cursor, username, password):\n    query = f\"SELECT user_id, role FROM users WHERE username = '{username}' AND password_hash = '{password}'\"\n    db_cursor.execute(query)\n    return db_cursor.fetchone()\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "def authenticate_user(db_cursor, username, password):\n    query = f\"SELECT user_id, role FROM users WHERE username = '{username}' AND password_hash = '{password}'\"\n    db_cursor.execute(query)\n    return db_cursor.fetchone()",
+    "remediation_sample": "cursor.execute('SELECT user_id, role FROM users WHERE username = %s AND password_hash = %s', (username, password))",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-89",
+      "required_audit_keywords": [
+        "CWE-89",
+        "SQL injection",
+        "parameterized",
+        "placeholder"
+      ],
+      "required_remediation_patterns": [
+        "SELECT",
+        "WHERE",
+        "username",
+        "execute"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "%s",
+        "?",
+        ":username",
+        "params"
+      ]
+    }
+  },
+  {
+    "id": "cyber/sqli_search_filter",
+    "domain": "cybersecurity",
+    "category": "SQL Injection",
+    "cwe": "CWE-89",
+    "description": "Unsanitized Search Filter in Order-By Clause",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\ndef get_products(db_conn, category, sort_by):\n    query = f\"SELECT id, name, price FROM products WHERE category = %s ORDER BY {sort_by} ASC\"\n    cursor = db_conn.cursor()\n    cursor.execute(query, (category,))\n    return cursor.fetchall()\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "def get_products(db_conn, category, sort_by):\n    query = f\"SELECT id, name, price FROM products WHERE category = %s ORDER BY {sort_by} ASC\"\n    cursor = db_conn.cursor()\n    cursor.execute(query, (category,))\n    return cursor.fetchall()",
+    "remediation_sample": "allowed = {'name', 'price', 'id'}\ncol = sort_by if sort_by in allowed else 'id'\ncursor.execute(f'SELECT id, name, price FROM products WHERE category = %s ORDER BY {col} ASC', (category,))",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-89",
+      "required_audit_keywords": [
+        "CWE-89",
+        "SQL injection",
+        "ORDER BY",
+        "allowlist",
+        "whitelist"
+      ],
+      "required_remediation_patterns": [
+        "ALLOWED_SORT_COLUMNS",
+        "sort_by in",
+        "whitelist"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "f\"SELECT",
+        "ORDER BY {"
+      ]
+    }
+  },
+  {
+    "id": "cyber/sqli_raw_orm_query",
+    "domain": "cybersecurity",
+    "category": "SQL Injection",
+    "cwe": "CWE-89",
+    "description": "Django Raw SQL Query Vulnerability",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\ndef find_employees_by_department(dept_name):\n    from django.db import connection\n    with connection.cursor() as cursor:\n        cursor.execute(\"SELECT * FROM hr_employee WHERE department = '\" + dept_name + \"'\")\n        return cursor.fetchall()\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "def find_employees_by_department(dept_name):\n    from django.db import connection\n    with connection.cursor() as cursor:\n        cursor.execute(\"SELECT * FROM hr_employee WHERE department = '\" + dept_name + \"'\")\n        return cursor.fetchall()",
+    "remediation_sample": "cursor.execute('SELECT * FROM hr_employee WHERE department = %s', [dept_name])",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-89",
+      "required_audit_keywords": [
+        "CWE-89",
+        "SQL injection",
+        "parameterized",
+        "params"
+      ],
+      "required_remediation_patterns": [
+        "cursor.execute",
+        "%s"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "+ dept_name +"
+      ]
+    }
+  },
+  {
+    "id": "cyber/sqli_node_knex_raw",
+    "domain": "cybersecurity",
+    "category": "SQL Injection",
+    "cwe": "CWE-89",
+    "description": "Node.js Raw SQL String Interpolation",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nasync function getUserByEmail(db, email) {\n    const rawSql = `SELECT id, name FROM users WHERE email = '${email}'`;\n    return await db.raw(rawSql);\n}\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "async function getUserByEmail(db, email) {\n    const rawSql = `SELECT id, name FROM users WHERE email = '${email}'`;\n    return await db.raw(rawSql);\n}",
+    "remediation_sample": "return await db.raw('SELECT id, name FROM users WHERE email = ?', [email]);",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-89",
+      "required_audit_keywords": [
+        "CWE-89",
+        "SQL injection",
+        "prepared statement",
+        "parameterized"
+      ],
+      "required_remediation_patterns": [
+        "db.raw",
+        "?",
+        "email"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "${email}"
+      ]
+    }
+  },
+  {
+    "id": "cyber/sqli_second_order",
+    "domain": "cybersecurity",
+    "category": "SQL Injection",
+    "cwe": "CWE-89",
+    "description": "Second-Order SQL Injection in Profile Update",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\ndef update_profile_status(cursor, user_id, bio):\n    cursor.execute(\"UPDATE profiles SET bio = %s WHERE user_id = %s\", (bio, user_id))\n    cursor.execute(f\"INSERT INTO audit_log (action) VALUES ('User {user_id} updated bio to {bio}')\")\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "def update_profile_status(cursor, user_id, bio):\n    cursor.execute(\"UPDATE profiles SET bio = %s WHERE user_id = %s\", (bio, user_id))\n    cursor.execute(f\"INSERT INTO audit_log (action) VALUES ('User {user_id} updated bio to {bio}')\")",
+    "remediation_sample": "cursor.execute('INSERT INTO audit_log (action, user_id) VALUES (%s, %s)', (f'Bio updated', user_id))",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-89",
+      "required_audit_keywords": [
+        "CWE-89",
+        "second-order",
+        "SQL injection",
+        "parameterized"
+      ],
+      "required_remediation_patterns": [
+        "audit_log",
+        "%s",
+        "execute"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "f\"INSERT INTO audit_log"
+      ]
+    }
+  },
+  {
+    "id": "cyber/cmd_ping_utility",
+    "domain": "cybersecurity",
+    "category": "Command Injection",
+    "cwe": "CWE-78",
+    "description": "Unsanitized Host Argument in System Ping Execution",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport os\n\ndef ping_host(host_address):\n    cmd = \"ping -c 4 \" + host_address\n    return os.system(cmd)\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import os\n\ndef ping_host(host_address):\n    cmd = \"ping -c 4 \" + host_address\n    return os.system(cmd)",
+    "remediation_sample": "import subprocess\nreturn subprocess.run(['ping', '-c', '4', host_address], check=True, capture_output=True)",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-78",
+      "required_audit_keywords": [
+        "CWE-78",
+        "command injection",
+        "subprocess.run",
+        "shell=False"
+      ],
+      "required_remediation_patterns": [
+        "subprocess.run",
+        "ping",
+        "-c",
+        "4",
+        "shell=False"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "os.system",
+        "shell=True"
+      ]
+    }
+  },
+  {
+    "id": "cyber/cmd_pdf_converter",
+    "domain": "cybersecurity",
+    "category": "Command Injection",
+    "cwe": "CWE-78",
+    "description": "Subprocess Call with Shell=True and Untrusted Filename",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport subprocess\n\ndef convert_document(input_filename, output_format):\n    command = f\"soffice --headless --convert-to {output_format} {input_filename}\"\n    subprocess.call(command, shell=True)\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import subprocess\n\ndef convert_document(input_filename, output_format):\n    command = f\"soffice --headless --convert-to {output_format} {input_filename}\"\n    subprocess.call(command, shell=True)",
+    "remediation_sample": "subprocess.run(['soffice', '--headless', '--convert-to', output_format, input_filename], check=True)",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-78",
+      "required_audit_keywords": [
+        "CWE-78",
+        "command injection",
+        "shell=False",
+        "argument list"
+      ],
+      "required_remediation_patterns": [
+        "subprocess.run",
+        "shell=False",
+        "allowlist"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "shell=True"
+      ]
+    }
+  },
+  {
+    "id": "cyber/cmd_git_checkout",
+    "domain": "cybersecurity",
+    "category": "Command Injection",
+    "cwe": "CWE-78",
+    "description": "Git Subprocess Execution with Format String",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport os\n\ndef checkout_branch(repo_path, branch_name):\n    os.system(f\"git -C {repo_path} checkout {branch_name}\")\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import os\n\ndef checkout_branch(repo_path, branch_name):\n    os.system(f\"git -C {repo_path} checkout {branch_name}\")",
+    "remediation_sample": "import subprocess\nsubprocess.run(['git', '-C', repo_path, 'checkout', branch_name], check=True)",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-78",
+      "required_audit_keywords": [
+        "CWE-78",
+        "command injection",
+        "subprocess.run",
+        "shlex.quote"
+      ],
+      "required_remediation_patterns": [
+        "subprocess",
+        "['git', '-C', repo_path, 'checkout', branch_name]"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "os.system"
+      ]
+    }
+  },
+  {
+    "id": "cyber/cmd_nslookup_tool",
+    "domain": "cybersecurity",
+    "category": "Command Injection",
+    "cwe": "CWE-78",
+    "description": "Popen Command Execution with Pipe",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport subprocess\n\ndef query_nameserver(domain, server):\n    proc = subprocess.Popen(f\"nslookup {domain} {server}\", shell=True, stdout=subprocess.PIPE)\n    return proc.communicate()[0]\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import subprocess\n\ndef query_nameserver(domain, server):\n    proc = subprocess.Popen(f\"nslookup {domain} {server}\", shell=True, stdout=subprocess.PIPE)\n    return proc.communicate()[0]",
+    "remediation_sample": "proc = subprocess.Popen(['nslookup', domain, server], stdout=subprocess.PIPE)",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-78",
+      "required_audit_keywords": [
+        "CWE-78",
+        "command injection",
+        "shell=False"
+      ],
+      "required_remediation_patterns": [
+        "subprocess.run",
+        "['nslookup', domain, server]"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "shell=True"
+      ]
+    }
+  },
+  {
+    "id": "cyber/xss_reflected_flask",
+    "domain": "cybersecurity",
+    "category": "Cross-Site Scripting",
+    "cwe": "CWE-79",
+    "description": "Reflected XSS via Flask Raw HTML Response",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nfrom flask import Flask, request\n\napp = Flask(__name__)\n\n@app.route('/welcome')\ndef welcome_user():\n    name = request.args.get('name', 'Guest')\n    html = f\"<html><body><h1>Hello, {name}! Welcome to our site.</h1></body></html>\"\n    return html\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "from flask import Flask, request\n\napp = Flask(__name__)\n\n@app.route('/welcome')\ndef welcome_user():\n    name = request.args.get('name', 'Guest')\n    html = f\"<html><body><h1>Hello, {name}! Welcome to our site.</h1></body></html>\"\n    return html",
+    "remediation_sample": "from markupsafe import escape\nreturn f'<html><body><h1>Hello, {escape(name)}! Welcome to our site.</h1></body></html>'",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-79",
+      "required_audit_keywords": [
+        "CWE-79",
+        "XSS",
+        "cross-site scripting",
+        "render_template",
+        "escape"
+      ],
+      "required_remediation_patterns": [
+        "escape",
+        "render_template",
+        "html.escape",
+        "markupsafe"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "f\"<html><body><h1>Hello, {name}"
+      ]
+    }
+  },
+  {
+    "id": "cyber/xss_stored_react_dangerously",
+    "domain": "cybersecurity",
+    "category": "Cross-Site Scripting",
+    "cwe": "CWE-79",
+    "description": "React dangerouslySetInnerHTML with Untrusted User Comment",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nfunction UserComment({ commentBody }) {\n    return (\n        <div className=\"comment-card\">\n            <h3>User Review</h3>\n            <div dangerouslySetInnerHTML={{ __html: commentBody }} />\n        </div>\n    );\n}\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "function UserComment({ commentBody }) {\n    return (\n        <div className=\"comment-card\">\n            <h3>User Review</h3>\n            <div dangerouslySetInnerHTML={{ __html: commentBody }} />\n        </div>\n    );\n}",
+    "remediation_sample": "import DOMPurify from 'dompurify';\n<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(commentBody) }} />",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-79",
+      "required_audit_keywords": [
+        "CWE-79",
+        "XSS",
+        "dangerouslySetInnerHTML",
+        "DOMPurify",
+        "sanitize"
+      ],
+      "required_remediation_patterns": [
+        "DOMPurify.sanitize",
+        "sanitize",
+        "purify"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "dangerouslySetInnerHTML={{ __html: commentBody }}"
+      ]
+    }
+  },
+  {
+    "id": "cyber/xss_dom_innerhtml",
+    "domain": "cybersecurity",
+    "category": "Cross-Site Scripting",
+    "cwe": "CWE-79",
+    "description": "DOM XSS via document.location and element.innerHTML",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nfunction displaySearchQuery() {\n    const params = new URLSearchParams(window.location.search);\n    const query = params.get('q');\n    document.getElementById('search-result').innerHTML = \"Results for: \" + query;\n}\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "function displaySearchQuery() {\n    const params = new URLSearchParams(window.location.search);\n    const query = params.get('q');\n    document.getElementById('search-result').innerHTML = \"Results for: \" + query;\n}",
+    "remediation_sample": "document.getElementById('search-result').textContent = 'Results for: ' + query;",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-79",
+      "required_audit_keywords": [
+        "CWE-79",
+        "DOM XSS",
+        "textContent",
+        "innerText"
+      ],
+      "required_remediation_patterns": [
+        "textContent",
+        "innerText"
+      ],
+      "forbidden_vulnerable_patterns": [
+        ".innerHTML = \"Results for: \" + query"
+      ]
+    }
+  },
+  {
+    "id": "cyber/path_traversal_file_reader",
+    "domain": "cybersecurity",
+    "category": "Path Traversal",
+    "cwe": "CWE-22",
+    "description": "Arbitrary File Read via Unvalidated Filename Parameter",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport os\n\nUPLOAD_DIR = \"/var/www/uploads\"\n\ndef read_user_file(filename):\n    file_path = os.path.join(UPLOAD_DIR, filename)\n    with open(file_path, \"r\") as f:\n        return f.read()\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import os\n\nUPLOAD_DIR = \"/var/www/uploads\"\n\ndef read_user_file(filename):\n    file_path = os.path.join(UPLOAD_DIR, filename)\n    with open(file_path, \"r\") as f:\n        return f.read()",
+    "remediation_sample": "safe_path = os.path.realpath(os.path.join(UPLOAD_DIR, filename))\nif not safe_path.startswith(os.path.realpath(UPLOAD_DIR)):\n    raise PermissionError('Access denied')\nwith open(safe_path, 'r') as f:\n    return f.read()",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-22",
+      "required_audit_keywords": [
+        "CWE-22",
+        "path traversal",
+        "directory traversal",
+        "os.path.realpath",
+        "resolve"
+      ],
+      "required_remediation_patterns": [
+        "os.path.abspath",
+        "os.path.realpath",
+        "resolve()",
+        "startswith",
+        "Path"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "return f.read()"
+      ]
+    }
+  },
+  {
+    "id": "cyber/path_traversal_archive_extract",
+    "domain": "cybersecurity",
+    "category": "Path Traversal",
+    "cwe": "CWE-22",
+    "description": "Zip Slip Vulnerability in ZipFile Extraction",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport zipfile\n\ndef extract_archive(zip_path, target_folder):\n    with zipfile.ZipFile(zip_path, 'r') as zip_ref:\n        zip_ref.extractall(target_folder)\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import zipfile\n\ndef extract_archive(zip_path, target_folder):\n    with zipfile.ZipFile(zip_path, 'r') as zip_ref:\n        zip_ref.extractall(target_folder)",
+    "remediation_sample": "for member in zip_ref.namelist():\n    dest = os.path.realpath(os.path.join(target_folder, member))\n    if not dest.startswith(os.path.realpath(target_folder)):\n        raise SecurityError('Zip slip attempted')\n    zip_ref.extract(member, target_folder)",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-22",
+      "required_audit_keywords": [
+        "CWE-22",
+        "zip slip",
+        "path traversal",
+        "extractall"
+      ],
+      "required_remediation_patterns": [
+        "resolve",
+        "startswith",
+        "commonpath",
+        "abspath"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "zip_ref.extractall(target_folder)"
+      ]
+    }
+  },
+  {
+    "id": "cyber/path_traversal_send_from_directory",
+    "domain": "cybersecurity",
+    "category": "Path Traversal",
+    "cwe": "CWE-22",
+    "description": "Flask Arbitrary Static Asset Download",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nfrom flask import Flask, send_file\nimport os\n\napp = Flask(__name__)\nBASE_DIR = \"/data/documents\"\n\n@app.route('/download/<path:doc_name>')\ndef download_document(doc_name):\n    full_path = os.path.join(BASE_DIR, doc_name)\n    return send_file(full_path)\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "from flask import Flask, send_file\nimport os\n\napp = Flask(__name__)\nBASE_DIR = \"/data/documents\"\n\n@app.route('/download/<path:doc_name>')\ndef download_document(doc_name):\n    full_path = os.path.join(BASE_DIR, doc_name)\n    return send_file(full_path)",
+    "remediation_sample": "from flask import send_from_directory\nreturn send_from_directory(BASE_DIR, doc_name)",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-22",
+      "required_audit_keywords": [
+        "CWE-22",
+        "path traversal",
+        "send_from_directory",
+        "secure_filename"
+      ],
+      "required_remediation_patterns": [
+        "send_from_directory",
+        "safe_join",
+        "secure_filename"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "return send_file(full_path)"
+      ]
+    }
+  },
+  {
+    "id": "cyber/deserialization_pickle_load",
+    "domain": "cybersecurity",
+    "category": "Insecure Deserialization",
+    "cwe": "CWE-502",
+    "description": "Arbitrary Code Execution via Python pickle.loads on User Input",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport pickle\nimport base64\n\ndef load_user_session(cookie_data):\n    decoded_data = base64.b64decode(cookie_data)\n    session_obj = pickle.loads(decoded_data)\n    return session_obj\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import pickle\nimport base64\n\ndef load_user_session(cookie_data):\n    decoded_data = base64.b64decode(cookie_data)\n    session_obj = pickle.loads(decoded_data)\n    return session_obj",
+    "remediation_sample": "import json, itsdangerous\n# Use cryptographically signed JSON serializer\nsigner = itsdangerous.TimestampSigner(SECRET_KEY)\nraw = signer.unsign(cookie_data)\nreturn json.loads(raw)",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-502",
+      "required_audit_keywords": [
+        "CWE-502",
+        "insecure deserialization",
+        "pickle",
+        "json",
+        "hmac"
+      ],
+      "required_remediation_patterns": [
+        "json.loads",
+        "hmac",
+        "cryptography",
+        "safe_load",
+        "itsdangerous"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "pickle.loads"
+      ]
+    }
+  },
+  {
+    "id": "cyber/deserialization_yaml_unsafe",
+    "domain": "cybersecurity",
+    "category": "Insecure Deserialization",
+    "cwe": "CWE-502",
+    "description": "PyYAML Arbitrary Object Instantiation via yaml.load",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport yaml\n\ndef parse_user_config(yaml_string):\n    config = yaml.load(yaml_string)\n    return config\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import yaml\n\ndef parse_user_config(yaml_string):\n    config = yaml.load(yaml_string)\n    return config",
+    "remediation_sample": "return yaml.safe_load(yaml_string)",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-502",
+      "required_audit_keywords": [
+        "CWE-502",
+        "yaml",
+        "safe_load",
+        "SafeLoader"
+      ],
+      "required_remediation_patterns": [
+        "yaml.safe_load",
+        "SafeLoader"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "yaml.load(yaml_string)"
+      ]
+    }
+  },
+  {
+    "id": "cyber/hardcoded_jwt_secret",
+    "domain": "cybersecurity",
+    "category": "Hardcoded Credentials",
+    "cwe": "CWE-798",
+    "description": "Hardcoded Static JWT Secret Key",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport jwt\n\nJWT_SECRET = \"super-secret-key-12345\"\n\ndef generate_user_token(user_id):\n    payload = {\"sub\": user_id}\n    return jwt.encode(payload, JWT_SECRET, algorithm=\"HS256\")\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import jwt\n\nJWT_SECRET = \"super-secret-key-12345\"\n\ndef generate_user_token(user_id):\n    payload = {\"sub\": user_id}\n    return jwt.encode(payload, JWT_SECRET, algorithm=\"HS256\")",
+    "remediation_sample": "import os\nJWT_SECRET = os.environ['JWT_SECRET_KEY']\nreturn jwt.encode(payload, JWT_SECRET, algorithm='HS256')",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-798",
+      "required_audit_keywords": [
+        "CWE-798",
+        "hardcoded credentials",
+        "environment variable",
+        "os.environ"
+      ],
+      "required_remediation_patterns": [
+        "os.getenv",
+        "os.environ",
+        "SECRET_KEY"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "\"super-secret-key-12345\""
+      ]
+    }
+  },
+  {
+    "id": "cyber/hardcoded_aws_credentials",
+    "domain": "cybersecurity",
+    "category": "Hardcoded Credentials",
+    "cwe": "CWE-798",
+    "description": "Hardcoded AWS Access Key and Secret",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport boto3\n\ndef upload_backup_file(local_path, bucket_name):\n    client = boto3.client(\n        's3',\n        aws_access_key_id='AKIAIOSFODNN7EXAMPLE',\n        aws_secret_access_key='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'\n    )\n    client.upload_file(local_path, bucket_name, 'backup.tar.gz')\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import boto3\n\ndef upload_backup_file(local_path, bucket_name):\n    client = boto3.client(\n        's3',\n        aws_access_key_id='AKIAIOSFODNN7EXAMPLE',\n        aws_secret_access_key='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'\n    )\n    client.upload_file(local_path, bucket_name, 'backup.tar.gz')",
+    "remediation_sample": "client = boto3.client('s3')  # Uses IAM instance roles / environment variables securely",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-798",
+      "required_audit_keywords": [
+        "CWE-798",
+        "hardcoded credentials",
+        "IAM role",
+        "boto3.client('s3')"
+      ],
+      "required_remediation_patterns": [
+        "boto3.client('s3')",
+        "os.environ",
+        "credentials"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "AKIAIOSFODNN7EXAMPLE"
+      ]
+    }
+  },
+  {
+    "id": "cyber/crypto_md5_password_hash",
+    "domain": "cybersecurity",
+    "category": "Weak Hashing",
+    "cwe": "CWE-328",
+    "description": "Password Storage Using Broken MD5 Hash Algorithm",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport hashlib\n\ndef store_password(username, plaintext_password):\n    hashed = hashlib.md5(plaintext_password.encode()).hexdigest()\n    save_to_database(username, hashed)\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import hashlib\n\ndef store_password(username, plaintext_password):\n    hashed = hashlib.md5(plaintext_password.encode()).hexdigest()\n    save_to_database(username, hashed)",
+    "remediation_sample": "import bcrypt\nsalt = bcrypt.gensalt()\nhashed = bcrypt.hashpw(plaintext_password.encode(), salt)\nsave_to_database(username, hashed.decode())",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-328",
+      "required_audit_keywords": [
+        "CWE-328",
+        "MD5",
+        "weak hash",
+        "bcrypt",
+        "argon2",
+        "pbkdf2"
+      ],
+      "required_remediation_patterns": [
+        "bcrypt",
+        "argon2",
+        "hashlib.pbkdf2_hmac",
+        "salt"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "hashlib.md5"
+      ]
+    }
+  },
+  {
+    "id": "cyber/crypto_aes_ecb_mode",
+    "domain": "cybersecurity",
+    "category": "Broken Cryptography",
+    "cwe": "CWE-327",
+    "description": "AES Encryption Using Insecure ECB Cipher Mode",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nfrom Crypto.Cipher import AES\n\ndef encrypt_sensitive_data(key, data):\n    # Padding data to 16 bytes block\n    pad_len = 16 - (len(data) % 16)\n    padded = data + (chr(pad_len) * pad_len).encode()\n    cipher = AES.new(key, AES.MODE_ECB)\n    return cipher.encrypt(padded)\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "from Crypto.Cipher import AES\n\ndef encrypt_sensitive_data(key, data):\n    # Padding data to 16 bytes block\n    pad_len = 16 - (len(data) % 16)\n    padded = data + (chr(pad_len) * pad_len).encode()\n    cipher = AES.new(key, AES.MODE_ECB)\n    return cipher.encrypt(padded)",
+    "remediation_sample": "from Crypto.Cipher import AES\nfrom Crypto.Random import get_random_bytes\nnonce = get_random_bytes(12)\ncipher = AES.new(key, AES.MODE_GCM, nonce=nonce)\nciphertext, tag = cipher.encrypt_and_digest(data)\nreturn nonce + tag + ciphertext",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-327",
+      "required_audit_keywords": [
+        "CWE-327",
+        "AES",
+        "ECB",
+        "GCM",
+        "CBC",
+        "IV",
+        "nonce"
+      ],
+      "required_remediation_patterns": [
+        "AES.MODE_GCM",
+        "MODE_CBC",
+        "nonce",
+        "IV"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "AES.MODE_ECB"
+      ]
+    }
+  },
+  {
+    "id": "cyber/ssrf_webhook_fetch",
+    "domain": "cybersecurity",
+    "category": "Server-Side Request Forgery",
+    "cwe": "CWE-918",
+    "description": "Unrestricted HTTP Fetch Allowing Intranet / Metadata Access",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport requests\n\ndef trigger_user_webhook(callback_url, event_data):\n    response = requests.post(callback_url, json=event_data, timeout=5)\n    return response.status_code\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import requests\n\ndef trigger_user_webhook(callback_url, event_data):\n    response = requests.post(callback_url, json=event_data, timeout=5)\n    return response.status_code",
+    "remediation_sample": "parsed = urllib.parse.urlparse(callback_url)\nip = socket.gethostbyname(parsed.hostname)\nif ipaddress.ip_address(ip).is_private or ipaddress.ip_address(ip).is_loopback:\n    raise ValueError('Private IP access prohibited')",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-918",
+      "required_audit_keywords": [
+        "CWE-918",
+        "SSRF",
+        "server-side request forgery",
+        "private IP",
+        "metadata"
+      ],
+      "required_remediation_patterns": [
+        "ipaddress",
+        "is_private",
+        "is_loopback",
+        "allowlist",
+        "urllib.parse"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "requests.post(callback_url"
+      ]
+    }
+  },
+  {
+    "id": "cyber/ssrf_image_proxy",
+    "domain": "cybersecurity",
+    "category": "Server-Side Request Forgery",
+    "cwe": "CWE-918",
+    "description": "Image Fetcher Allowing Access to Cloud Metadata Service (169.254.169.254)",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport urllib.request\n\ndef fetch_avatar(avatar_url):\n    with urllib.request.urlopen(avatar_url) as resp:\n        return resp.read()\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import urllib.request\n\ndef fetch_avatar(avatar_url):\n    with urllib.request.urlopen(avatar_url) as resp:\n        return resp.read()",
+    "remediation_sample": "validate_public_url(avatar_url)\nwith urllib.request.urlopen(avatar_url) as resp:\n    return resp.read()",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-918",
+      "required_audit_keywords": [
+        "CWE-918",
+        "SSRF",
+        "metadata",
+        "private address",
+        "169.254"
+      ],
+      "required_remediation_patterns": [
+        "ipaddress",
+        "is_private",
+        "allowlist",
+        "scheme in ('http', 'https')"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "urllib.request.urlopen(avatar_url)"
+      ]
+    }
+  },
+  {
+    "id": "cyber/xxe_xml_parser",
+    "domain": "cybersecurity",
+    "category": "XML External Entity Injection",
+    "cwe": "CWE-611",
+    "description": "Unsafe XML Parsing with External Entity Resolution Enabled",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nfrom lxml import etree\n\ndef parse_xml_invoice(xml_content):\n    parser = etree.XMLParser(resolve_entities=True, load_dtd=True)\n    tree = etree.fromstring(xml_content, parser=parser)\n    return tree.findtext('total_amount')\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "from lxml import etree\n\ndef parse_xml_invoice(xml_content):\n    parser = etree.XMLParser(resolve_entities=True, load_dtd=True)\n    tree = etree.fromstring(xml_content, parser=parser)\n    return tree.findtext('total_amount')",
+    "remediation_sample": "import defusedxml.ElementTree as ET\nroot = ET.fromstring(xml_content)\nreturn root.findtext('total_amount')",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-611",
+      "required_audit_keywords": [
+        "CWE-611",
+        "XXE",
+        "xml external entity",
+        "resolve_entities=False",
+        "defusedxml"
+      ],
+      "required_remediation_patterns": [
+        "resolve_entities=False",
+        "load_dtd=False",
+        "defusedxml"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "resolve_entities=True"
+      ]
+    }
+  },
+  {
+    "id": "cyber/idor_user_invoice",
+    "domain": "cybersecurity",
+    "category": "Insecure Direct Object Reference",
+    "cwe": "CWE-639",
+    "description": "Invoice Retrieval Without Ownership Authorization Check",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\ndef get_invoice(current_user, invoice_id, db):\n    invoice = db.query('SELECT * FROM invoices WHERE id = %s', (invoice_id,)).first()\n    return invoice\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "def get_invoice(current_user, invoice_id, db):\n    invoice = db.query('SELECT * FROM invoices WHERE id = %s', (invoice_id,)).first()\n    return invoice",
+    "remediation_sample": "invoice = db.query('SELECT * FROM invoices WHERE id = %s AND user_id = %s', (invoice_id, current_user.id)).first()\nif not invoice: raise Forbidden('Unauthorized')",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-639",
+      "required_audit_keywords": [
+        "CWE-639",
+        "IDOR",
+        "authorization",
+        "ownership",
+        "access control"
+      ],
+      "required_remediation_patterns": [
+        "current_user.id",
+        "user_id = %s",
+        "tenant_id",
+        "403"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "WHERE id = %s', (invoice_id,)"
+      ]
+    }
+  },
+  {
+    "id": "cyber/redos_email_regex",
+    "domain": "cybersecurity",
+    "category": "Resource Exhaustion",
+    "cwe": "CWE-400",
+    "description": "Catastrophic Backtracking in Nested Quantifier Regex",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport re\n\nEMAIL_PATTERN = re.compile(r\"^([a-zA-Z0-9]+)+@([a-zA-Z0-9]+)+(\\.[a-zA-Z0-9]+)+$\")\n\ndef validate_email(email_str):\n    return bool(EMAIL_PATTERN.match(email_str))\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import re\n\nEMAIL_PATTERN = re.compile(r\"^([a-zA-Z0-9]+)+@([a-zA-Z0-9]+)+(\\.[a-zA-Z0-9]+)+$\")\n\ndef validate_email(email_str):\n    return bool(EMAIL_PATTERN.match(email_str))",
+    "remediation_sample": "EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+$')",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-400",
+      "required_audit_keywords": [
+        "CWE-400",
+        "ReDoS",
+        "backtracking",
+        "regex denial of service",
+        "catastrophic"
+      ],
+      "required_remediation_patterns": [
+        "linear",
+        "nested quantifier",
+        "^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+$"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "([a-zA-Z0-9]+)+"
+      ]
+    }
+  },
+  {
+    "id": "cyber/sqli_login_bypass_2",
+    "domain": "cybersecurity",
+    "category": "SQL Injection",
+    "cwe": "CWE-89",
+    "description": "Authentication Login Bypass via Raw String Concatenation",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\ndef authenticate_user(db_cursor, username, password):\n    query = f\"SELECT user_id, role FROM users WHERE username = '{username}' AND password_hash = '{password}'\"\n    db_cursor.execute(query)\n    return db_cursor.fetchone()\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "def authenticate_user(db_cursor, username, password):\n    query = f\"SELECT user_id, role FROM users WHERE username = '{username}' AND password_hash = '{password}'\"\n    db_cursor.execute(query)\n    return db_cursor.fetchone()",
+    "remediation_sample": "cursor.execute('SELECT user_id, role FROM users WHERE username = %s AND password_hash = %s', (username, password))",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-89",
+      "required_audit_keywords": [
+        "CWE-89",
+        "SQL injection",
+        "parameterized",
+        "placeholder"
+      ],
+      "required_remediation_patterns": [
+        "SELECT",
+        "WHERE",
+        "username",
+        "execute"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "%s",
+        "?",
+        ":username",
+        "params"
+      ]
+    }
+  },
+  {
+    "id": "cyber/sqli_search_filter_2",
+    "domain": "cybersecurity",
+    "category": "SQL Injection",
+    "cwe": "CWE-89",
+    "description": "Unsanitized Search Filter in Order-By Clause",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\ndef get_products(db_conn, category, sort_by):\n    query = f\"SELECT id, name, price FROM products WHERE category = %s ORDER BY {sort_by} ASC\"\n    cursor = db_conn.cursor()\n    cursor.execute(query, (category,))\n    return cursor.fetchall()\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "def get_products(db_conn, category, sort_by):\n    query = f\"SELECT id, name, price FROM products WHERE category = %s ORDER BY {sort_by} ASC\"\n    cursor = db_conn.cursor()\n    cursor.execute(query, (category,))\n    return cursor.fetchall()",
+    "remediation_sample": "allowed = {'name', 'price', 'id'}\ncol = sort_by if sort_by in allowed else 'id'\ncursor.execute(f'SELECT id, name, price FROM products WHERE category = %s ORDER BY {col} ASC', (category,))",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-89",
+      "required_audit_keywords": [
+        "CWE-89",
+        "SQL injection",
+        "ORDER BY",
+        "allowlist",
+        "whitelist"
+      ],
+      "required_remediation_patterns": [
+        "ALLOWED_SORT_COLUMNS",
+        "sort_by in",
+        "whitelist"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "f\"SELECT",
+        "ORDER BY {"
+      ]
+    }
+  },
+  {
+    "id": "cyber/sqli_raw_orm_query_2",
+    "domain": "cybersecurity",
+    "category": "SQL Injection",
+    "cwe": "CWE-89",
+    "description": "Django Raw SQL Query Vulnerability",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\ndef find_employees_by_department(dept_name):\n    from django.db import connection\n    with connection.cursor() as cursor:\n        cursor.execute(\"SELECT * FROM hr_employee WHERE department = '\" + dept_name + \"'\")\n        return cursor.fetchall()\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "def find_employees_by_department(dept_name):\n    from django.db import connection\n    with connection.cursor() as cursor:\n        cursor.execute(\"SELECT * FROM hr_employee WHERE department = '\" + dept_name + \"'\")\n        return cursor.fetchall()",
+    "remediation_sample": "cursor.execute('SELECT * FROM hr_employee WHERE department = %s', [dept_name])",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-89",
+      "required_audit_keywords": [
+        "CWE-89",
+        "SQL injection",
+        "parameterized",
+        "params"
+      ],
+      "required_remediation_patterns": [
+        "cursor.execute",
+        "%s"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "+ dept_name +"
+      ]
+    }
+  },
+  {
+    "id": "cyber/sqli_node_knex_raw_2",
+    "domain": "cybersecurity",
+    "category": "SQL Injection",
+    "cwe": "CWE-89",
+    "description": "Node.js Raw SQL String Interpolation",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nasync function getUserByEmail(db, email) {\n    const rawSql = `SELECT id, name FROM users WHERE email = '${email}'`;\n    return await db.raw(rawSql);\n}\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "async function getUserByEmail(db, email) {\n    const rawSql = `SELECT id, name FROM users WHERE email = '${email}'`;\n    return await db.raw(rawSql);\n}",
+    "remediation_sample": "return await db.raw('SELECT id, name FROM users WHERE email = ?', [email]);",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-89",
+      "required_audit_keywords": [
+        "CWE-89",
+        "SQL injection",
+        "prepared statement",
+        "parameterized"
+      ],
+      "required_remediation_patterns": [
+        "db.raw",
+        "?",
+        "email"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "${email}"
+      ]
+    }
+  },
+  {
+    "id": "cyber/sqli_second_order_2",
+    "domain": "cybersecurity",
+    "category": "SQL Injection",
+    "cwe": "CWE-89",
+    "description": "Second-Order SQL Injection in Profile Update",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\ndef update_profile_status(cursor, user_id, bio):\n    cursor.execute(\"UPDATE profiles SET bio = %s WHERE user_id = %s\", (bio, user_id))\n    cursor.execute(f\"INSERT INTO audit_log (action) VALUES ('User {user_id} updated bio to {bio}')\")\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "def update_profile_status(cursor, user_id, bio):\n    cursor.execute(\"UPDATE profiles SET bio = %s WHERE user_id = %s\", (bio, user_id))\n    cursor.execute(f\"INSERT INTO audit_log (action) VALUES ('User {user_id} updated bio to {bio}')\")",
+    "remediation_sample": "cursor.execute('INSERT INTO audit_log (action, user_id) VALUES (%s, %s)', (f'Bio updated', user_id))",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-89",
+      "required_audit_keywords": [
+        "CWE-89",
+        "second-order",
+        "SQL injection",
+        "parameterized"
+      ],
+      "required_remediation_patterns": [
+        "audit_log",
+        "%s",
+        "execute"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "f\"INSERT INTO audit_log"
+      ]
+    }
+  },
+  {
+    "id": "cyber/cmd_ping_utility_2",
+    "domain": "cybersecurity",
+    "category": "Command Injection",
+    "cwe": "CWE-78",
+    "description": "Unsanitized Host Argument in System Ping Execution",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport os\n\ndef ping_host(host_address):\n    cmd = \"ping -c 4 \" + host_address\n    return os.system(cmd)\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import os\n\ndef ping_host(host_address):\n    cmd = \"ping -c 4 \" + host_address\n    return os.system(cmd)",
+    "remediation_sample": "import subprocess\nreturn subprocess.run(['ping', '-c', '4', host_address], check=True, capture_output=True)",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-78",
+      "required_audit_keywords": [
+        "CWE-78",
+        "command injection",
+        "subprocess.run",
+        "shell=False"
+      ],
+      "required_remediation_patterns": [
+        "subprocess.run",
+        "ping",
+        "-c",
+        "4",
+        "shell=False"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "os.system",
+        "shell=True"
+      ]
+    }
+  },
+  {
+    "id": "cyber/cmd_pdf_converter_2",
+    "domain": "cybersecurity",
+    "category": "Command Injection",
+    "cwe": "CWE-78",
+    "description": "Subprocess Call with Shell=True and Untrusted Filename",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport subprocess\n\ndef convert_document(input_filename, output_format):\n    command = f\"soffice --headless --convert-to {output_format} {input_filename}\"\n    subprocess.call(command, shell=True)\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import subprocess\n\ndef convert_document(input_filename, output_format):\n    command = f\"soffice --headless --convert-to {output_format} {input_filename}\"\n    subprocess.call(command, shell=True)",
+    "remediation_sample": "subprocess.run(['soffice', '--headless', '--convert-to', output_format, input_filename], check=True)",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-78",
+      "required_audit_keywords": [
+        "CWE-78",
+        "command injection",
+        "shell=False",
+        "argument list"
+      ],
+      "required_remediation_patterns": [
+        "subprocess.run",
+        "shell=False",
+        "allowlist"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "shell=True"
+      ]
+    }
+  },
+  {
+    "id": "cyber/cmd_git_checkout_2",
+    "domain": "cybersecurity",
+    "category": "Command Injection",
+    "cwe": "CWE-78",
+    "description": "Git Subprocess Execution with Format String",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport os\n\ndef checkout_branch(repo_path, branch_name):\n    os.system(f\"git -C {repo_path} checkout {branch_name}\")\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import os\n\ndef checkout_branch(repo_path, branch_name):\n    os.system(f\"git -C {repo_path} checkout {branch_name}\")",
+    "remediation_sample": "import subprocess\nsubprocess.run(['git', '-C', repo_path, 'checkout', branch_name], check=True)",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-78",
+      "required_audit_keywords": [
+        "CWE-78",
+        "command injection",
+        "subprocess.run",
+        "shlex.quote"
+      ],
+      "required_remediation_patterns": [
+        "subprocess",
+        "['git', '-C', repo_path, 'checkout', branch_name]"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "os.system"
+      ]
+    }
+  },
+  {
+    "id": "cyber/cmd_nslookup_tool_2",
+    "domain": "cybersecurity",
+    "category": "Command Injection",
+    "cwe": "CWE-78",
+    "description": "Popen Command Execution with Pipe",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport subprocess\n\ndef query_nameserver(domain, server):\n    proc = subprocess.Popen(f\"nslookup {domain} {server}\", shell=True, stdout=subprocess.PIPE)\n    return proc.communicate()[0]\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import subprocess\n\ndef query_nameserver(domain, server):\n    proc = subprocess.Popen(f\"nslookup {domain} {server}\", shell=True, stdout=subprocess.PIPE)\n    return proc.communicate()[0]",
+    "remediation_sample": "proc = subprocess.Popen(['nslookup', domain, server], stdout=subprocess.PIPE)",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-78",
+      "required_audit_keywords": [
+        "CWE-78",
+        "command injection",
+        "shell=False"
+      ],
+      "required_remediation_patterns": [
+        "subprocess.run",
+        "['nslookup', domain, server]"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "shell=True"
+      ]
+    }
+  },
+  {
+    "id": "cyber/xss_reflected_flask_2",
+    "domain": "cybersecurity",
+    "category": "Cross-Site Scripting",
+    "cwe": "CWE-79",
+    "description": "Reflected XSS via Flask Raw HTML Response",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nfrom flask import Flask, request\n\napp = Flask(__name__)\n\n@app.route('/welcome')\ndef welcome_user():\n    name = request.args.get('name', 'Guest')\n    html = f\"<html><body><h1>Hello, {name}! Welcome to our site.</h1></body></html>\"\n    return html\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "from flask import Flask, request\n\napp = Flask(__name__)\n\n@app.route('/welcome')\ndef welcome_user():\n    name = request.args.get('name', 'Guest')\n    html = f\"<html><body><h1>Hello, {name}! Welcome to our site.</h1></body></html>\"\n    return html",
+    "remediation_sample": "from markupsafe import escape\nreturn f'<html><body><h1>Hello, {escape(name)}! Welcome to our site.</h1></body></html>'",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-79",
+      "required_audit_keywords": [
+        "CWE-79",
+        "XSS",
+        "cross-site scripting",
+        "render_template",
+        "escape"
+      ],
+      "required_remediation_patterns": [
+        "escape",
+        "render_template",
+        "html.escape",
+        "markupsafe"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "f\"<html><body><h1>Hello, {name}"
+      ]
+    }
+  },
+  {
+    "id": "cyber/xss_stored_react_dangerously_2",
+    "domain": "cybersecurity",
+    "category": "Cross-Site Scripting",
+    "cwe": "CWE-79",
+    "description": "React dangerouslySetInnerHTML with Untrusted User Comment",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nfunction UserComment({ commentBody }) {\n    return (\n        <div className=\"comment-card\">\n            <h3>User Review</h3>\n            <div dangerouslySetInnerHTML={{ __html: commentBody }} />\n        </div>\n    );\n}\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "function UserComment({ commentBody }) {\n    return (\n        <div className=\"comment-card\">\n            <h3>User Review</h3>\n            <div dangerouslySetInnerHTML={{ __html: commentBody }} />\n        </div>\n    );\n}",
+    "remediation_sample": "import DOMPurify from 'dompurify';\n<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(commentBody) }} />",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-79",
+      "required_audit_keywords": [
+        "CWE-79",
+        "XSS",
+        "dangerouslySetInnerHTML",
+        "DOMPurify",
+        "sanitize"
+      ],
+      "required_remediation_patterns": [
+        "DOMPurify.sanitize",
+        "sanitize",
+        "purify"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "dangerouslySetInnerHTML={{ __html: commentBody }}"
+      ]
+    }
+  },
+  {
+    "id": "cyber/xss_dom_innerhtml_2",
+    "domain": "cybersecurity",
+    "category": "Cross-Site Scripting",
+    "cwe": "CWE-79",
+    "description": "DOM XSS via document.location and element.innerHTML",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nfunction displaySearchQuery() {\n    const params = new URLSearchParams(window.location.search);\n    const query = params.get('q');\n    document.getElementById('search-result').innerHTML = \"Results for: \" + query;\n}\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "function displaySearchQuery() {\n    const params = new URLSearchParams(window.location.search);\n    const query = params.get('q');\n    document.getElementById('search-result').innerHTML = \"Results for: \" + query;\n}",
+    "remediation_sample": "document.getElementById('search-result').textContent = 'Results for: ' + query;",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-79",
+      "required_audit_keywords": [
+        "CWE-79",
+        "DOM XSS",
+        "textContent",
+        "innerText"
+      ],
+      "required_remediation_patterns": [
+        "textContent",
+        "innerText"
+      ],
+      "forbidden_vulnerable_patterns": [
+        ".innerHTML = \"Results for: \" + query"
+      ]
+    }
+  },
+  {
+    "id": "cyber/path_traversal_file_reader_2",
+    "domain": "cybersecurity",
+    "category": "Path Traversal",
+    "cwe": "CWE-22",
+    "description": "Arbitrary File Read via Unvalidated Filename Parameter",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport os\n\nUPLOAD_DIR = \"/var/www/uploads\"\n\ndef read_user_file(filename):\n    file_path = os.path.join(UPLOAD_DIR, filename)\n    with open(file_path, \"r\") as f:\n        return f.read()\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import os\n\nUPLOAD_DIR = \"/var/www/uploads\"\n\ndef read_user_file(filename):\n    file_path = os.path.join(UPLOAD_DIR, filename)\n    with open(file_path, \"r\") as f:\n        return f.read()",
+    "remediation_sample": "safe_path = os.path.realpath(os.path.join(UPLOAD_DIR, filename))\nif not safe_path.startswith(os.path.realpath(UPLOAD_DIR)):\n    raise PermissionError('Access denied')\nwith open(safe_path, 'r') as f:\n    return f.read()",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-22",
+      "required_audit_keywords": [
+        "CWE-22",
+        "path traversal",
+        "directory traversal",
+        "os.path.realpath",
+        "resolve"
+      ],
+      "required_remediation_patterns": [
+        "os.path.abspath",
+        "os.path.realpath",
+        "resolve()",
+        "startswith",
+        "Path"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "return f.read()"
+      ]
+    }
+  },
+  {
+    "id": "cyber/path_traversal_archive_extract_2",
+    "domain": "cybersecurity",
+    "category": "Path Traversal",
+    "cwe": "CWE-22",
+    "description": "Zip Slip Vulnerability in ZipFile Extraction",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport zipfile\n\ndef extract_archive(zip_path, target_folder):\n    with zipfile.ZipFile(zip_path, 'r') as zip_ref:\n        zip_ref.extractall(target_folder)\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import zipfile\n\ndef extract_archive(zip_path, target_folder):\n    with zipfile.ZipFile(zip_path, 'r') as zip_ref:\n        zip_ref.extractall(target_folder)",
+    "remediation_sample": "for member in zip_ref.namelist():\n    dest = os.path.realpath(os.path.join(target_folder, member))\n    if not dest.startswith(os.path.realpath(target_folder)):\n        raise SecurityError('Zip slip attempted')\n    zip_ref.extract(member, target_folder)",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-22",
+      "required_audit_keywords": [
+        "CWE-22",
+        "zip slip",
+        "path traversal",
+        "extractall"
+      ],
+      "required_remediation_patterns": [
+        "resolve",
+        "startswith",
+        "commonpath",
+        "abspath"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "zip_ref.extractall(target_folder)"
+      ]
+    }
+  },
+  {
+    "id": "cyber/path_traversal_send_from_directory_2",
+    "domain": "cybersecurity",
+    "category": "Path Traversal",
+    "cwe": "CWE-22",
+    "description": "Flask Arbitrary Static Asset Download",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nfrom flask import Flask, send_file\nimport os\n\napp = Flask(__name__)\nBASE_DIR = \"/data/documents\"\n\n@app.route('/download/<path:doc_name>')\ndef download_document(doc_name):\n    full_path = os.path.join(BASE_DIR, doc_name)\n    return send_file(full_path)\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "from flask import Flask, send_file\nimport os\n\napp = Flask(__name__)\nBASE_DIR = \"/data/documents\"\n\n@app.route('/download/<path:doc_name>')\ndef download_document(doc_name):\n    full_path = os.path.join(BASE_DIR, doc_name)\n    return send_file(full_path)",
+    "remediation_sample": "from flask import send_from_directory\nreturn send_from_directory(BASE_DIR, doc_name)",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-22",
+      "required_audit_keywords": [
+        "CWE-22",
+        "path traversal",
+        "send_from_directory",
+        "secure_filename"
+      ],
+      "required_remediation_patterns": [
+        "send_from_directory",
+        "safe_join",
+        "secure_filename"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "return send_file(full_path)"
+      ]
+    }
+  },
+  {
+    "id": "cyber/deserialization_pickle_load_2",
+    "domain": "cybersecurity",
+    "category": "Insecure Deserialization",
+    "cwe": "CWE-502",
+    "description": "Arbitrary Code Execution via Python pickle.loads on User Input",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport pickle\nimport base64\n\ndef load_user_session(cookie_data):\n    decoded_data = base64.b64decode(cookie_data)\n    session_obj = pickle.loads(decoded_data)\n    return session_obj\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import pickle\nimport base64\n\ndef load_user_session(cookie_data):\n    decoded_data = base64.b64decode(cookie_data)\n    session_obj = pickle.loads(decoded_data)\n    return session_obj",
+    "remediation_sample": "import json, itsdangerous\n# Use cryptographically signed JSON serializer\nsigner = itsdangerous.TimestampSigner(SECRET_KEY)\nraw = signer.unsign(cookie_data)\nreturn json.loads(raw)",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-502",
+      "required_audit_keywords": [
+        "CWE-502",
+        "insecure deserialization",
+        "pickle",
+        "json",
+        "hmac"
+      ],
+      "required_remediation_patterns": [
+        "json.loads",
+        "hmac",
+        "cryptography",
+        "safe_load",
+        "itsdangerous"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "pickle.loads"
+      ]
+    }
+  },
+  {
+    "id": "cyber/deserialization_yaml_unsafe_2",
+    "domain": "cybersecurity",
+    "category": "Insecure Deserialization",
+    "cwe": "CWE-502",
+    "description": "PyYAML Arbitrary Object Instantiation via yaml.load",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport yaml\n\ndef parse_user_config(yaml_string):\n    config = yaml.load(yaml_string)\n    return config\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import yaml\n\ndef parse_user_config(yaml_string):\n    config = yaml.load(yaml_string)\n    return config",
+    "remediation_sample": "return yaml.safe_load(yaml_string)",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-502",
+      "required_audit_keywords": [
+        "CWE-502",
+        "yaml",
+        "safe_load",
+        "SafeLoader"
+      ],
+      "required_remediation_patterns": [
+        "yaml.safe_load",
+        "SafeLoader"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "yaml.load(yaml_string)"
+      ]
+    }
+  },
+  {
+    "id": "cyber/hardcoded_jwt_secret_2",
+    "domain": "cybersecurity",
+    "category": "Hardcoded Credentials",
+    "cwe": "CWE-798",
+    "description": "Hardcoded Static JWT Secret Key",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport jwt\n\nJWT_SECRET = \"super-secret-key-12345\"\n\ndef generate_user_token(user_id):\n    payload = {\"sub\": user_id}\n    return jwt.encode(payload, JWT_SECRET, algorithm=\"HS256\")\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import jwt\n\nJWT_SECRET = \"super-secret-key-12345\"\n\ndef generate_user_token(user_id):\n    payload = {\"sub\": user_id}\n    return jwt.encode(payload, JWT_SECRET, algorithm=\"HS256\")",
+    "remediation_sample": "import os\nJWT_SECRET = os.environ['JWT_SECRET_KEY']\nreturn jwt.encode(payload, JWT_SECRET, algorithm='HS256')",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-798",
+      "required_audit_keywords": [
+        "CWE-798",
+        "hardcoded credentials",
+        "environment variable",
+        "os.environ"
+      ],
+      "required_remediation_patterns": [
+        "os.getenv",
+        "os.environ",
+        "SECRET_KEY"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "\"super-secret-key-12345\""
+      ]
+    }
+  },
+  {
+    "id": "cyber/hardcoded_aws_credentials_2",
+    "domain": "cybersecurity",
+    "category": "Hardcoded Credentials",
+    "cwe": "CWE-798",
+    "description": "Hardcoded AWS Access Key and Secret",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport boto3\n\ndef upload_backup_file(local_path, bucket_name):\n    client = boto3.client(\n        's3',\n        aws_access_key_id='AKIAIOSFODNN7EXAMPLE',\n        aws_secret_access_key='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'\n    )\n    client.upload_file(local_path, bucket_name, 'backup.tar.gz')\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import boto3\n\ndef upload_backup_file(local_path, bucket_name):\n    client = boto3.client(\n        's3',\n        aws_access_key_id='AKIAIOSFODNN7EXAMPLE',\n        aws_secret_access_key='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'\n    )\n    client.upload_file(local_path, bucket_name, 'backup.tar.gz')",
+    "remediation_sample": "client = boto3.client('s3')  # Uses IAM instance roles / environment variables securely",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-798",
+      "required_audit_keywords": [
+        "CWE-798",
+        "hardcoded credentials",
+        "IAM role",
+        "boto3.client('s3')"
+      ],
+      "required_remediation_patterns": [
+        "boto3.client('s3')",
+        "os.environ",
+        "credentials"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "AKIAIOSFODNN7EXAMPLE"
+      ]
+    }
+  },
+  {
+    "id": "cyber/crypto_md5_password_hash_2",
+    "domain": "cybersecurity",
+    "category": "Weak Hashing",
+    "cwe": "CWE-328",
+    "description": "Password Storage Using Broken MD5 Hash Algorithm",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport hashlib\n\ndef store_password(username, plaintext_password):\n    hashed = hashlib.md5(plaintext_password.encode()).hexdigest()\n    save_to_database(username, hashed)\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import hashlib\n\ndef store_password(username, plaintext_password):\n    hashed = hashlib.md5(plaintext_password.encode()).hexdigest()\n    save_to_database(username, hashed)",
+    "remediation_sample": "import bcrypt\nsalt = bcrypt.gensalt()\nhashed = bcrypt.hashpw(plaintext_password.encode(), salt)\nsave_to_database(username, hashed.decode())",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-328",
+      "required_audit_keywords": [
+        "CWE-328",
+        "MD5",
+        "weak hash",
+        "bcrypt",
+        "argon2",
+        "pbkdf2"
+      ],
+      "required_remediation_patterns": [
+        "bcrypt",
+        "argon2",
+        "hashlib.pbkdf2_hmac",
+        "salt"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "hashlib.md5"
+      ]
+    }
+  },
+  {
+    "id": "cyber/crypto_aes_ecb_mode_2",
+    "domain": "cybersecurity",
+    "category": "Broken Cryptography",
+    "cwe": "CWE-327",
+    "description": "AES Encryption Using Insecure ECB Cipher Mode",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nfrom Crypto.Cipher import AES\n\ndef encrypt_sensitive_data(key, data):\n    # Padding data to 16 bytes block\n    pad_len = 16 - (len(data) % 16)\n    padded = data + (chr(pad_len) * pad_len).encode()\n    cipher = AES.new(key, AES.MODE_ECB)\n    return cipher.encrypt(padded)\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "from Crypto.Cipher import AES\n\ndef encrypt_sensitive_data(key, data):\n    # Padding data to 16 bytes block\n    pad_len = 16 - (len(data) % 16)\n    padded = data + (chr(pad_len) * pad_len).encode()\n    cipher = AES.new(key, AES.MODE_ECB)\n    return cipher.encrypt(padded)",
+    "remediation_sample": "from Crypto.Cipher import AES\nfrom Crypto.Random import get_random_bytes\nnonce = get_random_bytes(12)\ncipher = AES.new(key, AES.MODE_GCM, nonce=nonce)\nciphertext, tag = cipher.encrypt_and_digest(data)\nreturn nonce + tag + ciphertext",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-327",
+      "required_audit_keywords": [
+        "CWE-327",
+        "AES",
+        "ECB",
+        "GCM",
+        "CBC",
+        "IV",
+        "nonce"
+      ],
+      "required_remediation_patterns": [
+        "AES.MODE_GCM",
+        "MODE_CBC",
+        "nonce",
+        "IV"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "AES.MODE_ECB"
+      ]
+    }
+  },
+  {
+    "id": "cyber/ssrf_webhook_fetch_2",
+    "domain": "cybersecurity",
+    "category": "Server-Side Request Forgery",
+    "cwe": "CWE-918",
+    "description": "Unrestricted HTTP Fetch Allowing Intranet / Metadata Access",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport requests\n\ndef trigger_user_webhook(callback_url, event_data):\n    response = requests.post(callback_url, json=event_data, timeout=5)\n    return response.status_code\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import requests\n\ndef trigger_user_webhook(callback_url, event_data):\n    response = requests.post(callback_url, json=event_data, timeout=5)\n    return response.status_code",
+    "remediation_sample": "parsed = urllib.parse.urlparse(callback_url)\nip = socket.gethostbyname(parsed.hostname)\nif ipaddress.ip_address(ip).is_private or ipaddress.ip_address(ip).is_loopback:\n    raise ValueError('Private IP access prohibited')",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-918",
+      "required_audit_keywords": [
+        "CWE-918",
+        "SSRF",
+        "server-side request forgery",
+        "private IP",
+        "metadata"
+      ],
+      "required_remediation_patterns": [
+        "ipaddress",
+        "is_private",
+        "is_loopback",
+        "allowlist",
+        "urllib.parse"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "requests.post(callback_url"
+      ]
+    }
+  },
+  {
+    "id": "cyber/ssrf_image_proxy_2",
+    "domain": "cybersecurity",
+    "category": "Server-Side Request Forgery",
+    "cwe": "CWE-918",
+    "description": "Image Fetcher Allowing Access to Cloud Metadata Service (169.254.169.254)",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nimport urllib.request\n\ndef fetch_avatar(avatar_url):\n    with urllib.request.urlopen(avatar_url) as resp:\n        return resp.read()\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "import urllib.request\n\ndef fetch_avatar(avatar_url):\n    with urllib.request.urlopen(avatar_url) as resp:\n        return resp.read()",
+    "remediation_sample": "validate_public_url(avatar_url)\nwith urllib.request.urlopen(avatar_url) as resp:\n    return resp.read()",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-918",
+      "required_audit_keywords": [
+        "CWE-918",
+        "SSRF",
+        "metadata",
+        "private address",
+        "169.254"
+      ],
+      "required_remediation_patterns": [
+        "ipaddress",
+        "is_private",
+        "allowlist",
+        "scheme in ('http', 'https')"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "urllib.request.urlopen(avatar_url)"
+      ]
+    }
+  },
+  {
+    "id": "cyber/xxe_xml_parser_2",
+    "domain": "cybersecurity",
+    "category": "XML External Entity Injection",
+    "cwe": "CWE-611",
+    "description": "Unsafe XML Parsing with External Entity Resolution Enabled",
+    "prompt": "You are an expert Application Security Engineer and code auditor. Review the following code snippet for security vulnerabilities.\n\nTarget Code:\n```python\nfrom lxml import etree\n\ndef parse_xml_invoice(xml_content):\n    parser = etree.XMLParser(resolve_entities=True, load_dtd=True)\n    tree = etree.fromstring(xml_content, parser=parser)\n    return tree.findtext('total_amount')\n```\n\nIn your security report:\n1. Identify the exact vulnerability and state the primary CWE identifier (e.g. CWE-89).\n2. Explain the attack vector and security impact.\n3. Provide the secure, remediated version of the code that completely fixes the flaw.",
+    "vulnerable_code": "from lxml import etree\n\ndef parse_xml_invoice(xml_content):\n    parser = etree.XMLParser(resolve_entities=True, load_dtd=True)\n    tree = etree.fromstring(xml_content, parser=parser)\n    return tree.findtext('total_amount')",
+    "remediation_sample": "import defusedxml.ElementTree as ET\nroot = ET.fromstring(xml_content)\nreturn root.findtext('total_amount')",
+    "evaluation_criteria": {
+      "target_cwe": "CWE-611",
+      "required_audit_keywords": [
+        "CWE-611",
+        "XXE",
+        "xml external entity",
+        "resolve_entities=False",
+        "defusedxml"
+      ],
+      "required_remediation_patterns": [
+        "resolve_entities=False",
+        "load_dtd=False",
+        "defusedxml"
+      ],
+      "forbidden_vulnerable_patterns": [
+        "resolve_entities=True"
+      ]
+    }
+  }
+]

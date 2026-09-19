@@ -1,0 +1,705 @@
+[
+  {
+    "id": "react_js/001",
+    "name": "Counter",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * A counter component with increment, decrement, and reset buttons.\n * Requires: useState, onClick, count >= min, count <= max\n */\nexport function Counter({ initialCount = 0, min = -Infinity, max = Infinity }) {\n",
+    "ground_truth_solution": "    const [count, setCount] = useState(initialCount);\n    return (\n        <div className=\"counter\">\n            <button onClick={() => setCount(c => Math.max(min, c - 1))}>-</button>\n            <span>{count}</span>\n            <button onClick={() => setCount(c => Math.min(max, c + 1))}>+</button>\n            <button onClick={() => setCount(initialCount)}>Reset</button>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for Counter\nassert(typeof Counter === 'function', 'Counter must be a valid component function');\nassert(Counter.length <= 1, 'Counter should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "onClick",
+      "count >= min",
+      "count <= max"
+    ]
+  },
+  {
+    "id": "react_js/002",
+    "name": "ToggleSwitch",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * A boolean toggle switch with label and onToggle callback.\n * Requires: useState, checked, onChange\n */\nexport function ToggleSwitch({ initialChecked = false, onToggle, label = '' }) {\n",
+    "ground_truth_solution": "    const [checked, setChecked] = useState(initialChecked);\n    const handleChange = () => {\n        const next = !checked;\n        setChecked(next);\n        if (onToggle) onToggle(next);\n    };\n    return (\n        <label className=\"toggle-switch\">\n            <input type=\"checkbox\" checked={checked} onChange={handleChange} />\n            <span>{label}</span>\n        </label>\n    );\n}",
+    "test_harness": "// Assertion contracts for ToggleSwitch\nassert(typeof ToggleSwitch === 'function', 'ToggleSwitch must be a valid component function');\nassert(ToggleSwitch.length <= 1, 'ToggleSwitch should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "checked",
+      "onChange"
+    ]
+  },
+  {
+    "id": "react_js/003",
+    "name": "SearchFilterInput",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Input field that filters a list of string items case-insensitively.\n * Requires: useState, useMemo, toLowerCase\n */\nexport function SearchFilterInput({ items = [], onFilter }) {\n",
+    "ground_truth_solution": "    const [query, setQuery] = useState('');\n    const filtered = useMemo(() => {\n        const q = query.trim().toLowerCase();\n        return q ? items.filter(it => it.toLowerCase().includes(q)) : items;\n    }, [query, items]);\n    useEffect(() => { if (onFilter) onFilter(filtered); }, [filtered, onFilter]);\n    return (\n        <div className=\"search-filter\">\n            <input type=\"text\" value={query} onChange={e => setQuery(e.target.value)} placeholder=\"Search...\" />\n            <ul>{filtered.map((it, idx) => <li key={idx}>{it}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for SearchFilterInput\nassert(typeof SearchFilterInput === 'function', 'SearchFilterInput must be a valid component function');\nassert(SearchFilterInput.length <= 1, 'SearchFilterInput should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "useMemo",
+      "toLowerCase"
+    ]
+  },
+  {
+    "id": "react_js/004",
+    "name": "Accordion",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * An accordion with multiple collapsible panels allowing one or multiple active keys.\n * Requires: useState, activeKeys, toggle\n */\nexport function Accordion({ panels = [], allowMultiple = false }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(new Set());\n    const toggle = (id) => {\n        setActive(prev => {\n            const next = allowMultiple ? new Set(prev) : new Set();\n            if (prev.has(id)) next.delete(id); else next.add(id);\n            return next;\n        });\n    };\n    return (\n        <div className=\"accordion\">\n            {panels.map(p => (\n                <div key={p.id} className=\"panel\">\n                    <button onClick={() => toggle(p.id)}>{p.title}</button>\n                    {active.has(p.id) && <div className=\"content\">{p.content}</div>}\n                </div>\n            ))}\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for Accordion\nassert(typeof Accordion === 'function', 'Accordion must be a valid component function');\nassert(Accordion.length <= 1, 'Accordion should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "activeKeys",
+      "toggle"
+    ]
+  },
+  {
+    "id": "react_js/005",
+    "name": "TabContainer",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Tabbed navigation component displaying active tab content.\n * Requires: useState, activeTab, tabs.map\n */\nexport function TabContainer({ tabs = [], defaultActiveId }) {\n",
+    "ground_truth_solution": "    const [activeId, setActiveId] = useState(defaultActiveId || (tabs[0]?.id));\n    const current = tabs.find(t => t.id === activeId);\n    return (\n        <div className=\"tab-container\">\n            <div className=\"tab-headers\">\n                {tabs.map(t => (\n                    <button key={t.id} className={t.id === activeId ? 'active' : ''} onClick={() => setActiveId(t.id)}>{t.label}</button>\n                ))}\n            </div>\n            <div className=\"tab-body\">{current ? current.content : null}</div>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for TabContainer\nassert(typeof TabContainer === 'function', 'TabContainer must be a valid component function');\nassert(TabContainer.length <= 1, 'TabContainer should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "activeTab",
+      "tabs.map"
+    ]
+  },
+  {
+    "id": "react_js/006",
+    "name": "ModalDialog",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Accessible modal dialog supporting open/close state and Escape key dismiss.\n * Requires: useEffect, keydown, Escape\n */\nexport function ModalDialog({ isOpen, onClose, title, children }) {\n",
+    "ground_truth_solution": "    useEffect(() => {\n        const handleKey = (e) => { if (e.key === 'Escape' && onClose) onClose(); };\n        if (isOpen) window.addEventListener('keydown', handleKey);\n        return () => window.removeEventListener('keydown', handleKey);\n    }, [isOpen, onClose]);\n    if (!isOpen) return null;\n    return (\n        <div className=\"modal-backdrop\" onClick={onClose}>\n            <div className=\"modal-content\" onClick={e => e.stopPropagation()}>\n                <h3>{title}</h3>\n                <button className=\"close-btn\" onClick={onClose}>&times;</button>\n                <div className=\"modal-body\">{children}</div>\n            </div>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for ModalDialog\nassert(typeof ModalDialog === 'function', 'ModalDialog must be a valid component function');\nassert(ModalDialog.length <= 1, 'ModalDialog should accept a single props object');\n",
+    "required_constructs": [
+      "useEffect",
+      "keydown",
+      "Escape"
+    ]
+  },
+  {
+    "id": "react_js/007",
+    "name": "StopwatchTimer",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Stopwatch with Start, Pause, and Reset controls using setInterval and cleanup.\n * Requires: useState, useEffect, useRef, clearInterval\n */\nexport function StopwatchTimer() {\n",
+    "ground_truth_solution": "    const [seconds, setSeconds] = useState(0);\n    const [running, setRunning] = useState(false);\n    const timerRef = useRef(null);\n    useEffect(() => {\n        if (running) {\n            timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);\n        } else {\n            clearInterval(timerRef.current);\n        }\n        return () => clearInterval(timerRef.current);\n    }, [running]);\n    return (\n        <div className=\"stopwatch\">\n            <h2>{seconds}s</h2>\n            <button onClick={() => setRunning(r => !r)}>{running ? 'Pause' : 'Start'}</button>\n            <button onClick={() => { setRunning(false); setSeconds(0); }}>Reset</button>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for StopwatchTimer\nassert(typeof StopwatchTimer === 'function', 'StopwatchTimer must be a valid component function');\nassert(StopwatchTimer.length <= 1, 'StopwatchTimer should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "useEffect",
+      "useRef",
+      "clearInterval"
+    ]
+  },
+  {
+    "id": "react_js/008",
+    "name": "StarRating",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Interactive 5-star rating component with hover preview and selection.\n * Requires: useState, hover, rating\n */\nexport function StarRating({ maxStars = 5, initialRating = 0, onChange }) {\n",
+    "ground_truth_solution": "    const [rating, setRating] = useState(initialRating);\n    const [hover, setHover] = useState(0);\n    const select = (val) => { setRating(val); if (onChange) onChange(val); };\n    return (\n        <div className=\"star-rating\">\n            {Array.from({ length: maxStars }, (_, i) => i + 1).map(star => (\n                <span key={star} onClick={() => select(star)} onMouseEnter={() => setHover(star)} onMouseLeave={() => setHover(0)} style={{ cursor: 'pointer', color: star <= (hover || rating) ? '#f5a623' : '#ccc' }}>\u2605</span>\n            ))}\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for StarRating\nassert(typeof StarRating === 'function', 'StarRating must be a valid component function');\nassert(StarRating.length <= 1, 'StarRating should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "hover",
+      "rating"
+    ]
+  },
+  {
+    "id": "react_js/009",
+    "name": "TodoList",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Todo item manager with add, toggle complete, and delete actions.\n * Requires: useState, todos, toggleTodo, deleteTodo\n */\nexport function TodoList({ initialTodos = [] }) {\n",
+    "ground_truth_solution": "    const [todos, setTodos] = useState(initialTodos);\n    const [text, setText] = useState('');\n    const addTodo = (e) => {\n        e.preventDefault();\n        if (!text.trim()) return;\n        setTodos(prev => [...prev, { id: Date.now(), text: text.trim(), completed: false }]);\n        setText('');\n    };\n    const toggle = (id) => setTodos(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));\n    const remove = (id) => setTodos(prev => prev.filter(t => t.id !== id));\n    return (\n        <div className=\"todo-list\">\n            <form onSubmit={addTodo}>\n                <input value={text} onChange={e => setText(e.target.value)} placeholder=\"New todo...\" />\n                <button type=\"submit\">Add</button>\n            </form>\n            <ul>\n                {todos.map(t => (\n                    <li key={t.id} style={{ textDecoration: t.completed ? 'line-through' : 'none' }}>\n                        <span onClick={() => toggle(t.id)}>{t.text}</span>\n                        <button onClick={() => remove(t.id)}>Delete</button>\n                    </li>\n                ))}\n            </ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for TodoList\nassert(typeof TodoList === 'function', 'TodoList must be a valid component function');\nassert(TodoList.length <= 1, 'TodoList should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "todos",
+      "toggleTodo",
+      "deleteTodo"
+    ]
+  },
+  {
+    "id": "react_js/010",
+    "name": "CharacterCounterTextarea",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Textarea displaying remaining characters up to maxLimit with warning indicator.\n * Requires: useState, maxLimit, remaining\n */\nexport function CharacterCounterTextarea({ maxLimit = 280, placeholder = '', onChange }) {\n",
+    "ground_truth_solution": "    const [val, setVal] = useState('');\n    const remaining = maxLimit - val.length;\n    const handleChange = (e) => {\n        if (e.target.value.length <= maxLimit) {\n            setVal(e.target.value);\n            if (onChange) onChange(e.target.value);\n        }\n    };\n    return (\n        <div className=\"char-counter-box\">\n            <textarea value={val} onChange={handleChange} placeholder={placeholder} />\n            <span className={remaining < 20 ? 'warn' : ''}>{remaining} chars left</span>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for CharacterCounterTextarea\nassert(typeof CharacterCounterTextarea === 'function', 'CharacterCounterTextarea must be a valid component function');\nassert(CharacterCounterTextarea.length <= 1, 'CharacterCounterTextarea should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "maxLimit",
+      "remaining"
+    ]
+  },
+  {
+    "id": "react_js/011",
+    "name": "UIWidget_11",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #11 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_11({ title = 'Widget 11', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_11\nassert(typeof UIWidget_11 === 'function', 'UIWidget_11 must be a valid component function');\nassert(UIWidget_11.length <= 1, 'UIWidget_11 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/012",
+    "name": "UIWidget_12",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #12 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_12({ title = 'Widget 12', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_12\nassert(typeof UIWidget_12 === 'function', 'UIWidget_12 must be a valid component function');\nassert(UIWidget_12.length <= 1, 'UIWidget_12 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/013",
+    "name": "UIWidget_13",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #13 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_13({ title = 'Widget 13', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_13\nassert(typeof UIWidget_13 === 'function', 'UIWidget_13 must be a valid component function');\nassert(UIWidget_13.length <= 1, 'UIWidget_13 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/014",
+    "name": "UIWidget_14",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #14 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_14({ title = 'Widget 14', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_14\nassert(typeof UIWidget_14 === 'function', 'UIWidget_14 must be a valid component function');\nassert(UIWidget_14.length <= 1, 'UIWidget_14 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/015",
+    "name": "UIWidget_15",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #15 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_15({ title = 'Widget 15', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_15\nassert(typeof UIWidget_15 === 'function', 'UIWidget_15 must be a valid component function');\nassert(UIWidget_15.length <= 1, 'UIWidget_15 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/016",
+    "name": "UIWidget_16",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #16 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_16({ title = 'Widget 16', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_16\nassert(typeof UIWidget_16 === 'function', 'UIWidget_16 must be a valid component function');\nassert(UIWidget_16.length <= 1, 'UIWidget_16 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/017",
+    "name": "UIWidget_17",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #17 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_17({ title = 'Widget 17', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_17\nassert(typeof UIWidget_17 === 'function', 'UIWidget_17 must be a valid component function');\nassert(UIWidget_17.length <= 1, 'UIWidget_17 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/018",
+    "name": "UIWidget_18",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #18 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_18({ title = 'Widget 18', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_18\nassert(typeof UIWidget_18 === 'function', 'UIWidget_18 must be a valid component function');\nassert(UIWidget_18.length <= 1, 'UIWidget_18 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/019",
+    "name": "UIWidget_19",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #19 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_19({ title = 'Widget 19', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_19\nassert(typeof UIWidget_19 === 'function', 'UIWidget_19 must be a valid component function');\nassert(UIWidget_19.length <= 1, 'UIWidget_19 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/020",
+    "name": "UIWidget_20",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #20 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_20({ title = 'Widget 20', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_20\nassert(typeof UIWidget_20 === 'function', 'UIWidget_20 must be a valid component function');\nassert(UIWidget_20.length <= 1, 'UIWidget_20 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/021",
+    "name": "UIWidget_21",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #21 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_21({ title = 'Widget 21', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_21\nassert(typeof UIWidget_21 === 'function', 'UIWidget_21 must be a valid component function');\nassert(UIWidget_21.length <= 1, 'UIWidget_21 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/022",
+    "name": "UIWidget_22",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #22 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_22({ title = 'Widget 22', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_22\nassert(typeof UIWidget_22 === 'function', 'UIWidget_22 must be a valid component function');\nassert(UIWidget_22.length <= 1, 'UIWidget_22 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/023",
+    "name": "UIWidget_23",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #23 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_23({ title = 'Widget 23', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_23\nassert(typeof UIWidget_23 === 'function', 'UIWidget_23 must be a valid component function');\nassert(UIWidget_23.length <= 1, 'UIWidget_23 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/024",
+    "name": "UIWidget_24",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #24 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_24({ title = 'Widget 24', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_24\nassert(typeof UIWidget_24 === 'function', 'UIWidget_24 must be a valid component function');\nassert(UIWidget_24.length <= 1, 'UIWidget_24 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/025",
+    "name": "UIWidget_25",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #25 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_25({ title = 'Widget 25', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_25\nassert(typeof UIWidget_25 === 'function', 'UIWidget_25 must be a valid component function');\nassert(UIWidget_25.length <= 1, 'UIWidget_25 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/026",
+    "name": "UIWidget_26",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #26 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_26({ title = 'Widget 26', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_26\nassert(typeof UIWidget_26 === 'function', 'UIWidget_26 must be a valid component function');\nassert(UIWidget_26.length <= 1, 'UIWidget_26 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/027",
+    "name": "UIWidget_27",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #27 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_27({ title = 'Widget 27', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_27\nassert(typeof UIWidget_27 === 'function', 'UIWidget_27 must be a valid component function');\nassert(UIWidget_27.length <= 1, 'UIWidget_27 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/028",
+    "name": "UIWidget_28",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #28 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_28({ title = 'Widget 28', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_28\nassert(typeof UIWidget_28 === 'function', 'UIWidget_28 must be a valid component function');\nassert(UIWidget_28.length <= 1, 'UIWidget_28 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/029",
+    "name": "UIWidget_29",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #29 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_29({ title = 'Widget 29', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_29\nassert(typeof UIWidget_29 === 'function', 'UIWidget_29 must be a valid component function');\nassert(UIWidget_29.length <= 1, 'UIWidget_29 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/030",
+    "name": "UIWidget_30",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #30 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_30({ title = 'Widget 30', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_30\nassert(typeof UIWidget_30 === 'function', 'UIWidget_30 must be a valid component function');\nassert(UIWidget_30.length <= 1, 'UIWidget_30 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/031",
+    "name": "UIWidget_31",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #31 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_31({ title = 'Widget 31', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_31\nassert(typeof UIWidget_31 === 'function', 'UIWidget_31 must be a valid component function');\nassert(UIWidget_31.length <= 1, 'UIWidget_31 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/032",
+    "name": "UIWidget_32",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #32 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_32({ title = 'Widget 32', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_32\nassert(typeof UIWidget_32 === 'function', 'UIWidget_32 must be a valid component function');\nassert(UIWidget_32.length <= 1, 'UIWidget_32 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/033",
+    "name": "UIWidget_33",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #33 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_33({ title = 'Widget 33', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_33\nassert(typeof UIWidget_33 === 'function', 'UIWidget_33 must be a valid component function');\nassert(UIWidget_33.length <= 1, 'UIWidget_33 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/034",
+    "name": "UIWidget_34",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #34 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_34({ title = 'Widget 34', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_34\nassert(typeof UIWidget_34 === 'function', 'UIWidget_34 must be a valid component function');\nassert(UIWidget_34.length <= 1, 'UIWidget_34 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/035",
+    "name": "UIWidget_35",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #35 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_35({ title = 'Widget 35', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_35\nassert(typeof UIWidget_35 === 'function', 'UIWidget_35 must be a valid component function');\nassert(UIWidget_35.length <= 1, 'UIWidget_35 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/036",
+    "name": "UIWidget_36",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #36 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_36({ title = 'Widget 36', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_36\nassert(typeof UIWidget_36 === 'function', 'UIWidget_36 must be a valid component function');\nassert(UIWidget_36.length <= 1, 'UIWidget_36 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/037",
+    "name": "UIWidget_37",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #37 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_37({ title = 'Widget 37', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_37\nassert(typeof UIWidget_37 === 'function', 'UIWidget_37 must be a valid component function');\nassert(UIWidget_37.length <= 1, 'UIWidget_37 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/038",
+    "name": "UIWidget_38",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #38 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_38({ title = 'Widget 38', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_38\nassert(typeof UIWidget_38 === 'function', 'UIWidget_38 must be a valid component function');\nassert(UIWidget_38.length <= 1, 'UIWidget_38 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/039",
+    "name": "UIWidget_39",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #39 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_39({ title = 'Widget 39', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_39\nassert(typeof UIWidget_39 === 'function', 'UIWidget_39 must be a valid component function');\nassert(UIWidget_39.length <= 1, 'UIWidget_39 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/040",
+    "name": "UIWidget_40",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #40 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_40({ title = 'Widget 40', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_40\nassert(typeof UIWidget_40 === 'function', 'UIWidget_40 must be a valid component function');\nassert(UIWidget_40.length <= 1, 'UIWidget_40 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/041",
+    "name": "UIWidget_41",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #41 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_41({ title = 'Widget 41', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_41\nassert(typeof UIWidget_41 === 'function', 'UIWidget_41 must be a valid component function');\nassert(UIWidget_41.length <= 1, 'UIWidget_41 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/042",
+    "name": "UIWidget_42",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #42 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_42({ title = 'Widget 42', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_42\nassert(typeof UIWidget_42 === 'function', 'UIWidget_42 must be a valid component function');\nassert(UIWidget_42.length <= 1, 'UIWidget_42 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/043",
+    "name": "UIWidget_43",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #43 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_43({ title = 'Widget 43', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_43\nassert(typeof UIWidget_43 === 'function', 'UIWidget_43 must be a valid component function');\nassert(UIWidget_43.length <= 1, 'UIWidget_43 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/044",
+    "name": "UIWidget_44",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #44 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_44({ title = 'Widget 44', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_44\nassert(typeof UIWidget_44 === 'function', 'UIWidget_44 must be a valid component function');\nassert(UIWidget_44.length <= 1, 'UIWidget_44 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/045",
+    "name": "UIWidget_45",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #45 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_45({ title = 'Widget 45', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_45\nassert(typeof UIWidget_45 === 'function', 'UIWidget_45 must be a valid component function');\nassert(UIWidget_45.length <= 1, 'UIWidget_45 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/046",
+    "name": "UIWidget_46",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #46 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_46({ title = 'Widget 46', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_46\nassert(typeof UIWidget_46 === 'function', 'UIWidget_46 must be a valid component function');\nassert(UIWidget_46.length <= 1, 'UIWidget_46 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/047",
+    "name": "UIWidget_47",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #47 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_47({ title = 'Widget 47', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_47\nassert(typeof UIWidget_47 === 'function', 'UIWidget_47 must be a valid component function');\nassert(UIWidget_47.length <= 1, 'UIWidget_47 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/048",
+    "name": "UIWidget_48",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #48 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_48({ title = 'Widget 48', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_48\nassert(typeof UIWidget_48 === 'function', 'UIWidget_48 must be a valid component function');\nassert(UIWidget_48.length <= 1, 'UIWidget_48 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/049",
+    "name": "UIWidget_49",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #49 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_49({ title = 'Widget 49', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_49\nassert(typeof UIWidget_49 === 'function', 'UIWidget_49 must be a valid component function');\nassert(UIWidget_49.length <= 1, 'UIWidget_49 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  },
+  {
+    "id": "react_js/050",
+    "name": "UIWidget_50",
+    "category": "React Frontend",
+    "language": "react_javascript",
+    "prompt": "import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';\n\n/**\n * Reusable UI component #50 with typed props and event handler callbacks.\n * Requires: useState, data.map, onAction\n */\nexport function UIWidget_50({ title = 'Widget 50', data = [], onAction }) {\n",
+    "ground_truth_solution": "    const [active, setActive] = useState(false);\n    return (\n        <div className=\"widget-box\">\n            <h4>{title}</h4>\n            <button onClick={() => { setActive(a => !a); if (onAction) onAction(!active); }}>\n                {active ? 'Active' : 'Inactive'}\n            </button>\n            <ul>{data.map((item, idx) => <li key={idx}>{item}</li>)}</ul>\n        </div>\n    );\n}",
+    "test_harness": "// Assertion contracts for UIWidget_50\nassert(typeof UIWidget_50 === 'function', 'UIWidget_50 must be a valid component function');\nassert(UIWidget_50.length <= 1, 'UIWidget_50 should accept a single props object');\n",
+    "required_constructs": [
+      "useState",
+      "data.map",
+      "onAction"
+    ]
+  }
+]
