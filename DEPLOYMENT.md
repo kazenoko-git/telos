@@ -139,7 +139,7 @@ telos dataprep --synthetic --tokens 100000 --output data/synthetic_corpus.bin
 Runs the institutional-grade, multi-domain evaluation engine supporting:
 - **Télos Native Architectures**: Continuous Relaxed Diffusion (`COROSred`), Causal Autoregressive (`AR`), Masked Discrete Diffusion (`MDLM`), Uniform Discrete Diffusion (`UNDLM`).
 - **Outside Frontier & Open-Weight Models**:
-  * **AFM 3 Core & AFM 3 Core Advanced**: Evaluated via high-throughput concurrent OpenAI-compatible REST adapter (`--backend openai_api --api-base http://...`).
+  * **AFM 3 Core & AFM 3 Core Advanced**: Evaluated natively on Apple Silicon via native Swift bridge (`--backend swift`) utilizing `FoundationModels.framework` (`SystemLanguageModel.default`), or via OpenAI-compatible REST server.
   * **Ternary Bonsai 27B**: Evaluated via Hugging Face `transformers` open-weights (`--backend huggingface`) or vLLM server.
   * **Gemma 4 e4b & Gemma 4 12B**: Evaluated via Hugging Face open-weights with optional 4-bit/8-bit quantization (`--quantization 4bit`) or Apple Silicon `mlx_lm`.
   * **Gemini 4 26B A4B & Gemini Frontier Models**: Evaluated via zero-dependency Google Generative Language REST adapter (`--backend gemini_api --api-key $GEMINI_API_KEY`).
@@ -153,19 +153,25 @@ Runs the institutional-grade, multi-domain evaluation engine supporting:
 | **Polyglot & Systems** | `--type code` | `humaneval_cs`, `humaneval_java`, `humaneval_js`, `humaneval_ts`, `humaneval_rust` | 792 | Standardized MultiPL-E suites for C# (.NET), Java, JavaScript, TypeScript, and Rust with native compilation or structural contract validation. |
 | **React Frontend** | `--type code` | `react`, `react_javascript` | 50 | Modern JSX components testing hooks (`useState`, `useEffect`, `useCallback`), event handling, and UI state logic. |
 | **Math Reasoning** | `--type math` | `gsm8k`, `competition_math` | 2,019 | Exact numeric evaluation on OpenAI GSM8K (1,319) and Olympiad-level Hendrycks MATH LaTeX `\boxed{...}` (700). |
-| **Science & Commonsense** | `--type science` | `arc`, `arc_challenge` | 1,172 | AI2 Reasoning Challenge scientific multiple-choice reasoning with letter choice extraction. |
+| **Science & Graduate Reasoning** | `--type science` | `arc`, `gpqa_diamond`, `mmlu_science` | 2,203 | AI2 Reasoning Challenge (1,172), PhD-level GPQA Diamond (198), and MMLU Science (833 college biology, chemistry, physics, and CS). |
 | **Cybersecurity** | `--type cyber` | `cyber`, `cybersecurity` | 50 | OWASP Top 10 & CWE auditing (SQLi, XSS, Command Injection, SSRF, Deserialization, XXE, ReDoS) testing CWE classification, exploit vector analysis, and secure code repair. |
 | **Tool-Use & Function Calling** | `--type tooluse` | `tooluse` | 100 | BFCL-style function calling across 10 tools (`calculator`, `web_search`, `get_weather`, `file_search`, `send_email`, `database_query`, `run_command`, `python_repl`, `git_log`, `fetch_url`). |
 | **English Linguistic** | `--type linguistic` | `linguistic` | 100 | Deterministic causal and infill probes across morphology, collocations, connectives, and common sense. |
-| **All Domains** | `--type all` | *(executes all tracks)* | 7,474 | Unified institutional scorecard evaluating models across all dimensions simultaneously. |
+| **All Domains** | `--type all` | *(executes all tracks)* | 8,505 | Unified institutional scorecard evaluating models across all dimensions simultaneously. |
 
 ### CLI Evaluation Commands
 
 ```bash
-# 1. Evaluate Apple AFM 3 Core Advanced Locally on Apple Silicon (MLX)
-telos eval --model /path/to/afm_3_core_advanced --backend mlx_lm --type all
+# 1. Evaluate Apple AFM 3 Core Advanced Natively on Apple Silicon via Swift FoundationModels
+telos eval --model afm-3-core-advanced --backend swift --type all
 
-# 2. Evaluate Outside Model via OpenAI-Compatible Endpoint (vLLM or Private Cloud Compute)
+# 2. Evaluate Graduate-Level Science (GPQA Diamond)
+telos eval --model afm-3-core-advanced --type science --suite gpqa_diamond
+
+# 3. Evaluate Berkeley Function Calling (BFCL Tool Use)
+telos eval --model afm-3-core-advanced --type tooluse
+
+# 4. Evaluate Outside Model via OpenAI-Compatible Endpoint (vLLM or Private Cloud Compute)
 telos eval --model afm-3-core --api-base http://localhost:8000/v1 --concurrency 16 --type all
 
 # 3. Evaluate Google Gemini 4 26B A4B
