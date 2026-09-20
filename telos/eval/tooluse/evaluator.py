@@ -11,6 +11,7 @@ Evaluates:
 import re
 import ast
 import json
+import math
 import time
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
@@ -103,10 +104,55 @@ def parse_tool_call(completion_text: str) -> Tuple[Optional[str], Optional[Dict[
     return None, None, "syntax_parse_error"
 
 
+def _try_eval_math(expr: Any) -> Optional[float]:
+    """Safely evaluates basic arithmetic expressions to float for equivalence checking."""
+    try:
+        clean = str(expr).strip().replace("^", "**")
+        allowed_names = {"math": math, "sqrt": math.sqrt, "abs": abs}
+        val = eval(clean, {"__builtins__": {}}, allowed_names)
+        if isinstance(val, (int, float)):
+            return float(val)
+    except Exception:
+        pass
+    return None
+
+
+def _compare_values(expected_val: Any, actual_val: Any) -> bool:
+    """Compares two argument values across dictionaries, lists, math expressions, and strings."""
+    if isinstance(expected_val, dict) and isinstance(actual_val, dict):
+        return _compare_arguments(expected_val, actual_val)
+    if isinstance(expected_val, list) and isinstance(actual_val, list):
+        if len(expected_val) != len(actual_val):
+            return False
+        return all(_compare_values(e, a) for e, a in zip(expected_val, actual_val))
+
+    # Mathematical expression evaluation
+    math_exp = _try_eval_math(expected_val)
+    math_act = _try_eval_math(actual_val)
+    if math_exp is not None and math_act is not None:
+        return abs(math_exp - math_act) < 1e-5
+
+    # Direct float comparison for numeric strings (e.g. 84.50 vs 84.5)
+    try:
+        if abs(float(expected_val) - float(actual_val)) < 1e-5:
+            return True
+    except (ValueError, TypeError):
+        pass
+
+    # Normalized string and substring query matching
+    exp_str = str(expected_val).strip().lower().replace(" ", "")
+    act_str = str(actual_val).strip().lower().replace(" ", "")
+    if exp_str == act_str:
+        return True
+    if exp_str in act_str or act_str in exp_str:
+        return True
+    return False
+
+
 def _compare_arguments(expected: Dict[str, Any], actual: Dict[str, Any]) -> bool:
     """
     Compares expected ground-truth arguments with parsed actual arguments.
-    Performs case-insensitive normalization and substring containment for search queries.
+    Performs case-insensitive normalization, mathematical equivalence, and substring checks.
     """
     if not expected:
         return True
@@ -116,26 +162,13 @@ def _compare_arguments(expected: Dict[str, Any], actual: Dict[str, Any]) -> bool
     for key, expected_val in expected.items():
         if key not in actual:
             # Check if value matches under alternate positional key
-            matched = False
-            for act_v in actual.values():
-                if str(expected_val).strip().lower() == str(act_v).strip().lower():
-                    matched = True
-                    break
+            matched = any(_compare_values(expected_val, act_v) for act_v in actual.values())
             if not matched:
                 return False
             continue
 
-        actual_val = actual[key]
-        exp_str = str(expected_val).strip().lower().replace(" ", "")
-        act_str = str(actual_val).strip().lower().replace(" ", "")
-
-        # Exact match or normalized expression equivalence
-        if exp_str == act_str:
-            continue
-        # Substring query match for flexible search prompts
-        if exp_str in act_str or act_str in exp_str:
-            continue
-        return False
+        if not _compare_values(expected_val, actual[key]):
+            return False
 
     return True
 
