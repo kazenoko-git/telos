@@ -632,8 +632,8 @@ def evaluate_functional(
 
         test_harness = task.get("test_harness", "")
 
-        # 1. Allocate token budget: deep science and competition math require 1024 tokens
-        if any(x in suite for x in ["gpqa", "competition_math"]):
+        # 1. Allocate token budget: deep science, math, and cybersecurity require 1024 tokens
+        if any(x in suite for x in ["gpqa", "competition_math", "cyber", "mmlu"]):
             token_budget = max(max_new_tokens, 1024)
         elif (is_arc or is_math or is_gsm8k):
             token_budget = max(max_new_tokens, 384)
