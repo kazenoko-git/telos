@@ -90,10 +90,10 @@ class LFMStudioAdapter(OpenAIAPIAdapter):
     def __init__(self, model_name: str = MODEL_NAME, api_base: str = API_BASE, system_prompt: Optional[str] = None, timeout: float = 180.0):
         super().__init__(model_name=model_name, api_base=api_base, system_prompt=system_prompt, timeout=timeout)
 
-    def generate(self, prompt: str, max_new_tokens: int = 8096, temperature: float = 0.0, stop_words: Optional[List[str]] = None, **kwargs) -> str:
+    def generate(self, prompt: str, max_new_tokens: int = 8096, temperature: float = 0.0, stop: Optional[List[str]] = None, **kwargs) -> str:
         # In LM Studio, avoid premature "\n\n" termination
-        if stop_words:
-            stop_words = [s for s in stop_words if s != "\n\n"]
+        stop_list = stop or kwargs.pop("stop_words", None) or kwargs.pop("stop", None)
+        clean_stop = [s for s in stop_list if s != "\n\n"] if stop_list else None
 
         for attempt in range(3):
             try:
@@ -101,11 +101,12 @@ class LFMStudioAdapter(OpenAIAPIAdapter):
                     prompt=prompt,
                     max_new_tokens=max_new_tokens,
                     temperature=temperature,
-                    stop_words=stop_words,
+                    stop=clean_stop,
                     **kwargs
                 )
                 return out
             except Exception as e:
+                print(f"[LFMStudioAdapter Error attempt {attempt}]: {e}")
                 time.sleep(1.0 + attempt * 2.0)
                 if attempt == 2:
                     return ""
