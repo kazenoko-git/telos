@@ -77,6 +77,7 @@ def build_config(
     config_path: str | Path | None = None,
     data_path: str | Path | None = None,
     synthetic: bool = False,
+    seed: int | None = None,
     **kwargs
 ) -> dict:
     """
@@ -334,6 +335,11 @@ def build_config(
     t_cfg["weight_decay"] = float(weight_decay if weight_decay is not None else t_cfg.get("weight_decay", 0.1))
     t_cfg.setdefault("grad_clip", 1.0)
     t_cfg.setdefault("precision", "bf16")
+
+    # Reproducibility seed
+    resolved_seed = int(seed if seed is not None else kwargs.get("seed", t_cfg.get("seed", 42)))
+    t_cfg["seed"] = resolved_seed
+    cfg["seed"] = resolved_seed
 
     # 8. Paradigm-Specific Properties
     if paradigm == "corosred":
