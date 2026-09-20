@@ -47,6 +47,11 @@ def _mp_train_worker(index, kwargs):
     xla_utils._CACHED_XLA_DEVICE = None
     xla_utils._CACHED_XLA_WORLD_SIZE = None
     xla_utils._CACHED_IS_MASTER = None
+
+    from telos.training import set_global_seed
+    worker_seed = int(kwargs.get("seed", 42))
+    set_global_seed(worker_seed)
+
     train(**kwargs)
 
 
@@ -159,6 +164,7 @@ def train(
     self_cond_prob: float = 0.5,
     init_checkpoint: str | Path | None = None,
     compile: bool | None = None,
+    seed: int = 42,
     **kwargs
 ):
     """
@@ -192,6 +198,7 @@ def train(
         self_condition=self_condition,
         self_cond_prob=self_cond_prob,
         compile=compile,
+        seed=seed,
         **kwargs
     )
 
@@ -256,6 +263,7 @@ def train(
                     self_cond_prob=self_cond_prob,
                     init_checkpoint=init_checkpoint,
                     compile=compile,
+                    seed=t_cfg.get("seed", seed),
                     _is_spawned=True,
                     **kwargs,
                 )
@@ -264,6 +272,10 @@ def train(
 
         except Exception as e:
             print(f"  [Notice] Multi-core xmp.spawn skipped ({e}). Proceeding on single core.")
+
+    from telos.training import set_global_seed
+    resolved_seed = int(t_cfg.get("seed", kwargs.get("seed", seed)))
+    set_global_seed(resolved_seed)
 
     if backend == "mlx":
         # Defer MLX imports so non-Apple-Silicon environments don't resolve MLX
@@ -428,6 +440,7 @@ def main():
     parser.add_argument("--self-cond-prob", type=float, default=0.5, help="Probability of training on model drafts vs clean masks in Phase B")
     parser.add_argument("--init-checkpoint", type=str, default=None, help="Path to initial checkpoint to load weights from before training")
     parser.add_argument("--compile", action=argparse.BooleanOptionalAction, default=None, help="Enable torch.compile for model execution")
+    parser.add_argument("--seed", type=int, default=42, help="Global random seed for initialization and training reproducibility (default: 42)")
     # Cadence & Dynamics Overrides
     parser.add_argument("--sched-step", "--sched-cadence", dest="sched_step", type=int, default=None, help="Cadence for schedule updates (default: 25 on TPU, 1 on CUDA/CPU)")
     parser.add_argument("--lr-cadence", type=int, default=None, help="Cadence for learning rate updates (default: 10 on TPU, 1 on CUDA/CPU)")
@@ -485,6 +498,7 @@ def main():
             mask_prob=args.mask_prob,
             routing_cache_steps=args.routing_cache_steps,
             adaptive_rebalance=args.adaptive_rebalance,
+            seed=args.seed,
         )
     except KeyboardInterrupt:
         print("\nTraining interrupted by user.")
