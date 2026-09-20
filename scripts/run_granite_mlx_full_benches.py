@@ -106,7 +106,7 @@ SUITES = [
         "name": "gpqa_diamond",
         "label": "GPQA Diamond (PhD Science — 1,024 Tokens)",
         "type": "science",
-        "system_prompt": "You are an expert scientist. Derive the solution step by step and conclude with the correct letter option.",
+        "system_prompt": "You are an expert scientist. Derive the solution step by step and conclude with the correct letter option in the format: Answer: <Letter>.",
         "output": "eval_report_granite_mlx_gpqa_diamond_full.json",
         "max_new_tokens": 1024
     },
@@ -114,9 +114,9 @@ SUITES = [
         "name": "mmlu_science",
         "label": "MMLU Science & STEM",
         "type": "science",
-        "system_prompt": "You are an expert in science and mathematics. Select the correct option.",
+        "system_prompt": "You are an expert in science and mathematics. Derive the solution and state the correct letter option in the format: Answer: <Letter>.",
         "output": "eval_report_granite_mlx_mmlu_science_full.json",
-        "max_new_tokens": 384
+        "max_new_tokens": 1024
     },
     {
         "name": "competition_math",
