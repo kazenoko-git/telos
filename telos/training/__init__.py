@@ -1,4 +1,4 @@
-from .core import build_special_token_lut, get_sys_mem_str
+from .core import build_special_token_lut, get_sys_mem_str, set_global_seed
 from .dataloader import (
     get_global_targets_contiguous,
     get_global_targets_contiguous_pytorch,
@@ -47,6 +47,7 @@ __all__ = [
     "clip_grad_norm_mlx",
     "build_special_token_lut",
     "get_sys_mem_str",
+    "set_global_seed",
     "execute_mlx_training_step",
     "cast_optimizer_moments_bf16",
     "get_global_targets_contiguous",
