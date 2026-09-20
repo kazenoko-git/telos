@@ -77,6 +77,10 @@ class UnifiedPyTorchTrainer:
         self.t_cfg = cfg.setdefault("training", {})
         self.c_cfg = cfg.setdefault("checkpoint", {})
 
+        self.seed = int(self.t_cfg.get("seed", cfg.get("seed", 42)))
+        from .core import set_global_seed
+        set_global_seed(self.seed)
+
         # Ensure paradigm and architectural metadata are mirrored into configuration
         if "paradigm" not in self.cfg:
             self.cfg["paradigm"] = self.paradigm
@@ -162,6 +166,13 @@ class UnifiedPyTorchTrainer:
             self.rank = 0
             self.is_master = True
             self.is_ddp = False
+
+        if getattr(self, "is_tpu", False):
+            try:
+                import torch_xla.core.xla_model as xm
+                xm.set_rng_state(self.seed)
+            except Exception:
+                pass
 
         self.model.to(self.device)
         self.special_lut = self.special_lut.to(self.device)
