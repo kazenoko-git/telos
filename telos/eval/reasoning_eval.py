@@ -76,22 +76,37 @@ def evaluate_gsm8k_sample(candidate_completion: str, target_answer: str) -> Tupl
 
 def extract_arc_choice(completion_text: str) -> Optional[str]:
     """
-    Extracts multiple-choice letter (A, B, C, D, etc.) from ARC completion.
+    Extracts multiple-choice letter (A, B, C, D, etc.) from model completion.
+    Supports LaTeX boxed choices, markdown bolding, natural language assertions,
+    and line-ending parenthesized markers.
     """
     text = completion_text.strip()
 
-    # 1. Look for 'Answer: [A-D]' or 'Choice: [A-D]'
-    match = re.search(r"(?:answer|choice|option):\s*\(?([A-E1-4])\)?", text, re.IGNORECASE)
-    if match:
-        return match.group(1).upper()
+    # 1. LaTeX boxed format e.g. \boxed{A}
+    boxed_match = re.search(r"\\boxed\{([A-E1-4])\}", text)
+    if boxed_match:
+        return boxed_match.group(1).upper()
 
-    # 2. Look for '\b([A-D])\b' on the first or last line
+    # 2. Markdown or standard key format: 'Answer: A', '**Answer:** (B)', 'Choice is C'
+    key_match = re.search(r"(?:\*{0,2}(?:answer|choice|option)\*{0,2}(?:\s*:|\s+is|\s+is:)?)\s*\(?([A-E1-4])\)?", text, re.IGNORECASE)
+    if key_match:
+        return key_match.group(1).upper()
+
+    # 3. Explicit conclusion sentence e.g. 'The correct option is (D)'
+    conclusion_match = re.search(r"(?:correct\s+(?:choice|option|answer)\s+(?:is|would be))\s*\(?([A-E1-4])\)?", text, re.IGNORECASE)
+    if conclusion_match:
+        return conclusion_match.group(1).upper()
+
+    # 4. Search backwards across final lines for parenthesized or boundary letter
     lines = [l.strip() for l in text.splitlines() if l.strip()]
     if lines:
-        for target_line in [lines[-1], lines[0]]:
-            match_letter = re.search(r"\b([A-D])\b", target_line)
-            if match_letter:
-                return match_letter.group(1)
+        for target_line in reversed(lines[-3:]):
+            paren_match = re.search(r"\(([A-E])\)", target_line)
+            if paren_match:
+                return paren_match.group(1).upper()
+            letter_match = re.search(r"\b([A-E])\b", target_line)
+            if letter_match:
+                return letter_match.group(1).upper()
 
     return None
 
