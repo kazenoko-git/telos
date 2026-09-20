@@ -106,7 +106,11 @@ class OpenAIAPIAdapter(BaseModelAdapter):
             if not choices:
                 return ""
             msg = choices[0].get("message", {})
-            return msg.get("content") or ""
+            content = msg.get("content")
+            if content:
+                return content
+            # Fall back to reasoning_content for thinking/reasoning models
+            return msg.get("reasoning_content") or ""
         else:
             payload = {
                 "model": self.model_name,
