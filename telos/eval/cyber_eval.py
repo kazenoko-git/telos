@@ -68,8 +68,10 @@ def evaluate_cybersecurity_challenge(
     req_rem_patterns = criteria.get("required_remediation_patterns", [])
     forbidden_patterns = criteria.get("forbidden_vulnerable_patterns", [])
 
-    resp_lower = candidate_response.lower()
-    resp_raw = candidate_response
+    # Normalize Unicode hyphens and dashes to standard ASCII minus
+    resp_clean = re.sub(r"[\u2010-\u2015\u2212]", "-", candidate_response)
+    resp_lower = resp_clean.lower()
+    resp_raw = resp_clean
 
     # Match CWE identifier or normalized number
     cwe_num = target_cwe.replace("CWE-", "")
