@@ -130,8 +130,8 @@ def evaluate_competition_math_sample(candidate_completion: str, target_boxed: st
     """Evaluates Competition MATH answer against gold target."""
     cand_boxed = extract_boxed_latex(candidate_completion)
     if not cand_boxed:
-        # Check if the exact target is anywhere in the final lines
-        if target_boxed and target_boxed in candidate_completion.splitlines()[-1]:
+        lines = candidate_completion.splitlines()
+        if target_boxed and lines and target_boxed in lines[-1]:
             return True, "Found in final line"
         return False, "No \\boxed{...} answer found"
 
