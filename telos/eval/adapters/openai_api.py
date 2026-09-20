@@ -98,8 +98,12 @@ class OpenAIAPIAdapter(BaseModelAdapter):
                 "max_tokens": max_new_tokens,
                 "temperature": temperature,
             }
-            if stop:
-                payload["stop"] = stop
+            stop_tokens = stop or kwargs.get("stop_words")
+            if stop_tokens:
+                # Exclude newline stop tokens that prematurely terminate reasoning models
+                filtered_stop = [s for s in stop_tokens if s != "\n\n"]
+                if filtered_stop:
+                    payload["stop"] = filtered_stop
 
             resp = self._make_http_request("/chat/completions", payload)
             choices = resp.get("choices", [])
