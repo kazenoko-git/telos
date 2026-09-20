@@ -183,3 +183,33 @@ def execute_mlx_training_step(
     return accum_loss, accum_ce
 
 
+def set_global_seed(seed: int = 42):
+    """Sets random seed across Python, NumPy, PyTorch (CPU/CUDA/XLA), and MLX."""
+    import random
+    random.seed(seed)
+
+    try:
+        import numpy as np
+        np.random.seed(seed)
+    except ImportError:
+        pass
+
+    try:
+        import torch
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+    except ImportError:
+        pass
+
+    try:
+        import torch_xla.core.xla_model as xm
+        xm.set_rng_state(seed)
+    except Exception:
+        pass
+
+    if MLX_AVAILABLE:
+        try:
+            mx.random.seed(seed)
+        except Exception:
+            pass
