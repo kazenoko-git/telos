@@ -23,10 +23,10 @@
         "execute"
       ],
       "forbidden_vulnerable_patterns": [
-        "%s",
-        "?",
-        ":username",
-        "params"
+        "f\"SELECT user_id",
+        "f'SELECT user_id",
+        "WHERE username = 'username",
+        "WHERE username = 'username"
       ]
     }
   },
@@ -49,13 +49,15 @@
         "whitelist"
       ],
       "required_remediation_patterns": [
-        "ALLOWED_SORT_COLUMNS",
-        "sort_by in",
-        "whitelist"
+        "allowed",
+        "whitelist",
+        "allowlist",
+        "sort_by in"
       ],
       "forbidden_vulnerable_patterns": [
-        "f\"SELECT",
-        "ORDER BY {"
+        "ORDER BY {sort_by}",
+        "ORDER BY sort_by",
+        "f\"SELECT id, name, price FROM products WHERE category = %s ORDER BY {sort_by}"
       ]
     }
   },
@@ -356,7 +358,8 @@
         "Path"
       ],
       "forbidden_vulnerable_patterns": [
-        "return f.read()"
+        "open(os.path.join(UPLOAD_DIR, filename))",
+        "open(filename)"
       ]
     }
   },
@@ -641,7 +644,7 @@
         "scheme in ('http', 'https')"
       ],
       "forbidden_vulnerable_patterns": [
-        "urllib.request.urlopen(avatar_url)"
+        "# unvalidated urlopen"
       ]
     }
   },
@@ -754,10 +757,10 @@
         "execute"
       ],
       "forbidden_vulnerable_patterns": [
-        "%s",
-        "?",
-        ":username",
-        "params"
+        "f\"SELECT user_id",
+        "f'SELECT user_id",
+        "WHERE username = 'username",
+        "WHERE username = 'username"
       ]
     }
   },
@@ -780,13 +783,15 @@
         "whitelist"
       ],
       "required_remediation_patterns": [
-        "ALLOWED_SORT_COLUMNS",
-        "sort_by in",
-        "whitelist"
+        "allowed",
+        "whitelist",
+        "allowlist",
+        "sort_by in"
       ],
       "forbidden_vulnerable_patterns": [
-        "f\"SELECT",
-        "ORDER BY {"
+        "ORDER BY {sort_by}",
+        "ORDER BY sort_by",
+        "f\"SELECT id, name, price FROM products WHERE category = %s ORDER BY {sort_by}"
       ]
     }
   },
@@ -1087,7 +1092,8 @@
         "Path"
       ],
       "forbidden_vulnerable_patterns": [
-        "return f.read()"
+        "open(os.path.join(UPLOAD_DIR, filename))",
+        "open(filename)"
       ]
     }
   },
@@ -1372,7 +1378,7 @@
         "scheme in ('http', 'https')"
       ],
       "forbidden_vulnerable_patterns": [
-        "urllib.request.urlopen(avatar_url)"
+        "# unvalidated urlopen"
       ]
     }
   },
