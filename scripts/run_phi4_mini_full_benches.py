@@ -31,7 +31,7 @@ SUITES = [
         "type": "code",
         "system_prompt": "You are an expert programming assistant. Complete the requested Python function directly.",
         "output": "eval_report_phi4_mini_humaneval_full.json",
-        "max_new_tokens": 1024
+        "max_new_tokens": 2048
     },
     {
         "name": "tooluse",
@@ -39,7 +39,7 @@ SUITES = [
         "type": "tooluse",
         "system_prompt": "You are an AI assistant with tool access. Call the tool using JSON format: {\"tool\": \"...\", \"arguments\": {...}}",
         "output": "eval_report_phi4_mini_tooluse_full.json",
-        "max_new_tokens": 512
+        "max_new_tokens": 2048
     },
     {
         "name": "cyber",
@@ -47,15 +47,15 @@ SUITES = [
         "type": "cyber",
         "system_prompt": "You are an expert cybersecurity auditor. Identify the CWE, explain the vulnerability, and provide secure remediated code.",
         "output": "eval_report_phi4_mini_cyber_full.json",
-        "max_new_tokens": 1024
+        "max_new_tokens": 2048
     },
     {
         "name": "gpqa_diamond",
-        "label": "GPQA Diamond (PhD Science — 1,024 Tokens)",
+        "label": "GPQA Diamond (PhD Science — 8,192 Tokens)",
         "type": "science",
         "system_prompt": "You are an expert scientist. Derive the solution step by step and conclude with the correct letter option in the format: Answer: <Letter>.",
         "output": "eval_report_phi4_mini_gpqa_diamond_full.json",
-        "max_new_tokens": 1024
+        "max_new_tokens": 8192
     },
     {
         "name": "mmlu_science",
@@ -63,15 +63,15 @@ SUITES = [
         "type": "science",
         "system_prompt": "You are an expert in science and mathematics. Derive the solution and state the correct letter option in the format: Answer: <Letter>.",
         "output": "eval_report_phi4_mini_mmlu_science_full.json",
-        "max_new_tokens": 1024
+        "max_new_tokens": 2048
     },
     {
         "name": "competition_math",
-        "label": "Competition MATH (Hendrycks — 1,024 Tokens)",
+        "label": "Competition MATH (Hendrycks — 8,192 Tokens)",
         "type": "math",
         "system_prompt": "You are an expert mathematician. Solve the problem step by step and state the final answer clearly in \\boxed{...}.",
         "output": "eval_report_phi4_mini_competition_math_full.json",
-        "max_new_tokens": 1024
+        "max_new_tokens": 8192
     },
     {
         "name": "arc",
