@@ -369,12 +369,15 @@ def run_full_suite_for_model(
             print(f"✓ {s['label']} already evaluated. Resuming next...")
             with open(out_file) as f:
                 rep_d = json.load(f)
-            b_data = (
-                rep_d.get(s["type"], {})
-                or rep_d.get("functional", {})
-                or rep_d.get("math", {})
-                or rep_d.get("science", {})
-            )
+            b_data = rep_d.get(s["type"], {})
+            if isinstance(b_data, dict) and "functional" in b_data:
+                b_data = b_data["functional"]
+            elif not b_data:
+                b_data = (
+                    rep_d.get("functional", {})
+                    or rep_d.get("math", {})
+                    or rep_d.get("science", {})
+                )
             master_summary[s["name"]] = {
                 "total_tasks": b_data.get("total_tasks"),
                 "pass_at_1_pct": b_data.get("pass_at_1_pct")
@@ -407,12 +410,15 @@ def run_full_suite_for_model(
 
         with open(out_file) as f:
             rep_d = json.load(f)
-        b_data = (
-            rep_d.get(s["type"], {})
-            or rep_d.get("functional", {})
-            or rep_d.get("math", {})
-            or rep_d.get("science", {})
-        )
+        b_data = rep_d.get(s["type"], {})
+        if isinstance(b_data, dict) and "functional" in b_data:
+            b_data = b_data["functional"]
+        elif not b_data:
+            b_data = (
+                rep_d.get("functional", {})
+                or rep_d.get("math", {})
+                or rep_d.get("science", {})
+            )
         p_rate = b_data.get("pass_at_1_pct") or b_data.get("pass_rate_pct", 0.0)
         master_summary[s["name"]] = {
             "total_tasks": b_data.get("total_tasks"),
