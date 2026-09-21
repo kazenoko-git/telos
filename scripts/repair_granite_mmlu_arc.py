@@ -77,8 +77,8 @@ def repair_arc_challenge(adapter: OpenAIAPIAdapter):
         gold = raw_task.get("answer_key", "")
 
         try:
-            # Generate with 2,048 tokens and greedy decoding
-            completion = adapter.generate(prompt=prompt, max_new_tokens=2048, temperature=0.0)
+            # Generate with 8,192 tokens and greedy decoding
+            completion = adapter.generate(prompt=prompt, max_new_tokens=8192, temperature=0.0)
         except Exception as e:
             print(f"    Task {task_id} error: {e}", flush=True)
             continue
@@ -91,13 +91,13 @@ def repair_arc_challenge(adapter: OpenAIAPIAdapter):
             task_meta["details"] = details
             ext = task_meta.setdefault("extended_metrics", {})
             ext["token_count"] = len(completion.split())
-            ext["repaired"] = True
+            ext["repaired_8192_tokens"] = True
         else:
             task_meta["details"] = details
             ext = task_meta.setdefault("extended_metrics", {})
             ext["token_count"] = len(completion.split())
 
-        if count % 50 == 0 or count == len(retry_indices):
+        if count % 20 == 0 or count == len(retry_indices):
             print(f"    [{count}/{len(retry_indices)}] Progress: Recovered {recovered} ({recovered/count*100:.1f}%)", flush=True)
 
     elapsed = time.time() - t0
@@ -132,7 +132,7 @@ def repair_mmlu_science(adapter: OpenAIAPIAdapter):
     suite_file = BENCH_DIR / "mmlu_science_suite.json"
 
     print("\n" + "=" * 80)
-    print("  REPAIRING IBM GRANITE 4.2 3B: MMLU SCIENCE & STEM (4,096 TOKENS)")
+    print("  REPAIRING IBM GRANITE 4.2 3B: MMLU SCIENCE & STEM (8,192 TOKENS)")
     print("=" * 80 + "\n")
 
     if not eval_file.exists() or not suite_file.exists():
@@ -170,7 +170,7 @@ def repair_mmlu_science(adapter: OpenAIAPIAdapter):
         gold = raw_task.get("answer_key", "")
 
         try:
-            completion = adapter.generate(prompt=prompt, max_new_tokens=4096, temperature=0.0)
+            completion = adapter.generate(prompt=prompt, max_new_tokens=8192, temperature=0.0)
         except Exception as e:
             print(f"    Task {task_id} error: {e}", flush=True)
             continue
@@ -183,9 +183,9 @@ def repair_mmlu_science(adapter: OpenAIAPIAdapter):
             task_meta["details"] = details
             ext = task_meta.setdefault("extended_metrics", {})
             ext["token_count"] = len(completion.split())
-            ext["repaired_4096_tokens"] = True
+            ext["repaired_8192_tokens"] = True
 
-        if count % 30 == 0 or count == len(retry_indices):
+        if count % 10 == 0 or count == len(retry_indices):
             print(f"    [{count}/{len(retry_indices)}] Progress: Recovered {recovered} ({recovered/count*100:.1f}%)", flush=True)
 
     elapsed = time.time() - t0
@@ -244,9 +244,9 @@ def update_summary(suite_key: str, eval_file: Path, label: str, pass_rate: float
 
 
 def main():
-    # 1. Unload current model and load Granite 4.2 with 8,192 context
+    # 1. Unload current model and load Granite 4.2 with 16,384 context
     run_lms(["unload", "google/gemma-4-e4b:2"])
-    run_lms(["load", "granite-4.2-3b-mlx", "-y", "-c", "8192", "--gpu", "max"])
+    run_lms(["load", "granite-4.2-3b-mlx", "-y", "-c", "16384", "--gpu", "max"])
     time.sleep(4)
 
     adapter = OpenAIAPIAdapter(
