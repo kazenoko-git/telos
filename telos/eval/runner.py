@@ -632,13 +632,13 @@ def evaluate_functional(
 
         test_harness = task.get("test_harness", "")
 
-        # 1. Allocate token budget: deep science, math, and cybersecurity require 1024 tokens
-        if any(x in suite for x in ["gpqa", "competition_math", "cyber", "mmlu"]):
+        # 1. Allocate token budget: adapter models require at least 2048 tokens
+        if isinstance(model, BaseModelAdapter):
+            token_budget = max(max_new_tokens, 2048)
+        elif any(x in suite for x in ["gpqa", "competition_math", "cyber", "mmlu"]):
             token_budget = max(max_new_tokens, 1024)
         elif (is_arc or is_math or is_gsm8k):
             token_budget = max(max_new_tokens, 384)
-        elif isinstance(model, BaseModelAdapter):
-            token_budget = max(max_new_tokens, 2048)
         else:
             token_budget = max_new_tokens
         if isinstance(model, BaseModelAdapter):
