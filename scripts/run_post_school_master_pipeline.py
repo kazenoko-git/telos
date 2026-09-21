@@ -87,12 +87,15 @@ def repair_truncated_tasks(
         print("  No tasks found in report.")
         return
 
-    # Identify tasks that failed and hit token limit
+    # Identify tasks that failed and hit token limit or missed extraction due to truncation
     truncated_indices = [
         i
         for i, t in enumerate(tasks)
         if t.get("outcome") != "PASSED"
-        and t.get("extended_metrics", {}).get("token_count", 0) >= 1000
+        and (
+            t.get("extended_metrics", {}).get("token_count", 0) >= 800
+            or "No multiple choice" in str(t.get("details", ""))
+        )
     ]
 
     print(f"  Found {len(truncated_indices)} truncated tasks out of {len(tasks)} total tasks.")
@@ -295,9 +298,10 @@ def run_full_suite_for_model(
     ctx_len = "16384"
     is_reasoning_model = any(k in model_id.lower() for k in ["phi-4", "gemma-4", "qwen", "thinking", "reasoning"])
     base_tokens = 2048 if is_reasoning_model else 1024
-    math_tokens = 8192 if "phi" in model_tag else 4096
-    gpqa_tokens = 8192 if "phi" in model_tag else 4096
-    arc_tokens = 4096 if "phi" in model_tag else 2048
+    # Allocate 8,192 tokens for all reasoning models (Gemma 4, Phi 4) to prevent thinking truncation
+    math_tokens = 8192 if any(k in model_tag for k in ["phi", "gemma"]) else 4096
+    gpqa_tokens = 8192 if any(k in model_tag for k in ["phi", "gemma"]) else 4096
+    arc_tokens = 4096 if any(k in model_tag for k in ["phi", "gemma"]) else 2048
 
     run_lms_command(["load", model_id, "-y", "-c", ctx_len, "--gpu", "max"])
     time.sleep(5)
@@ -340,7 +344,7 @@ def run_full_suite_for_model(
             "type": "science",
             "label": "MMLU Science & STEM",
             "output": f"eval_report_{model_tag}_mmlu_science_full.json",
-            "tokens": base_tokens,
+            "tokens": 4096 if is_reasoning_model else base_tokens,
             "prompt": "You are an expert in science and mathematics. State your final answer as \\boxed{<Letter>}.",
         },
         {
@@ -407,6 +411,19 @@ def run_full_suite_for_model(
             output_path=str(out_file),
         )
         elapsed = time.time() - t0
+
+        # Automatically repair truncated tasks for reasoning models (e.g. Gemma 4 E4B, Phi 4) with 8,192 tokens
+        if is_reasoning_model and s["name"] in ["gpqa_diamond", "competition_math"]:
+            suite_file = BENCH_DIR / f"{s['name']}_suite.json"
+            if suite_file.exists():
+                repair_truncated_tasks(
+                    model_name=display_name,
+                    adapter=adapter,
+                    eval_file=out_file,
+                    suite_file=suite_file,
+                    benchmark_type=s["type"],
+                    max_tokens=8192,
+                )
 
         with open(out_file) as f:
             rep_d = json.load(f)
