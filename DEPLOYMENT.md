@@ -442,27 +442,40 @@ torchrun --nproc_per_node=8 -m telos.train.cli --paradigm corosred --params 100M
 
 ---
 
-## 11. Benchmark Comparison Dashboard UI Generator
+## 11. Benchmark Comparison UI & Image Generators
 
-Télos includes an automated, zero-dependency HTML dashboard generator that parses all evaluation reports across models and suites, rendering an interactive comparison interface with embedded logo branding.
+Télos includes automated generators for rendering evaluation results into both high-resolution PNG comparison infographics and standalone interactive HTML dashboards with embedded Télos logo branding.
 
-### Generating the Dashboard
+### 1. Generating Publication-Quality Paper Comparison Graphs (`scripts/generate_benchmark_image.py`)
 
-Run the generator script:
+Run the image generator script using the venv Python:
+
+```bash
+uv run --with matplotlib --with pillow python scripts/generate_benchmark_image.py
+```
+
+**Features & Output Files**:
+- **Design System Fidelity**: Uses exact CSS design tokens from the Télos research paper (`#F4EBE1` card background, `#2D2A26` espresso text, `#5C554D` muted text, `#E5D9C5` Cartesian dotted grid lines).
+- **Télos Logo Overlay**: Dynamically removes white backgrounds from `logos/telos_logo.png`, tints to `#2D2A26`, and embeds seamlessly into the top-right header.
+- **Horizontal Category Breakdown (`figures/benchmark_breakdown_horizontal.png`)**: Matches Section 3 category rank breakdown charts with clean horizontal bars, dotted vertical grid lines, and percentage annotations.
+- **Grouped Bar Chart (`figures/benchmark_comparison_graph.png`)**: Publication-grade vertical grouped comparison across 7 core benchmark suites.
+- **Radar Fingerprint (`figures/benchmark_radar_graph.png`)**: Multi-axis spider graph mapping domain proficiencies in the paper palette.
+
+
+---
+
+### 2. Generating Standalone HTML Dashboard (`scripts/generate_benchmark_dashboard.py`)
+
+Run the web dashboard generator:
 
 ```bash
 python3 scripts/generate_benchmark_dashboard.py
 ```
 
-### Dashboard Features
+**Features**:
+- Embedded Base64 logo for zero-dependency standalone HTML file (`reports/benchmark_comparison_dashboard.html`).
+- Interactive Chart.js graphs, sortable leaderboard table, and dynamic drag-and-drop JSON report upload zone.
 
-1. **Embedded Télos Logo**: Logo from `logos/telos_logo.png` is Base64 encoded directly into the HTML file for standalone portability.
-2. **Interactive Chart.js Visualizations**:
-   - **Bar Chart**: Grouped metric comparison across models and benchmark suites (Pass@1 %, Solved Count, AST Validity %).
-   - **Radar Chart**: Spider graph visualizing multi-dimensional capability profiles across 6 core AI domains.
-3. **Leaderboard Table**: Search filter, 95% confidence intervals, and task execution outcome breakdowns (`PASSED`, `FAILED_ASSERTION`, `TIMEOUT`, `SYNTAX_ERROR`).
-4. **Drag-and-Drop Report Loader**: Live browser file uploader allowing users to drag and drop any external JSON evaluation report to compare models dynamically.
-5. **Output Location**: Generated directly to `reports/benchmark_comparison_dashboard.html`.
 
 
 
