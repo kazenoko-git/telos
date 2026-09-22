@@ -185,8 +185,13 @@ class DynamicMetricTracker:
         ema_decay: float = 0.99,
         trust_region: float = 0.20,
         rebalance_temp: float = 0.25,
+        cadence: int = 1,
     ):
-        self.decay = ema_decay
+        self.raw_decay = ema_decay
+        self.cadence = max(1, int(cadence))
+        # Effective decay: decay_eff = 1.0 - cadence * (1.0 - ema_decay)
+        # Keeps effective time constant identical regardless of whether updates occur every step or every 25 steps
+        self.decay = max(0.0, 1.0 - self.cadence * (1.0 - self.raw_decay))
         self.trust_region = trust_region
         self.rebalance_temp = rebalance_temp
 
@@ -202,22 +207,28 @@ class DynamicMetricTracker:
 
         self.step_count = 0
 
-    def update_lrh(self, acc: float, auc: float):
+    def update_lrh(self, acc: float, auc: float, cadence: int | None = None):
         """Updates LRH classification accuracy and ROC-AUC running EMAs."""
         if math.isnan(acc) or math.isnan(auc):
             return
+
+        cadence_step = self.cadence if cadence is None else max(1, int(cadence))
+        decay_eff = max(0.0, 1.0 - cadence_step * (1.0 - self.raw_decay))
 
         if self.lrh_acc_ema is None:
             self.lrh_acc_ema = float(acc)
             self.lrh_auc_ema = float(auc)
         else:
-            self.lrh_acc_ema = self.decay * self.lrh_acc_ema + (1.0 - self.decay) * float(acc)
-            self.lrh_auc_ema = self.decay * self.lrh_auc_ema + (1.0 - self.decay) * float(auc)
+            self.lrh_acc_ema = decay_eff * self.lrh_acc_ema + (1.0 - decay_eff) * float(acc)
+            self.lrh_auc_ema = decay_eff * self.lrh_auc_ema + (1.0 - decay_eff) * float(auc)
 
-    def update_losses(self, loss_c: float, loss_m: float):
+    def update_losses(self, loss_c: float, loss_m: float, cadence: int | None = None):
         """Updates causal and masked reconstruction per-token loss EMAs."""
         if math.isnan(loss_c) or math.isnan(loss_m):
             return
+
+        cadence_step = self.cadence if cadence is None else max(1, int(cadence))
+        decay_eff = max(0.0, 1.0 - cadence_step * (1.0 - self.raw_decay))
 
         if self.initial_loss_c is None:
             self.initial_loss_c = max(1e-4, float(loss_c))
@@ -225,8 +236,8 @@ class DynamicMetricTracker:
             self.loss_c_ema = self.initial_loss_c
             self.loss_m_ema = self.initial_loss_m
         else:
-            self.loss_c_ema = self.decay * self.loss_c_ema + (1.0 - self.decay) * float(loss_c)
-            self.loss_m_ema = self.decay * self.loss_m_ema + (1.0 - self.decay) * float(loss_m)
+            self.loss_c_ema = decay_eff * self.loss_c_ema + (1.0 - decay_eff) * float(loss_c)
+            self.loss_m_ema = decay_eff * self.loss_m_ema + (1.0 - decay_eff) * float(loss_m)
 
         self.step_count += 1
 
