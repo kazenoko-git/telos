@@ -2,7 +2,8 @@
 Universal Model Adapter Registry & Factory for Télos.
 
 Automatically routes model strings and checkpoints to the appropriate adapter:
-- AFM 3 Core / AFM 3 Core Advanced -> OpenAI API or vLLM adapter
+- AFM 3 Core / AFM 3 Core Advanced -> native Swift FoundationModels bridge
+  (see ``telos.afm``), or an OpenAI-compatible endpoint when ``api_base`` is given
 - Ternary Bonsai 27B -> HuggingFace or OpenAI API adapter
 - Gemma 4 e4b / Gemma 4 12B -> HuggingFace or MLX-LM adapter
 - Gemini 4 26B A4B -> Google Gemini REST adapter
