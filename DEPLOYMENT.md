@@ -456,7 +456,9 @@ uv run --with matplotlib --with pillow python scripts/generate_benchmark_image.p
 
 **Features & Output Files**:
 - **Design System Fidelity**: Uses exact CSS design tokens from the Télos research paper (`#F4EBE1` card background, `#2D2A26` espresso text, `#5C554D` muted text, `#E5D9C5` Cartesian dotted grid lines).
-- **Télos Logo Overlay**: Dynamically removes white backgrounds from `logos/telos_logo.png`, tints to `#2D2A26`, and embeds seamlessly into the top-right header.
+- **Télos Logo Isolation**: Dynamically removes white backgrounds from `logos/telos_logo.png`, tints to `#2D2A26`, and embeds into an isolated top-left header band (`y: 0.86 - 0.98`) physically decoupled from the plot canvas, guaranteeing the logo is never covered by data bars or labels.
+- **Strict 7-Suite Completion Gate**: Automatically skips models with partial benchmarks (such as Microsoft Phi-4 Mini at 3/7 suites or in-progress runs), displaying only fully evaluated models.
+- **Standardized Model Nomenclature**: Uses official model names (`AFM-3 Core Advanced`, `IBM Granite 4.2 3B`, `LiquidAI LFM 8B A1B`).
 - **Horizontal Category Breakdown (`figures/benchmark_breakdown_horizontal.png`)**: Matches Section 3 category rank breakdown charts with clean horizontal bars, dotted vertical grid lines, and percentage annotations.
 - **Grouped Bar Chart (`figures/benchmark_comparison_graph.png`)**: Publication-grade vertical grouped comparison across 7 core benchmark suites.
 - **Radar Fingerprint (`figures/benchmark_radar_graph.png`)**: Multi-axis spider graph mapping domain proficiencies in the paper palette.
