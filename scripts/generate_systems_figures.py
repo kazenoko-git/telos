@@ -209,10 +209,22 @@ def generate_repetition_rate_figure():
         "Overall\n(3,067 Tasks)"
     ]
 
-    # Loop percentages per model across the categories:
-    loops_afm =     [0.0, 2.5, 0.7, 0.6, 0.49]
-    loops_granite = [1.2, 0.5, 0.9, 0.2, 0.36]
-    loops_lfm =     [3.7, 1.5, 0.6, 0.5, 0.59]
+    # Exact empirical degenerate runaway loop rates across all evaluated suites:
+    # HumanEval (164), GPQA Diamond (198), Competition MATH (700), MMLU Science (833), ARC (1,172)
+    categories = [
+        "Code\n(HumanEval)",
+        "PhD Science\n(GPQA)",
+        "Competition\nMATH",
+        "STEM\n(MMLU)",
+        "Overall\n(3,067 Tasks)"
+    ]
+
+    # Ground-truth runaway loop percentages (cycling loops & token blowup):
+    # Granite was the heaviest runaway victim overall (1,129 runaway tasks, 36.8%),
+    # failing 97.0% of GPQA and 75.4% of MATH in circular reasoning.
+    loops_afm =     [2.4,  67.2, 73.3,  6.7, 23.4]
+    loops_granite = [1.2,  97.0, 75.4, 48.9, 36.8]
+    loops_lfm =     [20.1, 90.9, 61.6, 26.5, 28.5]
 
     # Lexical repetition metrics on HumanEval code generation:
     rep_metrics = ["2-Gram", "3-Gram", "4-Gram", "Line Rep"]
@@ -259,7 +271,7 @@ def generate_repetition_rate_figure():
     for bars in [bars1_afm, bars1_gra, bars1_lfm]:
         for bar in bars:
             h = bar.get_height()
-            ax1.annotate(f"{h:.1f}%" if h >= 0.1 else "0.0%",
+            ax1.annotate(f"{h:.1f}%",
                          xy=(bar.get_x() + bar.get_width()/2, h),
                          xytext=(0, 4), textcoords="offset points",
                          ha="center", va="bottom", fontsize=8.2, fontweight="bold",
@@ -267,9 +279,9 @@ def generate_repetition_rate_figure():
 
     ax1.set_xticks(x1)
     ax1.set_xticklabels(categories, fontsize=9.5, fontweight="600", color=COLOR_TEXT_MAIN)
-    ax1.set_ylabel("Degenerate Infinite Loop Rate (%)", fontsize=10.5, color=COLOR_TEXT_MUTED, labelpad=10)
-    ax1.set_ylim(0, 4.8)
-    ax1.set_title("Panel A: Degenerate Infinite Loop Rate by Domain & Overall (3,067 Tasks)",
+    ax1.set_ylabel("Degenerate Runaway Loop Rate (%)", fontsize=10.5, color=COLOR_TEXT_MUTED, labelpad=10)
+    ax1.set_ylim(0, 115)
+    ax1.set_title("Panel A: Runaway Loop Rate by Domain & Overall (3,067 Tasks)",
                   fontsize=11.2, fontweight="bold", color=COLOR_TEXT_MAIN, pad=18)
 
     # Position horizontal legend cleanly above bars with no overlaps
@@ -278,7 +290,7 @@ def generate_repetition_rate_figure():
 
     # Highlight Overall bar with subtle background tint
     ax1.axvspan(3.5, 4.5, color="#EDE2D5", alpha=0.45, zorder=1)
-    ax1.text(4.0, 4.40, "Full Suite", ha="center", fontsize=8.5, fontweight="bold", color=COLOR_TEXT_MUTED)
+    ax1.text(4.0, 105, "Full Suite", ha="center", fontsize=8.5, fontweight="bold", color=COLOR_TEXT_MUTED)
 
     # Panel B: Lexical Repetition Dynamics (Code Generation)
     ax2 = fig.add_axes([0.58, 0.13, 0.38, 0.68])
