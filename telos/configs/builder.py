@@ -388,20 +388,43 @@ def build_config(
         m_cfg["use_reliability_head"] = False
         m_cfg["mask_token_id"] = 1
 
-    # Cadence overrides (learning rate, schedule weights, metric reduction)
+    # Cadence defaults and overrides (learning rate, schedule weights, metric reduction)
+    # Default cadence is set to 25 if TPU else 1
+    is_tpu = (final_device == "xla") or (hw in ["tpu", "xla"])
+    auto_default_cadence = 25 if is_tpu else 1
+    default_cadence = kwargs.get("default_cadence")
+    if default_cadence is None:
+        default_cadence = auto_default_cadence
+    else:
+        default_cadence = int(default_cadence)
+
+    t_cfg["default_cadence"] = default_cadence
+    if "corosred" in cfg:
+        cfg["corosred"]["default_cadence"] = default_cadence
+
     if "lr_cadence" in kwargs and kwargs["lr_cadence"] is not None:
         t_cfg["lr_cadence"] = int(kwargs["lr_cadence"])
+    else:
+        t_cfg.setdefault("lr_cadence", default_cadence)
 
     sched_cad = kwargs.get("sched_step", kwargs.get("sched_cadence"))
     if sched_cad is not None:
         t_cfg["sched_cadence"] = int(sched_cad)
         if "corosred" in cfg:
             cfg["corosred"]["sched_cadence"] = int(sched_cad)
+    else:
+        t_cfg.setdefault("sched_cadence", default_cadence)
+        if "corosred" in cfg:
+            cfg["corosred"].setdefault("sched_cadence", default_cadence)
 
     if "cadence" in kwargs and kwargs["cadence"] is not None:
         t_cfg["cadence"] = int(kwargs["cadence"])
         if "corosred" in cfg:
             cfg["corosred"]["cadence"] = int(kwargs["cadence"])
+    else:
+        t_cfg.setdefault("cadence", default_cadence)
+        if "corosred" in cfg:
+            cfg["corosred"].setdefault("cadence", default_cadence)
 
     cfg["paradigm"] = paradigm
     m_cfg["paradigm"] = paradigm
