@@ -1,121 +1,123 @@
-# τέλος (télos) — Discrete Diffusion & Dual-Paradigm Language Models
+# télos (τέλος)
 
 <p align="center">
-  <a href="https://telos.research.wingit.tech">
-    <img src="https://raw.githubusercontent.com/kazenoko-git/telos/main/figures/benchmark_comparison_graph.png" alt="Télos Research Portal Benchmark Dashboard" width="880">
-  </a>
+  <img src="logos/telos_logo.png" alt="telos logo" width="340">
 </p>
 
 <p align="center">
-  <a href="https://telos.research.wingit.tech"><strong>🌐 Interactive Research Portal & Live Demos: telos.research.wingit.tech</strong></a>
+  <a href="https://telos.research.wingit.tech"><strong>Research Portal: telos.research.wingit.tech</strong></a>
+  <br>
+  <em>Note: The research portal is currently under active construction and is not finished yet.</em>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/organization-Wing%20It%20Research-blueviolet" alt="Wing It Research">
   <img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License">
-  <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue" alt="Python">
-  <img src="https://img.shields.io/badge/hardware-Apple%20Silicon%20(MLX)%20%7C%20CUDA%20%7C%20Cloud%20TPU%20(XLA)-orange" alt="Hardware Support">
+  <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue" alt="Python">
+  <img src="https://img.shields.io/badge/hardware-Apple%20Silicon%20(MLX)%20%7C%20CUDA%20%7C%20TPU%20(XLA)-orange" alt="Hardware Support">
 </p>
 
----
+## About Télos
 
-## 1. What Télos by Wing It Research is About
+"Whatever is new — we wing it."
 
-**télos** (τέλος) is an open-source research initiative by **Wing It Research** exploring non-monotonic generation, discrete diffusion, and dual-paradigm language modeling for code autocomplete and reasoning.
+Télos is an open research project by Wing It Research focused on AI research, benchmarks, and new architectures.
 
-Autoregressive (AR) language models are inherently constrained by left-to-right generation. Télos introduces architectures and training dynamics that unify **Causal Autoregressive drafting**, **Bidirectional Masked Diffusion infilling**, and **Confidence-Guided Selective Re-Diffusion** (COROSred) into a single, hardware-aligned model family.
+We are working on:
+1. **COROSred** (COnfidence ROuted Selective ReDiffusion)
+2. **Inference Optimal Scaling Laws** for Masked Diffusion and Uniform Noise Diffusion models
+3. **Benchmarks for new models**
 
-Interactive research visualizations, scaling charts, and live code completion playgrounds are available online at **[telos.research.wingit.tech](https://telos.research.wingit.tech)**.
+## Latest Findings
 
----
+### Benchmarks (AFM-3 vs Granite vs LFM 8B)
 
-## 2. Latest Findings
-
-### a. Latest Benchmarks (AFM vs LFM vs IBM Prelim)
-
-We conducted an institutional-grade 7-suite comparative evaluation comparing premier edge and open-weights models: **Apple AFM-3 Core Advanced** (native Swift IPC), **IBM Granite 4.2 3B (MLX)**, and **LiquidAI LFM 8B A1B**:
+We tested three edge models: Apple AFM-3 Core Advanced, IBM Granite 4.2 3B, and LiquidAI LFM 8B across 7 evaluation suites.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/kazenoko-git/telos/main/figures/benchmark_breakdown_horizontal.png" alt="Benchmark Breakdown Across Models" width="880">
+  <img src="figures/benchmark_radar_graph.png" alt="Benchmark Radar Graph Across Models" width="600">
 </p>
 
-| Suite | Tasks | Apple AFM-3 Core Adv. | IBM Granite 4.2 3B | LiquidAI LFM 8B A1B | Domain Metric |
+| Suite | Tasks | Apple AFM-3 Core Adv. | IBM Granite 4.2 3B | LiquidAI LFM 8B A1B | Metric |
 | :--- | :---: | :---: | :---: | :---: | :--- |
 | **OpenAI HumanEval** | 164 | **62.80%** | 60.37% | 45.73% | Pass@1 (Code Execution) |
-| **BFCL Tool-Use** | 30 | **73.33%** | 70.00% | 63.33% | Pass@1 (JSON Schema Match) |
-| **Cybersecurity Auditing** | 50 | 12.00% | 22.00% | **24.00%** | Pass@1 (CWE Remediation) |
+| **BFCL Tool-Use** | 30 | **73.33%** | 70.00% | 63.33% | Pass@1 (JSON Match) |
+| **Cybersecurity Auditing** | 50 | 12.00% | 22.00% | **24.00%** | Pass@1 (Vulnerability Fix) |
 | **GPQA Diamond** | 198 | **39.39%** | 28.79% | 20.71% | Pass@1 (Multiple Choice) |
 | **MMLU Science** | 119 | 69.75% | 61.82% | **73.11%** | Pass@1 (Multiple Choice) |
-| **Competition MATH** | 140 | 52.00% | **64.71%** | 43.57% | Pass@1 (LaTeX / Boxed Math) |
+| **Competition MATH** | 140 | 52.00% | **64.71%** | 43.57% | Pass@1 (Math Solutions) |
 | **ARC-Challenge** | 150 | 85.32% | **86.60%** | 59.56% | Pass@1 (Reasoning Choice) |
-| **Macro Average** | **841** | **56.37%** | **56.33%** | **47.14%** | 7-Suite Completion |
+| **Macro Average** | **841** | **56.37%** | **56.33%** | **47.14%** | 7-Suite Average |
 
-*For complete breakdown and evaluation scripts, see [`benchmarks/README.md`](benchmarks/README.md).*
+#### Runaway Loops and Hardware Efficiency
 
----
+Edge models sometimes get caught repeating words over and over, or they use too much memory.
 
-### b. Latest Research (COROSred Prelim)
+<p align="center">
+  <img src="figures/benchmark_repetition_rate.png" alt="Degenerate Loop Rate Across Benchmarks" width="800">
+</p>
 
-**COROSred** (**CO**nfidence-**RO**uted **S**elective **RE**-**D**iffusion) unites causal drafting and bidirectional diffusion refinement:
+<p align="center">
+  <img src="figures/benchmark_throughput_memory.png" alt="Throughput and Memory Comparison" width="800">
+</p>
+
+- **Runaway Loops**: IBM Granite 4.2 3B had the highest runaway loop rate at **36.8%** (1,129 tasks caught in repeat loops), followed by LiquidAI LFM 8B at **28.5%**, and Apple AFM-3 at **23.4%**.
+- **Speed and Memory**: Apple AFM-3 runs natively via Swift IPC at **58.7 tok/s** using **2.4 GB** RAM. IBM Granite 4.2 3B runs at **41.2 tok/s** using **3.2 GB** RAM. LiquidAI LFM 8B runs at **22.4 tok/s** using **7.8 GB** RAM.
+
+See [`benchmarks/README.md`](benchmarks/README.md) for full benchmark reports and details.
+
+### Research (COROSred)
+
+COROSred combines fast autoregressive token drafting with bidirectional diffusion fixing. High-confidence tokens are accepted in one step. Low-confidence tokens are fixed with bidirectional re-diffusion.
 
 ```
-                               ┌────────────────────────────────────────────────┐
-                               │             TÉLOS MODEL BACKBONE               │
-                               │  (RoPE, SwiGLU, RMSNorm, Weight Tying, GQA)    │
-                               └──────────────────────┬─────────────────────────┘
-                                                      │
-                       ┌──────────────────────────────┴──────────────────────────────┐
-                       │                                                             │
-                       ▼                                                             ▼
-         ┌───────────────────────────┐                                 ┌───────────────────────────┐
-         │  Causal AR Next-Token     │                                 │ Learned Reliability Head  │
-         │  Loss: L_causal (alpha)   │                                 │ LRH Predictability Gate   │
-         └─────────────┬─────────────┘                                 └─────────────┬─────────────┘
-                       │                                                             │
-                       │                        Routing Decision                     │
-                       └──────────────────────────────┬──────────────────────────────┘
-                                                      │
-                                                      ▼
-                                       ┌─────────────────────────────┐
-                                       │ High Confidence (> 0.65):   │ ──> Accept Draft Token
-                                       │ Fast Causal Autoregression  │
-                                       ├─────────────────────────────┤
-                                       │ Low Confidence (Ambiguous): │ ──> Route to Bidirectional
-                                       │ Masked Infill & Re-Diff     │     Refinement Denoiser
-                                       └─────────────────────────────┘
++-------------------------------------------------------+
+|                 TÉLOS MODEL BACKBONE                  |
+|       (RoPE, SwiGLU, RMSNorm, Weight Tying, GQA)      |
++---------------------------+---------------------------+
+                            |
+             +--------------+--------------+
+             |                             |
+             v                             v
++-------------------------+   +-------------------------+
+|  Causal AR Next-Token   |   |   Learned Reliability   |
+|  Loss: L_causal (alpha) |   |   Head Gate             |
++------------+------------+   +------------+------------+
+             |                             |
+             +--------------+--------------+
+                            |
+                     Routing Decision
+                            |
+             +--------------+--------------+
+             |                             |
+             v                             v
++---------------------------+ +---------------------------+
+| High Confidence (>= 0.65) | | Low Confidence (< 0.65)   |
+| Accept Draft Token        | | Route to Bidirectional    |
+| (Fast 1-Step AR)          | | Masked Re-Diffusion       |
++---------------------------+ +---------------------------+
 ```
 
-- **Perplexity Advantage**: Achieves **5.08 PPL** ($1.29\times$ lower validation perplexity than compute-matched pure AR).
-- **Bidirectional Infilling**: Reaches **63.0% Top-1 infill accuracy** (vs $7.6\%$ for pure AR).
-- **Anti-Cheat Span Immunity**: Maintains **52.0% exact match** with a **2.0% suffix copy rate** under multi-token chunk masking ($K \in \{1, 2, 4, 8, 16\}$).
-- **CE-Rank Divergence**: Discovered that extreme MDLM over-training leads to Cross-Entropy/Target-Rank divergence, where loss decreases on structural tokens while semantic rank explodes.
+- **Perplexity**: Achieves **5.08 validation PPL** (1.29x lower than pure AR).
+- **Bidirectional Infilling**: Achieves **63.0% Top-1 accuracy** on fill-in-the-blank code tasks (compared to 7.6% for pure AR).
+- **Anti-Cheat Span Masking**: Achieves **52.0% exact match** with a low 2.0% copy rate when multiple tokens are masked.
 
-*For paper preprints and scaling laws, see [`research/README.md`](research/README.md).*
+See [`research/README.md`](research/README.md) for research papers and scaling details.
 
----
-
-### c. Latest Models
-
-**None** *(No pre-trained model weights are currently hosted or distributed publicly. Users can train architectures from scratch using zero-config CLI commands).*
-
----
-
-## 3. Documentation Directory Routing
+## Documentation Directory Routing
 
 | Directory | Topic & Contents |
 | :--- | :--- |
-| 🔬 **[Research (`/research`)](research/README.md)** | **[Paper 1: Token-Budget Scaling](research/paper_1_token_budget_scaling.md)** • **[Paper 2: Capability Divergence & RoPE](research/paper_2_capability_divergence_and_rope.md)** • **[COROSred Architecture](research/corosred_architecture.md)** |
-| 📊 **[Benchmarks (`/benchmarks`)](benchmarks/README.md)** | **[AFM vs LFM vs IBM Comparison](benchmarks/afm_vs_lfm_vs_ibm.md)** • **[Apple AFM Report](benchmarks/afm.md)** • **[IBM Granite Report](benchmarks/ibm_granite.md)** • **[LiquidAI LFM Report](benchmarks/liquid_lfm.md)** |
-| 🖥️ **[CLI Usage (`/cli`)](cli/README.md)** | **[CLI Command Guide & Zero-Config Training](cli/README.md)** *(Official replacement for DEPLOYMENT.md)* |
+| [Research (`research/`)](research/README.md) | Scaling laws, architecture notes, and papers |
+| [Benchmarks (`benchmarks/`)](benchmarks/README.md) | Model comparisons, benchmark charts, and hardware metrics |
+| [CLI (`cli/`)](cli/README.md) | Command line tools, training guide, and setup |
 
----
-
-## 4. Basic CLI Usage
+## Basic CLI Usage
 
 ### Installation
 
 ```bash
-# Standard package install
+# Standard install
 pip install telos
 
 # With Apple Silicon Metal support (MLX)
@@ -125,23 +127,23 @@ pip install "telos[mlx]"
 ### Core CLI Commands
 
 ```bash
-# 1. Data Preparation (.bin token streams)
+# 1. Prepare token data
 telos dataprep --input raw_data/ --output data/python.bin --vocab-size 8192
 
-# 2. Zero-Config Training (50M COROSred on Apple Silicon MLX)
+# 2. Train a 50M COROSred model on Apple Silicon
 telos train --paradigm corosred --params 50M --tokens 2.5B --hardware mlx
 
-# 3. Multi-Domain Evaluation
-telos eval --checkpoint checkpoints/corosred/model.safetensors --type all --mode full
+# 3. Run evaluation
+telos eval --checkpoint checkpoints/corosred/model.safetensors --type all
 
-# 4. Hardware Benchmark (Capped at 5 minutes)
+# 4. Hardware benchmark (capped at 5 minutes)
 telos bench --paradigm corosred --params 50M --hardware mlx
 
-# 5. Apple Foundation Models (AFM-3 Core Advanced on Apple Silicon)
+# 5. Check Apple Foundation Models on Apple Silicon
 telos afm status
-telos afm generate "Explain rotary position embeddings in two sentences."
+telos afm generate "Explain binary search in two sentences."
 
-# 6. Verification Suite
+# 6. Verification suite
 telos test
 ```
 
@@ -150,17 +152,15 @@ telos test
 ```python
 import telos
 
-# Probe on-device Apple Foundation Models
+# Use on-device Apple Foundation Models
 if telos.afm.probe().available:
     response = telos.afm.generate("Write a python function for quicksort.")
     print(response)
 ```
 
-*For complete CLI documentation, flags, and hardware setup, see [`cli/README.md`](cli/README.md).*
+See [`cli/README.md`](cli/README.md) for all CLI flags and options.
 
----
-
-## 5. Citations & References
+## Citations & References
 
 ### Primary Citation
 
@@ -174,27 +174,14 @@ if telos.afm.probe().available:
 }
 ```
 
-### Framework & Related AI Research Citations
+### Framework & Related Research
 
-- **Apple MLX Framework**:
-  ```bibtex
-  @software{mlx2023,
-    author  = {Awni Hannun and Jagrit Digani and Angelos Katharopoulos and Tristan Lifchitz and Gautier Izacard and Bowen Baker and Guillermo Izquierdo and Maryam Fasihpanah and Michael Brabandere and others},
-    title   = {{MLX}: Efficient machine learning on Apple silicon},
-    url     = {https://github.com/ml-explore/mlx},
-    version = {0.22.0},
-    year    = {2023}
-  }
-  ```
+- **Apple MLX**: Hannun et al., *MLX: Efficient machine learning on Apple silicon*, 2023.
 - **Masked Diffusion Language Models (MDLM)**: Sahoo et al., *Masked Diffusion Language Models*, 2024.
 - **Compute-Optimal Scaling (Chinchilla)**: Hoffmann et al., *Training Compute-Optimal Large Language Models*, 2022.
 - **Large Language Diffusion Models (LLaDA)**: Nie et al., *LLaDA: Large Language Diffusion Models*, 2025.
-- **Reparameterized Discrete Diffusion (RADD)**: Zheng et al., *RADD: Reparameterized Absorbing Discrete Diffusion*, 2024.
-- **Masked Image Generation (MaskGIT)**: Chang et al., *MaskGIT: Masked Generative Image Transformer*, 2022.
 - **Discrete Diffusion Language Modeling (DiffusionGemma)**: Google DeepMind, *DiffusionGemma: An experimental discrete diffusion model based on Gemma*, 2026.
 
----
-
-## 📄 License
+## License
 
 Apache-2.0 License. See [LICENSE](LICENSE) for details.
