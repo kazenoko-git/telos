@@ -28,22 +28,25 @@ def compute_ngram_repetition(token_ids: List[int], n: int = 3) -> float:
     return float(1.0 - (unique_count / len(ngrams)))
 
 
-def detect_degenerate_loop(token_ids: List[int], n: int = 3, min_repeats: int = 3) -> bool:
+def detect_degenerate_loop(token_ids: List[int], n: int = 3, min_repeats: int = 3, max_period: int = 32) -> bool:
     """
-    Detects whether an n-gram repeats consecutively min_repeats or more times.
-    Indicates a degenerate autoregressive loop (e.g. 'foo foo foo' or 'return x return x').
+    Detects whether an n-gram or periodic token cycle repeats consecutively min_repeats or more times.
+    Checks strides k from 1 up to max_period to capture runaway single-token, phrase, and line-level cycles.
     """
-    if len(token_ids) < n * min_repeats:
+    total = len(token_ids)
+    if total < min_repeats:
         return False
-    ngrams = [tuple(token_ids[i : i + n]) for i in range(len(token_ids) - n + 1)]
-    streak = 1
-    for i in range(1, len(ngrams)):
-        if ngrams[i] == ngrams[i - 1]:
-            streak += 1
-            if streak >= min_repeats:
-                return True
-        else:
-            streak = 1
+    limit_k = min(max_period, total // min_repeats)
+    for k in range(1, limit_k + 1):
+        streak = 0
+        target = k * (min_repeats - 1)
+        for i in range(k, total):
+            if token_ids[i] == token_ids[i - k]:
+                streak += 1
+                if streak >= target:
+                    return True
+            else:
+                streak = 0
     return False
 
 
