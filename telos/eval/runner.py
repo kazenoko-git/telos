@@ -427,11 +427,11 @@ def clean_functional_completion(prompt: str, raw_completion: str) -> str:
     3. Truncates at the start of any new top-level function or class definition.
     4. Trims trailing incomplete lines caused by max_token limits to maximize valid AST recovery.
     """
-    comp = raw_completion.strip()
+    comp = raw_completion.rstrip()
 
     # 1. Extract from markdown code fences if present
-    if "```" in comp:
-        blocks = re.findall(r"```(?:python)?\s*(.*?)```", comp, re.DOTALL)
+    if "```" in raw_completion:
+        blocks = re.findall(r"```(?:python)?\s*(.*?)```", raw_completion, re.DOTALL)
         if blocks:
             candidate = blocks[0].strip()
             # If candidate is a standalone complete Python function definition
@@ -449,7 +449,7 @@ def clean_functional_completion(prompt: str, raw_completion: str) -> str:
                 pass
             comp = candidate
         else:
-            lines = comp.splitlines()
+            lines = raw_completion.splitlines()
             code_lines = [l for l in lines if not l.strip().startswith("```")]
             comp = "\n".join(code_lines).strip()
 
@@ -457,11 +457,11 @@ def clean_functional_completion(prompt: str, raw_completion: str) -> str:
     prompt_lines = [l.strip() for l in prompt.splitlines() if l.strip()]
     if prompt_lines:
         last_prompt_line = prompt_lines[-1]
-        comp_lines = comp.splitlines()
+        comp_lines = comp.splitlines(keepends=True)
         if comp_lines and comp_lines[0].strip() == last_prompt_line:
-            comp = "\n".join(comp_lines[1:])
+            comp = "".join(comp_lines[1:])
         elif comp_lines and comp_lines[0].strip().startswith("def ") and last_prompt_line.startswith("def "):
-            comp = "\n".join(comp_lines[1:])
+            comp = "".join(comp_lines[1:])
 
     # 3. Truncate at next top-level statement
     stop_phrases = ["\ndef ", "\nclass ", "\nif __name__", "\nprint("]
@@ -469,15 +469,17 @@ def clean_functional_completion(prompt: str, raw_completion: str) -> str:
         if sp in comp:
             comp = comp[:comp.index(sp)]
 
-    # 4. AST back-trimming for valid Python syntax
-    lines = comp.splitlines(keepends=True)
-    while lines:
-        test_code = prompt + ("\n" if not prompt.endswith("\n") else "") + "".join(lines)
-        try:
-            ast.parse(test_code)
-            return "".join(lines)
-        except SyntaxError:
-            lines.pop()
+    # 4. AST back-trimming with compile() validation and indentation recovery
+    import textwrap
+    for candidate_text in [comp, textwrap.indent(comp, "    ")]:
+        lines = candidate_text.splitlines(keepends=True)
+        while lines:
+            test_code = prompt + ("\n" if not prompt.endswith("\n") else "") + "".join(lines)
+            try:
+                compile(test_code, "<string>", "exec")
+                return "".join(lines)
+            except SyntaxError:
+                lines.pop()
 
     return comp
 
@@ -581,6 +583,11 @@ def evaluate_functional(
         "tooluse": bench_dir / "tooluse_suite.json",
     }
     data_file = suite_files.get(suite, bench_dir / f"{suite}_suite.json")
+
+    if suite == "private_unseen_hint":
+        prompt_mode = "hint"
+    elif suite == "private_unseen_base":
+        prompt_mode = "base"
 
     if not data_file.exists():
         raise FileNotFoundError(f"Benchmark dataset not found at {data_file}. Run scripts/build_evaluation_benchmarks.py first.")
@@ -1064,21 +1071,21 @@ def _evaluate_single(
             report[k] = v
 
     # 2. Math Benchmarks (GSM8K, Competition MATH)
-    if "math" in types_to_run or suite in ["gsm8k", "math", "competition_math"]:
+    if ("math" in types_to_run or suite in ["gsm8k", "math", "competition_math"]) and mode in ["functional", "full"]:
         m_suite = suite if suite in ["gsm8k", "competition_math", "math"] else "gsm8k"
         report["math"] = evaluate_functional(
             model, tok, backend, suite=m_suite, max_tasks=max_tasks, timeout_seconds=timeout
         )
 
     # 3. Science Benchmarks (ARC-Challenge, GPQA Diamond, MMLU Science)
-    if "science" in types_to_run or any(x in suite for x in ["arc", "arc_challenge", "gpqa", "gpqa_diamond", "mmlu", "mmlu_science"]):
+    if ("science" in types_to_run or any(x in suite for x in ["arc", "arc_challenge", "gpqa", "gpqa_diamond", "mmlu", "mmlu_science"])) and mode in ["functional", "full"]:
         s_suite = suite if suite in ["arc", "arc_challenge", "gpqa", "gpqa_diamond", "mmlu", "mmlu_science"] else "arc"
         report["science"] = evaluate_functional(
             model, tok, backend, suite=s_suite, max_tasks=max_tasks, timeout_seconds=timeout
         )
 
     # 4. Cybersecurity Benchmarks
-    if "cyber" in types_to_run or suite in ["cyber", "cybersecurity"]:
+    if ("cyber" in types_to_run or suite in ["cyber", "cybersecurity"]) and mode in ["functional", "full"]:
         report["cyber"] = evaluate_functional(
             model, tok, backend, suite="cyber", max_tasks=max_tasks, timeout_seconds=timeout
         )
@@ -1089,7 +1096,7 @@ def _evaluate_single(
     }
 
     # 5. Tool-Use Benchmarks
-    if "tooluse" in types_to_run or suite == "tooluse":
+    if ("tooluse" in types_to_run or suite == "tooluse") and mode in ["functional", "full"]:
         report["tooluse"] = evaluate_tooluse(
             model=model,
             tokenizer=tok,
@@ -1134,6 +1141,27 @@ def print_multimodel_scorecard(multi_reports: Dict[str, Any], mode: str):
     has_code = any("code" in rep or "probes" in rep for rep in multi_reports.values())
     has_linguistic = any("linguistic" in rep for rep in multi_reports.values())
     has_tooluse = any("tooluse" in rep for rep in multi_reports.values())
+
+    if has_code and mode in ["functional", "full"]:
+        header = (
+            f"{'Model / Checkpoint':<38} | {'Backend':<7} | {'Suite':<18} | {'Pass@1 (%)':<11} | "
+            f"{'AST Valid (%)':<14} | {'Rep-3 (%)':<10} | {'Passed/Total'}"
+        )
+        print("\n  [CODE BENCHMARK: FUNCTIONAL EXECUTION & PASS@1]")
+        print(header)
+        print("-" * 115)
+        for name, rep in multi_reports.items():
+            b = rep.get("backend", "unknown")
+            fn = rep.get("code", {}).get("functional") or rep.get("functional", {})
+            suite_name = fn.get("suite", "unknown")
+            p1 = f"{fn.get('pass_at_1_pct', 0.0):.1f}%" if fn.get('pass_at_1_pct') is not None else "N/A"
+            ast_val = f"{fn.get('ast_validity_pct', 0.0):.1f}%" if fn.get('ast_validity_pct') is not None else "N/A"
+            rep3 = f"{fn.get('extended_metrics', {}).get('rep_3gram_pct', 0.0):.1f}%" if fn.get('extended_metrics') else "N/A"
+            passed = fn.get("execution_outcomes", {}).get("PASSED", 0)
+            total = fn.get("total_tasks", 0)
+            p_str = f"{passed}/{total}"
+            disp_name = name if len(name) <= 38 else "..." + name[-35:]
+            print(f"{disp_name:<38} | {b:<7} | {suite_name:<18} | {p1:<11} | {ast_val:<14} | {rep3:<10} | {p_str}")
 
     if has_code and mode in ["probes", "full"]:
         header = (
@@ -1369,6 +1397,20 @@ def main():
         choices=["base", "hint"],
         dest="prompt_mode",
         help="Prompt variant to use ('base' for standard problem spec, 'hint' for algorithmic guidance). Default is 'base'."
+    )
+    parser.add_argument(
+        "--hint",
+        action="store_const",
+        dest="prompt_mode",
+        const="hint",
+        help="Use hint prompt mode (algorithmic guidance in docstrings)."
+    )
+    parser.add_argument(
+        "--nohint",
+        action="store_const",
+        dest="prompt_mode",
+        const="base",
+        help="Use base prompt mode (standard problem specification without hints)."
     )
     parser.add_argument("--probe-type", type=str, default="both", choices=["infill", "causal", "both"], help="Probe benchmark type")
     parser.add_argument("--num-probes", type=int, default=100, help="Number of contextual probes to evaluate")
