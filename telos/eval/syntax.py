@@ -22,8 +22,8 @@ def check_ast_validity(code: str) -> Tuple[bool, Optional[str]]:
         - error_description: None if valid, else formatted string "ErrorClass: details".
     """
     try:
-        # ast.parse operates purely on the in-memory string and never executes code
-        ast.parse(code)
+        # compile() verifies both syntax tree and bytecode legality (e.g. return inside function)
+        compile(code, "<string>", "exec")
         return True, None
     except SyntaxError as err:
         # Capture the specific error type (e.g. IndentationError, TabError, SyntaxError)
