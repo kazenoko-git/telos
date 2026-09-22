@@ -86,6 +86,29 @@ class OpenAIAPIAdapter(BaseModelAdapter):
         **kwargs
     ) -> str:
         """Generates completion via /chat/completions or /completions."""
+        content, _ = self.generate_with_finish_reason(
+            prompt=prompt,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            stop=stop,
+            **kwargs,
+        )
+        return content
+
+    def generate_with_finish_reason(
+        self,
+        prompt: str,
+        max_new_tokens: int = 256,
+        temperature: float = 0.0,
+        stop: Optional[List[str]] = None,
+        **kwargs
+    ) -> tuple:
+        """Like generate(), but also returns the finish_reason string.
+
+        Returns:
+            (content: str, finish_reason: str) where finish_reason is
+            'stop' for natural completion or 'length' for token-limit truncation.
+        """
         if self.use_chat_endpoint:
             messages = []
             if self.system_prompt:
@@ -108,13 +131,15 @@ class OpenAIAPIAdapter(BaseModelAdapter):
             resp = self._make_http_request("/chat/completions", payload)
             choices = resp.get("choices", [])
             if not choices:
-                return ""
-            msg = choices[0].get("message", {})
+                return "", "unknown"
+            choice = choices[0]
+            finish_reason = choice.get("finish_reason", "unknown")
+            msg = choice.get("message", {})
             content = msg.get("content")
-            if content:
-                return content
-            # Fall back to reasoning_content for thinking/reasoning models
-            return msg.get("reasoning_content") or ""
+            if not content:
+                # Fall back to reasoning_content for thinking/reasoning models
+                content = msg.get("reasoning_content") or ""
+            return content, finish_reason
         else:
             payload = {
                 "model": self.model_name,
@@ -128,8 +153,9 @@ class OpenAIAPIAdapter(BaseModelAdapter):
             resp = self._make_http_request("/completions", payload)
             choices = resp.get("choices", [])
             if not choices:
-                return ""
-            return choices[0].get("text") or ""
+                return "", "unknown"
+            choice = choices[0]
+            return choice.get("text") or "", choice.get("finish_reason", "unknown")
 
     def generate_batch(
         self,
