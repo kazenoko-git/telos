@@ -588,6 +588,50 @@ def evaluate_functional(
         prompt_mode = "hint"
     elif suite == "private_unseen_base":
         prompt_mode = "base"
+    elif prompt_mode in ["nohint", "base"]:
+        prompt_mode = "base"
+
+    # Dual-track execution for Private Unseen: evaluate both NO HINT and HINT
+    if prompt_mode == "both" and suite in ["private_unseen", "private_unseen_suite"]:
+        print("\n" + "=" * 80)
+        print(f"  TÉLOS BENCHMARK EVALUATION: {suite.upper()} [DUAL TRACK: NO HINT & HINT]")
+        print("=" * 80)
+        print(f"\n>>> Running Track 1/2: NO HINT (Base Specification) <<<")
+        rep_nohint = evaluate_functional(
+            model=model,
+            tokenizer=tokenizer,
+            backend=backend,
+            suite=suite,
+            prompt_mode="base",
+            max_tasks=max_tasks,
+            timeout_seconds=timeout_seconds,
+            max_new_tokens=max_new_tokens
+        )
+        print(f"\n>>> Running Track 2/2: HINT (Algorithmic Guidance) <<<")
+        rep_hint = evaluate_functional(
+            model=model,
+            tokenizer=tokenizer,
+            backend=backend,
+            suite=suite,
+            prompt_mode="hint",
+            max_tasks=max_tasks,
+            timeout_seconds=timeout_seconds,
+            max_new_tokens=max_new_tokens
+        )
+        return {
+            "suite": suite,
+            "prompt_mode": "both",
+            "total_tasks": rep_hint.get("total_tasks", 0),
+            "pass_at_1_pct": rep_hint.get("pass_at_1_pct", 0.0),
+            "pass_at_1_hint_pct": rep_hint.get("pass_at_1_pct", 0.0),
+            "pass_at_1_nohint_pct": rep_nohint.get("pass_at_1_pct", 0.0),
+            "ast_validity_pct": rep_hint.get("ast_validity_pct", 0.0),
+            "no_hint": rep_nohint,
+            "hint": rep_hint,
+            "execution_outcomes": rep_hint.get("execution_outcomes", {}),
+            "extended_metrics": rep_hint.get("extended_metrics", {}),
+            "category_breakdown": rep_hint.get("category_breakdown", {}),
+        }
 
     if not data_file.exists():
         raise FileNotFoundError(f"Benchmark dataset not found at {data_file}. Run scripts/build_evaluation_benchmarks.py first.")
@@ -958,6 +1002,7 @@ def _evaluate_single(
     output_path: Optional[str | Path] = None,
     benchmark_type: str = "all",
     language: str = "auto",
+    prompt_mode: str = "both",
     **kwargs
 ) -> Dict[str, Any]:
     """Evaluates a single model checkpoint across requested benchmark types."""
@@ -1001,6 +1046,13 @@ def _evaluate_single(
     else:
         # Local Télos Checkpoint
         model, backend, vocab_size = load_model_from_checkpoint(checkpoint)
+        dev = kwargs.get("device", "auto")
+        if dev and dev != "auto" and hasattr(model, "to"):
+            try:
+                import torch
+                model = model.to(torch.device(dev))
+            except Exception:
+                pass
 
     if tokenizer_path is None:
         if vocab_size == 8192 and (PROJECT_ROOT / "configs" / "tokenizer_mac.json").exists():
@@ -1039,7 +1091,7 @@ def _evaluate_single(
         "react", "react_javascript"
     ]:
         code_report = {}
-        prompt_mode = str(kwargs.get("prompt_mode", "base")).lower()
+        prompt_mode = str(kwargs.get("prompt_mode", prompt_mode)).lower()
         if mode == "probes":
             if (hasattr(model, "parameters") or backend in ["mlx", "pytorch"]) and tok is not None:
                 code_report["probes"] = evaluate_probes(
@@ -1143,25 +1195,79 @@ def print_multimodel_scorecard(multi_reports: Dict[str, Any], mode: str):
     has_tooluse = any("tooluse" in rep for rep in multi_reports.values())
 
     if has_code and mode in ["functional", "full"]:
-        header = (
-            f"{'Model / Checkpoint':<38} | {'Backend':<7} | {'Suite':<18} | {'Pass@1 (%)':<11} | "
-            f"{'AST Valid (%)':<14} | {'Rep-3 (%)':<10} | {'Passed/Total'}"
+        is_pvt = any(
+            "private_unseen" in (rep.get("code", {}).get("functional", {}).get("suite", "") or rep.get("functional", {}).get("suite", ""))
+            or "no_hint" in (rep.get("code", {}).get("functional", {}) or rep.get("functional", {}))
+            for rep in multi_reports.values()
         )
-        print("\n  [CODE BENCHMARK: FUNCTIONAL EXECUTION & PASS@1]")
-        print(header)
-        print("-" * 115)
-        for name, rep in multi_reports.items():
-            b = rep.get("backend", "unknown")
-            fn = rep.get("code", {}).get("functional") or rep.get("functional", {})
-            suite_name = fn.get("suite", "unknown")
-            p1 = f"{fn.get('pass_at_1_pct', 0.0):.1f}%" if fn.get('pass_at_1_pct') is not None else "N/A"
-            ast_val = f"{fn.get('ast_validity_pct', 0.0):.1f}%" if fn.get('ast_validity_pct') is not None else "N/A"
-            rep3 = f"{fn.get('extended_metrics', {}).get('rep_3gram_pct', 0.0):.1f}%" if fn.get('extended_metrics') else "N/A"
-            passed = fn.get("execution_outcomes", {}).get("PASSED", 0)
-            total = fn.get("total_tasks", 0)
-            p_str = f"{passed}/{total}"
-            disp_name = name if len(name) <= 38 else "..." + name[-35:]
-            print(f"{disp_name:<38} | {b:<7} | {suite_name:<18} | {p1:<11} | {ast_val:<14} | {rep3:<10} | {p_str}")
+        if is_pvt:
+            header = (
+                f"{'Model / Checkpoint':<36} | {'Backend':<7} | {'Suite':<15} | {'No-Hint (%)':<11} | {'Hint (%)':<9} | "
+                f"{'AST Valid (%)':<14} | {'Rep-3 (%)':<10} | {'Passed (NoHint/Hint)'}"
+            )
+            print("\n  [CODE BENCHMARK: FUNCTIONAL EXECUTION & PASS@1]")
+            print(header)
+            print("-" * 128)
+            for name, rep in multi_reports.items():
+                b = rep.get("backend", "unknown")
+                fn = rep.get("code", {}).get("functional") or rep.get("functional", {})
+                suite_name = fn.get("suite", "unknown")
+                if "no_hint" in fn and "hint" in fn:
+                    nh_p1 = f"{fn['no_hint'].get('pass_at_1_pct', 0.0):.1f}%"
+                    h_p1 = f"{fn['hint'].get('pass_at_1_pct', 0.0):.1f}%"
+                    nh_passed = fn["no_hint"].get("execution_outcomes", {}).get("PASSED", 0)
+                    h_passed = fn["hint"].get("execution_outcomes", {}).get("PASSED", 0)
+                    total = fn.get("total_tasks", fn["hint"].get("total_tasks", 0))
+                    p_str = f"{nh_passed}/{total} | {h_passed}/{total}"
+                    ast_val = f"{fn['hint'].get('ast_validity_pct', 0.0):.1f}%"
+                    rep3 = f"{fn['hint'].get('extended_metrics', {}).get('rep_3gram_pct', 0.0):.1f}%" if fn['hint'].get('extended_metrics') else "N/A"
+                elif fn.get("prompt_mode") == "hint":
+                    nh_p1 = "N/A"
+                    h_p1 = f"{fn.get('pass_at_1_pct', 0.0):.1f}%"
+                    passed = fn.get("execution_outcomes", {}).get("PASSED", 0)
+                    total = fn.get("total_tasks", 0)
+                    p_str = f"- | {passed}/{total}"
+                    ast_val = f"{fn.get('ast_validity_pct', 0.0):.1f}%"
+                    rep3 = f"{fn.get('extended_metrics', {}).get('rep_3gram_pct', 0.0):.1f}%" if fn.get('extended_metrics') else "N/A"
+                elif fn.get("prompt_mode") in ["base", "nohint"]:
+                    nh_p1 = f"{fn.get('pass_at_1_pct', 0.0):.1f}%"
+                    h_p1 = "N/A"
+                    passed = fn.get("execution_outcomes", {}).get("PASSED", 0)
+                    total = fn.get("total_tasks", 0)
+                    p_str = f"{passed}/{total} | -"
+                    ast_val = f"{fn.get('ast_validity_pct', 0.0):.1f}%"
+                    rep3 = f"{fn.get('extended_metrics', {}).get('rep_3gram_pct', 0.0):.1f}%" if fn.get('extended_metrics') else "N/A"
+                else:
+                    nh_p1 = f"{fn.get('pass_at_1_pct', 0.0):.1f}%"
+                    h_p1 = "N/A"
+                    passed = fn.get("execution_outcomes", {}).get("PASSED", 0)
+                    total = fn.get("total_tasks", 0)
+                    p_str = f"{passed}/{total}"
+                    ast_val = f"{fn.get('ast_validity_pct', 0.0):.1f}%"
+                    rep3 = f"{fn.get('extended_metrics', {}).get('rep_3gram_pct', 0.0):.1f}%" if fn.get('extended_metrics') else "N/A"
+
+                disp_name = name if len(name) <= 36 else "..." + name[-33:]
+                print(f"{disp_name:<36} | {b:<7} | {suite_name:<15} | {nh_p1:<11} | {h_p1:<9} | {ast_val:<14} | {rep3:<10} | {p_str}")
+        else:
+            header = (
+                f"{'Model / Checkpoint':<38} | {'Backend':<7} | {'Suite':<18} | {'Pass@1 (%)':<11} | "
+                f"{'AST Valid (%)':<14} | {'Rep-3 (%)':<10} | {'Passed/Total'}"
+            )
+            print("\n  [CODE BENCHMARK: FUNCTIONAL EXECUTION & PASS@1]")
+            print(header)
+            print("-" * 115)
+            for name, rep in multi_reports.items():
+                b = rep.get("backend", "unknown")
+                fn = rep.get("code", {}).get("functional") or rep.get("functional", {})
+                suite_name = fn.get("suite", "unknown")
+                p1 = f"{fn.get('pass_at_1_pct', 0.0):.1f}%" if fn.get('pass_at_1_pct') is not None else "N/A"
+                ast_val = f"{fn.get('ast_validity_pct', 0.0):.1f}%" if fn.get('ast_validity_pct') is not None else "N/A"
+                rep3 = f"{fn.get('extended_metrics', {}).get('rep_3gram_pct', 0.0):.1f}%" if fn.get('extended_metrics') else "N/A"
+                passed = fn.get("execution_outcomes", {}).get("PASSED", 0)
+                total = fn.get("total_tasks", 0)
+                p_str = f"{passed}/{total}"
+                disp_name = name if len(name) <= 38 else "..." + name[-35:]
+                print(f"{disp_name:<38} | {b:<7} | {suite_name:<18} | {p1:<11} | {ast_val:<14} | {rep3:<10} | {p_str}")
 
     if has_code and mode in ["probes", "full"]:
         header = (
@@ -1247,7 +1353,7 @@ def evaluate(
     output_path: Optional[str | Path] = None,
     benchmark_type: str = "all",
     language: str = "auto",
-    prompt_mode: str = "base",
+    prompt_mode: str = "both",
     **kwargs
 ) -> Dict[str, Any]:
     """
@@ -1393,10 +1499,10 @@ def main():
     parser.add_argument(
         "--prompt-mode",
         type=str,
-        default="base",
-        choices=["base", "hint"],
+        default="both",
+        choices=["base", "nohint", "hint", "both"],
         dest="prompt_mode",
-        help="Prompt variant to use ('base' for standard problem spec, 'hint' for algorithmic guidance). Default is 'base'."
+        help="Prompt variant to use ('both' for dual No-Hint and Hint tracks, 'hint', or 'nohint'/'base'). Default is 'both'."
     )
     parser.add_argument(
         "--hint",
