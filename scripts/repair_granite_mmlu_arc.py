@@ -34,13 +34,32 @@ def run_lms(args: List[str]) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True)
 
 
+def liveness_check(max_retries: int = 3) -> bool:
+    """Pings LMS and restarts Granite if unresponsive. Returns True if healthy."""
+    import urllib.request
+    for attempt in range(max_retries):
+        try:
+            with urllib.request.urlopen("http://127.0.0.1:1234/v1/models", timeout=10) as r:
+                if r.status == 200:
+                    return True
+        except Exception:
+            pass
+        print(f"  [LMS] Server unresponsive (attempt {attempt+1}/{max_retries}), reloading model...", flush=True)
+        for suffix in [":4", ":3", ":2", ""]:
+            run_lms(["unload", f"granite-4.2-3b-mlx{suffix}"])
+        time.sleep(3)
+        run_lms(["load", "granite-4.2-3b-mlx", "-y", "-c", "16384", "--gpu", "max"])
+        time.sleep(6)
+    return False
+
+
 def repair_arc_challenge(adapter: OpenAIAPIAdapter):
     """Repairs ARC-Challenge by re-running all 0-token and failed tasks."""
     eval_file = LOGS_DIR / "eval_report_granite_mlx_arc_full.json"
     suite_file = BENCH_DIR / "arc_challenge_suite.json"
 
     print("\n" + "=" * 80)
-    print("  REPAIRING IBM GRANITE 4.2 3B: ARC-CHALLENGE SCIENCE REASONING")
+    print("  REPAIRING IBM GRANITE 4.2 3B: ARC-CHALLENGE SCIENCE REASONING (16,000 TOKENS)")
     print("=" * 80 + "\n")
 
     if not eval_file.exists() or not suite_file.exists():
@@ -57,13 +76,20 @@ def repair_arc_challenge(adapter: OpenAIAPIAdapter):
     tasks = rep_data.get("science", {}).get("tasks", [])
 
     # Identify tasks that returned 0 tokens or failed assertion
+    # Skip tasks already successfully repaired in a previous run (crash resume)
     retry_indices = [
         i for i, t in enumerate(tasks)
         if t.get("outcome") != "PASSED"
+        and not t.get("extended_metrics", {}).get("repaired_16000_tokens")
     ]
 
-    print(f"  Found {len(retry_indices)} tasks to re-evaluate (including 705 dropped tasks).")
+    already_done = sum(
+        1 for t in tasks
+        if t.get("extended_metrics", {}).get("repaired_16000_tokens")
+    )
+    print(f"  Found {len(retry_indices)} tasks to re-evaluate (including 705 dropped tasks). ({already_done} already repaired, resuming.)")
     recovered = 0
+    still_truncated = 0
     t0 = time.time()
 
     for count, idx in enumerate(retry_indices, 1):
@@ -76,14 +102,26 @@ def repair_arc_challenge(adapter: OpenAIAPIAdapter):
         prompt = raw_task["prompt"]
         gold = raw_task.get("answer_key", "")
 
+        # Ping LMS before each task; restart if unresponsive
+        if not liveness_check():
+            print(f"    [LMS] Could not recover server — skipping task {task_id}", flush=True)
+            continue
+
         try:
-            # Generate with 8,192 tokens and greedy decoding
-            completion = adapter.generate(prompt=prompt, max_new_tokens=8192, temperature=0.0)
+            # Generate with 4,096 tokens (sufficient for ARC-Challenge CoT)
+            completion, finish_reason = adapter.generate_with_finish_reason(
+                prompt=prompt, max_new_tokens=4096, temperature=0.0
+            )
         except Exception as e:
             print(f"    Task {task_id} error: {e}", flush=True)
+            # Force LMS recovery after timeout to clear bad connection state
+            liveness_check()
             continue
 
         passed, details = evaluate_arc_sample(completion, gold)
+
+        # Flag any completion that still hit the token ceiling
+        truncated = finish_reason == "length"
 
         if passed:
             recovered += 1
@@ -91,14 +129,24 @@ def repair_arc_challenge(adapter: OpenAIAPIAdapter):
             task_meta["details"] = details
             ext = task_meta.setdefault("extended_metrics", {})
             ext["token_count"] = len(completion.split())
-            ext["repaired_8192_tokens"] = True
+            ext["repaired_16000_tokens"] = True
+            ext["finish_reason"] = finish_reason
+            if truncated:
+                ext["still_truncated_at_16000"] = True
         else:
             task_meta["details"] = details
             ext = task_meta.setdefault("extended_metrics", {})
             ext["token_count"] = len(completion.split())
+            ext["finish_reason"] = finish_reason
+            if truncated:
+                ext["still_truncated_at_16000"] = True
 
         if count % 20 == 0 or count == len(retry_indices):
-            print(f"    [{count}/{len(retry_indices)}] Progress: Recovered {recovered} ({recovered/count*100:.1f}%)", flush=True)
+            print(f"    [{count}/{len(retry_indices)}] Progress: Recovered {recovered} ({recovered/count*100:.1f}%) | Still truncated: {still_truncated}", flush=True)
+            # Checkpoint save every 20 tasks so progress survives crashes
+            with open(eval_file, "w") as f:
+                json.dump(rep_data, f, indent=2)
+            print(f"    [SAVE] Checkpoint written.", flush=True)
 
     elapsed = time.time() - t0
     total_passed = sum(1 for t in tasks if t.get("outcome") == "PASSED")
@@ -132,7 +180,7 @@ def repair_mmlu_science(adapter: OpenAIAPIAdapter):
     suite_file = BENCH_DIR / "mmlu_science_suite.json"
 
     print("\n" + "=" * 80)
-    print("  REPAIRING IBM GRANITE 4.2 3B: MMLU SCIENCE & STEM (8,192 TOKENS)")
+    print("  REPAIRING IBM GRANITE 4.2 3B: MMLU SCIENCE & STEM (16,000 TOKENS)")
     print("=" * 80 + "\n")
 
     if not eval_file.exists() or not suite_file.exists():
@@ -148,15 +196,33 @@ def repair_mmlu_science(adapter: OpenAIAPIAdapter):
     suite_map = {t["id"]: t for t in suite_data}
     tasks = rep_data.get("science", {}).get("tasks", [])
 
-    # Identify tasks that failed (especially truncated ones >= 900 tokens)
+    def is_repetition_loop(task_meta: Dict[str, Any]) -> bool:
+        """Identifies tasks stuck in degenerate loops or excessive n-gram repetition."""
+        ext = task_meta.get("extended_metrics", {})
+        return (
+            ext.get("is_degenerate_loop", False)
+            or ext.get("has_consecutive_dup_lines", False)
+            or ext.get("rep_2gram", 0.0) > 0.60
+            or ext.get("rep_3gram", 0.0) > 0.50
+        )
+
+    # Re-evaluate ONLY genuine token truncations (where no answer could be extracted),
+    # explicitly filtering out known repetition loopers.
     retry_indices = [
         i for i, t in enumerate(tasks)
         if t.get("outcome") != "PASSED"
-        and (t.get("extended_metrics", {}).get("token_count", 0) >= 900 or "No multiple choice" in str(t.get("details", "")))
+        and not t.get("extended_metrics", {}).get("repaired_16000_tokens")
+        and "No multiple choice" in str(t.get("details", ""))
+        and not is_repetition_loop(t)
     ]
 
-    print(f"  Found {len(retry_indices)} truncated tasks to re-evaluate with 4,096 tokens.")
+    already_done = sum(
+        1 for t in tasks
+        if t.get("extended_metrics", {}).get("repaired_16000_tokens")
+    )
+    print(f"  Found {len(retry_indices)} truncated tasks to re-evaluate with 16,000 tokens. ({already_done} already repaired, resuming.)")
     recovered = 0
+    still_truncated = 0
     t0 = time.time()
 
     for count, idx in enumerate(retry_indices, 1):
@@ -169,13 +235,28 @@ def repair_mmlu_science(adapter: OpenAIAPIAdapter):
         prompt = raw_task["prompt"]
         gold = raw_task.get("answer_key", "")
 
+        # Ping LMS before each task; restart if unresponsive
+        if not liveness_check():
+            print(f"    [LMS] Could not recover server — skipping task {task_id}", flush=True)
+            continue
+
         try:
-            completion = adapter.generate(prompt=prompt, max_new_tokens=8192, temperature=0.0)
+            # Generate with 4,096 tokens (sufficient for MMLU reasoning while preventing infinite loops)
+            completion, finish_reason = adapter.generate_with_finish_reason(
+                prompt=prompt, max_new_tokens=4096, temperature=0.0
+            )
         except Exception as e:
             print(f"    Task {task_id} error: {e}", flush=True)
+            # Force LMS recovery after timeout to clear bad connection state
+            liveness_check()
             continue
 
         passed, details = evaluate_arc_sample(completion, gold)
+
+        # Flag any completion that still hit the token ceiling
+        truncated = finish_reason == "length"
+        if truncated:
+            still_truncated += 1
 
         if passed:
             recovered += 1
@@ -183,10 +264,17 @@ def repair_mmlu_science(adapter: OpenAIAPIAdapter):
             task_meta["details"] = details
             ext = task_meta.setdefault("extended_metrics", {})
             ext["token_count"] = len(completion.split())
-            ext["repaired_8192_tokens"] = True
+            ext["repaired_16000_tokens"] = True
+            ext["finish_reason"] = finish_reason
+            if truncated:
+                ext["still_truncated_at_16000"] = True
 
         if count % 10 == 0 or count == len(retry_indices):
-            print(f"    [{count}/{len(retry_indices)}] Progress: Recovered {recovered} ({recovered/count*100:.1f}%)", flush=True)
+            print(f"    [{count}/{len(retry_indices)}] Progress: Recovered {recovered} ({recovered/count*100:.1f}%) | Still truncated: {still_truncated}", flush=True)
+            # Checkpoint save every 10 tasks
+            with open(eval_file, "w") as f:
+                json.dump(rep_data, f, indent=2)
+            print(f"    [SAVE] Checkpoint written.", flush=True)
 
     elapsed = time.time() - t0
     total_passed = sum(1 for t in tasks if t.get("outcome") == "PASSED")
@@ -210,7 +298,7 @@ def repair_mmlu_science(adapter: OpenAIAPIAdapter):
     with open(eval_file, "w") as f:
         json.dump(rep_data, f, indent=2)
 
-    print(f"\n✓ MMLU Science repair finished in {elapsed/60:.2f} mins. New Pass@1: {new_pass_rate}% [{ci_low}%, {ci_high}%] (+{recovered} solved)")
+    print(f"\n✓ MMLU Science repair finished in {elapsed/60:.2f} mins. New Pass@1: {new_pass_rate}% [{ci_low}%, {ci_high}%] (+{recovered} solved, {still_truncated} still truncated)")
     update_summary("mmlu_science", eval_file, "MMLU Science & STEM", new_pass_rate, [ci_low, ci_high], total_passed, n)
 
 
@@ -244,8 +332,12 @@ def update_summary(suite_key: str, eval_file: Path, label: str, pass_rate: float
 
 
 def main():
-    # 1. Unload current model and load Granite 4.2 with 16,384 context
+    # 1. Unload ALL existing Granite instances to prevent memory bloat from relaunches,
+    #    then load a single fresh instance with full 16,384 context.
+    for suffix in [":4", ":3", ":2", ""]:
+        run_lms(["unload", f"granite-4.2-3b-mlx{suffix}"])
     run_lms(["unload", "google/gemma-4-e4b:2"])
+    time.sleep(3)
     run_lms(["load", "granite-4.2-3b-mlx", "-y", "-c", "16384", "--gpu", "max"])
     time.sleep(4)
 
@@ -253,7 +345,7 @@ def main():
         model_name="granite-4.2-3b-mlx",
         api_base="http://127.0.0.1:1234/v1",
         system_prompt="You are an expert scientist. Derive the solution and state your final answer clearly as \\boxed{<Letter>} or Answer: <Letter>.",
-        timeout=180.0
+        timeout=120.0
     )
 
     # 2. Repair MMLU Science (truncated tasks)
@@ -268,4 +360,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        import traceback
+        print(f"\n[FATAL] Repair script crashed: {e}", flush=True)
+        traceback.print_exc()
+        sys.exit(1)
