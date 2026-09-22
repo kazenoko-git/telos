@@ -2,6 +2,13 @@
 télos (τέλος): Discrete Diffusion & Autoregressive Language Modeling Framework.
 """
 
+from importlib.metadata import version as _pkg_version, PackageNotFoundError
+
+try:
+    __version__ = _pkg_version("telos")
+except PackageNotFoundError:  # running from a source tree that was never installed
+    __version__ = "0.0.0.dev0"
+
 from . import dataprep
 from . import train
 from . import eval
@@ -22,6 +29,9 @@ _TORCH_IMPORTS = {
 }
 
 def __getattr__(name: str):
+    if name == "afm":
+        import importlib
+        return importlib.import_module(".afm", __package__)
     if name == "MLXTelosTransformer":
         from .models import MLXTelosTransformer
         return MLXTelosTransformer
@@ -41,6 +51,7 @@ def __getattr__(name: str):
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 __all__ = [
+    "__version__",
     "dataprep",
     "train",
     "run_train",
@@ -49,6 +60,7 @@ __all__ = [
     "prepare_dataset",
     "evaluate",
     "benchmark",
+    "afm",
     "TelosTransformer",
     "TelosConfig",
     "MLXTelosTransformer",
