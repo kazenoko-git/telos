@@ -33,7 +33,7 @@ telos --help
 
 ## 2. Master CLI Overview (`telos <command>`)
 
-Télos provides a unified command line interface with 5 core commands:
+Télos provides a unified command line interface with 6 core commands:
 
 | Command | Module | Description |
 | :--- | :--- | :--- |
@@ -41,7 +41,10 @@ Télos provides a unified command line interface with 5 core commands:
 | **`telos train`** | `telos.train` | Zero-config dimensional model trainer (AR, MDLM, UNDLM, COROSred Phase A, B & C, custom). No YAML config required. |
 | **`telos eval`** | `telos.eval` | High-end evaluation suite with 100 contextual probes across 8 categories, target CE, average rank, and qualitative code sampling. |
 | **`telos bench`** | `telos.bench` | Dedicated throughput, latency, and memory benchmark engine strictly capped at at most 5 minutes. |
+| **`telos afm`** | `telos.afm` | Apple on-device Foundation Models: availability status and generation on Apple Silicon. |
 | **`telos test`** | `telos.testing` | Unified test suite verifying model contracts, causality, losses, and samplers. |
+
+Run `telos --version` to print the installed version.
 
 ---
 
@@ -285,14 +288,24 @@ bench_results = telos.benchmark(
 ## 8. Packaging & Publishing to PyPI
 
 ### Build Wheels and Source Distribution
-Build the production package artifacts using `uv build` (or `python -m build`):
+Always rebuild from a clean `dist/` so stale artifacts cannot be uploaded:
 
 ```bash
-# Build tar.gz and .whl into dist/
+rm -rf dist
 uv build
 ```
 
-The wheel automatically bundles the default ByteLevel BPE tokenizer (`telos/assets/tokenizer_0.json`) so installed packages function with zero manual downloads.
+The wheel bundles the default ByteLevel BPE tokenizer (`telos/assets/tokenizer_0.json`) and the
+Swift AFM bridge **source** (`telos/afm/_swift/afm_bridge.swift`), so installed packages function
+with zero manual downloads. The compiled bridge binary is deliberately *not* shipped — it is a
+per-machine artifact built on first use (see the "Apple Foundation Models" section below).
+
+Inspect before publishing:
+
+```bash
+python -m zipfile -l dist/telos-*.whl
+tar tzf dist/telos-*.tar.gz
+```
 
 ### Optional Hardware Acceleration Targets
 - Standard Linux/CUDA/TPU install:
@@ -308,6 +321,20 @@ The wheel automatically bundles the default ByteLevel BPE tokenizer (`telos/asse
   pip install "telos[all]"
   ```
 
+### TestPyPI Rehearsal
+Publish to TestPyPI first and verify a real install before touching the production index:
+
+```bash
+uv publish --publish-url https://test.pypi.org/legacy/
+
+# Dependencies are not on TestPyPI, so add the real index for those.
+uv venv /tmp/telos-smoke
+uv pip install --python /tmp/telos-smoke/bin/python \
+  --index-url https://test.pypi.org/simple/ \
+  --extra-index-url https://pypi.org/simple/ telos
+/tmp/telos-smoke/bin/telos --help
+```
+
 ### Publish to PyPI
 ```bash
 # Upload to PyPI via twine (or uv publish)
@@ -315,6 +342,16 @@ uv publish
 # Or:
 twine upload dist/*
 ```
+
+### Automated Releases (Trusted Publishing)
+`.github/workflows/release.yml` builds the distributions and publishes them via PyPI
+**Trusted Publishing** (OIDC), so no API token is stored in the repository:
+
+- pushing a `v*` tag publishes to **TestPyPI**
+- publishing a GitHub **Release** publishes to **PyPI**
+
+Both jobs declare `permissions: id-token: write`, which Trusted Publishing requires. Configure the
+`testpypi` and `pypi` GitHub environments as trusted publishers on the respective index first.
 
 ---
 
@@ -481,4 +518,102 @@ python3 scripts/generate_benchmark_dashboard.py
 
 
 
+
+
+---
+
+## 12. Apple Foundation Models (`telos afm`)
+
+Télos exposes Apple's on-device Foundation Models (AFM 3) to Python, with no server and no
+download. This is macOS-only and requires all of:
+
+- macOS 26 or later, on Apple Silicon
+- a device eligible for Apple Intelligence, with it **enabled** in System Settings
+- the Xcode Command Line Tools (`xcode-select --install`) for `swiftc`
+
+Apple publishes no Python bindings, so Télos ships a small Swift program
+(`telos/afm/_swift/afm_bridge.swift`) that links `FoundationModels.framework` and speaks
+newline-delimited JSON over stdin/stdout.
+
+### Compilation and caching
+The bridge is compiled **on first use** with `swiftc`, into a user cache directory — never into
+`site-packages`. The cache key covers the Swift source and the macOS version, so upgrading either
+rebuilds automatically:
+
+```bash
+~/.cache/telos/afm_bridge-<digest>
+```
+
+Override the location with `TELOS_CACHE_DIR`.
+
+### CLI
+
+```bash
+# Is the on-device model usable here, and which one?
+telos afm status
+
+# Skip the runtime framework check (no Swift compile); inspect the platform only.
+telos afm status --static-only
+
+# One-shot generation
+telos afm generate "Explain rotary position embeddings in two sentences."
+telos afm generate "..." --max-tokens 512 --temperature 0.7
+```
+
+`telos afm status` exits `0` when the model is usable and `1` when it is not, so it is safe to use
+in scripts.
+
+### Python API
+
+```python
+import telos.afm
+
+report = telos.afm.probe()
+print(report.available, report.model, report.reason)
+
+if report.available:
+    print(telos.afm.generate("Write a haiku about gradients."))
+```
+
+For repeated calls, hold one bridge open so the process and model stay warm:
+
+```python
+import telos.afm
+
+with telos.afm.AFMBridge() as bridge:
+    for prompt in prompts:
+        print(bridge.generate(prompt, max_new_tokens=128))
+```
+
+`telos.afm.probe()` never raises for an unsupported machine — it returns an `AFMAvailability` with
+`available=False` and a specific `reason`. `telos.afm.require()` raises `AFMUnavailableError`
+instead. Inside the evaluation harness, `SwiftAFMAdapter` wraps the same bridge, so
+`telos eval --checkpoint afm-3-core-advanced` routes here by default.
+
+### Honest scope: Core vs Core Advanced
+`FoundationModels` exposes exactly one selectable model — its default. There is **no public
+Core-vs-Core-Advanced switch**, so Télos does not pretend to make one. `probe()` detects whether the
+default on-device model is usable and reports:
+
+- `model` — the model actually being called (`afm-3-core-advanced`)
+- `fallback_model` — the smaller on-device model offered as a fallback on **M3 and newer**, `None`
+  on older silicon
+- `reason` — on failure, the specific cause reported by the framework
+  (`deviceNotEligible`, `appleIntelligenceNotEnabled`, `modelNotReady`), so you can tell an
+  ineligible machine from one where Apple Intelligence is simply switched off
+
+---
+
+## 13. Systems & Behavioral Quality Figure Generation
+
+To render the publication-grade cream/parchment figures matching the exact paper design system (including official logo composite and empirical measurements):
+
+```bash
+# Generate Throughput, Unified Memory, and Repetition Rate diagrams
+./.venv/bin/python3 scripts/generate_systems_figures.py
+```
+
+Outputs:
+- `figures/benchmark_throughput_memory.png`: Dual-panel decoding throughput (tok/s) and resident memory utilisation (GB) with efficiency metrics (tok/s·GB).
+- `figures/benchmark_repetition_rate.png`: Multi-granular repetition (2/3/4-gram & line repetition) and loop degeneracy rates.
 
