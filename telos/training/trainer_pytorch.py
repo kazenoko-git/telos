@@ -338,8 +338,8 @@ class UnifiedPyTorchTrainer:
             **opt_kwargs
         )
 
-        # On TPU, quantize LR updates to 10-step cadence by default to avoid XLA graph recompilations from Python float changes, unless overridden
-        default_lr_cadence = 10 if self.is_tpu else 1
+        # Quantize LR updates to cadence (defaults to default_cadence: 25 on TPU, 1 on CUDA/CPU)
+        default_lr_cadence = int(self.t_cfg.get("default_cadence", 25 if self.is_tpu else 1))
         lr_cadence = int(self.t_cfg.get("lr_cadence", default_lr_cadence) or default_lr_cadence)
         self.scheduler = WarmupCosineLR(
             self.optimizer,
@@ -516,7 +516,7 @@ class UnifiedPyTorchTrainer:
                 
                 # Fetch continuous schedule weights driven by step progress and empirical EMAs.
                 # Defaults to 25 on TPU (to avoid XLA recompilations) and 1 on CUDA/CPU unless manually specified.
-                default_sched_cadence = 25 if self.is_tpu else 1
+                default_sched_cadence = int(self.crsr_cfg.get("default_cadence", self.t_cfg.get("default_cadence", 25 if self.is_tpu else 1)))
                 sched_cadence = int(self.crsr_cfg.get("sched_cadence", self.t_cfg.get("sched_cadence", default_sched_cadence)) or default_sched_cadence)
                 sched_step = (self.global_step // sched_cadence) * sched_cadence if sched_cadence > 1 else self.global_step
                 lrh_acc_ema = self.metric_tracker.lrh_acc_ema if hasattr(self, "metric_tracker") else None
@@ -864,7 +864,7 @@ class UnifiedPyTorchTrainer:
 
             # Synchronized cadence all-reduce of LRH AUC / balanced accuracy across all 8 replicas.
             # Executed synchronously by ALL ranks outside `if self.is_master` to ensure 100% identical schedule EMAs.
-            default_cadence = 25 if self.is_tpu else 1
+            default_cadence = int(self.crsr_cfg.get("default_cadence", self.t_cfg.get("default_cadence", 25 if self.is_tpu else 1)))
             cadence = int(self.crsr_cfg.get("cadence", self.t_cfg.get("cadence", default_cadence)) or default_cadence)
             if getattr(self, "is_unified", False) and (step % cadence == 0 or step == 1) and last_metrics is not None:
                 raw_auc = last_metrics.get("lrh_bal_acc", last_metrics.get("lrh_auc", None))
