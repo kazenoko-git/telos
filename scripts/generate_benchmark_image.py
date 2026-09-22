@@ -53,12 +53,22 @@ FONT_FAMILY_SANS = "sans-serif"
 
 # Model categorical palette from paper figures
 MODEL_COLORS = {
-    "AFM-3 Master": "#2563EB",         # Royal Blue
-    "IBM Granite 4.2 3B": "#D97706",   # Warm Amber / Terracotta
-    "Liquid LFM 8B": "#059669",        # Forest Emerald Green
-    "Microsoft Phi-4 Mini": "#DC2626", # Crimson / Carmine Red
-    "Google Gemma 4 E4B": "#7C3AED"    # Deep Amethyst Purple
+    "AFM-3 Core Advanced": "#2563EB",   # Royal Blue
+    "IBM Granite 4.2 3B": "#D97706",    # Warm Amber / Terracotta
+    "LiquidAI LFM 8B A1B": "#059669",   # Forest Emerald Green
+    "Google Gemma 4 E4B": "#7C3AED",    # Deep Amethyst Purple
+    "Microsoft Phi-4 Mini": "#DC2626",  # Crimson / Carmine Red
 }
+
+SUITE_KEYS = [
+    "humaneval",
+    "tooluse",
+    "cyber",
+    "gpqa_diamond",
+    "mmlu_science",
+    "competition_math",
+    "arc"
+]
 
 
 def load_master_summaries() -> Dict[str, Dict[str, Any]]:
@@ -67,9 +77,9 @@ def load_master_summaries() -> Dict[str, Dict[str, Any]]:
     models_data = {}
 
     model_name_map = {
-        "afm3": "AFM-3 Master",
+        "afm3": "AFM-3 Core Advanced",
         "granite_mlx": "IBM Granite 4.2 3B",
-        "lfm8b": "Liquid LFM 8B",
+        "lfm8b": "LiquidAI LFM 8B A1B",
         "phi4_mini": "Microsoft Phi-4 Mini",
         "gemma4_e4b": "Google Gemma 4 E4B"
     }
@@ -93,22 +103,13 @@ def load_master_summaries() -> Dict[str, Dict[str, Any]]:
                     "pass_at_1_pct": float(info.get("pass_at_1_pct", 0.0)),
                 }
 
-        models_data[model_label] = suites
-
-    # If Phi-4 GPQA Diamond exists separately, populate it
-    phi_gpqa = LOGS_DIR / "eval_report_phi4_mini_gpqa_diamond_full.json"
-    if "Microsoft Phi-4 Mini" in models_data and phi_gpqa.exists():
-        with open(phi_gpqa) as f:
-            try:
-                p_data = json.load(f)
-                for k, v in p_data.items():
-                    if isinstance(v, dict) and "pass_at_1_pct" in v:
-                        models_data["Microsoft Phi-4 Mini"]["gpqa_diamond"] = {
-                            "label": "GPQA Diamond (PhD Science)",
-                            "pass_at_1_pct": float(v.get("pass_at_1_pct", 0.0)),
-                        }
-            except Exception:
-                pass
+        # Strict Filter: Only include models that have completed ALL 7 benchmark suites!
+        # Unfinished benchmarks like Phi-4 Mini or in-progress runs must NOT be displayed.
+        completed_suites = [s for s in SUITE_KEYS if s in suites]
+        if len(completed_suites) == len(SUITE_KEYS):
+            models_data[model_label] = suites
+        else:
+            print(f"ℹ Skipping unfinished model '{model_label}' ({len(completed_suites)}/{len(SUITE_KEYS)} suites completed)")
 
     return models_data
 
@@ -154,7 +155,20 @@ def generate_paper_vertical_comparison(data: Dict[str, Dict[str, Any]]):
     n_models = len(models)
 
     # Clean figure matching the warm card container in the paper
-    fig, ax = plt.subplots(figsize=(13.5, 7.5), dpi=300, facecolor=COLOR_BG_CARD)
+    fig = plt.figure(figsize=(13.5, 7.8), dpi=300, facecolor=COLOR_BG_CARD)
+
+    # 1. Dedicated Header Band (Y: 0.86 to 0.98) - strictly above plot area
+    logo = get_clean_logo_image()
+    if logo is not None:
+        logo_ax = fig.add_axes([0.06, 0.905, 0.13, 0.055], anchor="NW")
+        logo_ax.imshow(logo)
+        logo_ax.axis("off")
+
+    fig.text(0.20, 0.925, "Télos Benchmark Evaluation: Pass@1 Across Model Architectures",
+             fontsize=14.5, fontweight="bold", fontfamily=FONT_FAMILY_SANS, color=COLOR_TEXT_MAIN, va="center")
+
+    # Plot axes strictly bounded between Y: 0.12 and Y: 0.80
+    ax = fig.add_axes([0.07, 0.12, 0.88, 0.68])
     ax.set_facecolor(COLOR_BG_CARD)
 
     # Dotted horizontal grid lines matching Recharts CartesianGrid strokeDasharray="3 3"
@@ -171,7 +185,7 @@ def generate_paper_vertical_comparison(data: Dict[str, Dict[str, Any]]):
 
     # X positions
     x = np.arange(n_suites)
-    bar_width = 0.80 / n_models
+    bar_width = 0.75 / n_models
 
     for i, model_name in enumerate(models):
         scores = [data[model_name].get(s, {}).get("pass_at_1_pct", 0.0) for s in suites]
@@ -179,7 +193,7 @@ def generate_paper_vertical_comparison(data: Dict[str, Dict[str, Any]]):
         offset = x + (i - (n_models - 1) / 2) * bar_width
         
         bars = ax.bar(
-            offset, scores, bar_width * 0.92,
+            offset, scores, bar_width * 0.90,
             label=model_name,
             color=color,
             edgecolor="none",
@@ -206,20 +220,10 @@ def generate_paper_vertical_comparison(data: Dict[str, Dict[str, Any]]):
     ax.set_ylabel("Pass@1 Accuracy (%)", fontsize=11, fontfamily=FONT_FAMILY_SANS, color=COLOR_TEXT_MUTED, labelpad=10)
     ax.tick_params(colors=COLOR_TEXT_MUTED, labelsize=10)
 
-    # Top Title & Logo matching paper headers
-    logo = get_clean_logo_image()
-    if logo is not None:
-        logo_ax = fig.add_axes([0.80, 0.92, 0.16, 0.055], anchor="NE")
-        logo_ax.imshow(logo)
-        logo_ax.axis("off")
-
-    fig.text(0.06, 0.94, "Télos Benchmark Evaluation: Pass@1 Across Model Architectures",
-             fontsize=14.5, fontweight="bold", fontfamily=FONT_FAMILY_SANS, color=COLOR_TEXT_MAIN)
-
     # Recharts-style Legend (centered, no box border, clean square swatches)
     ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, 1.09),
+        bbox_to_anchor=(0.5, 1.11),
         ncol=len(models),
         frameon=False,
         fontsize=10,
@@ -229,7 +233,6 @@ def generate_paper_vertical_comparison(data: Dict[str, Dict[str, Any]]):
         prop={"family": FONT_FAMILY_SANS, "weight": "600"}
     )
 
-    plt.subplots_adjust(top=0.88, bottom=0.12, left=0.07, right=0.96)
     plt.savefig(OUTPUT_BAR_PNG, facecolor=COLOR_BG_CARD, edgecolor="none", dpi=300)
     plt.close()
     print(f"✓ Saved Paper Vertical Comparison Graph: {OUTPUT_BAR_PNG}")
@@ -257,7 +260,20 @@ def generate_paper_horizontal_breakdown(data: Dict[str, Dict[str, Any]]):
     n_suites = len(suites)
     n_models = len(models)
 
-    fig, ax = plt.subplots(figsize=(12, 7.5), dpi=300, facecolor=COLOR_BG_CARD)
+    fig = plt.figure(figsize=(13.0, 7.8), dpi=300, facecolor=COLOR_BG_CARD)
+
+    # 1. Dedicated Header Band (Y: 0.86 to 0.98) - strictly above plot area
+    logo = get_clean_logo_image()
+    if logo is not None:
+        logo_ax = fig.add_axes([0.06, 0.905, 0.13, 0.055], anchor="NW")
+        logo_ax.imshow(logo)
+        logo_ax.axis("off")
+
+    fig.text(0.20, 0.925, "Benchmark Accuracy Breakdown: Multi-Model Evaluation",
+             fontsize=14.5, fontweight="bold", fontfamily=FONT_FAMILY_SANS, color=COLOR_TEXT_MAIN, va="center")
+
+    # Plot axes strictly bounded between Y: 0.10 and Y: 0.80
+    ax = fig.add_axes([0.23, 0.10, 0.71, 0.70])
     ax.set_facecolor(COLOR_BG_CARD)
 
     # Dotted vertical grid lines matching Recharts CartesianGrid strokeDasharray="3 3"
@@ -274,7 +290,7 @@ def generate_paper_horizontal_breakdown(data: Dict[str, Dict[str, Any]]):
 
     # Y positions
     y = np.arange(n_suites)
-    bar_height = 0.78 / n_models
+    bar_height = 0.75 / n_models
 
     for i, model_name in enumerate(models):
         scores = [data[model_name].get(s, {}).get("pass_at_1_pct", 0.0) for s in suites]
@@ -282,7 +298,7 @@ def generate_paper_horizontal_breakdown(data: Dict[str, Dict[str, Any]]):
         offset = y + (i - (n_models - 1) / 2) * bar_height
         
         bars = ax.barh(
-            offset, scores, bar_height * 0.92,
+            offset, scores, bar_height * 0.90,
             label=model_name,
             color=color,
             edgecolor="none",
@@ -309,20 +325,10 @@ def generate_paper_horizontal_breakdown(data: Dict[str, Dict[str, Any]]):
     ax.set_xlabel("Pass@1 Accuracy (%)", fontsize=11, fontfamily=FONT_FAMILY_SANS, color=COLOR_TEXT_MUTED, labelpad=10)
     ax.tick_params(colors=COLOR_TEXT_MUTED, labelsize=10)
 
-    # Top Title & Logo matching paper headers
-    logo = get_clean_logo_image()
-    if logo is not None:
-        logo_ax = fig.add_axes([0.80, 0.915, 0.15, 0.06], anchor="NE")
-        logo_ax.imshow(logo)
-        logo_ax.axis("off")
-
-    fig.text(0.06, 0.94, "Benchmark Accuracy Breakdown: Multi-Model Evaluation",
-             fontsize=14.5, fontweight="bold", fontfamily=FONT_FAMILY_SANS, color=COLOR_TEXT_MAIN)
-
-    # Legend styled like Recharts legend (centered at top)
+    # Legend centered above plot area
     ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, 1.09),
+        bbox_to_anchor=(0.5, 1.11),
         ncol=len(models),
         frameon=False,
         fontsize=10,
@@ -332,7 +338,6 @@ def generate_paper_horizontal_breakdown(data: Dict[str, Dict[str, Any]]):
         prop={"family": FONT_FAMILY_SANS, "weight": "600"}
     )
 
-    plt.subplots_adjust(top=0.88, bottom=0.10, left=0.24, right=0.94)
     plt.savefig(OUTPUT_HORIZONTAL_PNG, facecolor=COLOR_BG_CARD, edgecolor="none", dpi=300)
     plt.close()
     print(f"✓ Saved Paper Horizontal Breakdown Graph: {OUTPUT_HORIZONTAL_PNG}")
@@ -359,10 +364,20 @@ def generate_paper_radar_graph(data: Dict[str, Dict[str, Any]]):
     angles = [n / float(N) * 2 * np.pi for n in range(N)]
     angles += angles[:1]
 
-    fig = plt.figure(figsize=(9.5, 9.0), dpi=300, facecolor=COLOR_BG_CARD)
+    fig = plt.figure(figsize=(9.5, 9.2), dpi=300, facecolor=COLOR_BG_CARD)
     
-    # Polar axis with proper margin clearance
-    ax = fig.add_axes([0.12, 0.08, 0.76, 0.74], polar=True)
+    # Dedicated Header Band (strictly above polar plot)
+    logo = get_clean_logo_image()
+    if logo is not None:
+        logo_ax = fig.add_axes([0.06, 0.91, 0.14, 0.055], anchor="NW")
+        logo_ax.imshow(logo)
+        logo_ax.axis("off")
+
+    fig.text(0.22, 0.93, "Model Capability Radar: Multi-Domain Skill Envelope",
+             fontsize=13.5, fontweight="bold", fontfamily=FONT_FAMILY_SANS, color=COLOR_TEXT_MAIN, va="center")
+
+    # Polar axis with proper margin clearance strictly below header
+    ax = fig.add_axes([0.12, 0.06, 0.76, 0.72], polar=True)
     ax.set_facecolor(COLOR_BG_CARD)
 
     ax.set_theta_offset(np.pi / 2)
@@ -381,19 +396,9 @@ def generate_paper_radar_graph(data: Dict[str, Dict[str, Any]]):
         ax.plot(angles, values, linewidth=2.2, linestyle="solid", label=model_name, color=color)
         ax.fill(angles, values, color=color, alpha=0.12)
 
-    # Logo & Header
-    logo = get_clean_logo_image()
-    if logo is not None:
-        logo_ax = fig.add_axes([0.78, 0.92, 0.16, 0.055], anchor="NE")
-        logo_ax.imshow(logo)
-        logo_ax.axis("off")
-
-    fig.text(0.06, 0.94, "Model Capability Radar: Multi-Domain Skill Envelope",
-             fontsize=14.5, fontweight="bold", fontfamily=FONT_FAMILY_SANS, color=COLOR_TEXT_MAIN)
-
     ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, 1.14),
+        bbox_to_anchor=(0.5, 1.15),
         ncol=len(data),
         frameon=False,
         fontsize=9.5,
@@ -404,6 +409,7 @@ def generate_paper_radar_graph(data: Dict[str, Dict[str, Any]]):
     plt.savefig(OUTPUT_RADAR_PNG, facecolor=COLOR_BG_CARD, edgecolor="none", dpi=300)
     plt.close()
     print(f"✓ Saved Paper Radar Graph: {OUTPUT_RADAR_PNG}")
+
 
 
 def main():
