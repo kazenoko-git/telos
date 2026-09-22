@@ -13,8 +13,10 @@ import numpy as np
 
 try:
     import mlx.core as mx
-    import mlx.nn as mx_nn
-    MLX_AVAILABLE = True
+    from telos.training.core import metal_usable
+    MLX_AVAILABLE = metal_usable()
+    if MLX_AVAILABLE:
+        import mlx.nn as mx_nn
 except ImportError:
     MLX_AVAILABLE = False
 
