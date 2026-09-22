@@ -83,3 +83,43 @@ def test_mlx_unified_corosred_step():
     updated_weights = mx.array(model.emb.weight)
     weight_diff = mx.sum(mx.abs(updated_weights - initial_weights)).item()
     assert weight_diff > 1e-6, "Weights did not update after compiled optimizer step"
+
+
+def test_mlx_unified_loss_weighting_contract():
+    """Verify that MLX unified loss strictly obeys per-task per-token mean weighting."""
+    try:
+        import mlx.core as mx
+    except ImportError:
+        import pytest
+        pytest.skip("MLX not installed in this environment")
+
+    from telos.models import MLXTelosTransformer
+    from telos.diffusion.corosred import corosred_unified_loss_fn_mlx
+
+    model = MLXTelosTransformer(
+        vocab_size=128,
+        d_model=64,
+        n_layers=2,
+        n_heads=2,
+        is_causal=False,
+        use_reliability_head=True,
+        precision="float32"
+    )
+    batch = mx.random.randint(0, 128, (4, 32))
+    alpha = 0.85
+    beta = 0.15
+    gamma = 0.0
+
+    total_loss, pooled_ce = corosred_unified_loss_fn_mlx(
+        model,
+        batch,
+        vocab_size=128,
+        alpha=alpha,
+        beta=beta,
+        gamma=gamma,
+        causal_ratio=0.75,
+        mask_prob=0.15,
+        k_amb=5
+    )
+    assert not mx.isnan(total_loss).item()
+    assert abs(total_loss.item() - pooled_ce.item()) < 1e-6
