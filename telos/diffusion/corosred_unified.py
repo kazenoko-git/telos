@@ -328,14 +328,13 @@ def corosred_unified_step_pytorch(
         alpha, beta = alpha_nom, beta_nom
         rebal_telem = {"nominal_ratio": beta_nom / max(1e-6, alpha_nom), "clamped": False}
 
-    # Sequence-normalized loss pooling balances gradient scales between causal and infill tasks
-    w_c = float(B_c) / float(B)
-    w_m = float(B_m) / float(B)
-    causal_seq_norm = causal_loss_sum / max(1.0, float(B_c * (T - 1)))
-    infill_seq_norm = infill_loss_sum / max(1.0, float(B_m * (T - 1)))
+    # 5. Per-Task Per-Token Mean Multi-Objective Loss Pooling
+    # Normalizes by active task token counts so alpha and beta directly define loss weights
+    causal_seq_norm = causal_loss_sum / max(1.0, causal_token_count)
+    infill_seq_norm = infill_loss_sum / infill_token_count_t
 
-    task_weight_sum = max(1e-6, alpha * w_c + beta * w_m)
-    pooled_task_loss = (alpha * w_c * causal_seq_norm + beta * w_m * infill_seq_norm) / task_weight_sum
+    task_weight_sum = max(1e-6, alpha + beta)
+    pooled_task_loss = (alpha * causal_seq_norm + beta * infill_seq_norm) / task_weight_sum
     total_loss = pooled_task_loss + gamma_nom * r_loss
 
     # 6. Metric Tracker Update
