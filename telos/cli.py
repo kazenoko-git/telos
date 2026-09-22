@@ -5,6 +5,7 @@ Routes subcommands:
   telos train ...     -> Zero-config dimensional model training
   telos eval ...      -> 100 contextual probes and model evaluation
   telos bench ...     -> 5-minute hardware throughput benchmark
+  telos afm ...       -> Apple on-device Foundation Models (status, generate)
   telos test ...      -> Unified test suite & model verification
 """
 
@@ -21,14 +22,22 @@ def print_banner():
 
 
 def main():
+    if len(sys.argv) >= 2 and sys.argv[1] in ["-V", "--version"]:
+        from telos import __version__
+        print(f"telos {__version__}")
+        sys.exit(0)
+
     if len(sys.argv) < 2 or sys.argv[1] in ["-h", "--help"]:
+        from telos import __version__
         print_banner()
+        print(f"telos {__version__}\n")
         print("Usage: telos <command> [options]\n")
         print("Available Commands:")
         print("  dataprep   Prepare raw text, code directories, JSONL, or HF datasets into binary token stream (.bin)")
         print("  train      Unified zero-config model trainer (AR, MDLM, UNDLM, COROSred, custom)")
         print("  eval       High-end evaluation suite (100 contextual probes, code sampling, perplexity)")
         print("  bench      Hardware throughput & step latency benchmark (strictly capped at 5 minutes)")
+        print("  afm        Apple on-device Foundation Models (availability status, generation)")
         print("  test       Run unified verification suite across model contracts, causality, and samplers")
         print("\nRun 'telos <command> --help' for detailed options on any command.\n")
         sys.exit(0)
@@ -49,11 +58,14 @@ def main():
     elif cmd in ["bench", "benchmark"]:
         from telos.bench.runner import main as bench_main
         bench_main()
+    elif cmd == "afm":
+        from telos.afm.cli import main as afm_main
+        afm_main()
     elif cmd in ["test", "verify"]:
         from telos.testing.suite import main as test_main
         test_main()
     else:
-        print(f"Error: Unknown command '{cmd}'. Available: dataprep, train, eval, bench, test.")
+        print(f"Error: Unknown command '{cmd}'. Available: dataprep, train, eval, bench, afm, test.")
         sys.exit(1)
 
 
