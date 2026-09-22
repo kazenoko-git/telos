@@ -332,16 +332,13 @@ if MLX_AVAILABLE:
             sum_ce_m = mx.array(0.0)
             n_infill_tokens = mx.array(1.0)
 
-        # 5. Sequence-Normalized Multi-Objective Loss Pooling
-        # Eliminates the ~7.6x per-token gradient amplification caused by dividing
-        # sparse masked tokens vs dense causal tokens.
-        w_c = float(B_c) / float(B)
-        w_m = float(B_m) / float(B)
-        causal_seq_norm = sum_ce_c / float(B_c * (T - 1))
-        infill_seq_norm = sum_ce_m / float(max(1, B_m) * (T - 1))
+        # 5. Per-Task Per-Token Mean Multi-Objective Loss Pooling
+        # Normalizes by active task token counts so alpha and beta directly define loss weights
+        causal_seq_norm = sum_ce_c / n_causal_tokens
+        infill_seq_norm = sum_ce_m / n_infill_tokens
 
-        task_weight_sum = mx.clip(alpha * w_c + beta * w_m, 1e-6, 10.0)
-        pooled_ce = (alpha * w_c * causal_seq_norm + beta * w_m * infill_seq_norm) / task_weight_sum
+        task_weight_sum = mx.clip(mx.array(alpha + beta), 1e-6, 10.0)
+        pooled_ce = (alpha * causal_seq_norm + beta * infill_seq_norm) / task_weight_sum
         total_loss = pooled_ce + gamma * l_head
 
         return total_loss, pooled_ce
