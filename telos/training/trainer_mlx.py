@@ -8,13 +8,17 @@ import json
 import numpy as np
 from pathlib import Path
 
+from .core import metal_usable
+
 try:
     import mlx.core as mx
+    if not metal_usable():
+        raise ImportError("Metal is unavailable in this session.")
     import mlx.nn as mx_nn
     import mlx.optimizers as mx_optim
     MLX_AVAILABLE = True
-except ImportError:
-    MLX_AVAILABLE = False
+except ImportError as err:
+    raise ImportError(f"UnifiedMLXTrainer requires a working MLX runtime: {err}") from err
 
 from .core import (
     clip_grad_norm_mlx,
