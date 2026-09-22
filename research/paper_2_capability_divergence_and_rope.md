@@ -2,7 +2,7 @@
 
 **Author**: Ivan Samuel  
 **Affiliation**: Wing It Research  
-**Website**: [telos.research.wingit.tech](https://telos.research.wingit.tech)
+**Website**: [telos.research.wingit.tech](https://telos.research.wingit.tech) *(Note: Research portal is currently under active development)*
 
 ---
 
@@ -40,6 +40,11 @@ We evaluated all three model tiers across extended token-to-parameter ratios. We
 
 ## 3. Empirical Scaling Laws: Cross-Entropy and Top-5 Accuracy
 
+<p align="center">
+  <img src="../figures/scaling_cross_entropy.png" alt="Target Cross Entropy Scaling" width="400">
+  <img src="../figures/scaling_top5_accuracy.png" alt="Top-5 Accuracy Scaling" width="400">
+</p>
+
 ### Target Cross-Entropy vs. Token Multiplier
 
 - **New Project Record Cross-Entropy**: 25M 1:40 achieved the lowest cross-entropy in the entire project at **7.24 nats**, outperforming 50M 1:45 (7.41 nats) and 25M 1:35 (7.39 nats).
@@ -55,6 +60,12 @@ We evaluated all three model tiers across extended token-to-parameter ratios. We
 ## 4. The CE-Rank Divergence Phenomenon
 
 The most critical finding from extended scaling is the decoupling of Cross-Entropy and Average Target Rank. CE and Average Rank decouple past a critical over-training ratio: CE continues to decrease while rank increases — the model becomes a better syntactic predictor but a worse semantic predictor.
+
+<p align="center">
+  <img src="../figures/scaling_average_rank.png" alt="CE-Rank Divergence Average Rank" width="550">
+</p>
+
+*[Category Heatmap: YET TO UPDATE]*
 
 In the 25M tier, training from 1:30 to 1:40 yielded an improvement in overall CE (from 7.39 at 1:35 down to 7.24 at 1:40), while average target rank tripled (from 409 at 1:30 to 1,239 at 1:40).
 
@@ -83,9 +94,9 @@ The results were unequivocally negative across all scales:
 
 | Original Base Checkpoint (Absolute PE) | After 150-step RoPE FT | Delta |
 | :--- | :--- | :--- |
-| **50M 1:25**: 7.19 CE (Rank 469) | 7.79 CE (Rank 725) | ❌ **+0.60 CE (Regressed)** |
-| **50M 1:35**: 7.05 CE (Rank 446) | 7.72 CE (Rank 823) | ❌ **+0.67 CE (Regressed)** |
-| **25M 1:30**: 6.90 CE (Rank 409) | 7.55 CE (Rank 620) | ❌ **+0.65 CE (Regressed)** |
+| **50M 1:25**: 7.19 CE (Rank 469) | 7.79 CE (Rank 725) | **+0.60 CE (Degraded)** |
+| **50M 1:35**: 7.05 CE (Rank 446) | 7.72 CE (Rank 823) | **+0.67 CE (Degraded)** |
+| **25M 1:30**: 6.90 CE (Rank 409) | 7.55 CE (Rank 620) | **+0.65 CE (Degraded)** |
 
 - **The RoPE Shock**: Injecting `mlx.fast.rope` directly into attention blocks subjected $W_q$ and $W_k$ matrices to an immediate geometric shift from additive offsets to rotary phase angles. 150 steps (~1% of budget) was vastly insufficient to re-align attention circuits, resulting in systematic ~0.6 nat degradation.
 - **Native RoPE from Initialization**: Models trained natively with RoPE from step 0 (e.g., 25M 1:35 and 1:40) achieved record Top-5 accuracies (17.82%), demonstrating that RoPE is highly effective when trained from scratch.
