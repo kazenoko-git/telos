@@ -2,13 +2,13 @@
 
 **Author**: Ivan Samuel  
 **Affiliation**: Wing It Research  
-**Website**: [telos.research.wingit.tech](https://telos.research.wingit.tech)
+**Website**: [telos.research.wingit.tech](https://telos.research.wingit.tech) *(Note: Research portal is currently under active development)*
 
 ---
 
 ## Architecture Overview
 
-**COROSred** (**CO**nfidence-**RO**uted **S**elective **RE**-**D**iffusion) unites **Causal Autoregressive (AR) drafting** with **Bidirectional Masked Diffusion infilling** and **Confidence-Guided Selective Re-Diffusion** in a single dynamic training process and runtime architecture.
+**COROSred** (**CO**nfidence **RO**uted **S**elective **ReD**iffusion) unites **Causal Autoregressive (AR) drafting** with **Bidirectional Masked Diffusion infilling** and **Confidence-Guided Selective Re-Diffusion** in a single dynamic training process and runtime architecture.
 
 ```
                                ┌────────────────────────────────────────────────┐
@@ -58,6 +58,12 @@ Unlike standard diffusion models that rely on heuristic entropy cutoffs, COROSre
 ---
 
 ## Performance Summary
+
+<p align="center">
+  <img src="../figures/corosred_50m_2b_benchmark.png" alt="COROSred 50M Benchmark" width="750">
+</p>
+
+*[Detailed Ablation Diagrams: YET TO UPDATE]*
 
 Across 512-task evaluation suites, COROSred eliminates the structural vs. semantic trade-off seen in pure MDLMs:
 - **Causal Validation Perplexity**: $5.08$ ($1.29\times$ lower PPL than compute-matched pure AR).
