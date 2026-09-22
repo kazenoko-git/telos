@@ -1,66 +1,36 @@
 """
-Apple Foundation Models (AFM) Swift Bridge Adapter for Télos.
-
-Communicates with the native Swift FoundationModels.framework binary via persistent IPC.
-Provides access to on-device AFM 3 Core and AFM 3 Core Advanced on Apple Silicon.
+Swift AFM Adapter
+Evaluation adapter over telos.afm for Apple on-device Foundation Models.
 """
 
-import json
-import os
-import subprocess
+from __future__ import annotations
+
 import sys
-from pathlib import Path
 from typing import List, Optional
+
+from telos.afm import AFMBridge, AFMUnavailableError
+from telos.afm.availability import probe
 
 from .base import BaseModelAdapter
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SWIFT_DIR = Path(__file__).resolve().parent / "swift_afm"
-BINARY_PATH = SWIFT_DIR / "afm_bridge"
-SOURCE_PATH = SWIFT_DIR / "afm_bridge.swift"
-
 
 class SwiftAFMAdapter(BaseModelAdapter):
-    """Adapter for Apple Foundation Models accessed through native Swift framework."""
+    """Adapter for Apple Foundation Models accessed through the Swift bridge."""
 
     def __init__(self, model_identifier: str = "afm-3-core-advanced", **kwargs):
         super().__init__(model_name=model_identifier, backend_name="swift_afm")
-        self._ensure_binary()
-        self._proc = None
-        self._start_process()
+        self._bridge: Optional[AFMBridge] = None
 
-    def _ensure_binary(self):
-        """Compiles the Swift bridge binary if not already present."""
-        if BINARY_PATH.exists() and os.access(BINARY_PATH, os.X_OK):
-            return
+    @property
+    def bridge(self) -> AFMBridge:
+        """Lazily starts the bridge so constructing the adapter stays cheap."""
+        if self._bridge is None:
+            self._bridge = AFMBridge()
+        return self._bridge
 
-        SWIFT_DIR.mkdir(parents=True, exist_ok=True)
-        if not SOURCE_PATH.exists():
-            raise FileNotFoundError(f"Swift bridge source missing at {SOURCE_PATH}")
-
-        print("Compiling native Swift AFM bridge with FoundationModels.framework...")
-        cmd = [
-            "swiftc",
-            "-O",
-            "-parse-as-library",
-            str(SOURCE_PATH),
-            "-o",
-            str(BINARY_PATH),
-        ]
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        if res.returncode != 0:
-            raise RuntimeError(f"Failed to compile Swift AFM bridge: {res.stderr}")
-
-    def _start_process(self):
-        """Starts the persistent Swift bridge process."""
-        self._proc = subprocess.Popen(
-            [str(BINARY_PATH)],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1,
-        )
+    def availability(self):
+        """Returns the :class:`~telos.afm.availability.AFMAvailability` report."""
+        return probe()
 
     def generate(
         self,
@@ -70,49 +40,45 @@ class SwiftAFMAdapter(BaseModelAdapter):
         stop: Optional[List[str]] = None,
         **kwargs
     ) -> str:
-        """Sends generation request to persistent Swift AFM bridge."""
-        if self._proc is None or self._proc.poll() is not None:
-            self._start_process()
-
-        instructions = kwargs.get(
-            "instructions",
-            "You are an expert programming and reasoning assistant. Provide direct, concise, and accurate output without conversational filler."
-        )
-
-        req = {
-            "id": 1,
-            "prompt": prompt,
-            "instructions": instructions,
-            "maxTokens": max_new_tokens,
-            "temperature": temperature,
-            "stopTokens": stop,
-        }
-
+        """Generates a completion, or "" with a warning if unavailable."""
+        instructions = kwargs.get("instructions")
         try:
-            req_line = json.dumps(req) + "\n"
-            self._proc.stdin.write(req_line)
-            self._proc.stdin.flush()
-
-            resp_line = self._proc.stdout.readline()
-            if not resp_line:
-                return ""
-
-            data = json.loads(resp_line)
-            if data.get("error"):
-                print(f"  [AFM Swift Bridge Warning] {data['error']}", file=sys.stderr)
-            return data.get("content", "")
-        except Exception as e:
-            print(f"  [AFM Swift Bridge Error] {e}", file=sys.stderr)
+            return self.bridge.generate(
+                prompt,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+                stop=stop,
+                instructions=instructions,
+            )
+        except AFMUnavailableError as exc:
+            print(f"  [AFM Swift Bridge Warning] {exc}", file=sys.stderr)
             return ""
 
-    def close(self):
-        """Terminates persistent bridge process."""
-        if self._proc and self._proc.poll() is None:
-            self._proc.terminate()
-            try:
-                self._proc.wait(timeout=2.0)
-            except subprocess.TimeoutExpired:
-                self._proc.kill()
+    def generate_batch(
+        self,
+        prompts: List[str],
+        max_new_tokens: int = 256,
+        temperature: float = 0.0,
+        stop: Optional[List[str]] = None,
+        **kwargs
+    ) -> List[str]:
+        """Sequential generation reusing the one warm bridge process."""
+        return [
+            self.generate(
+                p,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+                stop=stop,
+                **kwargs
+            )
+            for p in prompts
+        ]
+
+    def close(self) -> None:
+        """Terminates the bridge process."""
+        if self._bridge is not None:
+            self._bridge.close()
+            self._bridge = None
 
     def __del__(self):
         self.close()
