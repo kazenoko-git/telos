@@ -165,12 +165,14 @@ def train(
     init_checkpoint: str | Path | None = None,
     compile: bool | None = None,
     seed: int = 42,
+    default_cadence: int | None = None,
     **kwargs
 ):
     """
     Programmatic entrypoint to train any Télos model.
     """
     cfg = build_config(
+        default_cadence=default_cadence,
         paradigm=paradigm,
         phase=phase,
         params=params,
@@ -264,6 +266,7 @@ def train(
                     init_checkpoint=init_checkpoint,
                     compile=compile,
                     seed=t_cfg.get("seed", seed),
+                    default_cadence=default_cadence,
                     _is_spawned=True,
                     **kwargs,
                 )
@@ -442,6 +445,7 @@ def main():
     parser.add_argument("--compile", action=argparse.BooleanOptionalAction, default=None, help="Enable torch.compile for model execution")
     parser.add_argument("--seed", type=int, default=42, help="Global random seed for initialization and training reproducibility (default: 42)")
     # Cadence & Dynamics Overrides
+    parser.add_argument("--default-cadence", "--default_cadence", dest="default_cadence", type=int, default=None, help="Default cadence across all cadence operations (default: 25 on TPU, 1 on CUDA/CPU)")
     parser.add_argument("--sched-step", "--sched-cadence", dest="sched_step", type=int, default=None, help="Cadence for schedule updates (default: 25 on TPU, 1 on CUDA/CPU)")
     parser.add_argument("--lr-cadence", type=int, default=None, help="Cadence for learning rate updates (default: 10 on TPU, 1 on CUDA/CPU)")
     parser.add_argument("--cadence", type=int, default=None, help="Cadence for metric reduction and synchronization (default: 25 on TPU, 1 on CUDA/CPU)")
@@ -450,6 +454,7 @@ def main():
 
     try:
         train(
+            default_cadence=args.default_cadence,
             sched_step=args.sched_step,
             lr_cadence=args.lr_cadence,
             cadence=args.cadence,
