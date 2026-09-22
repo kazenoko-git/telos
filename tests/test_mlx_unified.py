@@ -12,6 +12,9 @@ import pytest
 def test_mlx_unified_corosred_step():
     """Verify that unified COROSred step compiles and optimizes weights in MLX."""
     try:
+        from telos.training.core import metal_usable
+        if not metal_usable():
+            pytest.skip("MLX requires a Metal-capable session")
         import mlx.core as mx
         import mlx.nn as nn
         import mlx.optimizers as optim
@@ -88,9 +91,11 @@ def test_mlx_unified_corosred_step():
 def test_mlx_unified_loss_weighting_contract():
     """Verify that MLX unified loss strictly obeys per-task per-token mean weighting."""
     try:
+        from telos.training.core import metal_usable
+        if not metal_usable():
+            pytest.skip("MLX requires a Metal-capable session")
         import mlx.core as mx
     except ImportError:
-        import pytest
         pytest.skip("MLX not installed in this environment")
 
     from telos.models import MLXTelosTransformer
