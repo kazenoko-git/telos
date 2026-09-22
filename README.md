@@ -21,7 +21,7 @@
 
 Télos models were systematically benchmarked against compute-matched pure Autoregressive baselines (trained on 4.0B–5.0B tokens) and **GPT-2 (125M / Small)** across causal next-token likelihood, bidirectional code infilling, anti-cheat suffix immunity, and execution correctness:
 
-![Télos vs AR and GPT-2](figures/telos_vs_ar_and_gpt2_comparison.png)
+![Télos vs AR and GPT-2](https://raw.githubusercontent.com/kazenoko-git/telos/main/figures/telos_vs_ar_and_gpt2_comparison.png)
 
 | Evaluation Metric | GPT-2 (125M) | 100M Pure AR (5.0B) | 50M Télos (CUDA, 2.5B) | 100M Télos (TPU, 5.0B) | Télos vs Baseline Advantage |
 | :--- | :---: | :---: | :---: | :---: | :---: |
@@ -42,7 +42,7 @@ Télos models were systematically benchmarked against compute-matched pure Autor
 
 Télos exhibits dual-paradigm scaling: while pure AR models flatline on right-context resolution, Télos demonstrates monotonic capacity scaling on bidirectional infilling while matching causal scaling curves:
 
-![Télos Scaling Trajectory](figures/paradigm_scaling_trajectory.png)
+![Télos Scaling Trajectory](https://raw.githubusercontent.com/kazenoko-git/telos/main/figures/paradigm_scaling_trajectory.png)
 
 - **Bidirectional Infilling Emergence**: Across $15\text{M} \to 50\text{M} \to 75\text{M} \to 100\text{M}$, infill Top-1 accuracy scales from **$0.0\% \to 51.0\% \to 60.0\% \to 63.0\%$**.
 - **No Causal Regression on Scaling**: Causal validation loss on held-out tokens converges steadily from $2.61 \to 1.81$ nats ($13.69 \to 6.16$ PPL).
