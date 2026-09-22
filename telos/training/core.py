@@ -1,9 +1,21 @@
 import math
 import subprocess
+
+
+def metal_usable() -> bool:
+    """Probes Metal with one trivial op; mlx imports fine without it."""
+    try:
+        import mlx.core as mx
+        mx.eval(mx.array(0.0))
+        return True
+    except Exception:
+        return False
+
+
 try:
     import mlx.core as mx
     from mlx.utils import tree_map, tree_flatten
-    MLX_AVAILABLE = True
+    MLX_AVAILABLE = metal_usable()
 except ImportError:
     MLX_AVAILABLE = False
 
