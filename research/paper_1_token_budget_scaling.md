@@ -2,7 +2,7 @@
 
 **Author**: Ivan Samuel  
 **Affiliation**: Wing It Research  
-**Website**: [telos.research.wingit.tech](https://telos.research.wingit.tech)
+**Website**: [telos.research.wingit.tech](https://telos.research.wingit.tech) *(Note: Research portal is currently under active development)*
 
 ---
 
@@ -135,6 +135,10 @@ We sample the masking ratio from a Beta distribution: $t \sim \text{Beta}(1.5, 1
 - **12.5M Saturation**: Probe CE reaches minimum at **1:15** (187.5M tokens, CE $\approx 7.5604$), then degrades at higher ratios.
 - **25M Monotonic Progress**: Continuous improvement through **1:25** (625M tokens, CE $\approx 7.4361$) without saturation.
 
+<p align="center">
+  <img src="../figures/all_6_models_scaling_trajectory.png" alt="All Models Scaling Trajectory" width="650">
+</p>
+
 ### Candidate Scaling Formulae
 Fitting optimal token ratio $R^*(N)$ against parameter count $N$ (in millions):
 
@@ -145,6 +149,12 @@ Fitting optimal token ratio $R^*(N)$ against parameter count $N$ (in millions):
 ---
 
 ## 8. Structural vs. Semantic Learning Trajectories
+
+<p align="center">
+  <img src="../figures/category_breakdown_50m.png" alt="Category Breakdown 50M" width="600">
+</p>
+
+*[Additional Heatmap Trajectories: YET TO UPDATE]*
 
 | Category | 12.5M (1:15) CE | 25M (1:25) CE | 50M (1:25) CE | Trend |
 | :--- | :---: | :---: | :---: | :--- |
