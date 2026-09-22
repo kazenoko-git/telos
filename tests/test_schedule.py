@@ -140,3 +140,34 @@ def test_dynamic_metric_tracker_trust_region():
     assert pytest.approx(telem["factor"], rel=1e-3) == 1.20
     assert pytest.approx(b_eff, rel=1e-3) == 0.60
     assert pytest.approx(a_eff, rel=1e-3) == 0.50
+
+
+def test_dynamic_metric_tracker_cadence_aware_decay():
+    """
+    Verifies that cadence-aware EMA decay yields matching time constants
+    across CUDA (cadence 1, decay 0.99) and TPU (cadence 25, decay 0.75).
+    """
+    # 1. Base decay verification
+    tracker_cuda = DynamicMetricTracker(ema_decay=0.99, cadence=1)
+    tracker_tpu = DynamicMetricTracker(ema_decay=0.99, cadence=25)
+
+    assert pytest.approx(tracker_cuda.decay) == 0.99
+    assert pytest.approx(tracker_tpu.decay) == 0.75
+
+    # 2. Dynamic trajectory equivalence over 100 physical steps
+    # Initial value
+    tracker_cuda.update_lrh(acc=0.50, auc=0.50)
+    tracker_tpu.update_lrh(acc=0.50, auc=0.50)
+
+    # CUDA: 100 single-step updates with new value 0.80
+    for _ in range(100):
+        tracker_cuda.update_lrh(acc=0.80, auc=0.80)
+
+    # TPU: 4 updates (100 steps / 25 cadence) with new value 0.80
+    for _ in range(4):
+        tracker_tpu.update_lrh(acc=0.80, auc=0.80)
+
+    # Both must reach ~0.69-0.70 (100-step time constant), differing by less than 0.02
+    assert pytest.approx(tracker_cuda.lrh_auc_ema, abs=0.01) == 0.6902
+    assert pytest.approx(tracker_tpu.lrh_auc_ema, abs=0.01) == 0.7051
+    assert pytest.approx(tracker_tpu.lrh_auc_ema, abs=0.02) == tracker_cuda.lrh_auc_ema
