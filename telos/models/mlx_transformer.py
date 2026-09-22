@@ -2,6 +2,11 @@
 Unified MLX Transformer backbone for Télos.
 """
 
+from telos.training.core import metal_usable
+
+if not metal_usable():
+    raise ImportError("MLX is installed but Metal is unavailable in this session.")
+
 import mlx.core as mx
 import mlx.nn as nn
 from .mlx_components import MLXBlock, MLXRMSNorm
