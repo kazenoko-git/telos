@@ -39,3 +39,12 @@ htmlcov/
 .coverage
 .cache
 .pytest_cache/
+
+# Compiled Swift AFM bridge. Built on demand into a user cache dir
+# (~/.cache/telos) rather than into the package; this pattern only catches
+# stray local builds that land next to the source.
+telos/**/afm_bridge
+/afm_bridge
+
+# Stray compiled binary at repo root (not a source file)
+/main
