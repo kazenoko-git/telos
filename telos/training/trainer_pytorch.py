@@ -267,9 +267,12 @@ class UnifiedPyTorchTrainer:
                     gamma_gate_auc=float(self.crsr_cfg.get("gamma_gate_auc", 0.55)),
                     acc_gate_threshold=float(self.crsr_cfg.get("acc_gate_threshold", 0.65)),
                 )
+                default_cadence = int(self.crsr_cfg.get("default_cadence", self.t_cfg.get("default_cadence", 25 if self.is_tpu else 1)))
+                cadence = int(self.crsr_cfg.get("cadence", self.t_cfg.get("cadence", default_cadence)) or default_cadence)
                 self.metric_tracker = DynamicMetricTracker(
                     trust_region=float(self.crsr_cfg.get("trust_region", 0.20)),
                     rebalance_temp=float(self.crsr_cfg.get("rebalance_temp", 0.25)),
+                    cadence=cadence,
                 )
                 self.routing_cache = RoutingMaskCache(
                     refresh_every_steps=int(self.crsr_cfg.get("routing_cache_steps", 50)),
@@ -902,7 +905,7 @@ class UnifiedPyTorchTrainer:
 
                     # Update local metric tracker on ALL replicas with identical cluster-wide reduced scalar
                     if getattr(self, "metric_tracker", None) is not None:
-                        self.metric_tracker.update_lrh(acc=acc_val, auc=auc_val)
+                        self.metric_tracker.update_lrh(acc=acc_val, auc=auc_val, cadence=cadence)
 
             if self.is_tpu and step % 50 == 0:
                 import gc
