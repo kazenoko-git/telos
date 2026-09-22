@@ -11,6 +11,9 @@ import numpy as np
 def test_mlx_compile_dynamic_learning_rate():
     """Verify that mx.compile dynamically observes changes to optimizer.learning_rate."""
     try:
+        from telos.training.core import metal_usable
+        if not metal_usable():
+            pytest.skip("MLX requires a Metal-capable session")
         import mlx.core as mx
         import mlx.nn as nn
         import mlx.optimizers as optim
