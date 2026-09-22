@@ -143,6 +143,18 @@ PROBE_SUITE_100: List[Dict[str, Any]] = [
 def load_contextual_probes(num_probes: int = 100) -> List[Dict[str, Any]]:
     """
     Loads deterministic contextual probes for Télos evaluation.
-    Always returns the standardized 100-probe deterministic suite.
+    Loads from evals/benchmarks/contextual_probes_1000.json if num_probes > 100 and the file exists,
+    otherwise returns the standardized PROBE_SUITE_100.
     """
+    if num_probes and num_probes > 100:
+        bench_file = Path(__file__).resolve().parents[2] / "evals" / "benchmarks" / "contextual_probes_1000.json"
+        if bench_file.exists():
+            try:
+                with open(bench_file, "r") as f:
+                    data = json.load(f)
+                if data:
+                    return data[:num_probes]
+            except Exception:
+                pass
+
     return PROBE_SUITE_100[:num_probes] if num_probes else PROBE_SUITE_100
