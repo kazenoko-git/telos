@@ -66,6 +66,12 @@ Télos provides a unified command line interface with 5 core commands:
 - **PyTorch Compilation**: `--compile` / `--no-compile` toggles `torch.compile` kernel fusion on CUDA (auto-enabled in unified GPU profiles).
 *(All overridable via `--max-lr`, `--min-lr`, `--warmup-steps`, `--weight-decay`, `--compile`)*
 
+### Cadence & Device Synchronization Controls
+- `--default-cadence`: Sets the base step cadence across all cadence operations (defaults to **25** on TPU/XLA, and **1** on CUDA/CPU). Helps align TPU and CUDA training dynamics or tune XLA compilation tradeoffs.
+- `--lr-cadence`: Step frequency for learning rate updates (defaults to `--default-cadence`).
+- `--sched-step` / `--sched-cadence`: Step frequency for COROSred dynamic schedule updates (defaults to `--default-cadence`).
+- `--cadence`: Step frequency for cross-replica metric synchronization and EMAs (defaults to `--default-cadence`).
+
 ### Checkpoint Controls
 - `--checkpoint-dir`: Storage directory (default: `checkpoints/<paradigm>`).
 - `--save-every`: Save checkpoint cadence in steps (default: auto-calculated as $10\%$ of steps).
@@ -433,6 +439,31 @@ telos train --paradigm ar --params 100M --tokens 4.0B --batch-size 192 --grad-ac
 # Multi-GPU training across 8x H100 via torchrun (30M+ tok/s)
 torchrun --nproc_per_node=8 -m telos.train.cli --paradigm corosred --params 100M --tokens 2.5B --effective-batch 768 --hardware cuda --devices 8 --compile
 ```
+
+---
+
+## 11. Benchmark Comparison Dashboard UI Generator
+
+Télos includes an automated, zero-dependency HTML dashboard generator that parses all evaluation reports across models and suites, rendering an interactive comparison interface with embedded logo branding.
+
+### Generating the Dashboard
+
+Run the generator script:
+
+```bash
+python3 scripts/generate_benchmark_dashboard.py
+```
+
+### Dashboard Features
+
+1. **Embedded Télos Logo**: Logo from `logos/telos_logo.png` is Base64 encoded directly into the HTML file for standalone portability.
+2. **Interactive Chart.js Visualizations**:
+   - **Bar Chart**: Grouped metric comparison across models and benchmark suites (Pass@1 %, Solved Count, AST Validity %).
+   - **Radar Chart**: Spider graph visualizing multi-dimensional capability profiles across 6 core AI domains.
+3. **Leaderboard Table**: Search filter, 95% confidence intervals, and task execution outcome breakdowns (`PASSED`, `FAILED_ASSERTION`, `TIMEOUT`, `SYNTAX_ERROR`).
+4. **Drag-and-Drop Report Loader**: Live browser file uploader allowing users to drag and drop any external JSON evaluation report to compare models dynamically.
+5. **Output Location**: Generated directly to `reports/benchmark_comparison_dashboard.html`.
+
 
 
 
