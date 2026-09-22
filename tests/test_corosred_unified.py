@@ -104,3 +104,27 @@ def test_dual_metric_monitor(toy_model):
     assert res["causal_ce"] > 0.0
     assert res["infill_ce"] > 0.0
     assert monitor.check_divergence() is None
+
+
+def test_corosred_unified_loss_weighting_contract(toy_model):
+    """
+    Asserts pooled_task_loss strictly equals (alpha * L_c + beta * L_m) / (alpha + beta)
+    preventing silent recurrence of sub-batch or sequence length compounding defects.
+    """
+    batch = torch.randint(4, 128, (4, 32))
+    weights = {"alpha": 0.85, "beta": 0.15, "gamma": 0.0}
+
+    loss, metrics = corosred_unified_step_pytorch(
+        model=toy_model,
+        batch_seqs=batch,
+        vocab_size=128,
+        schedule_weights=weights,
+    )
+
+    alpha = weights["alpha"]
+    beta = weights["beta"]
+    expected_loss = (alpha * metrics["causal_ce"] + beta * metrics["infill_ce"]) / (alpha + beta)
+
+    assert torch.isclose(loss, expected_loss, atol=1e-5), (
+        f"Loss weighting mismatch: loss={loss.item():.6f}, expected={expected_loss.item():.6f}"
+    )
