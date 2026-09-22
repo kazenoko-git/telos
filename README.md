@@ -1,58 +1,62 @@
 # τέλος (télos) — Discrete Diffusion & Dual-Paradigm Language Models
 
 <p align="center">
-  <a href="https://telos.research.wingit.tech"><strong>🌐 Research Page & Interactive Demo: telos.research.wingit.tech</strong></a>
+  <a href="https://telos.research.wingit.tech">
+    <img src="https://raw.githubusercontent.com/kazenoko-git/telos/main/figures/benchmark_comparison_graph.png" alt="Télos Research Portal Benchmark Dashboard" width="880">
+  </a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License">
-  <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python">
-  <img src="https://img.shields.io/badge/hardware-Apple%20Silicon%20(MLX)%20%7C%20CUDA%20%7C%20Cloud%20TPU%20(XLA)-orange" alt="Hardware Support">
-  <img src="https://img.shields.io/badge/HuggingFace-Kazenowoko%2Ftelos-yellow" alt="Hugging Face">
+  <a href="https://telos.research.wingit.tech"><strong>🌐 Interactive Research Portal & Live Demos: telos.research.wingit.tech</strong></a>
 </p>
 
-**τέλος** (or **telos**) is an open-source research initiative and model family designed to transcend the sequential bottlenecks of pure autoregressive language modeling. Télos unifies **Causal Autoregressive (AR) drafting** with **Bidirectional Masked Diffusion infilling** and **Confidence-Guided Selective Re-Diffusion** in a single, hardware-aligned architecture.
+<p align="center">
+  <img src="https://img.shields.io/badge/organization-Wing%20It%20Research-blueviolet" alt="Wing It Research">
+  <img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License">
+  <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue" alt="Python">
+  <img src="https://img.shields.io/badge/hardware-Apple%20Silicon%20(MLX)%20%7C%20CUDA%20%7C%20Cloud%20TPU%20(XLA)-orange" alt="Hardware Support">
+</p>
 
 ---
 
-## 🌟 Key Empirical Results
+## 1. What Télos by Wing It Research is About
 
-### 1. Télos vs. Pure Autoregressive Baselines & GPT-2 (125M)
+**télos** (τέλος) is an open-source research initiative by **Wing It Research** exploring non-monotonic generation, discrete diffusion, and dual-paradigm language modeling for code autocomplete and reasoning.
 
-Télos models were systematically benchmarked against compute-matched pure Autoregressive baselines (trained on 4.0B–5.0B tokens) and **GPT-2 (125M / Small)** across causal next-token likelihood, bidirectional code infilling, anti-cheat suffix immunity, and execution correctness:
+Autoregressive (AR) language models are inherently constrained by left-to-right generation. Télos introduces architectures and training dynamics that unify **Causal Autoregressive drafting**, **Bidirectional Masked Diffusion infilling**, and **Confidence-Guided Selective Re-Diffusion** (COROSred) into a single, hardware-aligned model family.
 
-![Télos vs AR and GPT-2](https://raw.githubusercontent.com/kazenoko-git/telos/main/figures/telos_vs_ar_and_gpt2_comparison.png)
-
-| Evaluation Metric | GPT-2 (125M) | 100M Pure AR (5.0B) | 50M Télos (CUDA, 2.5B) | 100M Télos (TPU, 5.0B) | Télos vs Baseline Advantage |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Causal Validation CE (nats) ↓** | 1.88 | **1.78** | **1.63** | 1.81 | **$-0.15$ nats (50M vs GPT-2)** |
-| **Causal Validation Perplexity ↓** | 6.55 | **5.95** | **5.08** | 6.16 | **$1.29\times$ lower PPL** |
-| **Bidirectional Infill Top-1 (Overall) ↑** | 11.5% | 7.6% | 51.0% | **63.0%** | **$+55.4\%$ ($8.29\times$ higher)** |
-| **Syntax Delimiter Infilling Top-1 ↑** | 18.2% | 21.5% | 54.0% | **68.2%** | **$+46.7\%$ ($3.17\times$ higher)** |
-| **Semantic Identifier Infilling Top-1 ↑** | 4.1% | 3.6% | 48.0% | **58.5%** | **$+54.9\%$ ($16.2\times$ higher)** |
-| **Anti-Cheat Span Exact Match ($K=1..8$)** | 8.2% | 6.4% | 48.0% | **52.0%** | **$+45.6\%$ ($8.1\times$ higher)** |
-| **Boundary Suffix-Copy Rate ↓** | 96.5% *(Cheats)* | 94.2% *(Cheats)* | **1.5%** *(Immune)* | **2.0%** *(Immune)* | **Resists contextual copying** |
-| **512-Task AST Syntax Validity ↑** | 92.1% | **98.5%** | 97.1% | 97.3% | Consistent robust syntax |
-| **512-Task Pass@1 Execution ↑** | 4.2% | **12.5%** | 10.7% | 5.1% | Strong causal generation |
-| **Numerical Constant Precision ↑** | 42.0% | 78.4% | **88.6%** | 64.9% | High numeric faithfulness |
+Interactive research visualizations, scaling charts, and live code completion playgrounds are available online at **[telos.research.wingit.tech](https://telos.research.wingit.tech)**.
 
 ---
 
-### 2. Dual-Paradigm Parameter Scaling Trajectory
+## 2. Latest Findings
 
-Télos exhibits dual-paradigm scaling: while pure AR models flatline on right-context resolution, Télos demonstrates monotonic capacity scaling on bidirectional infilling while matching causal scaling curves:
+### a. Latest Benchmarks (AFM vs LFM vs IBM Prelim)
 
-![Télos Scaling Trajectory](https://raw.githubusercontent.com/kazenoko-git/telos/main/figures/paradigm_scaling_trajectory.png)
+We conducted an institutional-grade 7-suite comparative evaluation comparing premier edge and open-weights models: **Apple AFM-3 Core Advanced** (native Swift IPC), **IBM Granite 4.2 3B (MLX)**, and **LiquidAI LFM 8B A1B**:
 
-- **Bidirectional Infilling Emergence**: Across $15\text{M} \to 50\text{M} \to 75\text{M} \to 100\text{M}$, infill Top-1 accuracy scales from **$0.0\% \to 51.0\% \to 60.0\% \to 63.0\%$**.
-- **No Causal Regression on Scaling**: Causal validation loss on held-out tokens converges steadily from $2.61 \to 1.81$ nats ($13.69 \to 6.16$ PPL).
-- **Anti-Cheat Span Immunity**: Under multi-token chunk masking spans $K \in \{1, 2, 4, 8, 16\}$, Télos models reject naive suffix copying ($2.0\%$ copy rate) and actively infer missing semantic structures.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/kazenoko-git/telos/main/figures/benchmark_breakdown_horizontal.png" alt="Benchmark Breakdown Across Models" width="880">
+</p>
+
+| Suite | Tasks | Apple AFM-3 Core Adv. | IBM Granite 4.2 3B | LiquidAI LFM 8B A1B | Domain Metric |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **OpenAI HumanEval** | 164 | **62.80%** | 60.37% | 45.73% | Pass@1 (Code Execution) |
+| **BFCL Tool-Use** | 30 | **73.33%** | 70.00% | 63.33% | Pass@1 (JSON Schema Match) |
+| **Cybersecurity Auditing** | 50 | 12.00% | 22.00% | **24.00%** | Pass@1 (CWE Remediation) |
+| **GPQA Diamond** | 198 | **39.39%** | 28.79% | 20.71% | Pass@1 (Multiple Choice) |
+| **MMLU Science** | 119 | 69.75% | 61.82% | **73.11%** | Pass@1 (Multiple Choice) |
+| **Competition MATH** | 140 | 52.00% | **64.71%** | 43.57% | Pass@1 (LaTeX / Boxed Math) |
+| **ARC-Challenge** | 150 | 85.32% | **86.60%** | 59.56% | Pass@1 (Reasoning Choice) |
+| **Macro Average** | **841** | **56.37%** | **56.33%** | **47.14%** | 7-Suite Completion |
+
+*For complete breakdown and evaluation scripts, see [`benchmarks/README.md`](benchmarks/README.md).*
 
 ---
 
-## 🔬 Core Architecture: COROSred
+### b. Latest Research (COROSred Prelim)
 
-**COROSred** (**CO**nfidence-**RO**uted **S**elective **RE**-**D**iffusion) unites autoregression and diffusion into a single dynamic training process:
+**COROSred** (**CO**nfidence-**RO**uted **S**elective **RE**-**D**iffusion) unites causal drafting and bidirectional diffusion refinement:
 
 ```
                                ┌────────────────────────────────────────────────┐
@@ -81,126 +85,113 @@ Télos exhibits dual-paradigm scaling: while pure AR models flatline on right-co
                                        └─────────────────────────────┘
 ```
 
-1. **Unified Dynamic Schedule**: A unified training schedule dynamically balances:
-   - **$\alpha(t)$ (Causal AR)**: Standard next-token prediction ensuring robust sequence drafting.
-   - **$\beta(t)$ (Uniform Masked Diffusion)**: Random absorbing-state infilling ensuring complete bidirectional context utilization.
-   - **$\gamma(t)$ (Selective Re-Diffusion)**: Targeted masking of ambiguous/low-confidence model drafts guided by the Learned Reliability Head.
-2. **Learned Reliability Head (LRH)**: A detached auxiliary classification head trained alongside causal layers to predict whether a draft token is likely correct or ambiguous, eliminating heuristic confidence thresholds.
-3. **Hardware-Aligned Backbones**:
-   - **Rotary Position Embeddings (RoPE)** with dynamic base frequencies.
-   - **SwiGLU Non-Linear Feed-Forward Networks** with exact $8/3 \times d_{\text{model}}$ intermediate dimension matching.
-   - **RMSNorm** pre-normalization for numerical stability in BF16.
-   - **Weight Tying** between token embeddings and output projection.
-   - **64-Dimensional Attention Heads** aligned with TPU systolic arrays and GPU tensor cores.
+- **Perplexity Advantage**: Achieves **5.08 PPL** ($1.29\times$ lower validation perplexity than compute-matched pure AR).
+- **Bidirectional Infilling**: Reaches **63.0% Top-1 infill accuracy** (vs $7.6\%$ for pure AR).
+- **Anti-Cheat Span Immunity**: Maintains **52.0% exact match** with a **2.0% suffix copy rate** under multi-token chunk masking ($K \in \{1, 2, 4, 8, 16\}$).
+- **CE-Rank Divergence**: Discovered that extreme MDLM over-training leads to Cross-Entropy/Target-Rank divergence, where loss decreases on structural tokens while semantic rank explodes.
+
+*For paper preprints and scaling laws, see [`research/README.md`](research/README.md).*
 
 ---
 
-## 🏛 Canonical Model Tiers
+### c. Latest Models
 
-| Tier | Parameters | $d_{\text{model}}$ | Layers | Heads ($Q$) | Heads ($KV$) | Context Length | Target Training Tokens |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **15M** | 15,248,384 | 288 | 8 | 6 | 6 | 512 | 300M – 1.0B |
-| **50M** | 49,166,848 | 512 | 14 | 8 | 8 | 512 | 2.0B – 2.5B |
-| **75M** | 74,865,152 | 512 | 22 | 8 | 8 | 512 | 3.5B – 4.0B |
-| **100M** | 105,404,160 | 768 | 14 | 12 | 12 | 512 | 4.0B – 5.0B |
-| **300M** | 299,630,592 | 1024 | 23 | 16 | 16 | 512 | 10.0B – 15.0B |
-| **500M** | 498,720,768 | 1280 | 28 | 20 | 20 | 512 | 20.0B – 25.0B |
+**None** *(No pre-trained model weights are currently hosted or distributed publicly. Users can train architectures from scratch using zero-config CLI commands).*
 
 ---
 
-## 📊 Evaluation Suite (`telos eval`)
+## 3. Documentation Directory Routing
 
-Télos includes an institutional-grade evaluation framework across **Code**, **Linguistics**, and **Tool-Use**:
+| Directory | Topic & Contents |
+| :--- | :--- |
+| 🔬 **[Research (`/research`)](research/README.md)** | **[Paper 1: Token-Budget Scaling](research/paper_1_token_budget_scaling.md)** • **[Paper 2: Capability Divergence & RoPE](research/paper_2_capability_divergence_and_rope.md)** • **[COROSred Architecture](research/corosred_architecture.md)** |
+| 📊 **[Benchmarks (`/benchmarks`)](benchmarks/README.md)** | **[AFM vs LFM vs IBM Comparison](benchmarks/afm_vs_lfm_vs_ibm.md)** • **[Apple AFM Report](benchmarks/afm.md)** • **[IBM Granite Report](benchmarks/ibm_granite.md)** • **[LiquidAI LFM Report](benchmarks/liquid_lfm.md)** |
+| 🖥️ **[CLI Usage (`/cli`)](cli/README.md)** | **[CLI Command Guide & Zero-Config Training](cli/README.md)** *(Official replacement for DEPLOYMENT.md)* |
+
+---
+
+## 4. Basic CLI Usage
+
+### Installation
 
 ```bash
-# 1. Run Complete Multi-Domain Evaluation (Code + English Linguistics + Tool-Use)
+# Standard package install
+pip install telos
+
+# With Apple Silicon Metal support (MLX)
+pip install "telos[mlx]"
+```
+
+### Core CLI Commands
+
+```bash
+# 1. Data Preparation (.bin token streams)
+telos dataprep --input raw_data/ --output data/python.bin --vocab-size 8192
+
+# 2. Zero-Config Training (50M COROSred on Apple Silicon MLX)
+telos train --paradigm corosred --params 50M --tokens 2.5B --hardware mlx
+
+# 3. Multi-Domain Evaluation
 telos eval --checkpoint checkpoints/corosred/model.safetensors --type all --mode full
 
-# 2. Python Code Contextual Probes Suite (1,000 contextual probes with 95% Bootstrap CI)
-telos eval --checkpoint checkpoints/corosred/model.safetensors --type code --language python --mode probes --num-probes 1000
+# 4. Hardware Benchmark (Capped at 5 minutes)
+telos bench --paradigm corosred --params 50M --hardware mlx
 
-# 3. Functional Execution Benchmark (512 sandboxed tasks with Pass@1, AST validity, and repetition dynamics)
-telos eval --checkpoint checkpoints/corosred/model.safetensors --type code --mode functional --suite private_unseen
+# 5. Apple Foundation Models (AFM-3 Core Advanced on Apple Silicon)
+telos afm status
+telos afm generate "Explain rotary position embeddings in two sentences."
 
-# 4. Anti-Cheat & Suffix-Copy Span Masking Suite (K in {1, 2, 4, 8, 16})
-telos eval --checkpoint checkpoints/corosred/model.safetensors --type code --mode anticheat
-
-# 5. English Linguistic Probes (100 probes across agreement, idioms, correlatives, and world knowledge)
-telos eval --checkpoint checkpoints/corosred/model.safetensors --type linguistic --language english --mode probes
-
-# 6. Tool-Use & Function Calling Benchmark (JSON schema adherence and argument extraction)
-telos eval --checkpoint checkpoints/corosred/model.safetensors --type tooluse
+# 6. Verification Suite
+telos test
 ```
 
----
-
-## 🚀 Quickstart & Installation
-
-### 1. Installation
-
-```bash
-git clone https://github.com/kazenoko-git/telos.git
-cd telos
-uv sync  # or: pip install -e .
-```
-
-### 2. Zero-Config Training via CLI
-
-Train any architecture tier dimensionally directly from the command line:
-
-```bash
-# Train 50M Unified COROSred Model on Apple Silicon (MLX)
-telos train --paradigm corosred --params 50M --tokens 2.5B --effective-batch 384 --hardware mlx
-
-# Train 100M Unified COROSred Model on Cloud TPU (PyTorch-XLA, 8 devices)
-telos train --paradigm corosred --params 100M --tokens 5.0B --effective-batch 384 --batch-size 48 --hardware xla --devices 8
-
-# Train 100M Pure Autoregressive Baseline on CUDA (H100/A100)
-telos train --paradigm ar --params 100M --tokens 5.0B --effective-batch 384 --batch-size 192 --grad-accum 2 --hardware cuda
-```
-
-### 3. Python API
+### Python API
 
 ```python
-from telos.eval import evaluate
+import telos
 
-# Evaluate a checkpoint across all benchmark domains
-report = evaluate(
-    checkpoint="checkpoints/corosred/unified/100m_5b/checkpoint_final.pt",
-    benchmark_type="code",
-    mode="full",
-    num_probes=1000
-)
-
-print(f"Causal Top-1: {report['probes']['causal']['top1_pct']}%")
-print(f"Infill Top-1: {report['probes']['infill']['top1_pct']}%")
-print(f"Pass@1:       {report['functional']['pass_at_1_pct']}%")
+# Probe on-device Apple Foundation Models
+if telos.afm.probe().available:
+    response = telos.afm.generate("Write a python function for quicksort.")
+    print(response)
 ```
 
----
-
-## 📦 Hugging Face Repositories
-
-- **Main Model Hub**: [huggingface.co/Kazenowoko/telos](https://huggingface.co/Kazenowoko/telos)
-  - `checkpoints/corosred/unified/100m_5b/` — 100M COROSred Unified (5.0B tokens).
-  - `checkpoints/corosred/unified/75m_python/` — 75M COROSred Unified (3.75B tokens).
-  - `checkpoints/corosred/50m_lightning/` — 50M COROSred Unified (2.5B tokens).
-  - `checkpoints/ar/100m_5b/` — 100M Pure AR Baseline (5.0B tokens).
-  - `checkpoints/ar/50m_2.5b/` — 50M Pure AR Baseline (2.5B tokens).
+*For complete CLI documentation, flags, and hardware setup, see [`cli/README.md`](cli/README.md).*
 
 ---
 
-## 📖 Citation
+## 5. Citations & References
+
+### Primary Citation
 
 ```bibtex
 @article{samuel2026telos,
   title   = {télos: Exploring Scaling Laws, Hardware Optimizations, and Paradigm Trade-offs in Discrete Diffusion and Autoregressive Language Models},
   author  = {Ivan Samuel},
-  journal = {telos Research},
+  journal = {Wing It Research},
   year    = {2026},
   url     = {https://telos.research.wingit.tech}
 }
 ```
+
+### Framework & Related AI Research Citations
+
+- **Apple MLX Framework**:
+  ```bibtex
+  @software{mlx2023,
+    author  = {Awni Hannun and Jagrit Digani and Angelos Katharopoulos and Tristan Lifchitz and Gautier Izacard and Bowen Baker and Guillermo Izquierdo and Maryam Fasihpanah and Michael Brabandere and others},
+    title   = {{MLX}: Efficient machine learning on Apple silicon},
+    url     = {https://github.com/ml-explore/mlx},
+    version = {0.22.0},
+    year    = {2023}
+  }
+  ```
+- **Masked Diffusion Language Models (MDLM)**: Sahoo et al., *Masked Diffusion Language Models*, 2024.
+- **Compute-Optimal Scaling (Chinchilla)**: Hoffmann et al., *Training Compute-Optimal Large Language Models*, 2022.
+- **Large Language Diffusion Models (LLaDA)**: Nie et al., *LLaDA: Large Language Diffusion Models*, 2025.
+- **Reparameterized Discrete Diffusion (RADD)**: Zheng et al., *RADD: Reparameterized Absorbing Discrete Diffusion*, 2024.
+- **Masked Image Generation (MaskGIT)**: Chang et al., *MaskGIT: Masked Generative Image Transformer*, 2022.
+- **Discrete Diffusion Language Modeling (DiffusionGemma)**: Google DeepMind, *DiffusionGemma: An experimental discrete diffusion model based on Gemma*, 2026.
 
 ---
 
