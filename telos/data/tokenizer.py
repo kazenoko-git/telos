@@ -56,12 +56,16 @@ def load_tokenizer(save_path: str | Path | None = None) -> Tokenizer:
             target = p
 
     if target is None:
-        # 1. Check bundled asset in telos.assets
+        # 1. Check bundled asset in telos.assets. `as_file` yields a real
+        #    filesystem path only for the duration of the context, which keeps
+        #    this working for wheel/zip installs where the asset has no path
+        #    of its own.
         try:
-            import importlib.resources as pkg_resources
-            asset_ref = pkg_resources.files("telos.assets").joinpath("tokenizer_0.json")
+            import importlib.resources as resources
+            asset_ref = resources.files("telos.assets").joinpath("tokenizer_0.json")
             if asset_ref.is_file():
-                target = Path(str(asset_ref))
+                with resources.as_file(asset_ref) as asset_path:
+                    return Tokenizer.from_file(str(asset_path))
         except Exception:
             pass
 
