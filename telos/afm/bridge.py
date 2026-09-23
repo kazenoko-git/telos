@@ -62,6 +62,9 @@ def _bridge_digest(source: bytes) -> str:
 
 def ensure_bridge_binary(*, force: bool = False) -> Path:
     """Compiles the Swift bridge if needed and returns the binary path."""
+    if platform.system() != "Darwin":
+        raise AFMUnavailableError(f"Apple Foundation Models are macOS-only (this is {platform.system()}).")
+
     src = _swift_source_path()
     if not src.is_file():
         raise AFMUnavailableError(
