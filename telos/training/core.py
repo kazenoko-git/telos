@@ -1,3 +1,4 @@
+import sys
 import math
 import subprocess
 
@@ -23,13 +24,15 @@ _swap_cache = {"value": "0M", "counter": 0}
 
 def get_sys_mem_str() -> str:
     """Returns Apple Silicon Metal unified memory and swap usage string."""
+    if not MLX_AVAILABLE:
+        return ""
     global _swap_cache
     try:
         active_gb = mx.get_active_memory() / 1e9
         peak_gb = mx.get_peak_memory() / 1e9
         _swap_cache["counter"] += 1
-        # Refresh sysctl swap usage only every 5th log call to avoid subprocess overhead and die
-        if _swap_cache["counter"] % 5 == 1:
+        # Refresh sysctl swap usage only on macOS every 5th log call
+        if _swap_cache["counter"] % 5 == 1 and sys.platform == "darwin":
             swap_res = subprocess.run(["sysctl", "vm.swapusage"], capture_output=True, text=True)
             swap_parts = swap_res.stdout.strip().split()
             _swap_cache["value"] = swap_parts[6] if len(swap_parts) >= 7 else "0M"
