@@ -29,7 +29,7 @@ def verify_all_probes() -> bool:
         raise FileNotFoundError(f"Contextual probes benchmark not found at {OUTPUT_PATH}")
 
     tok = Tokenizer.from_file(str(TOKENIZER_PATH))
-    with open(OUTPUT_PATH, "r") as f:
+    with open(OUTPUT_PATH, "r", encoding="utf-8") as f:
         probes = json.load(f)
 
     if len(probes) != 1000:
