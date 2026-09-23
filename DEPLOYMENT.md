@@ -154,6 +154,13 @@ Execute distributed TPU training across all cores with cadence synchronization:
 telos train --paradigm corosred --params 50M --tokens 2.5B --hardware xla --devices 8
 ```
 
+### Windows & Linux (CPU)
+
+Execute training, evaluation, or benchmarking on standard x86_64 / arm64 CPU:
+```bash
+telos train --paradigm mdlm --params 12M --hardware cpu
+```
+
 ## 6. Apple Foundation Models Deployment
 
 On Apple Silicon running macOS 15.0+, Télos interfaces directly with on-device Apple Foundation Models (AFM-3 Core / Core Advanced):
