@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-09-22
+## [1.0.0] - 2026-09-23
 
-First public release.
+First public release on PyPI as `telos-ml` (`pip install telos-ml`).
 
 ### Added
+- **`telos-ml` PyPI Distribution** — Published package to PyPI under the name
+  `telos-ml`, preserving the `telos` Python module import and the `telos` CLI
+  command.
 - **`telos dataprep`** — prepares raw text, code directories, JSONL, or Hugging
   Face datasets into memory-mapped binary token streams (`.bin`).
 - **`telos train`** — zero-config dimensional trainer. Specify parameters and
