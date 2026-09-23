@@ -69,7 +69,7 @@ def evaluate_corosred_100m(
     print("=" * 80)
 
     # 1. Load Architecture Config
-    with open(config_path) as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
     m_cfg = cfg["model"]
 
@@ -243,7 +243,7 @@ def evaluate_corosred_100m(
     out_dir = PROJECT_ROOT / "evals" / "probe_results"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_file = out_dir / "corosred_100m_r1_eval.json"
-    with open(out_file, "w") as f:
+    with open(out_file, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
     print(f"\nSaved detailed evaluation metrics to {out_file}")
 
