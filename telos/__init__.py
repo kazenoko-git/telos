@@ -5,9 +5,12 @@ télos (τέλος): Discrete Diffusion & Autoregressive Language Modeling Frame
 from importlib.metadata import version as _pkg_version, PackageNotFoundError
 
 try:
-    __version__ = _pkg_version("telos")
-except PackageNotFoundError:  # running from a source tree that was never installed
-    __version__ = "0.0.0.dev0"
+    __version__ = _pkg_version("telos-ml")
+except PackageNotFoundError:
+    try:
+        __version__ = _pkg_version("telos")
+    except PackageNotFoundError:
+        __version__ = "1.0.0"
 
 from . import dataprep
 from . import train
