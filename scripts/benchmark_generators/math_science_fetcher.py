@@ -83,7 +83,7 @@ def fetch_gsm8k(output_path: Path) -> List[Dict[str, Any]]:
             })
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(tasks, f, indent=2)
 
     print(f"  [OK] Saved {len(tasks)} GSM8K problems -> {output_path}")
@@ -126,7 +126,7 @@ def fetch_arc_challenge(output_path: Path) -> List[Dict[str, Any]]:
         })
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(tasks, f, indent=2)
 
     print(f"  [OK] Saved {len(tasks)} ARC-Challenge questions -> {output_path}")
@@ -190,7 +190,7 @@ def fetch_competition_math(output_path: Path, max_per_subject: int = 100) -> Lis
             print(f"  Warning: failed fetching {subj} ({exc})")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(tasks, f, indent=2)
 
     print(f"  [OK] Saved {len(tasks)} Competition MATH problems -> {output_path}")
