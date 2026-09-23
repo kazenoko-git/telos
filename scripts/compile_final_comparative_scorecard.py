@@ -26,7 +26,7 @@ SUITES = [
 def extract_metrics(filepath: Path, b_type: str):
     if not filepath.exists():
         return None
-    with open(filepath) as f:
+    with open(filepath, "r", encoding="utf-8") as f:
         data = json.load(f)
     obj = data.get(b_type, {})
     if "functional" in obj:
@@ -103,13 +103,13 @@ def main():
             "winner": "IBM Granite 4.2 3B" if delta > 0 else ("Apple AFM 3 Core Advanced" if delta < 0 else "Tie")
         }
 
-    with open(LOGS_DIR / "eval_report_granite_mlx_master_summary.json", "w") as f:
+    with open(LOGS_DIR / "eval_report_granite_mlx_master_summary.json", "w", encoding="utf-8") as f:
         json.dump(granite_master, f, indent=2)
 
-    with open(LOGS_DIR / "eval_report_afm3_master_summary.json", "w") as f:
+    with open(LOGS_DIR / "eval_report_afm3_master_summary.json", "w", encoding="utf-8") as f:
         json.dump(afm3_master, f, indent=2)
 
-    with open(LOGS_DIR / "comparative_report_afm3_vs_granite_mlx.json", "w") as f:
+    with open(LOGS_DIR / "comparative_report_afm3_vs_granite_mlx.json", "w", encoding="utf-8") as f:
         json.dump(comparative, f, indent=2)
 
     print("[OK] Successfully compiled master summaries and comparative report.")
