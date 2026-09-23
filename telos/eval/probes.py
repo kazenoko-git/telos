@@ -150,7 +150,7 @@ def load_contextual_probes(num_probes: int = 100) -> List[Dict[str, Any]]:
         bench_file = Path(__file__).resolve().parents[2] / "evals" / "benchmarks" / "contextual_probes_1000.json"
         if bench_file.exists():
             try:
-                with open(bench_file, "r") as f:
+                with open(bench_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 if data:
                     return data[:num_probes]
