@@ -138,7 +138,7 @@ def build_react_component_suite(output_path: Path | None = None) -> List[Dict[st
         output_path = Path(__file__).resolve().parents[2] / "evals" / "benchmarks" / "react_javascript_suite.json"
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(tasks, f, indent=2)
 
     print(f"[OK] Built {len(tasks)} React component challenges -> {output_path}")
