@@ -225,7 +225,7 @@ def main():
     out_dir = Path("logs")
     out_dir.mkdir(exist_ok=True)
     report_file = out_dir / f"eval_50m_suite_{int(time.time())}.json"
-    with open(report_file, "w") as f:
+    with open(report_file, "w", encoding="utf-8") as f:
         json.dump(all_results, f, indent=2)
 
     # Print summary table
