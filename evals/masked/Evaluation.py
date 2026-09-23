@@ -740,8 +740,8 @@ def run_comprehensive_benchmark_suite(save_to_disk: bool = True):
         "=" * 80,
         "        TELOS PROBES SCORECARD",
         "=" * 80,
-        f"  Best overall checkpoint : 🥇 {best_overall}",
-        f"  Best 25M checkpoint     : 🥇 {best_25m}",
+        f"  Best overall checkpoint : #1 {best_overall}",
+        f"  Best 25M checkpoint     : #1 {best_25m}",
         "",
         "  Category Leaders:",
     ]
