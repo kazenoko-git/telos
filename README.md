@@ -118,10 +118,10 @@ See [`research/README.md`](research/README.md) for research papers and scaling d
 
 ```bash
 # Standard install
-pip install telos
+pip install telos-ml
 
 # With Apple Silicon Metal support (MLX)
-pip install "telos[mlx]"
+pip install "telos-ml[mlx]"
 ```
 
 ### Core CLI Commands
