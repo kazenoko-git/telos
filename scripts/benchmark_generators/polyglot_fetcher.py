@@ -103,7 +103,7 @@ def fetch_multipl_e_language(lang_key: str, output_dir: Path) -> List[Dict[str, 
         except Exception as exc:
             if out_file.exists():
                 print(f"  Warning: Network fetch failed ({exc}); reading existing file at {out_file}")
-                with open(out_file, "r") as f:
+                with open(out_file, "r", encoding="utf-8") as f:
                     return json.load(f)
             raise RuntimeError(f"Failed to fetch {cfg['display_name']} benchmark: {exc}") from exc
 
@@ -131,7 +131,7 @@ def fetch_multipl_e_language(lang_key: str, output_dir: Path) -> List[Dict[str, 
         })
 
     out_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_file, "w") as f:
+    with open(out_file, "w", encoding="utf-8") as f:
         json.dump(formatted_tasks, f, indent=2)
 
     print(f"  [OK] Saved {len(formatted_tasks)} {cfg['display_name']} tasks -> {out_file}")
