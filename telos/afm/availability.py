@@ -107,6 +107,19 @@ def _has_xcode_clt() -> bool:
 def probe(*, runtime: bool = True) -> AFMAvailability:
     """Detects whether the on-device models are usable. Never raises for an
     unsupported machine; inspect `available` and `reason` instead."""
+    if platform.system() != "Darwin":
+        return AFMAvailability(
+            available=False,
+            model=None,
+            fallback_model=None,
+            reason=f"Apple Foundation Models are macOS-only (this is {platform.system()}).",
+            macos_version=None,
+            chip_family=None,
+            framework_check=None,
+            xcode_clt=False,
+            swiftc=False,
+        )
+
     macos_ver = _parse_macos_major(platform.mac_ver()[0])
     chip = _chip_family()
     has_clt = _has_xcode_clt()
@@ -125,8 +138,6 @@ def probe(*, runtime: bool = True) -> AFMAvailability:
             swiftc=has_swiftc,
         )
 
-    if platform.system() != "Darwin":
-        return unavailable(f"Apple Foundation Models are macOS-only (this is {platform.system()}).")
     if platform.machine() != "arm64":
         return unavailable(f"Apple Foundation Models require Apple Silicon (this is {platform.machine()}).")
     if macos_ver is None:
