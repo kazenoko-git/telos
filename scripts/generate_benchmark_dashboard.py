@@ -102,7 +102,7 @@ def collect_evaluation_data() -> Dict[str, Any]:
     for mf in master_files:
         path = Path(mf)
         key = path.name.replace("_master_summary.json", "").replace("eval_report_", "")
-        with open(path) as f:
+        with open(path, "r", encoding="utf-8") as f:
             try:
                 data = json.load(f)
             except Exception:
