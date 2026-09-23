@@ -207,7 +207,7 @@ def prepare_dataset(
             "synthetic": True,
         }
         meta_path = Path(str(output_path) + ".json")
-        with open(meta_path, "w") as mf:
+        with open(meta_path, "w", encoding="utf-8") as mf:
             json.dump(meta, mf, indent=2)
             
         print(f"  [DataPrep] Saved synthetic binary corpus to {output_path} ({os.path.getsize(output_path) / 1e6:.2f} MB)")
@@ -303,7 +303,7 @@ def prepare_dataset(
         "synthetic": False,
     }
     meta_path = Path(str(output_path) + ".json")
-    with open(meta_path, "w") as mf:
+    with open(meta_path, "w", encoding="utf-8") as mf:
         json.dump(meta, mf, indent=2)
 
     size_mb = os.path.getsize(output_path) / 1e6
