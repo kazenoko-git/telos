@@ -964,7 +964,7 @@ def evaluate_anticheat(
         if s1_acc < 5.0:
             print("  [?] UNCONVERGED: Model infilling accuracy is near-zero; representations not yet formed.")
         else:
-            print("  [✓] PASSED: Model infilling performance shows robust multi-token semantic reasoning.")
+            print("  [PASSED]: Model infilling performance shows robust multi-token semantic reasoning.")
     print("=" * 80 + "\n")
 
     return summary
@@ -1179,7 +1179,7 @@ def _evaluate_single(
         out_file.parent.mkdir(parents=True, exist_ok=True)
         with open(out_file, "w") as f:
             json.dump(report, f, indent=2)
-        print(f"✓ Saved evaluation report to {out_file}\n")
+        print(f"[OK] Saved evaluation report to {out_file}\n")
 
     return report
 
@@ -1389,7 +1389,7 @@ def evaluate(
             out_file.parent.mkdir(parents=True, exist_ok=True)
             with open(out_file, "w") as f:
                 json.dump(rep, f, indent=2)
-            print(f"✓ Saved evaluation report to {out_file}\n")
+            print(f"[OK] Saved evaluation report to {out_file}\n")
         return rep
 
     # Multi-model evaluation workflow
@@ -1438,7 +1438,7 @@ def evaluate(
     out_file.parent.mkdir(parents=True, exist_ok=True)
     with open(out_file, "w") as f:
         json.dump(multi_reports, f, indent=2)
-    print(f"✓ Saved consolidated multi-model evaluation report to {out_file}\n")
+    print(f"[OK] Saved consolidated multi-model evaluation report to {out_file}\n")
 
     return multi_reports
 
