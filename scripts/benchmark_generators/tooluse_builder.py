@@ -285,7 +285,7 @@ def generate_tooluse_suite(output_path: Path, target_count: int = 100) -> List[D
         })
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(tasks, f, indent=2)
 
     print(f"  [OK] Saved {len(tasks)} Tool-Use challenges -> {output_path}")
