@@ -185,7 +185,7 @@ def main():
                 if pass_score is None:
                     pass_score = data_obj.get("pass_rate_pct", 0.0)
                 if data_obj.get("total_tasks"):
-                    print(f"✓ Suite {label} already completed ({data_obj['total_tasks']} tasks, Pass@1: {pass_score:.2f}%). Resuming next...", flush=True)
+                    print(f"[OK] Suite {label} already completed ({data_obj['total_tasks']} tasks, Pass@1: {pass_score:.2f}%). Resuming next...", flush=True)
                     summary_results[suite_name] = {
                         "label": label,
                         "total_tasks": data_obj.get("total_tasks"),
@@ -247,7 +247,7 @@ def main():
                 "report_file": str(out_file)
             }
 
-            print(f"\n✓ Completed {label} in {elapsed / 60:.2f} minutes (Pass@1: {pass_score:.2f}%).\n", flush=True)
+            print(f"\n[OK] Completed {label} in {elapsed / 60:.2f} minutes (Pass@1: {pass_score:.2f}%).\n", flush=True)
             compile_master_summary(summary_results)
 
         except Exception as err:

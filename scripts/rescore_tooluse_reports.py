@@ -75,4 +75,4 @@ for filename in ["eval_report_granite_mlx_tooluse_full.json", "eval_report_afm3_
     with open(filepath, "w") as f:
         json.dump(data, f, indent=2)
 
-    print(f"✓ Re-scored {filename}: Pass Rate = {pass_rate_pct}% (CI: {ci})")
+    print(f"[OK] Re-scored {filename}: Pass Rate = {pass_rate_pct}% (CI: {ci})")

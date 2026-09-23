@@ -170,7 +170,7 @@ def repair_arc_challenge(adapter: OpenAIAPIAdapter):
     with open(eval_file, "w") as f:
         json.dump(rep_data, f, indent=2)
 
-    print(f"\n✓ ARC-Challenge repair finished in {elapsed/60:.2f} mins. New Pass@1: {new_pass_rate}% [{ci_low}%, {ci_high}%] (+{recovered} solved)")
+    print(f"\n[OK] ARC-Challenge repair finished in {elapsed/60:.2f} mins. New Pass@1: {new_pass_rate}% [{ci_low}%, {ci_high}%] (+{recovered} solved)")
     update_summary("arc", eval_file, "ARC-Challenge Science Reasoning", new_pass_rate, [ci_low, ci_high], total_passed, n)
 
 
@@ -298,7 +298,7 @@ def repair_mmlu_science(adapter: OpenAIAPIAdapter):
     with open(eval_file, "w") as f:
         json.dump(rep_data, f, indent=2)
 
-    print(f"\n✓ MMLU Science repair finished in {elapsed/60:.2f} mins. New Pass@1: {new_pass_rate}% [{ci_low}%, {ci_high}%] (+{recovered} solved, {still_truncated} still truncated)")
+    print(f"\n[OK] MMLU Science repair finished in {elapsed/60:.2f} mins. New Pass@1: {new_pass_rate}% [{ci_low}%, {ci_high}%] (+{recovered} solved, {still_truncated} still truncated)")
     update_summary("mmlu_science", eval_file, "MMLU Science & STEM", new_pass_rate, [ci_low, ci_high], total_passed, n)
 
 

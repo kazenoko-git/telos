@@ -68,11 +68,11 @@ SUITES = [
     },
     {
         "name": "competition_math",
-        "label": "Competition MATH (Hendrycks — 8,096 Tokens)",
+        "label": "Competition MATH (Hendrycks — 4,096 Tokens)",
         "type": "math",
         "system_prompt": "You are an expert mathematician. Solve the problem step by step and state the final answer clearly in \\boxed{...}.",
         "output": "eval_report_lfm8b_competition_math_full.json",
-        "max_new_tokens": 8096
+        "max_new_tokens": 4096
     },
     {
         "name": "arc",
@@ -172,7 +172,7 @@ def main():
         max_tokens = s["max_new_tokens"]
 
         if out_file.exists():
-            print(f"✓ Suite {label} already completed ({summary_results.get(suite_key, {}).get('total_tasks', '?')} tasks, Pass@1: {summary_results.get(suite_key, {}).get('pass_at_1_pct', '?')}%). Resuming next...")
+            print(f"[OK] Suite {label} already completed ({summary_results.get(suite_key, {}).get('total_tasks', '?')} tasks, Pass@1: {summary_results.get(suite_key, {}).get('pass_at_1_pct', '?')}%). Resuming next...")
             continue
 
         print(f"\n{'#' * 80}")
@@ -236,7 +236,7 @@ def main():
             "report_file": str(out_file)
         }
 
-        print(f"\n✓ Completed {label} in {elapsed/60.0:.2f} minutes (Pass@1: {pass_at_1}%).\n")
+        print(f"\n[OK] Completed {label} in {elapsed/60.0:.2f} minutes (Pass@1: {pass_at_1}%).\n")
         compile_master_summary(summary_results)
 
     compile_master_summary(summary_results)

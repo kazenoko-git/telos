@@ -209,7 +209,7 @@ def main():
             sub = df_batch[df_batch["paradigm"] == p]
             if not sub.empty:
                 best = sub.loc[sub["tok_per_sec"].idxmax()]
-                print(f"★ {p} Max Throughput: {best['tok_per_sec']:,} tok/s ({best['steps_per_sec']} st/s) at MicroBatch={best['micro_batch']}, GradAccum={best['grad_accum']} (EffB={best['eff_batch']})")
+                print(f"[BEST] {p} Max Throughput: {best['tok_per_sec']:,} tok/s ({best['steps_per_sec']} st/s) at MicroBatch={best['micro_batch']}, GradAccum={best['grad_accum']} (EffB={best['eff_batch']})")
                 print(f"   Peak RAM: {best['peak_mem_gb']} GB | Step Latency: {best['ms_per_step']} ms\n")
 
 

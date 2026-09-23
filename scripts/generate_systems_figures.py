@@ -184,7 +184,7 @@ def generate_throughput_and_memory_figure():
 
     plt.savefig(OUTPUT_THROUGHPUT_PNG, facecolor=COLOR_BG_CARD, edgecolor="none", dpi=300)
     plt.close()
-    print(f"✓ Saved Throughput & Memory Figure: {OUTPUT_THROUGHPUT_PNG}")
+    print(f"[OK] Saved Throughput & Memory Figure: {OUTPUT_THROUGHPUT_PNG}")
 
 
 def generate_repetition_rate_figure():
@@ -331,7 +331,7 @@ def generate_repetition_rate_figure():
 
     plt.savefig(OUTPUT_REPETITION_PNG, facecolor=COLOR_BG_CARD, edgecolor="none", dpi=300)
     plt.close()
-    print(f"✓ Saved Repetition & Degenerate Loop Rate Figure: {OUTPUT_REPETITION_PNG}")
+    print(f"[OK] Saved Repetition & Degenerate Loop Rate Figure: {OUTPUT_REPETITION_PNG}")
 
 
 if __name__ == "__main__":

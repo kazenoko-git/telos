@@ -33,7 +33,7 @@ def _check_core_worker(index):
 def main():
     print(">>> Testing PyTorch-XLA multi-core execution across 8 TPU cores...")
     xmp.spawn(_check_core_worker, args=(), nprocs=None)
-    print("✓ All 8 TPU cores online and operational!")
+    print("[OK] All 8 TPU cores online and operational!")
 
 
 if __name__ == "__main__":

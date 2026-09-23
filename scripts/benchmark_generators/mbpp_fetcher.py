@@ -106,5 +106,5 @@ def fetch_and_build_mbpp_suite(output_path: Path | None = None) -> List[Dict[str
     with open(output_path, "w") as f:
         json.dump(formatted_tasks, f, indent=2)
 
-    print(f"✓ Verified and wrote {len(formatted_tasks)} MBPP tasks -> {output_path}")
+    print(f"[OK] Verified and wrote {len(formatted_tasks)} MBPP tasks -> {output_path}")
     return formatted_tasks

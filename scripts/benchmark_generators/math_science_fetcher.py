@@ -86,7 +86,7 @@ def fetch_gsm8k(output_path: Path) -> List[Dict[str, Any]]:
     with open(output_path, "w") as f:
         json.dump(tasks, f, indent=2)
 
-    print(f"  ✓ Saved {len(tasks)} GSM8K problems -> {output_path}")
+    print(f"  [OK] Saved {len(tasks)} GSM8K problems -> {output_path}")
     return tasks
 
 
@@ -129,7 +129,7 @@ def fetch_arc_challenge(output_path: Path) -> List[Dict[str, Any]]:
     with open(output_path, "w") as f:
         json.dump(tasks, f, indent=2)
 
-    print(f"  ✓ Saved {len(tasks)} ARC-Challenge questions -> {output_path}")
+    print(f"  [OK] Saved {len(tasks)} ARC-Challenge questions -> {output_path}")
     return tasks
 
 
@@ -185,7 +185,7 @@ def fetch_competition_math(output_path: Path, max_per_subject: int = 100) -> Lis
                     "evaluation_type": "boxed_latex_math",
                 })
                 task_counter += 1
-            print(f"  ✓ Processed {len(sample_df)} problems for subject: {subj}")
+            print(f"  [OK] Processed {len(sample_df)} problems for subject: {subj}")
         except Exception as exc:
             print(f"  Warning: failed fetching {subj} ({exc})")
 
@@ -193,7 +193,7 @@ def fetch_competition_math(output_path: Path, max_per_subject: int = 100) -> Lis
     with open(output_path, "w") as f:
         json.dump(tasks, f, indent=2)
 
-    print(f"  ✓ Saved {len(tasks)} Competition MATH problems -> {output_path}")
+    print(f"  [OK] Saved {len(tasks)} Competition MATH problems -> {output_path}")
     return tasks
 
 

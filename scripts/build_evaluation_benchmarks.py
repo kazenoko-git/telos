@@ -123,19 +123,19 @@ def generate_verified_private_unseen_suites():
     master_file = BENCHMARK_DIR / "private_unseen_suite.json"
     with open(master_file, "w") as f:
         json.dump(all_tasks, f, indent=2)
-    print(f"✓ Generated master suite ({len(all_tasks)} tasks) -> {master_file}")
+    print(f"[OK] Generated master suite ({len(all_tasks)} tasks) -> {master_file}")
 
     # Save BASE suite (512 tasks)
     base_file = BENCHMARK_DIR / "private_unseen_base.json"
     with open(base_file, "w") as f:
         json.dump(base_tasks, f, indent=2)
-    print(f"✓ Generated BASE suite ({len(base_tasks)} tasks) -> {base_file}")
+    print(f"[OK] Generated BASE suite ({len(base_tasks)} tasks) -> {base_file}")
 
     # Save HINT suite (512 tasks)
     hint_file = BENCHMARK_DIR / "private_unseen_hint.json"
     with open(hint_file, "w") as f:
         json.dump(hint_tasks, f, indent=2)
-    print(f"✓ Generated HINT suite ({len(hint_tasks)} tasks) -> {hint_file}")
+    print(f"[OK] Generated HINT suite ({len(hint_tasks)} tasks) -> {hint_file}")
 
 
 def generate_truly_unique_contextual_probes_1000():
@@ -167,7 +167,7 @@ def generate_truly_unique_contextual_probes_1000():
     out_file = BENCHMARK_DIR / "contextual_probes_1000.json"
     with open(out_file, "w") as f:
         json.dump(probes, f, indent=2)
-    print(f"✓ Generated {len(probes)} unique contextual probes -> {out_file}")
+    print(f"[OK] Generated {len(probes)} unique contextual probes -> {out_file}")
 
 
 def main():
@@ -215,7 +215,7 @@ def main():
         generate_tooluse_suite(BENCHMARK_DIR / "tooluse_suite.json", target_count=100)
 
     print("\n" + "=" * 80)
-    print("✓ All Télos benchmarks generated, verified, and ready!")
+    print("[OK] All Télos benchmarks generated, verified, and ready!")
     print("=" * 80)
 
 

@@ -112,7 +112,7 @@ def main():
     with open(LOGS_DIR / "comparative_report_afm3_vs_granite_mlx.json", "w") as f:
         json.dump(comparative, f, indent=2)
 
-    print("✓ Successfully compiled master summaries and comparative report.")
+    print("[OK] Successfully compiled master summaries and comparative report.")
 
 
 if __name__ == "__main__":

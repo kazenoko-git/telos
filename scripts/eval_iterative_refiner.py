@@ -67,7 +67,7 @@ def run_benchmark(
         base_correct = (draft_preds == shift_targets).sum().item()
         base_acc = (base_correct / total_tokens) * 100.0
 
-    print(f"✓ Baseline Causal AR Accuracy: {base_acc:.2f}%")
+    print(f"[OK] Baseline Causal AR Accuracy: {base_acc:.2f}%")
 
     # -------------------------------------------------------------------------
     # BASELINE 2: Old Single-Token Re-Diffusion (Top 20% Flagged)
@@ -88,7 +88,7 @@ def run_benchmark(
         acc_old = ((repaired_old == shift_targets).sum().item() / total_tokens) * 100.0
         mask_pct_old = mask_old.float().mean().item() * 100.0
 
-    print(f"✓ Old Single-Token Accuracy: {acc_old:.2f}% (Mask Rate: {mask_pct_old:.1f}%)")
+    print(f"[OK] Old Single-Token Accuracy: {acc_old:.2f}% (Mask Rate: {mask_pct_old:.1f}%)")
 
     # -------------------------------------------------------------------------
     # METHOD 3: Region Routing with Morphological Dilation (Radius=1, Gap=1)
@@ -106,7 +106,7 @@ def run_benchmark(
         acc_region = ((repaired_region == shift_targets).sum().item() / total_tokens) * 100.0
         mask_pct_region = mask_region.float().mean().item() * 100.0
 
-    print(f"✓ Region Routing Accuracy: {acc_region:.2f}% (Effective Mask Rate: {mask_pct_region:.1f}%)")
+    print(f"[OK] Region Routing Accuracy: {acc_region:.2f}% (Effective Mask Rate: {mask_pct_region:.1f}%)")
 
     # -------------------------------------------------------------------------
     # METHOD 4 & 5: Train Expected-Gain Router & Self-Conditioned Denoiser
@@ -150,7 +150,7 @@ def run_benchmark(
         opt_all.step()
 
     model_sc.eval()
-    print(f"✓ Training complete in {time.time() - t0:.1f}s")
+    print(f"[OK] Training complete in {time.time() - t0:.1f}s")
 
     # -------------------------------------------------------------------------
     # METHOD 5: Multi-Stage Iterative Refiner Evaluation (1-Pass and 2-Pass)
@@ -187,8 +187,8 @@ def run_benchmark(
         refined_2pass, m_2p = refiner_2pass.refine(initial_draft_full, prompt_len=1, return_metrics=True)
         acc_2pass = ((refined_2pass[:, 1:] == shift_targets).sum().item() / total_tokens) * 100.0
 
-    print(f"✓ 1-Pass Expected-Gain Refiner: {acc_1pass:.2f}% (Refined: {m_1p['mask_pct_per_pass']})")
-    print(f"✓ 2-Pass Expected-Gain Refiner: {acc_2pass:.2f}% (Refined: {m_2p['mask_pct_per_pass']})")
+    print(f"[OK] 1-Pass Expected-Gain Refiner: {acc_1pass:.2f}% (Refined: {m_1p['mask_pct_per_pass']})")
+    print(f"[OK] 2-Pass Expected-Gain Refiner: {acc_2pass:.2f}% (Refined: {m_2p['mask_pct_per_pass']})")
 
     # -------------------------------------------------------------------------
     # SUMMARY TABLE

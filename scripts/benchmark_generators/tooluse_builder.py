@@ -288,7 +288,7 @@ def generate_tooluse_suite(output_path: Path, target_count: int = 100) -> List[D
     with open(output_path, "w") as f:
         json.dump(tasks, f, indent=2)
 
-    print(f"  ✓ Saved {len(tasks)} Tool-Use challenges -> {output_path}")
+    print(f"  [OK] Saved {len(tasks)} Tool-Use challenges -> {output_path}")
     return tasks
 
 

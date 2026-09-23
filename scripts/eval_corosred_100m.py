@@ -89,7 +89,7 @@ def evaluate_corosred_100m(
     model.load_state_dict(state_dict)
     model.to(device)
     model.eval()
-    print(f"✓ Model loaded successfully ({sum(p.numel() for p in model.parameters())/1e6:.1f}M params)")
+    print(f"[OK] Model loaded successfully ({sum(p.numel() for p in model.parameters())/1e6:.1f}M params)")
 
     # 3. Load Validation Dataset
     if not os.path.exists(dataset_path):
@@ -104,7 +104,7 @@ def evaluate_corosred_100m(
     dtype = np.uint16 if itemsize == 2 else np.uint32
     raw_memmap = np.memmap(dataset_path, dtype=dtype, mode="r")
     num_samples = len(raw_memmap) // seq_len
-    print(f"✓ Loaded evaluation corpus: {num_samples:,} total sequences")
+    print(f"[OK] Loaded evaluation corpus: {num_samples:,} total sequences")
 
     # Sample evaluation batch from the tail (validation split)
     np.random.seed(42)
@@ -234,7 +234,7 @@ def evaluate_corosred_100m(
     print(f"Validation Loss:         {results['val_loss']} (Perplexity: {results['val_perplexity']})")
     print(f"Overall Head ROC-AUC:    {results['overall_head_auc']} vs Entropy: {results['overall_entropy_auc']}")
     print(f"High-Entropy Head AUC:   {results['high_entropy_head_auc']} vs Entropy: {results['high_entropy_entropy_auc']}")
-    print(f"Delta-AUC (Gain):        +{results['delta_auc']} {'[GATE PASSED ✓]' if results['phase_a_gate_passed'] else '[GATE FAILED]'}")
+    print(f"Delta-AUC (Gain):        +{results['delta_auc']} {'[GATE PASSED]' if results['phase_a_gate_passed'] else '[GATE FAILED]'}")
     print(f"Confidently-Wrong Recall: {results['low_entropy_error_recall']*100:.1f}%")
     print(f"OOD Corruption Loc AUC:  {results['ood_corruption_localization_auc']}")
     print("=" * 80)

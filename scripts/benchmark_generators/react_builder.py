@@ -73,7 +73,7 @@ def build_react_component_suite(output_path: Path | None = None) -> List[Dict[st
             "Interactive 5-star rating component with hover preview and selection.",
             "export function StarRating({ maxStars = 5, initialRating = 0, onChange }) {",
             ["useState", "hover", "rating"],
-            "    const [rating, setRating] = useState(initialRating);\n    const [hover, setHover] = useState(0);\n    const select = (val) => { setRating(val); if (onChange) onChange(val); };\n    return (\n        <div className=\"star-rating\">\n            {Array.from({ length: maxStars }, (_, i) => i + 1).map(star => (\n                <span key={star} onClick={() => select(star)} onMouseEnter={() => setHover(star)} onMouseLeave={() => setHover(0)} style={{ cursor: 'pointer', color: star <= (hover || rating) ? '#f5a623' : '#ccc' }}>★</span>\n            ))}\n        </div>\n    );\n}"
+            "    const [rating, setRating] = useState(initialRating);\n    const [hover, setHover] = useState(0);\n    const select = (val) => { setRating(val); if (onChange) onChange(val); };\n    return (\n        <div className=\"star-rating\">\n            {Array.from({ length: maxStars }, (_, i) => i + 1).map(star => (\n                <span key={star} onClick={() => select(star)} onMouseEnter={() => setHover(star)} onMouseLeave={() => setHover(0)} style={{ cursor: 'pointer', color: star <= (hover || rating) ? '#f5a623' : '#ccc' }}>*</span>\n            ))}\n        </div>\n    );\n}"
         ),
         (
             "TodoList",
@@ -141,7 +141,7 @@ def build_react_component_suite(output_path: Path | None = None) -> List[Dict[st
     with open(output_path, "w") as f:
         json.dump(tasks, f, indent=2)
 
-    print(f"✓ Built {len(tasks)} React component challenges -> {output_path}")
+    print(f"[OK] Built {len(tasks)} React component challenges -> {output_path}")
     return tasks
 
 

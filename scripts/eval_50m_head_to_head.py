@@ -254,7 +254,7 @@ def main():
     total_seqs = len(raw_data) // seq_len
     # Take last 200 sequences (102,400 tokens) strictly held out
     val_matrix = np.array([raw_data[idx * seq_len : (idx + 1) * seq_len] for idx in range(total_seqs - 200, total_seqs)])
-    print(f"✓ Loaded {len(val_matrix)} held-out validation sequences ({len(val_matrix) * seq_len:,} tokens)")
+    print(f"[OK] Loaded {len(val_matrix)} held-out validation sequences ({len(val_matrix) * seq_len:,} tokens)")
 
     tok = load_tokenizer()
 
@@ -306,24 +306,24 @@ def main():
         # 1. Causal Next-Token Validation Loss
         print("  1. Evaluating Causal Next-Token Validation (Held-out)...")
         val_causal = evaluate_dataset_validation(model, val_matrix, batch_size=16, num_batches=10, is_causal=True, device=device)
-        print(f"     ✓ Val CE: {val_causal['val_loss']} | PPL: {val_causal['perplexity']} | Top-1: {val_causal['top1_acc']}% | Top-5: {val_causal['top5_acc']}%")
+        print(f"     [OK] Val CE: {val_causal['val_loss']} | PPL: {val_causal['perplexity']} | Top-1: {val_causal['top1_acc']}% | Top-5: {val_causal['top5_acc']}%")
         if "mean_reliability" in val_causal:
-            print(f"     ✓ Reliability Head: Mean={val_causal['mean_reliability']} | High-Rel Acc={val_causal.get('high_rel_acc', 'N/A')}% | Low-Rel Acc={val_causal.get('low_rel_acc', 'N/A')}%")
+            print(f"     [OK] Reliability Head: Mean={val_causal['mean_reliability']} | High-Rel Acc={val_causal.get('high_rel_acc', 'N/A')}% | Low-Rel Acc={val_causal.get('low_rel_acc', 'N/A')}%")
 
         # 2. Bidirectional Masked Denoising Validation Loss (15% random mask, fixed seed)
         print("  2. Evaluating Bidirectional Denoising Validation (15% mask, seed=42)...")
         val_bidir = evaluate_dataset_validation(model, val_matrix, batch_size=16, num_batches=10, is_causal=False, device=device, seed=42)
-        print(f"     ✓ Denoise CE: {val_bidir['val_loss']} | Denoise PPL: {val_bidir['perplexity']} | Denoise Top-1: {val_bidir['top1_acc']}% | Denoise Top-5: {val_bidir['top5_acc']}%")
+        print(f"     [OK] Denoise CE: {val_bidir['val_loss']} | Denoise PPL: {val_bidir['perplexity']} | Denoise Top-1: {val_bidir['top1_acc']}% | Denoise Top-5: {val_bidir['top5_acc']}%")
 
         # 3. Contextual Probes - Causal Mode
         print("  3. Evaluating Contextual Probes Suite in Causal Mode (100 probes)...")
         probes_causal = evaluate_probes_mode(model, tok, mode="causal", device=device)
-        print(f"     ✓ Causal Probes: Avg Rank: {probes_causal['avg_rank']} | Avg CE: {probes_causal['avg_ce']} | Top-1: {probes_causal['top1_pct']}% | Top-5: {probes_causal['top5_pct']}%")
+        print(f"     [OK] Causal Probes: Avg Rank: {probes_causal['avg_rank']} | Avg CE: {probes_causal['avg_ce']} | Top-1: {probes_causal['top1_pct']}% | Top-5: {probes_causal['top5_pct']}%")
 
         # 4. Contextual Probes - Bidirectional Mode
         print("  4. Evaluating Contextual Probes Suite in Bidirectional Mode (100 probes)...")
         probes_bidir = evaluate_probes_mode(model, tok, mode="bidirectional", device=device)
-        print(f"     ✓ Bidir Probes:  Avg Rank: {probes_bidir['avg_rank']} | Avg CE: {probes_bidir['avg_ce']} | Top-1: {probes_bidir['top1_pct']}% | Top-5: {probes_bidir['top5_pct']}%")
+        print(f"     [OK] Bidir Probes:  Avg Rank: {probes_bidir['avg_rank']} | Avg CE: {probes_bidir['avg_ce']} | Top-1: {probes_bidir['top1_pct']}% | Top-5: {probes_bidir['top5_pct']}%")
 
         all_results[name] = {
             "tokens": m_info["tokens"],
@@ -375,7 +375,7 @@ def main():
         print(f"{name:<38} | {pc['avg_rank']:<12.1f} | {pc['avg_ce']:<10.2f} | {pb['avg_rank']:<12.1f} | {pb['avg_ce']:<10.2f}")
     print("=" * 90)
 
-    print(f"\n✓ Saved complete evaluation results to {report_file}\n")
+    print(f"\n[OK] Saved complete evaluation results to {report_file}\n")
 
 
 if __name__ == "__main__":

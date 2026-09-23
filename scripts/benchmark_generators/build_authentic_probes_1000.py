@@ -61,7 +61,7 @@ def verify_all_probes() -> bool:
         if count != 125:
             raise ValueError(f"Category '{cat}' has {count} probes (expected 125)")
 
-    print(f"✓ Successfully verified {len(probes)} contextual probes across {len(category_counts)} categories.")
+    print(f"[OK] Successfully verified {len(probes)} contextual probes across {len(category_counts)} categories.")
     return True
 
 

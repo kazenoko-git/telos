@@ -60,9 +60,9 @@ def run_gemma_pipeline():
                 api_key=GOOGLE_KEY,
                 output_path=str(out_file),
             )
-            print(f"✓ [Gemma 4 26B] Finished {label} in {(time.time()-t0)/60.0:.2f} min")
+            print(f"[OK] [Gemma 4 26B] Finished {label} in {(time.time()-t0)/60.0:.2f} min")
         except Exception as e:
-            print(f"✗ [Gemma 4 26B] Error on {label}: {e}")
+            print(f"[FAILED] [Gemma 4 26B] Error on {label}: {e}")
 
 
 def run_qwen_pipeline():
@@ -91,10 +91,11 @@ def run_qwen_pipeline():
                 api_base="https://ai.hackclub.com/proxy/v1",
                 api_key=HACKCLUB_KEY,
                 output_path=str(out_file),
+                timeout=120.0,
             )
-            print(f"✓ [Qwen 3.8 27B] Finished {label} in {(time.time()-t0)/60.0:.2f} min")
+            print(f"[OK] [Qwen 3.8 27B] Finished {label} in {(time.time()-t0)/60.0:.2f} min")
         except Exception as e:
-            print(f"✗ [Qwen 3.8 27B] Error on {label}: {e}")
+            print(f"[FAILED] [Qwen 3.8 27B] Error on {label}: {e}")
 
 
 if __name__ == "__main__":

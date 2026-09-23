@@ -165,7 +165,7 @@ def main():
     total_seqs = len(raw_data) // seq_len
     # Take last 200 sequences (102,400 tokens) strictly held out
     val_matrix = np.array([raw_data[idx * seq_len : (idx + 1) * seq_len] for idx in range(total_seqs - 200, total_seqs)])
-    print(f"✓ Loaded {len(val_matrix)} held-out validation sequences ({len(val_matrix) * seq_len:,} tokens)")
+    print(f"[OK] Loaded {len(val_matrix)} held-out validation sequences ({len(val_matrix) * seq_len:,} tokens)")
 
     tok = load_tokenizer()
 
@@ -209,12 +209,12 @@ def main():
         # A. Probes
         print("  Running Contextual Probes Suite (100 probes)...")
         probes_res = evaluate_model_probes(model, tok, is_causal=is_causal)
-        print(f"  ✓ Probes: Top-1: {probes_res['top1_pct']}% | Top-5: {probes_res['top5_pct']}% | Avg Rank: {probes_res['avg_rank']} | Avg CE: {probes_res['avg_ce']}")
+        print(f"  [OK] Probes: Top-1: {probes_res['top1_pct']}% | Top-5: {probes_res['top5_pct']}% | Avg Rank: {probes_res['avg_rank']} | Avg CE: {probes_res['avg_ce']}")
 
         # B. Validation Loss
         print("  Running Held-Out Validation Loss...")
         val_res = evaluate_dataset_validation(model, val_matrix, batch_size=16, num_batches=10, is_causal=is_causal)
-        print(f"  ✓ Validation CE: {val_res['val_loss']} nats | Perplexity: {val_res['perplexity']}")
+        print(f"  [OK] Validation CE: {val_res['val_loss']} nats | Perplexity: {val_res['perplexity']}")
 
         all_results[name] = {
             "probes": probes_res,
@@ -239,7 +239,7 @@ def main():
         p = r["probes"]
         print(f"{name:<42} | {v['val_loss']:<8.4f} | {v['perplexity']:<8.2f} | {p['avg_ce']:<10.2f} | {p['avg_rank']:<8.1f}")
     print("=" * 80)
-    print(f"✓ Saved full report to {report_file}\n")
+    print(f"[OK] Saved full report to {report_file}\n")
 
 
 if __name__ == "__main__":

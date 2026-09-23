@@ -61,9 +61,9 @@ def main():
         print(f"Downloading {filename} from {REPO_ID}...")
         try:
             ckpt_path = hf_hub_download(repo_id=REPO_ID, filename=filename)
-            print(f"✓ Downloaded in {time.time() - t0:.1f}s to {ckpt_path}")
+            print(f"[OK] Downloaded in {time.time() - t0:.1f}s to {ckpt_path}")
         except Exception as e:
-            print(f"✗ Failed to download {filename}: {e}")
+            print(f"[FAILED] Failed to download {filename}: {e}")
             continue
 
         # Load model and evaluate
@@ -72,9 +72,9 @@ def main():
             model, backend, vocab_size = load_model_from_checkpoint(ckpt_path)
             model.to(device)
             model.eval()
-            print(f"✓ Model loaded in {time.time() - t_load:.2f}s")
+            print(f"[OK] Model loaded in {time.time() - t_load:.2f}s")
         except Exception as e:
-            print(f"✗ Failed to load model from {ckpt_path}: {e}")
+            print(f"[FAILED] Failed to load model from {ckpt_path}: {e}")
             continue
 
         t_eval = time.time()
@@ -104,7 +104,7 @@ def main():
             "eval_time_sec": round(t_elapsed, 2)
         }
         results.append(record)
-        print(f"✓ Result for Step {step} ({record['tokens_trained_str']}): Val Loss: {record['val_loss']:.4f} | PPL: {record['perplexity']:.2f} | Top-1: {record['top1_acc']:.2f}% | Top-5: {record['top5_acc']:.2f}%")
+        print(f"[OK] Result for Step {step} ({record['tokens_trained_str']}): Val Loss: {record['val_loss']:.4f} | PPL: {record['perplexity']:.2f} | Top-1: {record['top1_acc']:.2f}% | Top-5: {record['top5_acc']:.2f}%")
 
         # Save incremental results
         with open(output_file, "w") as f:

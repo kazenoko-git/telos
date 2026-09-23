@@ -40,7 +40,7 @@ def wait_for_lfm_completion():
     while True:
         # ARC is the 7th and final benchmark for LFM 2.5 8B
         if lfm_arc.exists():
-            print("✓ LFM 2.5 8B ARC and all benchmarks completed successfully.")
+            print("[OK] LFM 2.5 8B ARC and all benchmarks completed successfully.")
             time.sleep(5)
             break
         print("  [Monitor] LFM 2.5 8B is still running... sleeping 45s.")
@@ -166,7 +166,7 @@ def repair_truncated_tasks(
         json.dump(rep_data, f, indent=2)
 
     print(
-        f"✓ Finished repairs in {elapsed/60.0:.2f} mins. New Pass@1: {new_pass_rate}% [{ci_low}%, {ci_high}%] (+{recovered} solved)"
+        f"[OK] Finished repairs in {elapsed/60.0:.2f} mins. New Pass@1: {new_pass_rate}% [{ci_low}%, {ci_high}%] (+{recovered} solved)"
     )
 
 
@@ -370,7 +370,7 @@ def run_full_suite_for_model(
     for s in suites:
         out_file = LOGS_DIR / s["output"]
         if out_file.exists():
-            print(f"✓ {s['label']} already evaluated. Resuming next...")
+            print(f"[OK] {s['label']} already evaluated. Resuming next...")
             with open(out_file) as f:
                 rep_d = json.load(f)
             b_data = rep_d.get(s["type"], {})
@@ -445,7 +445,7 @@ def run_full_suite_for_model(
             "report_file": str(out_file),
             "label": s["label"],
         }
-        print(f"✓ Completed {s['label']} in {elapsed/60.0:.2f} mins (Pass@1: {p_rate:.2f}%)")
+        print(f"[OK] Completed {s['label']} in {elapsed/60.0:.2f} mins (Pass@1: {p_rate:.2f}%)")
 
     # Save master summary
     summary_path = LOGS_DIR / f"eval_report_{model_tag}_master_summary.json"
@@ -529,7 +529,7 @@ def compile_5model_publication_scorecard():
     with open(out_md, "w") as f:
         f.write("\n".join(md_lines) + "\n")
 
-    print(f"✓ Publication scorecard saved to:\n  - {out_json}\n  - {out_md}")
+    print(f"[OK] Publication scorecard saved to:\n  - {out_json}\n  - {out_md}")
 
 
 def main():

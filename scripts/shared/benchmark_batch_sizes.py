@@ -133,9 +133,9 @@ def run_benchmark(batch_sizes=[32, 48, 64, 80, 96]):
         try:
             res = benchmark_single_batch(bs, device, device_type)
             results.append(res)
-            print(f"  ✓ {res['tokens_per_sec']:>12,.0f} tok/s | {res['steps_per_sec']:>6.2f} steps/s")
+            print(f"  [OK] {res['tokens_per_sec']:>12,.0f} tok/s | {res['steps_per_sec']:>6.2f} steps/s")
         except Exception as e:
-            print(f"  ✗ Failed / OOM with Batch Size {bs}: {e}")
+            print(f"  [FAILED] Failed / OOM with Batch Size {bs}: {e}")
             break
             
     print("\n" + "=" * 80)
@@ -151,7 +151,7 @@ def run_benchmark(batch_sizes=[32, 48, 64, 80, 96]):
             best_bs = r["batch_size"]
         print(f"{r['batch_size']:<14} | {toks:>14,.0f} | {r['steps_per_sec']:>12.2f} | {status}")
     print("=" * 80)
-    print(f"★ ABSOLUTE HIGHEST THROUGHPUT: Batch Size = {best_bs} ({best_toks:,.0f} tokens/sec)")
+    print(f"[BEST] HIGHEST THROUGHPUT: Batch Size = {best_bs} ({best_toks:,.0f} tokens/sec)")
     print("=" * 80)
 
 

@@ -27,4 +27,4 @@ report = evaluate(
 )
 elapsed = time.time() - t0
 data = report["cyber"]["functional"]
-print(f"\n✓ Completed AFM 3 Cybersecurity in {elapsed/60.0:.2f} mins. Pass@1: {data['pass_at_1_pct']}%\n", flush=True)
+print(f"\n[OK] Completed AFM 3 Cybersecurity in {elapsed/60.0:.2f} mins. Pass@1: {data['pass_at_1_pct']}%\n", flush=True)

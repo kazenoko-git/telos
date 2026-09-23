@@ -134,7 +134,7 @@ def fetch_multipl_e_language(lang_key: str, output_dir: Path) -> List[Dict[str, 
     with open(out_file, "w") as f:
         json.dump(formatted_tasks, f, indent=2)
 
-    print(f"  ✓ Saved {len(formatted_tasks)} {cfg['display_name']} tasks -> {out_file}")
+    print(f"  [OK] Saved {len(formatted_tasks)} {cfg['display_name']} tasks -> {out_file}")
     return formatted_tasks
 
 

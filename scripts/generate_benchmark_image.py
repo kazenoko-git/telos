@@ -235,7 +235,7 @@ def generate_paper_vertical_comparison(data: Dict[str, Dict[str, Any]]):
 
     plt.savefig(OUTPUT_BAR_PNG, facecolor=COLOR_BG_CARD, edgecolor="none", dpi=300)
     plt.close()
-    print(f"✓ Saved Paper Vertical Comparison Graph: {OUTPUT_BAR_PNG}")
+    print(f"[OK] Saved Paper Vertical Comparison Graph: {OUTPUT_BAR_PNG}")
 
 
 def generate_paper_horizontal_breakdown(data: Dict[str, Dict[str, Any]]):
@@ -340,7 +340,7 @@ def generate_paper_horizontal_breakdown(data: Dict[str, Dict[str, Any]]):
 
     plt.savefig(OUTPUT_HORIZONTAL_PNG, facecolor=COLOR_BG_CARD, edgecolor="none", dpi=300)
     plt.close()
-    print(f"✓ Saved Paper Horizontal Breakdown Graph: {OUTPUT_HORIZONTAL_PNG}")
+    print(f"[OK] Saved Paper Horizontal Breakdown Graph: {OUTPUT_HORIZONTAL_PNG}")
 
 
 def generate_paper_radar_graph(data: Dict[str, Dict[str, Any]]):
@@ -408,7 +408,7 @@ def generate_paper_radar_graph(data: Dict[str, Dict[str, Any]]):
 
     plt.savefig(OUTPUT_RADAR_PNG, facecolor=COLOR_BG_CARD, edgecolor="none", dpi=300)
     plt.close()
-    print(f"✓ Saved Paper Radar Graph: {OUTPUT_RADAR_PNG}")
+    print(f"[OK] Saved Paper Radar Graph: {OUTPUT_RADAR_PNG}")
 
 
 
@@ -420,7 +420,7 @@ def main():
 
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     data = load_master_summaries()
-    print(f"✓ Loaded evaluation data for {len(data)} models:")
+    print(f"[OK] Loaded evaluation data for {len(data)} models:")
     for model, suites in data.items():
         print(f"  · {model:<24}: {len(suites)} suites")
 
@@ -428,7 +428,7 @@ def main():
     generate_paper_horizontal_breakdown(data)
     generate_paper_radar_graph(data)
 
-    print("\n✓ Publication-grade image generation complete!")
+    print("\n[OK] Publication-grade image generation complete!")
 
 
 if __name__ == "__main__":

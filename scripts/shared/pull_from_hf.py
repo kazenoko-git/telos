@@ -21,7 +21,7 @@ def pull_checkpoints(ratios: list[str] = ["r1", "r10"], hf_repo: str = "Kazenowo
         local_dir="./",
         allow_patterns=patterns
     )
-    print("✅ Download Complete! Saved checkpoints:")
+    print("[OK] Download Complete! Saved checkpoints:")
     for r in ratios:
         for p in ["ar", "masked", "uniform"]:
             d = Path(f"checkpoints/{p}/25m/telos_25m_{r}")

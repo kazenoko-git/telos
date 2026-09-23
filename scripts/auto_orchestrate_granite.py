@@ -126,7 +126,7 @@ def main():
         try:
             with open(arc_file) as f:
                 arc_data = json.load(f)
-            log("✓ ARC-Challenge completed successfully. Report verified.")
+            log("[OK] ARC-Challenge completed successfully. Report verified.")
         except Exception as e:
             log(f"[Error] Failed to read ARC report: {e}")
 

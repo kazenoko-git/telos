@@ -529,7 +529,7 @@ def generate_html_dashboard(eval_data: Dict[str, Any], logo_b64: str) -> str:
 
         <div class="control-group">
             <div class="upload-zone" onclick="document.getElementById('fileInput').click()" ondragover="event.preventDefault()" ondrop="handleFileDrop(event)">
-                <span class="upload-text">➕ Drag & Drop JSON Report to Add Model</span>
+                <span class="upload-text">+ Drag & Drop JSON Report to Add Model</span>
                 <input type="file" id="fileInput" accept=".json" style="display: none" onchange="handleFileSelect(event)">
             </div>
         </div>
@@ -852,12 +852,12 @@ def main():
 
     logo_b64 = load_logo_base64()
     if logo_b64:
-        print(f"✓ Embedded Télos Logo from {LOGO_PATH} (Base64 length: {len(logo_b64)})")
+        print(f"[OK] Embedded Télos Logo from {LOGO_PATH} (Base64 length: {len(logo_b64)})")
     else:
         print("! Warning: Télos logo not found at logos/telos_logo.png")
 
     eval_data = collect_evaluation_data()
-    print(f"✓ Collected evaluation data for {len(eval_data)} models:")
+    print(f"[OK] Collected evaluation data for {len(eval_data)} models:")
     for model_name, info in eval_data.items():
         print(f"  · {model_name:<32}: {len(info['suites'])} suites")
 
@@ -867,7 +867,7 @@ def main():
     with open(OUTPUT_HTML, "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    print(f"\n✓ Dashboard generated successfully at:")
+    print(f"\n[OK] Dashboard generated successfully at:")
     print(f"  file://{OUTPUT_HTML.resolve()}")
 
 

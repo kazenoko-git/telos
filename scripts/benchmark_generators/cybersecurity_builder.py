@@ -505,7 +505,7 @@ def generate_cybersecurity_suite(output_path: Path, target_count: int = 50) -> L
     with open(output_path, "w") as f:
         json.dump(tasks, f, indent=2)
 
-    print(f"  ✓ Saved {len(tasks)} Cybersecurity challenges -> {output_path}")
+    print(f"  [OK] Saved {len(tasks)} Cybersecurity challenges -> {output_path}")
     return tasks
 
 

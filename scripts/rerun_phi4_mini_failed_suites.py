@@ -32,7 +32,7 @@ def ensure_phi4_loaded() -> None:
         )
         time.sleep(5)
     else:
-        print("  ✓ Microsoft Phi-4 Mini Reasoning is active in LM Studio.")
+        print("  [OK] Microsoft Phi-4 Mini Reasoning is active in LM Studio.")
 
 
 def rerun_failed_suites() -> None:
@@ -101,7 +101,7 @@ def rerun_failed_suites() -> None:
             or rep_d.get("science", {})
         )
         p_rate = b_data.get("pass_at_1_pct") or b_data.get("pass_rate_pct", 0.0)
-        print(f"✓ Completed {s['label']} in {elapsed/60.0:.2f} mins (Pass@1: {p_rate:.2f}%)")
+        print(f"[OK] Completed {s['label']} in {elapsed/60.0:.2f} mins (Pass@1: {p_rate:.2f}%)")
 
 
 def update_master_summary_and_scorecard() -> None:
@@ -145,7 +145,7 @@ def update_master_summary_and_scorecard() -> None:
 
     with open(summary_path, "w") as f:
         json.dump(master_summary, f, indent=2)
-    print(f"✓ Updated Phi-4 Mini Master Summary at {summary_path}")
+    print(f"[OK] Updated Phi-4 Mini Master Summary at {summary_path}")
 
     # Regenerate publication markdown and json matrices
     from scripts.run_post_school_master_pipeline import compile_5model_publication_scorecard

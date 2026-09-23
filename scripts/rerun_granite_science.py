@@ -65,12 +65,12 @@ def main():
         if "functional" in data_obj:
             data_obj = data_obj["functional"]
         score = data_obj.get("pass_at_1_pct", 0.0)
-        print(f"\n✓ Completed {label} in {elapsed/60.0:.2f} mins (Pass@1: {score:.2f}%).\n", flush=True)
+        print(f"\n[OK] Completed {label} in {elapsed/60.0:.2f} mins (Pass@1: {score:.2f}%).\n", flush=True)
 
     print("\n>>> Recompiling master scorecard...\n", flush=True)
     from scripts.compile_final_comparative_scorecard import main as compile_main
     compile_main()
-    print("✓ All re-evaluations complete and master scorecard updated!\n", flush=True)
+    print("[OK] All re-evaluations complete and master scorecard updated!\n", flush=True)
 
 
 if __name__ == "__main__":
