@@ -67,15 +67,23 @@ class MDLMSampler:
         self,
         seq_len: int,
         prompt_ids: torch.Tensor | None = None,
-        device: str | torch.device = "cpu"
+        device: str | torch.device | None = None
     ) -> torch.Tensor:
         self.model.eval()
+        if device is None:
+            if hasattr(self.model, "parameters"):
+                try:
+                    device = next(self.model.parameters()).device
+                except (StopIteration, Exception):
+                    device = "cpu"
+            else:
+                device = "cpu"
         seq = torch.full((1, seq_len), self.mask_token_id, dtype=torch.long, device=device)
         
         prompt_len = 0
         if prompt_ids is not None:
             prompt_len = prompt_ids.shape[1]
-            seq[:, :prompt_len] = prompt_ids
+            seq[:, :prompt_len] = prompt_ids.to(device)
 
         total_masked_positions = seq_len - prompt_len
         if total_masked_positions <= 0:
