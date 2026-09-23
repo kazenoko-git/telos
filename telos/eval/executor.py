@@ -194,7 +194,8 @@ def execute_code_sandboxed(
         else:
             # Child exited without writing to queue (e.g. killed by SIGSEGV or OOM killer)
             exit_code = proc.exitcode
-            if exit_code == -signal.SIGKILL or exit_code == -9:
+            sigkill = getattr(signal, "SIGKILL", 9)
+            if exit_code in (-sigkill, -9):
                 result_status = ExecutionResult.MEMORY_EXCEEDED
                 result_details = "Child process killed by OS (likely Out-Of-Memory)"
             else:
