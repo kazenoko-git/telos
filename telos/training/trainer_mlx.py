@@ -336,7 +336,7 @@ class UnifiedMLXTrainer:
             }
         }
         report_file = log_dir / f"benchmark_{self.paradigm}_mlx_{int(time.time())}.json"
-        with open(report_file, "w") as f:
+        with open(report_file, "w", encoding="utf-8") as f:
             json.dump(bench_payload, f, indent=2)
         print(f"  Saved benchmark metrics to {report_file}\n")
 
@@ -361,7 +361,7 @@ class UnifiedMLXTrainer:
             for meta_cand in [Path(str(train_bin) + ".json"), train_bin.with_suffix(".json")]:
                 if meta_cand.exists():
                     try:
-                        with open(meta_cand, "r") as mf:
+                        with open(meta_cand, "r", encoding="utf-8") as mf:
                             m_info = json.load(mf)
                             dt_str = m_info.get("dtype", "uint16")
                             dtype = np.int32 if dt_str == "int32" else np.uint16
@@ -538,7 +538,7 @@ class UnifiedMLXTrainer:
         final_weights = ckpt_dir / "model.safetensors"
         self.model.save_weights(str(final_weights))
 
-        with open(ckpt_dir / "config.json", "w") as f:
+        with open(ckpt_dir / "config.json", "w", encoding="utf-8") as f:
             json.dump(self.cfg, f, indent=2, default=str)
 
         print("=" * 70)
