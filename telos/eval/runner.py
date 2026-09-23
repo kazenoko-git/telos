@@ -66,12 +66,12 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
     m_cfg = {}
     if cfg_file.exists():
         try:
-            with open(cfg_file, "r") as f:
+            with open(cfg_file, "r", encoding="utf-8") as f:
                 full_cfg = json.load(f)
         except Exception:
             try:
                 import yaml
-                with open(cfg_file, "r") as f:
+                with open(cfg_file, "r", encoding="utf-8") as f:
                     full_cfg = yaml.safe_load(f) or {}
             except Exception:
                 full_cfg = {}
@@ -267,7 +267,8 @@ def _evaluate_single_probe_type(
             logits_pos = np.array(logits[0, eval_idx].astype(mx.float32))
         else:
             import torch
-            x = torch.tensor([input_ids], dtype=torch.long)
+            dev = next(model.parameters()).device if hasattr(model, "parameters") else torch.device("cpu")
+            x = torch.tensor([input_ids], dtype=torch.long, device=dev)
             with torch.no_grad():
                 logits = model(x, mask_override=mask_override)
             logits_pos = logits[0, eval_idx].detach().cpu().numpy()
@@ -636,7 +637,7 @@ def evaluate_functional(
     if not data_file.exists():
         raise FileNotFoundError(f"Benchmark dataset not found at {data_file}. Run scripts/build_evaluation_benchmarks.py first.")
 
-    with open(data_file, "r") as f:
+    with open(data_file, "r", encoding="utf-8") as f:
         tasks = json.load(f)
 
     if max_tasks and len(tasks) > max_tasks:
@@ -1047,10 +1048,15 @@ def _evaluate_single(
         # Local Télos Checkpoint
         model, backend, vocab_size = load_model_from_checkpoint(checkpoint)
         dev = kwargs.get("device", "auto")
-        if dev and dev != "auto" and hasattr(model, "to"):
+        if hasattr(model, "to"):
             try:
                 import torch
-                model = model.to(torch.device(dev))
+                if dev and dev != "auto":
+                    model = model.to(torch.device(dev))
+                elif torch.cuda.is_available():
+                    model = model.to(torch.device("cuda:0"))
+                elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                    model = model.to(torch.device("mps"))
             except Exception:
                 pass
 
@@ -1177,7 +1183,7 @@ def _evaluate_single(
     if output_path:
         out_file = Path(output_path)
         out_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(out_file, "w") as f:
+        with open(out_file, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
         print(f"[OK] Saved evaluation report to {out_file}\n")
 
@@ -1387,7 +1393,7 @@ def evaluate(
         if not output_path:
             out_file = PROJECT_ROOT / "logs" / f"eval_report_{b_type}_{mode}_{int(time.time())}.json"
             out_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(out_file, "w") as f:
+            with open(out_file, "w", encoding="utf-8") as f:
                 json.dump(rep, f, indent=2)
             print(f"[OK] Saved evaluation report to {out_file}\n")
         return rep
@@ -1436,7 +1442,7 @@ def evaluate(
     # Save consolidated report
     out_file = Path(output_path) if output_path else (PROJECT_ROOT / "logs" / f"eval_report_multimodel_{b_type}_{mode}_{int(time.time())}.json")
     out_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_file, "w") as f:
+    with open(out_file, "w", encoding="utf-8") as f:
         json.dump(multi_reports, f, indent=2)
     print(f"[OK] Saved consolidated multi-model evaluation report to {out_file}\n")
 
