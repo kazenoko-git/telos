@@ -39,7 +39,7 @@ def main():
     # If partial results exist, load them to resume
     if output_file.exists():
         try:
-            with open(output_file, "r") as f:
+            with open(output_file, "r", encoding="utf-8") as f:
                 results = json.load(f)
             evaluated_steps = {r["step"] for r in results}
             print(f"Resuming from existing results. Already evaluated steps: {evaluated_steps}")
@@ -107,7 +107,7 @@ def main():
         print(f"[OK] Result for Step {step} ({record['tokens_trained_str']}): Val Loss: {record['val_loss']:.4f} | PPL: {record['perplexity']:.2f} | Top-1: {record['top1_acc']:.2f}% | Top-5: {record['top5_acc']:.2f}%")
 
         # Save incremental results
-        with open(output_file, "w") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             json.dump(results, f, indent=2)
 
         # Free GPU memory
