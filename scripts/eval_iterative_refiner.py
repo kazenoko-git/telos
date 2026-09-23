@@ -218,7 +218,7 @@ def run_benchmark(
 
     # Save results
     os.makedirs("logs", exist_ok=True)
-    with open("logs/eval_iterative_refiner_benchmark.json", "w") as f:
+    with open("logs/eval_iterative_refiner_benchmark.json", "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
     print("Saved benchmark report to logs/eval_iterative_refiner_benchmark.json")
 
