@@ -1,29 +1,31 @@
 # Télos Deployment Guide
 
-This guide explains how to install, build, test, and deploy **télos** across local environments, hardware clusters, and package registries.
+This guide describes how to install, build, verify, and publish **télos** (`telos-ml`) across local systems, hardware accelerators, and package registries.
 
 ## 1. System Requirements
 
 - **Python**: 3.10, 3.11, 3.12, 3.13, or 3.14
-- **Hardware Targets**:
+- **Supported Accelerators**:
   - **Apple Silicon (MLX)**: macOS 14.0+ with unified memory (Metal acceleration)
   - **NVIDIA GPU (CUDA)**: Linux with CUDA 12.0+ and PyTorch
   - **TPU (XLA)**: Google Cloud TPU v4 / v5e / v6e with PyTorch-XLA
-  - **CPU**: Standard Linux, macOS, or Windows for testing
+  - **CPU**: Standard Linux, macOS, or Windows for evaluation and testing
 
-## 2. Installation
+## 2. Package Installation
+
+The official distribution package on PyPI is named `telos-ml`. The Python import name remains `telos`, and the command line binary remains `telos`.
 
 ### From PyPI
 
 ```bash
-# Standard install
-pip install telos
+# Standard installation
+pip install telos-ml
 
-# With Apple Silicon MLX acceleration
-pip install "telos[mlx]"
+# With Apple Silicon Metal acceleration (MLX)
+pip install "telos-ml[mlx]"
 
-# Full developer installation
-pip install "telos[all]"
+# Complete development environment
+pip install "telos-ml[all]"
 ```
 
 ### From Source
@@ -37,54 +39,129 @@ uv pip install -e .
 
 Verify the installation:
 ```bash
+telos --version
 telos --help
 ```
 
-## 3. Building Distribution Packages
+## 3. Verification Suite
 
-To build source distributions (`.tar.gz`) and binary wheels (`.whl`):
+Run verification checks before building distribution packages:
 
 ```bash
-# Install build tools
-pip install build twine
+# Run unit and regression tests
+uv run pytest tests/ -q
 
-# Build source archive and wheel
-python -m build
-
-# Check package validity
-twine check dist/*
+# Run unified multi-paradigm verification suite
+uv run telos test
 ```
 
-Built artifacts will appear in `dist/`.
+## 4. Package Building & PyPI Publication
 
-## 4. Running Verification Tests
+### Build Distribution Artifacts
 
-Run the test suite to verify model contracts, causality checks, and numerical stability:
+Télos uses `hatchling` as its build backend. Build distributions with `uv` or `build`:
 
 ```bash
-# Using pytest directly
-pytest tests/ -q
+# Clean previous builds
+rm -rf dist
 
-# Or using the telos CLI
-telos test
+# Build source distribution (.tar.gz) and wheel (.whl)
+uv build
+```
+
+Expected output files:
+- `dist/telos_ml-1.0.0-py3-none-any.whl`
+- `dist/telos_ml-1.0.0.tar.gz`
+
+### Validate Distribution Metadata
+
+```bash
+# Check distribution integrity
+twine check dist/*
+
+# Inspect wheel archive contents
+python3 -m zipfile -l dist/telos_ml-1.0.0-py3-none-any.whl
+
+# Inspect source distribution contents
+tar -ztvf dist/telos_ml-1.0.0.tar.gz
+```
+
+### Rehearse in an Isolated Environment
+
+Verify the wheel in a temporary environment before public release:
+
+```bash
+# Create temporary isolated environment
+uv venv /tmp/telos-smoke
+source /tmp/telos-smoke/bin/activate
+
+# Install wheel
+uv pip install dist/telos_ml-1.0.0-py3-none-any.whl
+
+# Test CLI and import
+telos --version
+python3 -c "import telos; print(telos.__version__)"
+
+# Deactivate and remove smoke environment
+deactivate
+rm -rf /tmp/telos-smoke
+```
+
+### Publish to Package Registries
+
+#### Publish to TestPyPI (Staging)
+
+```bash
+uv publish --publish-url https://test.pypi.org/legacy/
+```
+
+Or with twine:
+```bash
+twine upload --repository testpypi dist/*
+```
+
+#### Publish to Official PyPI (Production)
+
+```bash
+uv publish
+```
+
+Or with twine:
+```bash
+twine upload dist/*
 ```
 
 ## 5. Hardware Deployment Modes
 
 ### Apple Silicon (MLX)
-Use the `--hardware mlx` flag for zero-config Metal acceleration:
+
+Execute zero-configuration Metal training with unified memory:
 ```bash
 telos train --paradigm corosred --params 50M --tokens 2.5B --hardware mlx
 ```
 
 ### NVIDIA GPUs (CUDA)
-Use `--hardware cuda` with optional kernel compilation:
+
+Execute multi-GPU training with optional kernel compilation:
 ```bash
 telos train --paradigm corosred --params 50M --tokens 2.5B --hardware cuda --devices 4 --compile
 ```
 
 ### Google Cloud TPU (PyTorch-XLA)
-Use `--hardware xla` with automatic multi-core cadence synchronization:
+
+Execute distributed TPU training across all cores with cadence synchronization:
 ```bash
 telos train --paradigm corosred --params 50M --tokens 2.5B --hardware xla --devices 8
+```
+
+## 6. Apple Foundation Models Deployment
+
+On Apple Silicon running macOS 15.0+, Télos interfaces directly with on-device Apple Foundation Models (AFM-3 Core / Core Advanced):
+
+```bash
+# Check availability status
+telos afm status
+
+# Execute prompt generation
+telos afm generate "Explain rotary position embeddings in two sentences."
 ```
