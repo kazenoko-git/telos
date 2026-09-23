@@ -10,13 +10,13 @@ Install Télos directly via `pip` or `uv`:
 
 ```bash
 # Standard installation
-pip install telos
+pip install telos-ml
 
 # With Apple Silicon Metal support (MLX)
-pip install "telos[mlx]"
+pip install "telos-ml[mlx]"
 
 # Complete development environment
-pip install "telos[all]"
+pip install "telos-ml[all]"
 ```
 
 For local development in editable mode:
@@ -198,13 +198,13 @@ rm -rf dist
 uv build
 
 # Inspect archive contents
-python -m zipfile -l dist/telos-*.whl
-tar tzf dist/telos-*.tar.gz
+python -m zipfile -l dist/telos_ml-*.whl
+tar tzf dist/telos_ml-*.tar.gz
 
 # Rehearse in isolated smoke venv
 uv venv /tmp/telos-smoke
 uv pip install --python /tmp/telos-smoke/bin/python \
-  --extra-index-url https://pypi.org/simple/ dist/telos-1.0.0-py3-none-any.whl
+  --extra-index-url https://pypi.org/simple/ dist/telos_ml-1.0.0-py3-none-any.whl
 /tmp/telos-smoke/bin/telos --version
 /tmp/telos-smoke/bin/telos afm status
 
