@@ -25,9 +25,10 @@ def auto_detect_hardware() -> tuple[str, str, int]:
     # 1. Check Apple Silicon Metal (MLX)
     if is_mac:
         try:
-            import mlx.core as mx
-            return "mlx", "gpu", 1
-        except ImportError:
+            from telos.training.core import MLX_AVAILABLE
+            if MLX_AVAILABLE:
+                return "mlx", "gpu", 1
+        except Exception:
             pass
 
     # 2. Check PyTorch-XLA (Google Cloud / TPU Pods)
@@ -88,7 +89,7 @@ def build_config(
 
     # 1. Base Configuration (from YAML bypass if supplied, else empty)
     if config_path and Path(config_path).exists():
-        with open(config_path, "r") as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
     else:
         cfg = {"model": {}, "training": {}, "checkpoint": {}, "data": {}}
