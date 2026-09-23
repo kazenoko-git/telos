@@ -123,7 +123,7 @@ def execute_javascript(full_code: str, timeout_seconds: float = 4.0) -> Tuple[Ex
         is_valid, msg = validate_code_structural_contract("javascript", full_code)
         return (ExecutionResult.PASSED if is_valid else ExecutionResult.RUNTIME_EXCEPTION), f"[Static Contract Validation] {msg}"
 
-    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as f:
+    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as f:
         f.write("const assert = require('assert');\n" + full_code)
         tmp_path = f.name
 
@@ -154,8 +154,9 @@ def execute_rust(full_code: str, timeout_seconds: float = 6.0) -> Tuple[Executio
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         src_path = os.path.join(tmp_dir, "solution.rs")
-        bin_path = os.path.join(tmp_dir, "solution_bin")
-        with open(src_path, "w") as f:
+        bin_name = "solution_bin.exe" if sys.platform == "win32" else "solution_bin"
+        bin_path = os.path.join(tmp_dir, bin_name)
+        with open(src_path, "w", encoding="utf-8") as f:
             f.write(full_code)
 
         try:
