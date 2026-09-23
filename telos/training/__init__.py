@@ -23,7 +23,7 @@ def __getattr__(name: str):
         except ImportError as err:
             raise ImportError(
                 "UnifiedMLXTrainer requires 'mlx', which is not available in this environment. "
-                "Install it on Apple Silicon via `pip install 'telos[mlx]'`."
+                "Install it on Apple Silicon via `pip install 'telos-ml[mlx]'`."
             ) from err
     if name in _TORCH_EXPORTS:
         try:
