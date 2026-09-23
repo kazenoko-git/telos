@@ -37,8 +37,11 @@ def get_sys_mem_str() -> str:
     except Exception:
         return ""
 
-def clip_grad_norm_mlx(grads, max_norm: float = 1.0, scale: float = 1.0): # FIX: Fuse accum scaling + clipping into single tree traversal
-    """Clips global gradient L2 norm to max_norm in float32 for numerical stability."""
+def clip_grad_norm_mlx(grads, max_norm: float = 1.0, scale: float = 1.0):
+    """Clips global gradient L2 norm to max_norm in float32 for numerical stability.
+    
+    Fuses accumulation scaling and norm clipping into a single tree traversal.
+    """
     total_norm_sq = mx.array(0.0, dtype=mx.float32)
     for _, g in tree_flatten(grads): total_norm_sq = total_norm_sq + mx.sum(g.astype(mx.float32) ** 2)
     total_norm = mx.sqrt(total_norm_sq)
