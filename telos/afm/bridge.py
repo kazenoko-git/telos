@@ -88,7 +88,7 @@ def ensure_bridge_binary(*, force: bool = False) -> Path:
 
     import fcntl
 
-    with open(lock_path, "w") as lock_file:
+    with open(lock_path, "w", encoding="utf-8") as lock_file:
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
         try:
             # Another process may have finished the build while we waited.
