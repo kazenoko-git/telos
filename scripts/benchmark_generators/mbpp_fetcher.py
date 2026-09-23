@@ -25,7 +25,7 @@ def fetch_and_build_mbpp_suite(output_path: Path | None = None) -> List[Dict[str
     except Exception as e:
         if output_path.exists():
             print(f"Network fetch failed ({e}); reading existing file at {output_path}")
-            with open(output_path, "r") as f:
+            with open(output_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         raise RuntimeError(f"Failed to fetch MBPP dataset: {e}") from e
 
@@ -103,7 +103,7 @@ def fetch_and_build_mbpp_suite(output_path: Path | None = None) -> List[Dict[str
         formatted_tasks.append(task_obj)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(formatted_tasks, f, indent=2)
 
     print(f"[OK] Verified and wrote {len(formatted_tasks)} MBPP tasks -> {output_path}")
