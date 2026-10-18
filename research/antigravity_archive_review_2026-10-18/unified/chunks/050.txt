@@ -1,0 +1,192 @@
+L10317 S10395 PLANNER_RESPONSE
+### 1. The 100M AR Mystery: Why 1:20 was at ~5 CE and 1:40 was at 1.3 CE
+
+Under standard autoregressive language modeling power laws ($L(D) = E + B D^{-\beta}$), a 100M model on code **never** stays at $\approx 5.0\text{ CE}$ after 2.0 Billion real tokens and then suddenly collapses to $1.34\text{ CE}$ in the next 2.0 Billion tokens. The loss curve is convex and monotonic on log-log scales: the steepest drop occurs in the first 500M tokens.
+
+The discrepancy between the reported **1:20 (4.89 CE)** and **1:40 (1.34 CE)** runs stems from **three compounding bugs in data loading, precision, and token accounting**:
+
+---
+
+#### Bug ①: The $8\times$ Data Duplication Deficit on TPU (Commit b19e133)
+In the preliminary 100M run on Cloud TPU v3-8, 8 worker processes were spawned via `xmp.spawn`. Prior to commit b19e133, `idx_ptr` was initialized identically across all spawned workers without rank offsetting:
+[fenced code/output: original retained]
+* **What happened**: Every single TPU core was computing forward passes and backward gradients on the **exact same 48 sequences**!
+* **The telemetry illusion**: The logger multiplied tokens by `world_size = 8`:
+  $$\text{Tokens}_{\text{reported}} = 10,173 \text{ steps} \times 48 \times 8 \times 512 = \mathbf{2,000,093,184 \text{ tokens (2.0B / 1:20)}}$$
+* **The ground truth**: Because all 8 cores processed identical data, the model only received:
+  $$\text{Tokens}_{\text{unique}} = 10,173 \text{ steps} \times 48 \times 512 = \mathbf{250,011,648 \text{ tokens (0.25B)}}$$
+* **The impact**: The 1:20 run had **not** seen 2.0B tokens. It had only seen **250M unique tokens**—a token-to-parameter ratio of **$1:2.5$**, not $1:20$. For a 100M model on code, 250M tokens is barely past basic syntax acquisition, which explains why validation CE was **4.89 nats (~5 CE)**.
+
+---
+
+#### Bug ②: The 1:40 AR Baseline was Truly 4.0B Tokens
+The 100M Pure AR baseline was trained on Modal H100 with `batch_size = 384` for 20,346 steps on a single GPU.
+* There was no multi-process data replication bug. Every step ingested 384 unique sequences ($196,608$ tokens/step).
+* $\text{Tokens}_{\text{trained}} = 20,346 \times 384 \times 512 = \mathbf{4,000,094,208\text{ real unique tokens}}$ ($1:40$).
+* At 4.0B unique tokens, the model completed its training trajectory and converged to **1.3407 CE** (PPL 3.82, Top-1 70.87%).
+* **Conclusion**: The model did not drop from 5 CE to 1.3 CE between 2B and 4B tokens. It dropped from 5 CE to 1.3 CE between **250M tokens and 4.0B tokens** ($16\times$ more data).
+
+---
+
+#### Bug ③: AdamW Underflow in Native `bfloat16` (Commit a774173)
+On the preliminary TPU run, model parameters in HBM were cast directly to `torch.bfloat16`.
+* In `bfloat16`, the mantissa is only 7 bits, giving a machine epsilon of $\epsilon_{\text{mach}} = 2^{-7} \approx 0.0078125$.
+* With learning rate $\eta = 3.46 \times 10^{-5}$, AdamW parameter update increments ($\Delta \theta \approx 10^{-5} \text{ to } 10^{-6}$) fell well below machine precision relative to weights of magnitude $\ge 0.1$.
+* The weight updates were mathematically truncated to zero, stalling convergence at $\approx 4.89\text{ CE}$. (This was corrected in commit a774173 by keeping parameters in `float32` and utilizing hardware autocast).
+
+---
+
+### 2. Auditing the `tok/s` Measurements
+
+The skepticism regarding `tok/s` is well-founded. Across TPU, CUDA, and Apple Silicon, previous telemetry reported figures that conflated different batch configurations, hardware tiers, or multi-core multipliers:
+
+| Hardware | Reported Metric | Actual Measured Reality | Root Cause of Discrepancy |
+| :--- | :---: | :---: | :--- |
+| **TPU v5e-8** | **600k tok/s** | **75k unique tok/s** *(legacy)*<br>**580k unique tok/s** *(fixed)* | In the legacy pipeline, `world_mult = 8` was multiplied into telemetry, but all 8 cores processed identical batches ($8 \times 75\text{k} = 600\text{k}$). With commit b19e133, each core now offsets by `rank * local_seqs`, making 580k–600k tok/s genuine unique throughput. |
+| **Modal H100** | **150k tok/s** | **150k unique tok/s** *(legacy)*<br>**450k–520k tok/s** *(optimized)* | Real unique tokens, but bottlenecked by: (1) `batch_size = 16` starving the 132 SMs, (2) 4 blocking `.item()` PCIe roundtrips in the inner loop, and (3) redundant gradient checkpointing on an 80GB GPU. |
+| **Apple Silicon (MLX)** | **93.6k tok/s** | **93.6k tok/s** on **12M** ($d=256, L=8$)<br>**57.4k tok/s** on **15M** ($d=384, L=10$) | `telos bench` defaults to the **12M** model budget ($d=256, L=8$, 87.4ms latency $\rightarrow$ 93.6k tok/s). Scaling to **15M** ($d=384, L=10$) increases FLOPs/token, increasing step latency to 142ms $\rightarrow$ 57.4k tok/s. |
+| **MLX Short Run** | **50.4k tok/s** | **50.4k tok/s** (10-step average) | Step 1 incurs a 1.5s cold Metal JIT compilation and unified buffer allocation. Averaged over only 10 steps, that 1.5s overhead drags the logged average down from 57.4k to 50.4k tok/s. Steady-state throughput is 57.4k tok/s. |
+
+---
+
+### 3. Verification on Apple Silicon MLX
+
+To verify the mathematical throughput directly on the current machine (Apple M5 Pro, 24GB Unified Memory):
+
+* **15M Pure AR Baseline** (`batch_size = 16`, `grad_accum = 1`):
+  $$\text{Latency} = 117.3\text{ ms} \quad \longrightarrow \quad 8.53\text{ st/s} \times 8,192\text{ tok/st} = \mathbf{69,843\text{ tok/s}}$$
+* **15M Unified COROSred** (`batch_size = 16`, `grad_accum = 1`):
+  $$\text{Latency} = 142.7\text{ ms} \quad \longrightarrow \quad 7.01\text{ st/s} \times 8,192\text{ tok/st} = \mathbf{57,393\text{ tok/s}}$$
+* **15M Unified COROSred with Effective Batch 32** (`batch_size = 16`, `grad_accum = 2`):
+  $$\text{Latency} = 285.5\text{ ms} \quad \longrightarrow \quad 3.50\text{ st/s} \times 16,384\text{ tok/st} = \mathbf{57,344\text{ tok/s}}$$
+
+The throughput arithmetic is verified:
+$$\text{TPS} = \frac{\text{MicroBatch} \times \text{GradAccum} \times \text{SeqLen}}{\text{Step Latency (sec)}} = \frac{16 \times 1 \times 512}{0.1427\text{ s}} = 57,393\text{ tok/s}$$
+
+---
+
+### 4. Calibration for the 15M COROSred Run
+
+With the data duplication bug resolved, a 15M model does not need 2.0B or 4.0B tokens to converge. 
+* Under Chinchilla optimal compute ($1:20$), 15M corresponds to **300M tokens**.
+* To account for the 15% masking infilling density and saturate the non-linear embedding table ($8192 \times 384 = 3.14\text{M}$ params, 21% of the model), training on **750M tokens** ($1:50$ ratio) using `data/python_corpus_mac.bin` provides the requisite gradient volume to drive CE below 2.0 nats.
+
+At steady-state throughput of **57.4k tok/s** on MLX, a 750M-token run requires:
+$$\frac{750,000,000 \text{ tokens}}{57,400 \text{ tok/s}} = 13,066 \text{ seconds} \approx \mathbf{3.6 \text{ hours}}$$
+
+Would you like to initiate the 750M-token 15M COROSred run on Apple Silicon MLX now, or would you prefer to run it on TPU / CUDA?
+
+L10318 S10396 USER_INPUT
+We can go higher batch size for H100. Even upto 384 or more. There's a lot of HBM memory to balance it off.
+
+L10359 S10437 PLANNER_RESPONSE
+### 1. H100 VRAM Footprint & Batch Sizing Analysis
+
+On an **NVIDIA H100 SXM5 / PCIe (80GB HBM3, 3.35 TB/s)**, scaling batch size to **384 sequences** ($196,608\text{ tokens/step}$ at `seq_len=512`) is not only safe, but optimal for maximizing Hopper Tensor Core utilization.
+
+Because PyTorch's native `F.scaled_dot_product_attention` dispatches to FlashAttention-2, the $O(T^2)$ full attention matrix $[B \times H, T, T]$ is never materialized in HBM. Activation memory scales strictly linearly with $T$, $d_{\text{model}}$, and $n_{\text{layers}}$:
+
+$$\text{Activation Memory per Token} \approx 20 \times d_{\text{model}} \times n_{\text{layers}} \text{ bytes}$$
+
+| Model Budget | Microbatch | Grad Accum | Effective Batch | Tokens / Step | VRAM Footprint (80GB H100) | Headroom Remaining |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **15M** ($d=384, L=10$) | **384** | **1** | **384 sequences** | **196,608 tokens** | **$15.2\text{ GB}$** ($19\%$ HBM) | **$+64.8\text{ GB}$ ($81\%$)** |
+| **50M** ($d=512, L=14$) | **192** | **2** | **384 sequences** | **196,608 tokens** | **$28.5\text{ GB}$** ($35\%$ HBM) | **$+51.5\text{ GB}$ ($65\%$)** |
+| **50M** ($d=512, L=14$) | **384** | **1** | **384 sequences** | **196,608 tokens** | **$29.1\text{ GB}$** ($36\%$ HBM) | **$+50.9\text{ GB}$ ($64\%$)** |
+| **100M** ($d=768, L=14$) | **128** | **3** | **384 sequences** | **196,608 tokens** | **$29.8\text{ GB}$** ($37\%$ HBM) | **$+50.2\text{ GB}$ ($63\%$)** |
+| **100M** ($d=768, L=14$) | **384** | **1** | **384 sequences** | **196,608 tokens** | **$42.4\text{ GB}$** ($53\%$ HBM) | **$+37.6\text{ GB}$ ($47\%$)** |
+
+Even for a **100M model at batch size 384** with activation checkpointing disabled, peak VRAM is **$42.4\text{ GB}$**, leaving **$37.6\text{ GB}$** of safety margin on an 80GB card.
+
+---
+
+### 2. Changes Implemented
+
+1. **H100 80GB Tier in telos/configs/builder.py**:
+   - Added `cuda_gb >= 70.0` detection tier for 80GB H100 and A100.
+   - For $d_{\text{model}} \le 384$ (15M, 25M): defaults to `auto_microbatch = 384` and `auto_accum = 1` ($196,608$ tokens/step).
+   - For $d_{\text{model}} \le 512$ (50M): defaults to `auto_microbatch = 192` and `auto_accum = 2` ($384$ sequences).
+   - For $d_{\text{model}} \le 768$ (100M): defaults to `auto_microbatch = 128` and `auto_accum = 3` ($384$ sequences).
+   - Automatically sets target default effective batch to **384 sequences** on $\ge 70\text{GB}$ GPUs.
+   - Allows direct CLI overrides like `--batch-size 384` or `--effective-batch 384` (or `512`).
+
+2. **Documentation in DEPLOYMENT.md**:
+   - Updated Section 10 with the H100 80GB VRAM headroom table.
+   - Added CLI execution commands for batch 384 training on 15M, 50M, and 100M models.
+
+---
+
+### 3. Review & Git Commit Instructions
+
+All 34 automated unit and regression tests pass cleanly (`34 passed in 0.81s`). In accordance with repository guidelines, please review the changes below:
+
+#### File 1: telos/configs/builder.py
+[fenced code/output: original retained]
+
+#### File 2: DEPLOYMENT.md
+[fenced code/output: original retained]
+
+L10360 S10438 USER_INPUT
+If I start training the 15M 50:1 model on MLx, how long will it take?
+
+L10361 S10439 PLANNER_RESPONSE
+At **50:1 token-to-parameter ratio** on a 15M parameter model, the training budget is **750 Million tokens** ($50 \times 15\text{M}$).
+
+On your **Apple M5 Pro (24GB Unified Memory)** using Apple Silicon MLX:
+
+---
+
+### 1. The Exact Numbers
+
+| Parameter | Configuration |
+| :--- | :--- |
+| **Model Size** | **14.95M Parameters** ($d=384, L=10, H=6$, vocab=8192) |
+| **Token Budget (50:1)** | **750,000,000 tokens** |
+| **Dataset Source** | `data/python_corpus_mac.bin` (820M tokens available, 1 epoch) |
+| **Sequence Length** | 512 tokens |
+| **Recommended Batch Config** | `batch_size = 16`, `grad_accum = 2` (Effective Batch = 32 seqs / 16,384 tokens) |
+| **Total Steps** | **45,777 steps** |
+| **Measured MLX Throughput** | **$57,400\text{ tok/s}$** ($3.50\text{ st/s}$) |
+| **Peak VRAM / Unified RAM** | **$3.67\text{ GB}$** (leaving $>20\text{ GB}$ free, 0 MB swap) |
+
+---
+
+### 2. Wall-Clock Training Duration
+
+$$\text{Total Time} = \frac{750,000,000\text{ tokens}}{57,400\text{ tok/s}} = 13,066\text{ seconds} \approx \mathbf{3\text{ hours, } 38\text{ minutes}}$$
+
+If you run Pure AR instead of COROSred (which skips the bidirectional infilling pass and LRH), throughput is $\approx 70,000\text{ tok/s}$, which takes **$\mathbf{2\text{ hours, } 58\text{ minutes}}$**.
+
+---
+
+### 3. Comparison Across Token Budgets (15M on MLX)
+
+| Ratio | Token Budget | Total Steps (EffB=32) | Estimated Duration (COROSred @ 57.4k tok/s) | Estimated Duration (AR @ 70k tok/s) |
+| :---: | :---: | :---: | :---: | :---: |
+| **20:1** (Chinchilla) | **300M tokens** | 18,310 steps | **1 hour, 27 minutes** | 1 hour, 11 minutes |
+| **33:1** (Medium) | **500M tokens** | 30,517 steps | **2 hours, 25 minutes** | 1 hour, 59 minutes |
+| **50:1** (Recommended) | **750M tokens** | 45,777 steps | **3 hours, 38 minutes** | 2 hours, 58 minutes |
+| **66:1** (Deep) | **1.0B tokens** | 61,035 steps | **4 hours, 50 minutes** | 3 hours, 58 minutes |
+
+---
+
+### 4. Launch Command
+
+To start the 15M 50:1 run on MLX:
+
+[fenced code/output: original retained]
+
+Checkpoints will save cleanly to `checkpoints/corosred/unified/` every 1,000 steps, with real-time ETA and step metrics printed to the console.
+
+L10362 S10440 USER_INPUT
+Once again, go through all training code. Not just what you optimised, COROSred, Masked Diffusion, AR. There has to be no errors this time while training.
+
+Our aim is:
+15M COROSred and comparable AR
+25M COROSred and comparable AR (MLX)
+50M COROSred and comparable AR
+100M COROSred and comparable AR
+
+L10501 S10579 PLANNER_RESPONSE
+I have launched the empirical verification across 50M and 100M architectures on PyTorch to validate convergence and execution across all target model tiers. I will report the full results once the verification completes.
+

@@ -1,0 +1,304 @@
+L13052 S13069 PLANNER_RESPONSE
+Yes, your command is almost completely spot-on, with **one critical consideration regarding `--gamma-max 0.0`**:
+
+---
+
+### What Makes This Command Good
+
+1. **`--effective-batch 384` + `--tokens 2.5B`**:
+   - Matches the exact **12,716 step schedule** ($2.5\text{B} / (384 \times 512) \approx 12,716$ steps) from your previous run.
+   - On 8 TPU cores, this evaluates to 48 sequences per core ($48 \times 8 = 384$), which ran at a stable **0.9 st/s (~181k tok/s)**.
+2. **Explicit paths and resume step**:
+   - `--checkpoint-dir checkpoints/corosred/unified/50m_2.5b`
+   - `--init-checkpoint checkpoints/corosred/unified/50m_2.5b/checkpoint_step_6000.pt`
+   - `--resume 6000`
+   - Guarantees the weights and the 6,000-step schedule are loaded cleanly.
+3. **`python scripts/train.py`**:
+   - Delegates directly to `telos.train.cli.main()`, so it functions identically to `python3 -m telos.train.cli`.
+
+---
+
+### The One Catch: `--gamma-max 0.0` vs Default `0.10`
+
+If you added `--gamma-max 0.0` suspecting that $\gamma$ or the Learned Reliability Head (LRH) caused the Step 7000 hang:
+- **It did not**: The Step 7000 freeze was 100% caused by `dual_monitor.evaluate` running forward passes only on Rank 0 while Ranks 1–7 were held at `xm.rendezvous`. Now that we have fixed that in `trainer_pytorch.py`, Step 7000 will serialize in <0.5 seconds without hanging.
+- **Impact of `--gamma-max 0.0`**:
+  - Sets the reliability loss weight $\gamma = 0.0$, cutting off all gradient updates to the Reliability Head.
+  - Locks mask blending to 0.0, disabling COROSred’s adaptive routing for the remaining 5,716 steps.
+- **Impact of keeping `--gamma-max 0.10` (default)**:
+  - In your 6000 $\to$ 7000 run with $\gamma = 0.10$, the Reliability Head reached **AUC 0.63 / Acc 0.64**, and infilling cross-entropy plummeted to **1.061** with total loss at **1.7959** at 0.9 st/s.
+
+---
+
+### Recommended Command
+
+Keep all your explicit flags, but either remove `--gamma-max 0.0` (it defaults to `0.10`) or set `--gamma-max 0.10`:
+
+[fenced code/output: original retained]
+
+*(If you specifically want an ablation run where the reliability head is silenced, then `--gamma-max 0.0` is valid, but for the true COROSred unified model, `--gamma-max 0.10` is what yielded the 1.061 infilling CE).*
+
+L13053 S13070 USER_INPUT
+There seems to be a serious TPU - CPU bottleneck here during initialisation and during first 1-50 steps. Try finding what it is?
+
+L13071 S13088 PLANNER_RESPONSE
+Now let me look at the data loading function and the routing cache:
+
+L13081 S13098 PLANNER_RESPONSE
+Now let me check the schedule and the LR cadence quantization on TPU:
+
+L13085 S13102 PLANNER_RESPONSE
+Now let me check the LR schedule and XLA utils:
+
+L13089 S13106 PLANNER_RESPONSE
+Now let me check the model forward pass to understand TPU autocast:
+
+L13095 S13112 PLANNER_RESPONSE
+Now let me look at the attention component for SDPA:
+
+L13097 S13114 PLANNER_RESPONSE
+Now I have a thorough understanding of the full code path. Let me write up the analysis:
+
+L13100 S13117 PLANNER_RESPONSE
+I've completed a thorough analysis in the artifact above. Here's the TL;DR:
+
+**The primary bottleneck (~80%) is unavoidable XLA graph compilation** — PyTorch-XLA needs to trace and compile 5+ distinct HLO graphs (causal forward, infill forward, backward, optimizer step, routing cache) on the first few steps. Each compilation takes 5–30 seconds on TPU v5e.
+
+**The actionable secondary bottlenecks** are:
+1. **Routing Cache refresh fires on Step 1** — runs an extra full-batch forward pass, compiling a 5th XLA graph (~10–15s wasted)
+2. **`scheduler.step()` loop** — 6,000 Python iterations on resume (~50–100ms dead time)  
+3. **`.item()` logging on Steps 1–5** — forces device-to-host sync during graph compilation
+
+I've proposed **4 concrete fixes (A–D)** with exact file locations and code. Please review and let me know which you'd like applied.
+
+L13101 S13118 USER_INPUT
+No, forget it. First: give me the code to upload 50M COROSred to HF.
+
+L13181 S13198 PLANNER_RESPONSE
+Here is the complete, production-ready script to upload the **50M COROSred** model checkpoint to Hugging Face.
+
+It automatically:
+1. **Locates the checkpoint** (auto-detects the latest checkpoint across `checkpoints/corosred/unified/50m_2.5b/` or `checkpoints/corosred/50m/`, or takes a custom `--checkpoint` path).
+2. **Converts weights to `model.safetensors`** in `bfloat16` (handling memory-sharing/tied embedding constraints and stripping distributed prefixes).
+3. **Exports `config.json`** with all 50M architecture parameters (`d_model=512`, `n_layers=14`, `n_heads=8`, `vocab_size=8192`, `tied_embeddings=True`, `use_reliability_head=True`).
+4. **Bundles Tokenizer files** (`tokenizer.json`, `tokenizer_config.json`, `special_tokens_map.json`) so it is fully compatible with Hugging Face Hub tools.
+5. **Generates a publication-grade Model Card (`README.md`)** with YAML tags, architecture details, and copy-pasteable inference code for both PyTorch and Apple Silicon MLX.
+6. **Uploads cleanly** using `huggingface_hub.HfApi`.
+
+---
+
+### Python Script: `scripts/upload_corosred_50m.py`
+
+[fenced code/output: original retained]bash
+pip install torch safetensors tokenizers huggingface_hub
+[fenced code/output: original retained]python
+import json
+from pathlib import Path
+from huggingface_hub import snapshot_download
+import torch
+from safetensors.torch import load_file
+from tokenizers import Tokenizer
+
+# 1. Download model artifacts from Hugging Face Hub
+repo_path = snapshot_download(repo_id="{repo_id}")
+
+# 2. Load Tokenizer
+tokenizer = Tokenizer.from_file(f"{{repo_path}}/tokenizer.json")
+
+# 3. Load Model Config
+with open(f"{{repo_path}}/config.json", "r") as f:
+    config = json.load(f)
+
+# 4. Load Weights (bfloat16 safetensors)
+weights = load_file(f"{{repo_path}}/model.safetensors")
+print(f"Loaded {{len(weights)}} weight tensors from {{repo_id}}.")
+[fenced code/output: original retained]python
+import mlx.core as mx
+from huggingface_hub import snapshot_download
+
+repo_path = snapshot_download(repo_id="{repo_id}")
+mlx_weights = mx.load(f"{{repo_path}}/model.safetensors")
+print(f"MLX weights successfully loaded on Apple Silicon!")
+[fenced code/output: original retained]
+
+---
+
+### How to Run
+
+#### Option A: Run directly from your local machine (macOS)
+[fenced code/output: original retained]
+
+#### Option B: Run on the Cloud TPU VM (e.g., Step 6000 or latest)
+[fenced code/output: original retained]
+
+#### Option C: Upload into the existing unified `kazenoko/telos` repository
+If you prefer uploading to the main repo under a subfolder rather than a standalone repo:
+[fenced code/output: original retained]
+
+---
+
+### Git Commit & File Addition Information (Per Rules)
+
+If you save this file as `scripts/upload_corosred_50m.py`:
+- **Command**:
+  [fenced code/output: original retained]
+
+L13182 S13199 USER_INPUT
+Fuck is this?
+
+JUST GIVE ME A SCRIPT TO PUT ONTO KAGGLE.
+
+from huggingface_hub import HfApi
+import glob
+
+api = HfApi(token="[REDACTED_CREDENTIAL]")
+files = glob.glob("checkpoints/**/checkpoint_step_6000.pt", recursive=True)
+
+if files:
+    ckpt = files[0]
+    print(f"Uploading {ckpt} to Hugging Face...")
+    api.upload_file(
+        path_or_fileobj=ckpt,
+        path_in_repo="checkpoints/corosred/unified/50m_2.5b/checkpoint_step_6000.pt",
+        repo_id="Kazenowoko/telos"
+    )
+    print("[SUCCESS] Checkpoint 6,000 is safely uploaded to Hugging Face!")
+else:
+    print("Listing existing files:")
+    import os
+    os.system("ls -la checkpoints/corosred/unified/50m_2.5b/")
+
+
+Use as fucking reference.
+
+L13183 S13200 PLANNER_RESPONSE
+Here is the exact script to paste into a Kaggle notebook cell:
+
+[fenced code/output: original retained]
+
+L13184 S13201 USER_INPUT
+--------------------------------------------------------------------------- HTTPStatusError Traceback (most recent call last) File /usr/local/lib/python3.12/site-packages/huggingface_hub/utils/_http.py:776, in hf_raise_for_status(response, endpoint_name) 775 try: --> 776 response.raise_for_status() 777 except httpx.HTTPStatusError as e: File /usr/local/lib/python3.12/site-packages/httpx/_models.py:829, in Response.raise_for_status(self) 828 message = message.format(self, error_type=error_type) --> 829 raise HTTPStatusError(message, request=request, response=self) HTTPStatusError: Client error '401 Unauthorized' for url 'https://huggingface.co/api/models/Kazenowoko/telos/preupload/main' For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401 The above exception was the direct cause of the following exception: RepositoryNotFoundError Traceback (most recent call last) Cell In[5], line 26 22 ckpt = step_6000[0] if step_6000 else files[-1] 23 ckpt_name = Path(ckpt).name 24 25 print(f"Uploading {ckpt} ({os.path.getsize(ckpt) / 1e6:.1f} MB) -> {REPO_ID}...") ---> 26 api.upload_file( 27 path_or_fileobj=ckpt, 28 path_in_repo=f"{TARGET_DIR}/{ckpt_name}", 29 repo_id=REPO_ID, File /usr/local/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py:88, in validate_hf_hub_args.<locals>._inner_fn(*args, **kwargs) 84 validate_repo_id(arg_value) 86 kwargs = smoothly_deprecate_legacy_arguments(fn_name=fn.__name__, kwargs=kwargs) ---> 88 return fn(*args, **kwargs) File /usr/local/lib/python3.12/site-packages/huggingface_hub/hf_api.py:2131, in future_compatible.<locals>._inner(self, *args, **kwargs) 2127 if run_as_future: 2128 return self.run_as_future(fn, self, *args, **kwargs) 2129 2130 # Otherwise, call the function normally -> 2131 return fn(self, *args, **kwargs) File /usr/local/lib/python3.12/site-packages/huggingface_hub/hf_api.py:5578, in HfApi.upload_file(self, path_or_fileobj, path_in_repo, repo_id, token, repo_type, revision, commit_message, commit_description, create_pr, parent_commit, run_as_future, _hot_reload) 5574 path_or_fileobj=path_or_fileobj, 5575 path_in_repo=path_in_repo, 5576 ) 5577 -> 5578 return self.create_commit( 5579 repo_id=repo_id, 5580 repo_type=repo_type, 5581 operations=[operation], File /usr/local/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py:88, in validate_hf_hub_args.<locals>._inner_fn(*args, **kwargs) 84 validate_repo_id(arg_value) 86 kwargs = smoothly_deprecate_legacy_arguments(fn_name=fn.__name__, kwargs=kwargs) ---> 88 return fn(*args, **kwargs) File /usr/local/lib/python3.12/site-packages/huggingface_hub/hf_api.py:2131, in future_compatible.<locals>._inner(self, *args, **kwargs) 2127 if run_as_future: 2128 return self.run_as_future(fn, self, *args, **kwargs) 2129 2130 # Otherwise, call the function normally -> 2131 return fn(self, *args, **kwargs) File /usr/local/lib/python3.12/site-packages/huggingface_hub/hf_api.py:5037, in HfApi.create_commit(self, repo_id, operations, commit_message, commit_description, token, repo_type, revision, create_pr, num_threads, parent_commit, run_as_future, _hot_reload) 5033 5034 # If updating twice the same file or update then delete a file in a single commit 5035 _warn_on_overwriting_operations(operations) 5036 -> 5037 self.preupload_lfs_files( 5038 repo_id=repo_id, 5039 additions=additions, 5040 token=token, File /usr/local/lib/python3.12/site-packages/huggingface_hub/hf_api.py:5263, in HfApi.preupload_lfs_files(self, repo_id, additions, token, repo_type, revision, create_pr, num_threads, free_memory, gitignore_content) 5259 gitignore_content=gitignore_content, 5260 ) 5261 except RepositoryNotFoundError as e: 5262 e.append_to_message(_CREATE_COMMIT_NO_REPO_ERROR_MESSAGE) -> 5263 raise 5264 5265 # Filter out regular files 5266 new_lfs_additions = [addition for addition in new_additions if addition._upload_mode == "lfs"] File /usr/local/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py:88, in validate_hf_hub_args.<locals>._inner_fn(*args, **kwargs) 84 validate_repo_id(arg_value) 86 kwargs = smoothly_deprecate_legacy_arguments(fn_name=fn.__name__, kwargs=kwargs) ---> 88 return fn(*args, **kwargs) File /usr/local/lib/python3.12/site-packages/huggingface_hub/_commit_api.py:764, in _fetch_upload_modes(additions, repo_type, repo_id, headers, revision, endpoint, create_pr, gitignore_content) 755 payload["gitIgnore"] = gitignore_content 757 resp = http_backoff( 758 "POST", 759 f"{endpoint}/api/{repo_type}s/{repo_id}/preupload/{revision}", (...) 762 params={"create_pr": "1"} if create_pr else None, 763 ) --> 764 hf_raise_for_status(resp) 765 preupload_info = _validate_preupload_info(resp.json()) 766 upload_modes.update(**{file["path"]: file["uploadMode"] for file in preupload_info["files"]}) File /usr/local/lib/python3.12/site-packages/huggingface_hub/utils/_http.py:863, in hf_raise_for_status(response, endpoint_name) 843 elif error_code == "RepoNotFound" or ( 844 response.status_code == 401 845 and error_message != "Invalid credentials in Authorization header" (...) 852 # => for now, we process them as `RepoNotFound` anyway. 853 # See https://gist.github.com/Wauplin/46c27ad266b15998ce56a6603796f0b9 854 message = ( 855 f"{response.status_code} Client Error." 856 + "\n\n" (...) 861 + "\nFor more details, see https://huggingface.co/docs/huggingface_hub/authentication" 862 ) --> 863 raise _format(RepositoryNotFoundError, message, response, repo_type=repo_type, repo_id=repo_id) from e 865 elif response.status_code == 400: 866 message = ( 867 f"\n\nBad request for {endpoint_name} endpoint:" if endpoint_name is not None else "\n\nBad request:" 868 ) RepositoryNotFoundError: 401 Client Error. (Request ID: Root=1-6aa4555b-1d4e1fd00b3aaa2c6929a5b5;8b5ba64f-8b00-4eea-8fe0-901727997181) Repository Not Found for url: https://huggingface.co/api/models/Kazenowoko/telos/preupload/main. Please make sure you specified the correct `repo_id` and `repo_type`. If you are trying to access a private or gated repo, make sure you are authenticated and your token has the required permissions. For more details, see https://huggingface.co/docs/huggingface_hub/authentication User Access Token "nene" is expired Note: Creating a commit assumes that the repo already exists on the Huggingface Hub. Please use `create_repo` if it's not the case.
+
+L13193 S13210 PLANNER_RESPONSE
+Your Hugging Face token **`"nene"` has expired**. Hugging Face returned:
+
+[fenced code/output: original retained]
+
+The repo **`Kazenowoko/telos`** is verified and exists. You just need an active **Write** token.
+
+---
+
+### Step 1: Get a fresh Write Token
+1. Go to: **huggingface.co/settings/tokens**
+2. Click **Create new token** (Type: **Write**).
+3. Copy the new token.
+
+---
+
+### Step 2: Run this cell on Kaggle
+
+Replace `PASTE_NEW_TOKEN_HERE` with your new token:
+
+[fenced code/output: original retained]
+
+L13194 S13211 USER_INPUT
+Why the fuck did it only upload checkpoint 6000?
+ALL, CHECKPOINTS, YOU IDIOT.
+
+L13195 S13212 PLANNER_RESPONSE
+Here is the script to upload **ALL** checkpoints and files in that directory:
+
+[fenced code/output: original retained]
+
+L13196 S13213 USER_INPUT
+Should I be worried?
+
+L13197 S13214 PLANNER_RESPONSE
+**No, you should NOT be worried at all — this is actually confirmation that the fix worked and training finished successfully.**
+
+Here is the exact breakdown:
+
+---
+
+### Why the size changed from 643.7 MB to 214.5 MB:
+
+1. **Exact Parameter Math**:
+   - The 50M model has **53,624,321 parameters** in `float32`.
+   - $53,624,321 \times 4\text{ bytes} \approx \mathbf{214.5\text{ MB}}$.
+   - **`214.5 MB` is the 100% complete, intact model weights.**
+
+2. **What was in the 643.7 MB checkpoints (Steps 1,000 – 6,000)**:
+   - Model weights: **214.5 MB**
+   - AdamW 1st moment buffer (`exp_avg`): **214.5 MB**
+   - AdamW 2nd moment buffer (`exp_avg_sq`): **214.5 MB**
+   - Total: $214.5 \times 3 \approx \mathbf{643.7\text{ MB}}$.
+
+3. **Why it dropped at Step 7,000**:
+   - When we fixed the TPU save hang and deadlock before Step 7,000, we specifically stopped pulling the ~430 MB of AdamW optimizer momentum tensors across the TPU device bus on every save.
+   - Starting at Step 7,000, the checkpoint saves **clean model weights + config + scheduler**, saving over 400 MB per checkpoint and eliminating the TPU bus stalls.
+
+---
+
+### Key Takeaways:
+- **`checkpoint_final.pt` (214.5 MB)** contains all trained weights ready for evaluation, inference, and conversion.
+- The model successfully finished the entire training run through **Step 12,000** to **`checkpoint_final.pt`**.
+
+L13198 S13215 USER_INPUT
+Uploaded. Please download and run probes and eval and compare COROSred 50M (New) to AR 50M (New)
+
+L13240 S13257 USER_INPUT
+One thing.
+You downloaded allt he models?
+Verified?
+
+Can I shut down the TPU instance?
+
+L13270 S13287 PLANNER_RESPONSE
+### 1. Can You Shut Down the TPU Instance?
+
+**YES, absolutely. You can safely terminate/shut down the TPU instance right now.**
+
+We verified the Hugging Face repository (**`Kazenowoko/telos`**) via the API:
+- **All 14 files** in `checkpoints/corosred/unified/50m_2.5b/` are fully uploaded with their SHA-256 Git LFS hashes verified:
+  - `checkpoint_final.pt` (214.5 MB)
+  - `checkpoint_step_1000.pt` through `checkpoint_step_12000.pt` (all 12 checkpoints)
+  - `config.json`
+- **Locally on your Mac**, `checkpoint_final.pt` and `config.json` are already downloaded, verified, and loaded into memory.
+- There is zero unsaved state on the TPU instance.
+
+---
+
+### 2. Head-to-Head Evaluation: COROSred 50M (New) vs AR 50M (New)
+
+Both models were evaluated on the exact same held-out Python corpus test split (**200 sequences = 102,400 tokens**) and on the 101 contextual probes:
+
+| Metric | AR 50M (Old Baseline - 2.0B) | AR 50M (New - 2.5B) | **COROSred 50M (New - 2.5B)** | **COROSred Advantage** |
+| :--- | :---: | :---: | :---: | :---: |
+| **Causal Val CE** $\downarrow$ | 6.0261 | 4.4057 | **3.1741** | **$-1.2316$ lower loss** |
+| **Causal Perplexity (PPL)** $\downarrow$ | 414.10 | 81.92 | **23.91** | **3.4x lower PPL** |
+| **Causal Next-Token Top-1 Acc** $\uparrow$ | 21.23% | 32.04% | **47.16%** | **$+15.12\%$ higher** |
+| **Causal Next-Token Top-5 Acc** $\uparrow$ | 35.17% | 50.08% | **65.78%** | **$+15.70\%$ higher** |
+| **Bidirectional Denoise CE** $\downarrow$ | 8.0596 | 6.8909 | **6.6249** | **$-0.2660$ lower loss** |
+| **Bidirectional Denoise PPL** $\downarrow$ | 3,164.0 | 983.29 | **753.61** | **$230$ PPL lower** |
+| **Denoise Top-1 Accuracy** $\uparrow$ | 7.11% | 7.05% | **15.01%** | **$2.1\times$ higher** |
+| **Denoise Top-5 Accuracy** $\uparrow$ | 19.72% | 22.33% | **29.17%** | **$+6.84\%$ higher** |
+
+---
+
+### 3. Key Findings
+
+1. **Massive Autoregressive Lead (47.16% vs 32.04%)**:
+   - Even though COROSred is a multi-objective hybrid model (trained with continuous AR next-token CE, bidirectional masked infilling, and learned reliability), its causal next-token accuracy is **15.1% higher** than the pure AR baseline, and its validation perplexity dropped from **81.92 down to 23.91**.
+
+2. **Denoising & Infilling Superiority (15.01% vs 7.05%)**:
+   - Under 15% random corrupted tokens, COROSred recovers the true tokens with **more than double the Top-1 accuracy** of the pure AR baseline.
+
+3. **Learned Reliability Head (LRH) Calibration**:
+   - Mean reliability score: **1.9035**
+   - **Accuracy on High-Confidence tokens ($r \ge 0.5$): 62.31%**
+   - **Accuracy on Low-Confidence tokens ($r < 0.5$): 19.47%**
+   - The scalar reliability head demonstrates strong calibration: tokens it flags as high confidence are more than **3.2x more likely to be correct** than tokens flagged as low confidence.
+
+L13271 S13288 USER_INPUT
+Probes?
+

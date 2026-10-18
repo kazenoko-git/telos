@@ -1,0 +1,362 @@
+L15699 S15692 PLANNER_RESPONSE
+Let me verify each of these against the actual evidence we have.
+
+### 1. Suffix-Copy Shortcut Mechanism (Still Genuinely Open)
+
+**Verified — this is real and measured.**
+
+From `scratch/compare_suffix_leakage.py` output, 50M COROSred's top prediction at `[MASK]` position is overwhelmingly the **first suffix token**, not the correct in-scope variable:
+
+| Probe | Target | Suffix Starts With | 50M Top Pred | 50M Prob |
+|:---:|:---|:---|:---|:---:|
+| SYNTH_02 | `qux` | `\n` | **`\n`** | **96.7%** |
+| SYNTH_04 | `blivox` | `:` | **`:`** | **94.4%** |
+| SYNTH_07 | `corge` | `\n` | **`\n`** | **95.9%** |
+| SYNTH_12 | `bleep` | `\n` | **`\n`** | **70.4%** |
+
+The model isn't doing contextual infilling — it's copying `token[mask_idx + 1]` through bidirectional attention. This is **not** a tokenization bug or eval bug. It's a training-level behavioral shortcut where the model learned "under bidirectional attention, just predict the next visible token" instead of resolving lexical scope.
+
+**What's genuinely open**: We don't have a mechanistic explanation for *why* this shortcut forms at 50M/2.5B but resolves at 100M/5B. Is it capacity? Is it training tokens? Is it both? We haven't disentangled them.
+
+---
+
+### 2. Why the One Clean 100M Checkpoint Doesn't Show It (Unreplicated)
+
+**Verified — this is a valid concern.**
+
+We have exactly **one** 100M COROSred checkpoint (`checkpoints/corosred/unified/100m_5b/checkpoint_final.pt`) that demonstrates clean bidirectional infilling (66.7% Top-1 on synthetic probes, Median Rank 1.0). There is no second 100M COROSred run to confirm this wasn't a lucky training trajectory.
+
+The 100M COROSred was trained with:
+- `d_model=768, n_layers=14, n_heads=12` (106M params)
+- `unified` phase from init on `python_corpus_5b.bin` (5.0B tokens)
+- `causal_ratio=0.75` (75% causal / 25% masked per batch)
+- Kaggle TPU v3-8, bf16
+
+Without a replicate, we cannot distinguish between:
+- **Systematic**: The suffix-copy shortcut always resolves at 100M scale with sufficient tokens
+- **Stochastic**: This particular random seed / training trajectory happened to escape the shortcut basin
+
+---
+
+### 3. Fine-Tune the Existing 50M Checkpoint on Infill-Heavy Data
+
+**Verified as a practical next step, not yet attempted.**
+
+The idea: take `checkpoints/corosred/unified/50m_2.5b/checkpoint_final.pt` (which has the suffix-copy shortcut) and fine-tune it with `causal_ratio` lowered (e.g., 0.25 instead of 0.75) to force much more infill training signal. If the shortcut breaks under infill-heavy fine-tuning, it tells us the shortcut is a training-distribution issue, not an architectural one.
+
+This has **not been run yet**. It's a practical intervention, not a mechanistic answer.
+
+---
+
+### 4. Fix the Diagnosed `mask_override` Attention-Leakage Bug
+
+**I need to verify what exactly this refers to.** Let me check whether there's actually a diagnosed code bug vs. a behavioral observation.
+
+Looking at the attention code in `telos/models/components.py`:
+
+[fenced code/output: original retained]
+
+And in `telos/models/transformer.py`, the `mask_override` parameter flows through as `is_causal_override`.
+
+When `mask_override=False` is passed for infill mode, it sets `is_causal=False` in SDPA, which means **full bidirectional attention** — the `[MASK]` token can attend to every position including suffix tokens. This is **by design** for infilling.
+
+The "leakage" isn't a code bug — it's the **suffix-copy shortcut** from issue #1. The model architecturally *can* see the suffix (that's the whole point of bidirectional attention for infilling), but at 50M scale it learned to **copy** it instead of **reason over** it.
+
+**So this is not a separate code bug. It's the same behavioral issue as #1**, just described from the attention-mechanism perspective. Unless there's a separate diagnosed bug I'm missing from earlier in the conversation — but from examining the code, `mask_override` routing is correct.
+
+---
+
+### 5. Build Memorization/Generalization Controls
+
+**Verified as not yet built.**
+
+Two specific controls needed:
+
+1. **Corpus-overlap check**: Verify that the 100M COROSred's stellar validation numbers (CE=0.33, 92.7% Top-1 on infill) aren't inflated by the fact that `python_corpus_5b.bin` fully contains `python_corpus_2.5b.bin`, and the held-out validation slice from `python_corpus_2.5b.bin` was therefore in-distribution training data for the 100M model. We noted this earlier — the 100M COROSred's infill validation was evaluated on data it trained on.
+
+2. **Novel-identifier / perturbation probes**: The 15 synthetic probes (`glorp`, `qux`, `morquip`, etc.) are a start, but they're a small set. A more rigorous control would systematically perturb real code probes — rename variables, shuffle identifier names, inject never-seen function names — to confirm the model is doing genuine contextual binding rather than pattern-matching memorized code fragments.
+
+Neither of these has been implemented yet.
+
+---
+
+### Summary of Verification
+
+| Issue | Status | Is It Real? | Is It Fixed? |
+|:---|:---:|:---:|:---:|
+| Suffix-copy shortcut at 50M | ✅ Measured | Yes, empirically confirmed | No |
+| 100M clean result unreplicated | ✅ Valid concern | Yes, n=1 | N/A |
+| Infill-heavy fine-tune of 50M | ✅ Valid next step | Untested | Not attempted |
+| `mask_override` attention bug | ⚠️ **Not a separate code bug** | Same as #1 (suffix-copy via bidirectional attention) | N/A |
+| Memorization/generalization controls | ✅ Not yet built | Unknown until built | Not attempted |
+
+The only item I'd push back on is **#4 as a separate issue**. From examining the code, `mask_override` routing is architecturally correct — `False` enables full bidirectional SDPA, which is exactly what infilling requires. The "leakage" is that the model *behaviorally* exploits the bidirectional visibility to copy suffix tokens instead of reasoning, which is issue #1.
+
+L15703 S15696 PLANNER_RESPONSE
+The new 100M AR 5B checkpoint just finished downloading. Let me inspect and evaluate it immediately.
+
+L15705 S15698 PLANNER_RESPONSE
+This is a completely different run. The previous diverged run had `batch_size=16, grad_accum=3` (effective 48 per device × 8 = mismatch). This one has `batch_size=48, grad_accum=1` (effective 48 × 8 = 384 global), matching the intended LR scaling. Let me now run a quick sanity check and then the full eval.
+
+L15709 S15702 USER_INPUT
+Okay. What exactly do you want me to do about these?
+
+Ignore 50M model - we can either fine tune or run the whole model run again for COROSred after fixes.
+
+BTW: Don't run probes and eval yet.
+
+L15710 S15703 PLANNER_RESPONSE
+I already kicked off the checkpoint progression eval — let me kill it since you said hold off.
+
+L15713 S15706 PLANNER_RESPONSE
+Here's what I think needs to happen, concretely:
+
+### Before next training run
+
+1. **Corpus-overlap check** — Confirm that `python_corpus_2.5b.bin` is a strict prefix of `python_corpus_5b.bin`. If yes, any validation slice from 2.5b was training data for the 100M models. We need a genuinely held-out eval set (either a separate file, or a reserved tail of 5b that the dataloader never touches). This is a 5-minute scripting check.
+
+2. **`mask_override` is not a code bug** — I pushed back on this in my verification. The routing logic (`mask_override=False` → `is_causal=False` in SDPA → full bidirectional attention) is architecturally correct. The "leakage" is the suffix-copy shortcut (#1), not broken attention masking. Unless you have evidence of a separate code-level bug I'm missing?
+
+### For the next COROSred run (100M or fresh 50M)
+
+3. **Replicate 100M COROSred** — Train a second 100M COROSred on identical config to confirm the suffix-copy shortcut resolution isn't a one-off. This is the single most important thing to establish before writing any paper claims.
+
+4. **Novel-identifier perturbation probes** — Before running, expand the synthetic probe suite (currently 15) to ~50+ with systematic variable renaming, scope depth variation, and multi-token targets. This way when the next run finishes, we have strong generalization controls ready to go.
+
+### What I'm NOT recommending right now
+
+- Fine-tuning 50M (you said ignore it)
+- Any code changes to the training loop for the suffix-copy issue (we don't understand the mechanism yet)
+
+**The single blocker is #1 — the corpus-overlap check.** Everything else can proceed in parallel. Want me to run that check now?
+
+L15714 S15707 USER_INPUT
+Yeah. Yes please.
+
+L15771 S15764 PLANNER_RESPONSE
+The corpus-overlap check between `data/python_corpus_2.5b.bin` and `data/python_corpus_5b.bin` has completed.
+
+---
+
+### Key Empirical Findings
+
+#### 1. 2.5B is an EXACT 100% Strict Prefix of 5B
+* **`python_corpus_2.5b.bin`**: `5,007,959,400` bytes = **`2,503,979,700` uint16 tokens** (`4,890,585` sequences of 512).
+* **`python_corpus_5b.bin`**: `10,005,585,546` bytes = **`5,002,792,773` uint16 tokens** (`9,771,079` sequences of 512).
+* **Comparison**: **Every single token from index `0` to `2,503,979,699` is an exact, byte-for-byte match.**
+
+---
+
+#### 2. The Validation Contamination Trap in Prior Benchmarks
+In prior benchmark runs (including run_compute_matched_eval.py and eval_corosred_100m.py), validation loss was computed by slicing the **tail of `python_corpus_2.5b.bin`** (sequences `4,890,535` to `4,890,585`; tokens `2,503,953,920` to `2,503,979,520`):
+
+| Model Tier | Corpus Trained On | Steps × Global BS | Total Tokens Consumed | Did Model Train on 2.5B Tail Slice? |
+| :--- | :--- | :--- | :--- | :--- |
+| **50M Tier** | `2.5b.bin` | 12,716 × 384 | `2,500,067,328` tokens | ❌ **No** (stopped ~3.88M tokens before this slice) |
+| **100M Tier** | `5b.bin` | 25,432 × 384 | `5,000,134,656` tokens | ⚠️ **YES — trained on it at Step ~12,736 (50.1% mark)** |
+
+**What this means:**
+* For 50M models, that slice was **true held-out validation data**.
+* For 100M models, that slice was **in-distribution training data** seen halfway through training.
+* This explains why the 100M models appeared to have anomalously low validation CE compared to 50M: the 100M models were being evaluated on data they had already memorized.
+
+---
+
+#### 3. The True Held-Out Split for ALL Models
+Looking at `python_corpus_5b.bin`:
+* Total sequences: `9,771,079`
+* 100M models trained up to sequence: `9,765,888` (tokens `0` to `5,000,134,656`)
+* **Unconsumed tail**: Sequences `9,765,888` through `9,771,079` = **5,191 sequences (2,657,792 tokens)**.
+
+This tail chunk was never reached by the 15M, 50M, or 100M models during training, making it the only uncontaminated validation slice across all tiers.
+
+---
+
+### Strategic Implications for Discussion
+
+1. **Validation CE Metric**:
+   Any fair comparison across 15M, 50M, and 100M must evaluate validation loss strictly on the unconsumed tail of `python_corpus_5b.bin` (e.g., sequences `9,766,000`–`9,771,000`).
+2. **Synthetic / Contextual Probes**:
+   The synthetic probes (`SYNTH_01`–`SYNTH_15`) use arbitrary synthetic identifiers (`frobnicate`, `florp`, `bloop * bleep`, `corge`, `snarf`) that do not rely on corpus memorization.
+3. **Locked Eval Split**:
+   Before running any future evals, we should slice out a dedicated, permanent `val_heldout_5b.bin` from that tail so no script ever accidentally loads a training slice again.
+
+How would you like to proceed with the discussion?
+
+L15772 S15765 USER_INPUT
+Okay...
+Hm.
+We need a bigger corpus anyway...
+Or hm...
+Better:
+Do we know what all data is within the 2.5b and 5b corpus respectively?
+We can try with a completely separate high-level repo to test it...
+Or actually, bad idea...
+
+What do you want me to do then?
+
+We can ALWAYS make a bigger dataset, but that's storage consuming.
+
+You know what: delete the 2.5B dataset, I'll let the mac create a 10B dataset. 
+Actually - before I just say random numbers, let me check how much tokens we need for the next run.
+
+15B tokens. Okay.
+
+We'll let the mac create a 15B dataset then.
+Give me the command for that too.
+
+L15789 S15782 USER_INPUT
+Use the Telos CLI.
+
+L15836 S15829 PLANNER_RESPONSE
+### 1. What Data Is in the 2.5B and 5B Corpora?
+
+Both datasets come from the same upstream source: **`codeparrot/codeparrot-clean`** on Hugging Face.
+* **Content**: Real-world, open-source Python files (`.py`) extracted from GitHub, deduplicated and filtered for valid permissive licenses, compiler/auto-generated files, and minimum alphanumeric density.
+* **Why 2.5B is a strict prefix of 5B**:
+  Hugging Face datasets stream deterministically file-by-file in alphabetical order of their archive shards (`file-000000000001.json.gz` through `file-000000000054.json.gz`).
+  * `python_corpus_2.5b.bin`: Streamed from file 1 until token `2,503,979,700` was reached.
+  * `python_corpus_5b.bin`: Streamed from file 1 until token `5,002,792,773` was reached.
+  * Tokens `0` through `2.5B` are identical. Tokens `2.5B` through `5B` continue streaming the subsequent repositories without repetition.
+  * The total dataset (`codeparrot/codeparrot-clean`) has 54 compressed shards (~50 GB compressed / ~180 GB raw text), which provides **well over 30B tokens** of unique Python code.
+
+---
+
+### 2. Storage Check for 15B Tokens
+
+* **Format**: `uint16` (2 bytes per token, vocab size 8,192).
+* **15B tokens size**: $15 \times 10^9 \times 2\text{ bytes} \approx \mathbf{27.94\text{ GiB}}$ (~30.0 GB).
+* **Your current disk capacity**: **`81 GiB` free**.
+* **After deleting 2.5B (`-4.7 GB`)**: **`85.7 GiB` free**.
+* **After generating 15B (`+28.0 GB`)**: **`~57.7 GiB` free**.
+
+There is plenty of headroom on your drive.
+
+---
+
+### 3. Command to Delete the 2.5B Dataset
+
+To reclaim the 4.7 GB immediately:
+
+[fenced code/output: original retained]
+
+---
+
+### 4. Running the 15B Token Generation via Telos CLI
+
+#### Note on `telos dataprep` vs `build_tokenized_corpus.py`
+In telos/dataprep/prepare.py, `--tokens` was initially only hooked into `--synthetic`. For live streaming datasets (`--dataset`), `prepare.py` currently streams until EOF without checking a max token cutoff. 
+
+To use `telos dataprep` with a clean token cap and the canonical tokenizer, telos/dataprep/prepare.py needs this minor update:
+
+[fenced code/output: original retained]
+
+*(Git commit message for review if you want this applied: `fix(dataprep): add max_tokens cap and default tokenizer to telos dataprep`)*
+
+---
+
+#### The Exact Commands
+
+**Option A (Using Telos CLI directly once patched):**
+[fenced code/output: original retained]
+
+**Option B (Using the existing turnkey script right now with zero code changes):**
+scripts/shared/build_tokenized_corpus.py already has the exact token capping, Rust multi-threaded BPE batching, ETA, and progress bar built-in:
+
+[fenced code/output: original retained]
+
+And generate the sidecar metadata:
+[fenced code/output: original retained]
+
+Would you like me to apply the patch to telos/dataprep/prepare.py so you can run it via `telos dataprep`, or would you prefer running Option B directly?
+
+L15837 S15830 USER_INPUT
+Sure - make the update. I'll still use Option B.
+Ensure telos dataprep and build_tokenized_corpus have the exact same code though. No use having two separate things.
+
+L15866 S15859 PLANNER_RESPONSE
+Both telos/dataprep/prepare.py and scripts/shared/build_tokenized_corpus.py have been updated to share the exact same underlying pipeline.
+
+### Changes Made
+1. **telos/dataprep/prepare.py**:
+   - Added `max_tokens` parameter and a strict cutoff loop break for streaming datasets (`--tokens`).
+   - Automatically resolves `configs/tokenizer_mac.json` as the default tokenizer.
+   - Added token-level progress bar (`pbar = tqdm(total=max_tokens, unit="tokens", unit_scale=True)`).
+   - Automatically writes the `.json` metadata sidecar with `dtype` and `vocab_size`.
+2. **scripts/shared/build_tokenized_corpus.py**:
+   - Replaced redundant streaming logic with a direct delegation to `telos.dataprep.prepare.prepare_dataset`. Both entry points now execute the exact same code.
+
+---
+
+### Commit Messages & Commands (Per User Rules)
+
+#### 1. `telos/dataprep/prepare.py`
+[fenced code/output: original retained]
+
+#### 2. `scripts/shared/build_tokenized_corpus.py`
+[fenced code/output: original retained]
+
+---
+
+### Commands to Run
+
+#### Step 1: Delete 2.5B Dataset (Frees 4.7 GB)
+[fenced code/output: original retained]
+
+#### Step 2: Build 15B Dataset (Option B)
+[fenced code/output: original retained]
+*(Note: Because they share the exact same code, `.venv/bin/telos dataprep --tokens 15000000000 --output data/python_corpus_15b.bin --dataset codeparrot/codeparrot-clean --dtype uint16` executes identical logic.)*
+
+L15867 S15860 USER_INPUT
+Already running. Don't worry.
+Also: holy shit there's so many unnecesary datasets in data/
+Go through, whichever is unused.
+We only need 5B and 15B now.
+
+L15884 S15877 PLANNER_RESPONSE
+Here is the full audit of every file currently in data/.
+
+---
+
+### Audit of `data/` Directory
+
+| File / Group | Size | Origin / Status | Action |
+| :--- | :--- | :--- | :--- |
+| **`python_corpus_15b.bin`** | *Actively streaming (~400 MB+)* | **New 15B dataset** being generated right now | **KEEP** |
+| **`python_corpus_5b.bin`** | `9.3 GB` | **5B canonical dataset** (used for 100M tier) | **KEEP** |
+| **`python_corpus_5b.json`** | `40 B` | Metadata sidecar for 5B | **KEEP** |
+| `python_corpus_mac.bin` + `.txt` + `.meta` + `.json` | **`3.5 GB`** | Legacy M-series test run from Aug 2 | **DELETE** |
+| `python_corpus_1.7b.bin` + `.txt` + `.meta` + `.json` | **`3.5 GB`** | Legacy 1.7B run from Aug 3 | **DELETE** |
+| `python_corpus_micro.txt` | **`458 MB`** | Raw text scratch subset from Aug 2 | **DELETE** |
+| `train.bin` + `.json` | `1.9 MB` | Old 20-step smoke test | **DELETE** |
+| `python_corpus_0.txt` | `195 KB` | First raw scraper test dump from Aug 1 | **DELETE** |
+| `test_corpus.bin` + `.json` | `98 KB` | Old CI test corpus | **DELETE** |
+| `test_cli_corpus.bin` + `.json` | `20 KB` | Old CLI dry-run dummy | **DELETE** |
+
+---
+
+### Space Reclaimed
+
+Deleting these legacy files will immediately free an additional **`~7.5 GB`** of disk space on your drive.
+
+### One-Line Cleanup Command
+
+Run this command in your terminal:
+
+[fenced code/output: original retained]
+
+After running this, the only datasets in `data/` will be:
+* **`python_corpus_5b.bin`** (+ `python_corpus_5b.json`)
+* **`python_corpus_15b.bin`** (currently generating)
+
+---
+
+### Default Fallback Update Note
+
+In telos/training/trainer_mlx.py and telos/training/trainer_pytorch.py, the hardcoded fallback paths (when `--data` is omitted) were pointing to `mac.bin` and `2.5b.bin`. Whenever you want, we can update those fallbacks to `5b.bin` and `15b.bin`.
+
+Would you like me to execute the cleanup command above for you, or do you prefer to run it yourself?
+
+L15885 S15878 USER_INPUT
+I've made a new probes suite by the way. Try running for all 15M, 50M and 100M COROSred, AR models, something feels wrong.
+

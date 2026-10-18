@@ -1,0 +1,498 @@
+L7257 S7343 PLANNER_RESPONSE
+Run this in a Kaggle cell:
+
+[fenced code/output: original retained]
+
+This will print the exact commands and code executed in the notebook cells.
+
+L7258 S7344 USER_INPUT
+---------------------------------------------------------------------------
+JSONDecodeError                           Traceback (most recent call last)
+Cell In[54], line 4
+      1 import json
+      2 
+      3 with open("/kaggle/working/.virtual_documents/__notebook_source__.ipynb") as f:
+----> 4     nb = json.load(f)
+      5 
+      6 for idx, cell in enumerate(nb.get("cells", [])):
+      7     if cell.get("cell_type") == "code":
+
+File /usr/local/lib/python3.12/json/__init__.py:293, in load(fp, cls, object_hook, parse_float, parse_int, parse_constant, object_pairs_hook, **kw)
+    274 def load(fp, *, cls=None, object_hook=None, parse_float=None,
+    275         parse_int=None, parse_constant=None, object_pairs_hook=None, **kw):
+    276     """Deserialize ``fp`` (a ``.read()``-supporting file-like object containing
+    277     a JSON document) to a Python object.
+    278 
+   (...)    291     kwarg; otherwise ``JSONDecoder`` is used.
+    292     """
+--> 293     return loads(fp.read(),
+    294         cls=cls, object_hook=object_hook,
+    295         parse_float=parse_float, parse_int=parse_int,
+    296         parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+
+File /usr/local/lib/python3.12/json/__init__.py:346, in loads(s, cls, object_hook, parse_float, parse_int, parse_constant, object_pairs_hook, **kw)
+    341     s = s.decode(detect_encoding(s), 'surrogatepass')
+    343 if (cls is None and object_hook is None and
+    344         parse_int is None and parse_float is None and
+    345         parse_constant is None and object_pairs_hook is None and not kw):
+--> 346     return _default_decoder.decode(s)
+    347 if cls is None:
+    348     cls = JSONDecoder
+
+File /usr/local/lib/python3.12/json/decoder.py:338, in JSONDecoder.decode(self, s, _w)
+    333 def decode(self, s, _w=WHITESPACE.match):
+    334     """Return the Python representation of ``s`` (a ``str`` instance
+    335     containing a JSON document).
+    336 
+    337     """
+--> 338     obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+    339     end = _w(s, end).end()
+    340     if end != len(s):
+
+File /usr/local/lib/python3.12/json/decoder.py:356, in JSONDecoder.raw_decode(self, s, idx)
+    354     obj, end = self.scan_once(s, idx)
+    355 except StopIteration as err:
+--> 356     raise JSONDecodeError("Expecting value", s, err.value) from None
+    357 return obj, end
+
+JSONDecodeError: Expecting value: line 4 column 1 (char 3)
+
+L7259 S7345 PLANNER_RESPONSE
+Run this in a Kaggle cell:
+
+[fenced code/output: original retained]
+
+L7260 S7346 USER_INPUT
+import os import sys import shutil from pathlib import Path # Clean any lingering TPU VFIO locks get_ipython().getoutput("fuser -k /dev/vfio/* 2>/dev/null || true") # 1. Clone the correct public repo (kazenoko-git) get_ipython().run_line_magic("cd", " /kaggle/working") if not Path("telos").exists(): get_ipython().getoutput("git clone https://github.com/kazenoko-git/telos.git") get_ipython().run_line_magic("cd", " /kaggle/working/telos") get_ipython().getoutput("git pull origin main") # 2. Dependencies get_ipython().getoutput("pip install -q huggingface_hub") # 3. Locate or Download 2.5B Dataset from Hugging Face data_candidates = [ Path("/kaggle/input/telos-python-corpus/python_corpus_2.5b.bin"), Path("/kaggle/input/python-corpus-2-5b/python_corpus_2.5b.bin"), Path("/kaggle/working/telos/data/python_corpus_2.5b.bin"), ] data_path = None for cand in data_candidates: if cand.exists(): data_path = str(cand) break if not data_path: # Check any .bin in /kaggle/input kaggle_bins = list(Path("/kaggle/input").rglob("*.bin")) if kaggle_bins: data_path = str(kaggle_bins[0]) if not data_path: print("Dataset not found in /kaggle/input. Downloading from HuggingFace Kazenowoko/telos...") from huggingface_hub import hf_hub_download # Token from your .env HF_TOKEN = os.environ.get("HF_TOKEN") or "[REDACTED_CREDENTIAL]" # Note: repo_type is model (default), NOT dataset downloaded_bin = hf_hub_download( repo_id="Kazenowoko/telos", filename="data/python_corpus_2.5b.bin", token=HF_TOKEN, ) Path("data").mkdir(parents=True, exist_ok=True) target_data = Path("data/python_corpus_2.5b.bin") if not target_data.exists(): shutil.copy(downloaded_bin, target_data) data_path = str(target_data) os.environ["DATA_PATH"] = str(data_path) print(f"✓ Dataset Ready at: {data_path} ({Path(data_path).stat().st_size / (1024**3):.2f} GB)") # ============================================================================== # Phase A: 100M COROSReD (From Scratch: 2.0B Tokens / 10,173 Steps) # ============================================================================== print("\n" + "=" * 70) print(">>> Launching 100M COROSReD Phase A (2.0B Tokens)...") print("=" * 70) get_ipython().getoutput("fuser -k /dev/vfio/* 2>/dev/null || true") get_ipython().getoutput("PJRT_DEVICE=TPU python scripts/train.py \") --paradigm corosred \ --phase A \
+
+L7261 S7347 PLANNER_RESPONSE
+Run this in a Kaggle cell:
+
+[fenced code/output: original retained]
+
+L7262 S7348 USER_INPUT
+--params 100M \
+  --tokens 2.0B \
+  --effective-batch 384 \
+  --batch-size 48 \
+  --grad-accum 1 \
+  --hardware xla \
+  --devices 8 \
+  --save-every 1000 \
+  --checkpoint-dir checkpoints/corosred/100m/phase_a \
+  --data "$DATA_PATH"
+
+
+print("\n" + "=" * 70)
+print(">>> Chaining directly into 100M COROSReD Phase B (2.0B Tokens)...")
+print("=" * 70)
+get_ipython().getoutput("sleep 5")
+get_ipython().getoutput("fuser -k /dev/vfio/* 2>/dev/null || true")
+get_ipython().getoutput("PJRT_DEVICE=TPU python scripts/train.py \")
+  --paradigm corosred \
+  --phase B \
+  --params 100M \
+  --tokens 2.0B \
+  --effective-batch 384 \
+  --batch-size 48 \
+  --grad-accum 1 \
+  --hardware xla \
+  --devices 8 \
+  --save-every 1000 \
+  --init-checkpoint checkpoints/corosred/100m/phase_a/checkpoint_final.pt \
+  --checkpoint-dir checkpoints/corosred/100m/phase_b \
+  --self-condition \
+  --self-cond-prob 0.5 \
+  --data "$DATA_PATH"
+
+
+
+
+
+# DATASET
+
+import os
+import glob
+from pathlib import Path
+from huggingface_hub import hf_hub_download
+
+os.makedirs("/kaggle/working/telos/data", exist_ok=True)
+target_path = Path("/kaggle/working/telos/data/python_corpus_2.5b.bin")
+
+if target_path.exists() and target_path.stat().st_size > 1_000_000:
+    print(f"✓ Dataset already exists at {target_path} ({target_path.stat().st_size / 1e9:.2f} GB)")
+else:
+    # 1. Search for attached Kaggle dataset
+    kaggle_bins = glob.glob("/kaggle/input/**/*.bin", recursive=True)
+    if kaggle_bins:
+        src = kaggle_bins[0]
+        print(f"✓ Found dataset in Kaggle input: {src}")
+        if target_path.exists() or target_path.is_symlink():
+            target_path.unlink()
+        os.symlink(src, str(target_path))
+        print(f"✓ Linked {src} -> {target_path}")
+    else:
+        # 2. Download from Hugging Face repository
+        print("Dataset not found in /kaggle/input. Downloading from Hugging Face (Kazenowoko/telos)...")
+        p = hf_hub_download(
+            repo_id="Kazenowoko/telos",
+            filename="data/python_corpus_2.5b.bin",
+            local_dir="/kaggle/working/telos"
+        )
+        print(f"✓ Successfully downloaded dataset to {target_path}")
+
+
+
+# 100M
+
+# ==============================================================================
+# Cell 3: 100M COROSReD Phase A (From Scratch: 2.0B Tokens)
+# ==============================================================================
+get_ipython().getoutput("fuser -k /dev/vfio/* 2>/dev/null || true")
+get_ipython().getoutput("PJRT_DEVICE=TPU python scrip
+
+L7269 S7355 PLANNER_RESPONSE
+We have found the exact bug.
+
+Look at the source code of `xm.save` that you just printed:
+
+[fenced code/output: original retained]
+
+Look at line 2:
+[fenced code/output: original retained]
+
+### The Fatal Silent Skip
+In `trainer_pytorch.py`:
+1. Line 718 already guards the save:
+   [fenced code/output: original retained]
+2. But inside `save_checkpoint` on line 320:
+   [fenced code/output: original retained]
+   `master_only` defaults to **`True`**!
+3. In PyTorch-XLA PJRT multiprocessing, `is_master_ordinal()` checked by `xm.save` evaluated to `False` on that process.
+4. When `should_write_data` is `False`, **`xm.save` silently does nothing, skips `torch.save()`, and returns `None` without raising any error!**
+5. Then line 724 executed:
+   [fenced code/output: original retained]
+   Because Python's standard `open()` has no XLA master check, it wrote `config.json` and printed `"Saved standalone model artifact"`.
+
+---
+
+### The 1-Line Fix
+
+Because `self.is_master` already guards `save_checkpoint()`, `xm.save` must be called with **`master_only=False`**:
+
+[fenced code/output: original retained]
+When `master_only=False`, `should_write_data` is unconditionally `True`, completely bypassing `is_master_ordinal()`.
+
+Let's test this in a Kaggle cell right now:
+
+[fenced code/output: original retained]
+
+Run this test—it will write the `.pt` file immediately.
+
+L7271 S7357 USER_INPUT
+Wait - so how did the Phase B model train if Phase A was never saved?
+
+L7290 S7376 PLANNER_RESPONSE
+In telos/train/cli.py, this is how `--init-checkpoint` was handled during Phase B startup:
+
+[fenced code/output: original retained]
+
+### What actually happened:
+
+1. **Phase A never wrote `.pt` to disk**:
+   Because `xm.save` silently aborted the write due to the `master_only=True` evaluation bug under PJRT multiprocessing, `checkpoints/corosred/100m/phase_a/checkpoint_final.pt` did not exist.
+2. **Phase B checked `Path(init_ckpt_path).exists()`**:
+   Line 288 tested:
+   [fenced code/output: original retained]
+   Since the file was missing, `Path(...).exists()` evaluated to **`False`**.
+3. **Silent fallback to cold start**:
+   There was no `else` branch or exception. The script did **not** crash or raise `FileNotFoundError`; it simply skipped the block entirely and didn't print `[Init] Loading model weights...`.
+4. **Phase B trained from scratch (random initialization)**:
+   The model was initialized with fresh random Xavier/Kaiming weights and ran all 10,173 steps (2.0B tokens) as a cold-started self-conditioned bidirectional diffusion model.
+5. **Phase B's checkpoint was also dropped**:
+   At step 10,173 of Phase B, `xm.save` ran into the exact same bug, dropping Phase B's `.pt` file as well.
+
+---
+
+### Necessary Fixes
+
+To prevent silent failures in the future and ensure checkpoints are guaranteed to persist and load:
+
+#### 1. Raise `FileNotFoundError` in telos/train/cli.py
+If `--init-checkpoint` is explicitly passed (or required for Phase B) and the file is missing, fail immediately rather than burning hours of compute on random weights:
+
+[fenced code/output: original retained]
+
+#### 2. Fix Checkpoint Saving in telos/training/trainer_pytorch.py
+In `save_checkpoint`, extract weights to CPU tensors and write directly, or set `master_only=False` so PyTorch-XLA never silently ignores the save call:
+
+[fenced code/output: original retained]
+
+L7291 S7377 USER_INPUT
+Fix immediately. I have 3hr 40mins of TPU runtime remaining. We can manage a 100M COROSRED full and that 50M COROSRED too.
+
+L7326 S7412 PLANNER_RESPONSE
+Both files have been updated with the fixes:
+
+1. **telos/training/trainer_pytorch.py**:
+   - Sets `master_only=False` on `xm.save(checkpoint, str_path, master_only=False)` because `self.is_master` already gates execution to rank 0.
+   - Adds an immediate verification and CPU fallback: if `xm.save` silently produces no file or fails, all model and optimizer state tensors are explicitly extracted to detached CPU tensors and saved via `torch.save`.
+   - Adds a verification check asserting `path.exists()` and printing `[Checkpoint Verified] Successfully saved {str_path} ({size} MB)`, raising `RuntimeError` if the file is not on disk.
+
+2. **telos/train/cli.py**:
+   - When `--init-checkpoint` is specified (or resolved), it now strictly verifies that the checkpoint file exists.
+   - If the file is missing, it immediately aborts with a descriptive `FileNotFoundError` rather than silently continuing training from random weights.
+
+---
+
+### Commit Commands & Messages
+
+Please review and run the following commands to commit and push the changes:
+
+#### 1. Commit for `telos/training/trainer_pytorch.py`
+[fenced code/output: original retained]
+
+#### 2. Commit for `telos/train/cli.py`
+[fenced code/output: original retained]
+
+#### 3. Push to GitHub
+[fenced code/output: original retained]
+
+---
+
+### Kaggle TPU Execution Script
+
+Once pushed, in your Kaggle notebook:
+
+[fenced code/output: original retained]
+
+[fenced code/output: original retained]
+
+At step 1000 of Phase A (~6 minutes in), you will see:
+[fenced code/output: original retained]
+giving immediate proof that files are persisting directly to disk.
+
+L7327 S7413 USER_INPUT
+Your update to cli.py failed to save.
+
+L7334 S7420 PLANNER_RESPONSE
+The file on disk at `telos/train/cli.py` has indeed been updated. If your IDE editor has an unsaved buffer or hasn't reloaded the file from disk yet, here are the exact lines and replacement code so you can paste or save them directly:
+
+### Lines 255–269 (MLX backend)
+[fenced code/output: original retained]
+
+### Lines 287–307 (PyTorch backend)
+[fenced code/output: original retained]
+
+---
+
+If your editor tab has a dirty buffer indicator (circle on the tab), you can simply hit **Save** (Cmd+S) or reload it from disk. 
+
+You can also run `git diff telos/train/cli.py` in your terminal to verify that the changes are staged/present in your working tree:
+[fenced code/output: original retained]
+
+L7335 S7424 USER_INPUT
+I'll rm -rf everything again. We'll redownload and start. Update the cell accordingly.
+
+L7344 S7433 PLANNER_RESPONSE
+Here are the exact cells for your fresh Kaggle TPU session.
+
+---
+
+### Cell 1: Clean Runtime & Fresh Clone
+
+[fenced code/output: original retained]
+
+---
+
+### Cell 2: Prepare Dataset & 50M Phase A Checkpoint
+
+[fenced code/output: original retained]
+
+---
+
+### Cell 3: Chained Training Execution (~168 mins total / 220 mins available)
+
+[fenced code/output: original retained]
+
+---
+
+### Cell 4: Upload Checkpoints to Hugging Face
+
+[fenced code/output: original retained]
+
+L7345 S7434 USER_INPUT
+TPU dead. Nevermind.
+
+We're switching to Modal.
+What do you want?
+
+L7347 S7434 USER_INPUT
+TPU dead. Nevermind.
+
+We're switching to Modal.
+What do you want?
+
+$30 credit available. We need to stretch it as long as possible.
+
+L7350 S7437 PLANNER_RESPONSE
+### 1. Recommended Modal Configuration (In that UI)
+
+Select the following in your Modal configuration window:
+
+| Setting | Recommended Value | Why This is Mandatory |
+| :--- | :--- | :--- |
+| **GPU** | **`Nvidia H100 SXM5`** (80 GB @ $3.95 / h) | **Cheapest per token.** (See math below). |
+| **CPU** | **8 cores** *(Slide up from 0.125)* | `0.125` cores will bottleneck the dataset memmap/token loader and starve the GPU. |
+| **RAM** | **32 GiB** *(Slide up from 256 MiB)* | `256 MiB` will instantly crash with an OOM error on `import torch` and reading the 5 GB dataset. |
+| **Secrets** | Add `HF_TOKEN` | Enables pulling/pushing checkpoints to Hugging Face. |
+| **Idle timeout** | **15 minutes** | Prevents burning credits if a job completes while you are away. |
+
+---
+
+### 2. Why H100 SXM5 is Cheaper than A100 or L40S
+
+On paper, the A100 is $2.10/h and L40S is $1.95/h. **In practice, H100 costs fewer total dollars per billion tokens:**
+
+* **L40S ($1.95/h)**: GDDR6 memory bandwidth (864 GB/s). Transformer training throughput is ~35,000–40,000 tokens/sec.
+  * 1.0B tokens = ~7.2 hours $\times$ $1.95 = **$14.04**
+* **A100 40GB ($2.10/h)**: Ampere HBM2 (1.5 TB/s). Throughput is ~50,000–55,000 tokens/sec.
+  * 1.0B tokens = ~5.3 hours $\times$ $2.10 = **$11.13**
+* **H100 SXM5 ($3.95/h)**: Hopper HBM3 (3.35 TB/s) + FlashAttention-3 / SDPA + `torch.compile`. Throughput is **~140,000–160,000 tokens/sec**.
+  * 1.0B tokens = ~1.8 hours $\times$ $3.95 = **$7.10**
+
+> **H100 is nearly 3x faster than A100 for only 1.6x the hourly rate.** It cuts total dollar spend per training run by ~35%.
+
+---
+
+### 3. Stretching the $30 Credit: Optimal Plan
+
+With **$30.00**, you have **7.59 hours** of H100 compute:
+
+| Target Run | Token Budget | Estimated Time (H100) | Estimated Cost |
+| :--- | :--- | :--- | :--- |
+| **1. 50M Phase B WITH LRH** | 1.0B tokens | ~1.8 hours | **~$7.10** |
+| **2. 100M Phase A** | 2.0B tokens | ~3.8 hours | **~$15.00** |
+| **3. Safety buffer & Eval** | Probes + Eval | ~0.5 hours | **~$2.00** |
+| **Total** | | **~6.1 hours** | **~$24.10 / $30.00** |
+
+This leaves a **~$5.90 safety cushion**. 
+* Run (1) immediately delivers the empirical head-to-head proof: **50M Phase B WITHOUT LRH** (already secured on HF) vs. **50M Phase B WITH LRH**.
+* Run (2) establishes the 100M pretrained Phase A foundation model.
+
+---
+
+### 4. Once Inside the Modal Terminal / Sandbox
+
+When the sandbox starts, clone and run:
+
+[fenced code/output: original retained]
+
+L7351 S7438 USER_INPUT
+H100 + CPU 8 core + 32GiB RAM = $5.85/hour
+
+L7360 S7447 PLANNER_RESPONSE
+The $5.85/hr price comes from Modal billing CPU ($0.15/core-hr) and RAM ($0.02/GiB-hr) on top of the GPU ($3.95/hr). 
+
+Our training loop uses `np.memmap` (virtual memory mapping, not heap allocation) and a single lightweight background prefetch thread that only slices integers. **We do NOT need 8 CPU cores or 32 GiB RAM.**
+
+---
+
+### Step 1: Optimize the Sliders to Drop the Price
+
+Slide the CPU and RAM down:
+
+| Resource | Set Slider To | Why | Estimated Price |
+| :--- | :--- | :--- | :--- |
+| **GPU** | **Nvidia H100 SXM5** | Highest throughput / lowest $/token | $3.95 / hr |
+| **CPU** | **2 cores** *(or 4 cores max)* | Slicing `memmap` takes <1 core | ~$0.30 / hr |
+| **RAM** | **12 GiB** *(or 16 GiB)* | Dataset is 5 GB memmap; 12 GiB will never OOM | ~$0.20 / hr |
+| **Total** | | | **~$4.45 / hr** *(down from $5.85)* |
+
+*(Check your Modal UI after moving CPU to 2 cores and RAM to 12 GiB — the displayed rate should drop to ~$4.40–$4.50/hr).*
+
+---
+
+### Step 2: Stretching the $30 Credit
+
+At **~$4.45/hr**, you have **6.74 hours** of compute on the H100:
+
+| Run | Parameter / Token Budget | Time on H100 | Cost |
+| :--- | :--- | :--- | :--- |
+| **1. 50M Phase B WITH LRH** | 50M / 1.0B tokens | **~1.8 hours** | **~$8.00** |
+| **2. 100M Phase A** | 100M / 2.0B tokens | **~3.8 hours** | **~$16.90** |
+| **Buffer / Eval** | Standalone eval script | ~0.5 hours | ~$2.20 |
+| **Total** | | **~6.1 hours** | **~$27.10 / $30.00** |
+
+> **Both Priority runs (50M Phase B with LRH + 100M Phase A) fit comfortably within your $30 budget.**
+
+---
+
+### Alternative: A100 40GB ($2.50/hr total)
+If you prefer a slower burn rate so you can monitor it without rush:
+* **GPU**: `Nvidia A100, 40 GB` + 2 CPU cores + 12 GiB RAM = **~$2.55/hr**.
+* Gives **11.7 hours** total runtime.
+* Throughput is ~55k tokens/sec (vs ~145k on H100).
+* 50M Phase B (1.0B tokens) takes ~5.0 hours ($\approx$ $12.75).
+* 100M Phase A (1.0B tokens) takes ~5.0 hours ($\approx$ $12.75).
+
+### Recommendation
+Go with **H100 + 2 cores + 12 GiB RAM (~$4.45/hr)**. It delivers both the full 50M LRH comparison and the 2.0B token 100M Phase A model in just ~6 hours total, with ~$3 credit to spare.
+
+L7361 S7448 USER_INPUT
+$4.62/hour now.
+
+L7372 S7459 PLANNER_RESPONSE
+$4.62/hour is ideal. With your $30 credit, that gives you **6.49 hours** (389 minutes) of H100 Hopper compute.
+
+Click **Save changes** / **Launch** to start your Modal sandbox.
+
+Once inside the sandbox terminal, run these commands:
+
+---
+
+### Step 1: Verify Environment & Clone
+
+[fenced code/output: original retained]
+
+---
+
+### Step 2: Download Dataset & 50M Phase A Base Model
+
+[fenced code/output: original retained]
+
+---
+
+### Step 3: Launch Chained Training (Run 1: 50M LRH $\rightarrow$ Run 2: 100M Phase A)
+
+This executes Run 1 first (completing the 50M head-to-head comparison), uploads it immediately, and then rolls directly into Run 2 (100M Phase A):
+
+[fenced code/output: original retained]
+
+Let me know once you launch and start Step 1!
+
+L7373 S7460 USER_INPUT
+Cell In[1], line 2
+    python3 -c "import torch; print('CUDA available:', torch.cuda.is_available(), '| Device:', torch.cuda.get_device_name(0))"
+               ^
+SyntaxError: invalid syntax
+
+L7374 S7461 PLANNER_RESPONSE
+In a Jupyter notebook cell, shell commands need a leading `!` (or you can run Python directly).
+
+### Cell 1: Verify Environment & Clone
+
+[fenced code/output: original retained]
+
+---
+
+### Cell 2: Download Dataset & 50M Phase A Base Model
+
+[fenced code/output: original retained]
+
+---
+
+### Cell 3: Launch Training
+
+[fenced code/output: original retained]
+

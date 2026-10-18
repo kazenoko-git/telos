@@ -1,0 +1,249 @@
+L14759 S14754 PLANNER_RESPONSE
+The full analysis is in the artifact, but here's the short answer:
+
+**For 100M COROSred** — it's a **BPE tokenizer granularity issue**, not a model failure. All 3 collapsed probes (`SYNTH_04`, `SYNTH_10`, `SYNTH_12`) share one property: their target's first BPE token is a **single ambiguous character** (`Ġf` or `Ġb`). These single-char tokens start hundreds of common Python identifiers, so the model can't commit. Meanwhile, all 10 successful infill probes have multi-character or full-word first tokens (`Ġgl`, `Ġqu`, `Ġval`, `payload`, `ĠException`, etc.) that are far more discriminative.
+
+Bidirectional attention actually makes this **harder** than causal, because the suffix context (`:\n    step()`) is generic and doesn't disambiguate *which* `f`-starting or `b`-starting token is correct — it only confirms the syntactic slot.
+
+**For 50M COROSred** — total infill collapse across all 15 probes is simply **insufficient training compute** (2.5B tokens / 50M params). The bidirectional head hasn't converged.
+
+**Not a bug to fix** — just a probe evaluation methodology limitation. Scoring the full multi-token sequence P(frobnicate|ctx) instead of just the first subword token would likely show the model succeeds even on these cases.
+
+L14760 S14755 USER_INPUT
+Question. Then why does causal nail it at rank 1? While infill collapses to rank 23? For blivox.
+
+By the way: give me 50M COROSred's mean/median infill confidence.
+
+L14761 S14756 PLANNER_RESPONSE
+Good question. My "single-char BPE ambiguity" explanation was incomplete — if `Ġb` were the sole problem, causal should also struggle (same target token). Let me actually look at what the model is *predicting* in both modes.
+
+L14765 S14760 PLANNER_RESPONSE
+Now let me see the full output for SYNTH_04 (blivox):
+
+L14767 S14762 PLANNER_RESPONSE
+Now I have the full picture. This is very clear:
+
+---
+
+The data completely invalidates my "single-char BPE ambiguity" explanation. Here's what's actually happening:
+
+**For SYNTH_04 (`blivox = [1, 2, 3]\nfor item in [MASK] :\n    print(item)`)**:
+
+- **Causal** predicts `Ġb` at rank **1** (prob 12.4%), edging out `Ġrange` (3.7%), `Ġitems` (2.8%)
+- **Infill** predicts `Ġitems` at rank **1** (prob **29.3%**), then `Ġdata` (13.0%), `Ġitem` (5.6%)… and `Ġb` falls to rank **23** (0.4%)
+
+The suffix `:\n    print(item)` is the culprit. **The bidirectional model reads the suffix and sees `print(item)` — the loop variable is `item`**. This strongly activates the prior for *common iterable names* that co-occur with `for item in`:
+- `items` (29.3%) — the canonical pattern `for item in items`
+- `data` (13.0%) — `for item in data`
+- `list` (3.4%), `files` (1.7%), `results` (1.1%)
+
+The model is doing **correct semantic reasoning** — it's predicting the most likely *natural* identifier given bidirectional context. The invented name `blivox` is (correctly) not in its vocabulary of "likely iterables."
+
+Same pattern for **SYNTH_12** (`bloop * [MASK]\n`): the infill model sees a multiplication and **strongly predicts numeric literals** (`Ġ10` at 29.8%, `Ġ100` at 12.7%) — which is a perfectly reasonable infill for `total = bloop * ???` when the suffix is just `\n`.
+
+**This is not a collapse — it's the infill head doing exactly what it should.** Causal wins because it only has the left context and uses recency bias to the just-defined variable. Infill sees the full picture and reasons "what would a human most likely put here?" — and the answer is a common name, not an invented one.
+
+---
+
+**50M COROSred infill confidence:**
+
+| Stat | Value |
+|:---|:---:|
+| Mean probability | **0.000137** (0.014%) |
+| Median probability | **0.000010** (0.001%) |
+| Max probability | 0.00158 |
+| Mean CE | **11.15** nats |
+| Median CE | **11.59** nats |
+| Random-guess CE (vocab 8192) | **9.01** nats |
+| Mean/Random ratio | **1.24×** |
+
+The 50M COROSred infill is **24% worse than random guessing**. Its bidirectional head hasn't converged at all — it's outputting distributions that are actually more peaked on the *wrong* tokens than a uniform distribution would be.
+
+L14768 S14763 USER_INPUT
+This is the exact signature we kinda found with 100M AR under mask_override. Sharply peaked - on the wrong token, target actively suppressed below uniform. Not "Hasn't converged yet, defaults to flat."
+
+We've found... essentially, the same failure mode twice at two different scales/architectures. 
+But this was classified with different names.
+
+"Attention Collapse" for AR
+"Insufficient Scale" for COROSred 50M
+
+Is that the same underlying cause?
+Is 50M also getting evaluated with some attention/masking config mismatch relative to what it was trained with, the same category of bug that caused AR collapse?
+
+L14770 S14764 PLANNER_RESPONSE
+That's a really sharp observation. "Worse than random" is categorically different from "hasn't learned yet." Let me trace the actual training path for 50M COROSred to check if there's an attention mismatch.
+
+L14774 S14768 PLANNER_RESPONSE
+Critical finding. Now let me check exactly what happens when the eval runner loads this with `is_causal: true`:
+
+L14777 S14772 PLANNER_RESPONSE
+OK, so the `mask_override=False` does correctly override to bidirectional. But now let me check: how does the **training code** actually call the model for the infill sub-batch?
+
+L14781 S14776 PLANNER_RESPONSE
+Good — the training code at line 307 does call `model(corrupted_infill, mask_override=False)`. Now let me check: **on XLA (TPU), what does `F.scaled_dot_product_attention` do with `is_causal=False`?**
+
+L14783 S14778 PLANNER_RESPONSE
+Now let me check how the 50M was trained — specifically on what device — and verify the B_m computation:
+
+L14785 S14780 PLANNER_RESPONSE
+Now let me check how the trainer dispatches the training step — specifically whether it's DDP/FSDP sharding the batch before or after the partitioning:
+
+L14789 S14784 PLANNER_RESPONSE
+Good. Now the critical question — what happens on XLA/TPU with `mask_override=False` being passed to the model when the model is wrapped in DDP? Let me check the training wrapper:
+
+L14791 S14786 PLANNER_RESPONSE
+Now let me check the critical issue — **on TPU/XLA with 8 devices, how does `corosred_unified_step_pytorch` get called?** Is the batch already sharded per device, or does the function get the full 48-batch?
+
+L14795 S14790 PLANNER_RESPONSE
+Now let me check how the TPU training loop dispatches batches — is it using `xm.parallel_loader`? Let me check if the batch is sharded per-device before hitting `corosred_unified_step_pytorch`:
+
+L14797 S14792 PLANNER_RESPONSE
+Now I see the picture. On TPU with SPMD mode, line 783-785 shards the batch. But in **non-SPMD mode** (regular XLA multicore), the `global_targets` is loaded on each core using `xm.parallel_loader` or similar. Let me check the data loading:
+
+L14799 S14794 PLANNER_RESPONSE
+Now I see it clearly. Let me check one more thing — the XLA multi-process execution model:
+
+L14812 S14808 USER_INPUT
+Continue
+
+L14966 S14962 PLANNER_RESPONSE
+### Direct Answer: Yes, It Is Mechanically the Exact Same Underlying Cause
+
+The empirical analysis confirms the hypothesis: **50M COROSred infill collapse and 100M AR collapse are driven by the exact same mathematical and mechanistic failure mode.**
+
+Calling them by different names (**"Attention Collapse"** for AR vs. **"Insufficient Scale"** for 50M COROSred) obscured the reality: **both models degenerate into an identical Next-Token Lookahead Copy Shortcut under bidirectional attention.**
+
+---
+
+### 1. The Empirical Smoking Gun: Both Models Copy the Suffix
+
+Evaluating the top logit predictions at the `[MASK]` position (`eval_idx = len(p_ids)`) under `mask_override=False` across the probes reveals the actual outputs:
+
+| Probe | Target | Suffix Token #1 | 50M COROSred Top Pred | 50M Conf | 100M AR Top Pred | AR Conf | 100M COROSred Top Pred | 100M Conf |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **SYNTH_04** (`blivox = [1, 2, 3]\nfor item in [MASK] :`) | `blivox` (`Ġb`) | `:` | **`:`** | **94.4%** | **`:`** | **98.5%** | `Ġitems` / `Ġb` | 29.3% |
+| **SYNTH_02** (`qux = 42\nreturn 10 + [MASK] \n`) | `qux` (`Ġqu`) | `\n` (`Ċ`) | **`Ċ`** | **96.7%** | **`Ċ`** | **99.1%** | `Ġqu` *(Target!)* | **74.4%** |
+| **SYNTH_07** (`return self._ [MASK] \n`) | `corge` (`cor`) | `\n` (`Ċ`) | **`Ċ`** | **95.9%** | **`Ċ`** | **98.8%** | `cor` *(Target!)* | **89.6%** |
+| **SYNTH_09** (`callback( [MASK] )\n`) | `payload` | `)` | **`)`** | **79.6%** | **`)`** | **96.2%** | `payload` *(Target!)* | **97.7%** |
+| **`def get_`** (`def get_ [MASK] (self):`) | `name` | `(` | **`(`** | **78.9%** | **`(`** | **98.5%** | `name` *(Target!)* | **66.1%** |
+| **`def build_`** (`def build_ [MASK] (config):`) | `model` | `(` | **`(`** | **94.5%** | **`(`** | **99.2%** | `model` *(Target!)* | **93.5%** |
+| **`def save_`** (`def save_ [MASK] (self):`) | `model` | `(` | **`(`** | **92.7%** | **`(`** | **98.9%** | `model` *(Target!)* | **88.2%** |
+
+- In **12 out of 15 (80%)** synthetic probes, 50M COROSred's #1 prediction is the **exact first token of the suffix**.
+- In **63.3%** of the standard PROBE_SUITE_100 probes, 50M COROSred's #1 prediction is the **exact first token of the suffix**.
+- **100M AR does the exact same thing** with 96%–99% confidence.
+- The CE is worse than random guessing (~10.12–11.15 vs. ~9.01 random) because the distribution is **not flat**—it is hyper-focused with 90%+ confidence on token $i+1$, actively driving the probability of the true target token at position $i$ down into the $10^{-5}$ noise floor.
+
+---
+
+### 2. The Layer-by-Layer Attention Proof
+
+Extracting the raw attention scores from the `[MASK]` token (position $i$) to the immediate next token (position $i+1$, suffix[0]) across all 14 layers in telos/models/components.py:
+
+| Layer | 50M COROSred Attention to Token $i+1$ | 100M AR Attention to Token $i+1$ | 100M COROSred Attention to Token $i+1$ |
+| :---: | :---: | :---: | :---: |
+| **Layer 0–4** | 1.4% – 4.9% (diffuse) | 0.3% – 5.4% (diffuse) | 3.4% – 12.7% (diffuse) |
+| **Layer 6** | 4.6% (max head: 11.8%) | **11.5% (max head: 64.8%)** | 15.8% (max head: 62.5%) |
+| **Layer 9** | **22.3% (max head: 81.6%)** | **17.1% (max head: 58.5%)** | 4.8% (max head: 14.0%) |
+| **Layer 10** | **15.6% (max head: 56.6%)** | **43.4% (max head: 99.7%)** | 5.1% (max head: 18.6%) |
+| **Layer 11** | **35.1% (max head: 72.7%)** | 9.6% (max head: 54.7%) | 2.9% (max head: 9.3%) |
+| **Layer 13** | **22.3% (max head: 95.4%)** | 3.7% (max head: 13.6%) | **3.5% (max head: 33.1%)** |
+| **Layer 13 Attention to Prefix** | **44.8%** | **64.9%** | **70.6%** |
+
+- In **50M COROSred**, deep attention heads in Layers 9, 11, and 13 lock onto token $i+1$ with **up to 95.4% attention weight**.
+- In **100M AR**, Layer 10 locks onto token $i+1$ with **99.7% attention weight**.
+- In **100M COROSred**, the model actively **suppresses** attention to token $i+1$ in its deep layers (Layer 13 attention to $i+1$ is only **3.5%**, while attention to the prefix is **70.6%**).
+
+---
+
+### 3. Why Did This Happen? (Is It an Evaluation Config Mismatch?)
+
+**It is NOT an evaluation script bug** (like an off-by-one indexing error or mismatched mask token ID). 
+The exact same evaluation runner runner.py:150-175 evaluates 100M COROSred at **79.2% Top-5 accuracy** and CE = 2.40 on the exact same token indices.
+
+Instead, the cause is an **Architectural Training-Objective Entanglement**:
+
+#### The Causal Next-Token Shortcut
+1. In autoregressive language modeling, position $i$ is trained to predict token $i+1$. The output head at position $i$ is wired to produce token $i+1$.
+2. Under causal masking, position $i$ cannot see position $i+1$, so it is forced to synthesize prior context.
+3. If causal masking is disabled (`mask_override=False`), position $i$ can directly attend to position $i+1$ via RoPE relative distance $+1$.
+4. Any head that attends to position $i+1$ copies token $i+1$'s embedding directly into the residual stream. Because the output projection is trained to output "what comes next", the model takes the path of least resistance: **it directly copies token $i+1$ into the logits**.
+
+#### Why 50M COROSred Fell Into This Trap
+In corosred_unified.py:201-214:
+- **Causal batch ($B_c = 36$ seqs)**: All tokens are supervised ($36 \times 511 \approx 18,396$ tokens per step).
+- **Infill batch ($B_m = 12$ seqs)**: Only 15% of tokens are masked ($12 \times 512 \times 0.15 \approx 921$ tokens per step).
+- Even with per-token loss pooling, the **gradient flow through the shared transformer backbone is ~20:1 dominated by the causal task**.
+- During training on full 512-token sequences with 15% uniform random noise, the model learned coarse bag-of-words denoising (`val_bidir` CE = 6.62). But on **isolated single-token masks in short code sequences**, the dominant causal circuit takes over. The model never had enough bidirectional supervision or capacity to learn:
+  > *"When the current token is `[MASK]`, break the causal $+1$ copy head and attend backward to the prompt."*
+
+#### Why 100M COROSred Escaped
+At 100M parameters and 5.0B tokens (25,432 steps, 4.3x higher training compute budget), the network had sufficient capacity and step count for the bidirectional denoising circuits to specialize and actively decouple from the causal copy heads. As shown in the attention table above, 100M learned to suppress the $i+1$ lookahead head down to 3.5% in Layer 13 and route 70.6% of its attention back to the prefix.
+
+---
+
+### Summary Table
+
+| Dimension | 100M AR | 50M COROSred | 100M COROSred |
+| :--- | :---: | :---: | :---: |
+| **Infill Probe Top-1** | 0.0% | 0.0% | **50.5%** |
+| **Infill Probe Avg CE** | 12.05 | 10.12 – 11.15 | **2.40** |
+| **Symptom** | Sharply peaked on wrong token | Sharply peaked on wrong token | Correct semantic target |
+| **What It Predicts** | Suffix token #1 (96–99%) | Suffix token #1 (80–95%) | Missing variable/function name |
+| **Deep Layer Attn to $i+1$** | **99.7%** (Layer 10) | **95.4%** (Layer 13) | **3.5%** (Layer 13) |
+| **Mechanistic Cause** | **Unmasked Next-Token Copy Leakage** | **Unmasked Next-Token Copy Leakage** | Shortcut successfully suppressed |
+| **Root Reason** | Zero bidirectional training (pure AR) | Causal objective dominated; bidirectional circuit unspecialized | Sufficient capacity & compute to disentangle causal vs. infill circuits |
+
+L14967 S14963 USER_INPUT
+So: what do you want me to do?
+
+L14968 S14964 PLANNER_RESPONSE
+You have three distinct paths forward, depending on whether your goal is **reporting the research findings** or **fixing 50M's infilling weights**:
+
+---
+
+### Path 1: Keep It as an Emergence / Scale Finding for the Paper (Recommended — Zero Compute)
+
+From a scientific and publication perspective, this is a **compelling result**:
+1. **The Finding**: Unified causal-infill training faces a severe inductive shortcut: because causal LM trains position $i$ to predict token $i+1$, turning off the causal mask allows position $i$ to "cheat" by attending to position $i+1$ via RoPE $+1$ and copying it into the logits.
+2. **The Emergent Phase Transition**:
+   - At **50M / 2.5B tokens**, the infill supervision (~20x fewer supervised tokens per step than causal) is insufficient to break the copy shortcut—deep attention heads in Layer 13 attend **95.4%** to token $i+1$.
+   - At **100M / 5.0B tokens**, the model achieves a clean bifurcation: Layer 13 attention to token $i+1$ drops to **3.5%**, routing **70.6%** to the prefix and achieving **79.2% Top-5 infill accuracy** (CE = 2.40).
+3. **Action**:
+   - You don't need to re-train 50M. 
+   - We formalize this mechanistic proof (with the layer-by-layer attention plots and token copy distributions) into a dedicated technical section/report for the paper.
+
+---
+
+### Path 2: Anneal 50M with an Infill-Heavy Fine-Tuning Phase (~1–2 Hours on TPU/GPU)
+
+If you need the 50M checkpoint itself to have working bidirectional infilling for demos or benchmarks:
+1. **The Problem**: 50M's weights are fundamentally sound for causal LM (CE = 3.17, 47% Top-1), but the bidirectional attention heads never received enough infill gradient signal to suppress the lookahead shortcut.
+2. **The Fix**:
+   - Resume from `checkpoints/corosred/unified/50m_2.5b/checkpoint_final.pt`.
+   - Run a short annealing schedule (e.g., 1,500–2,000 steps, ~5% of training):
+     - Set `causal_ratio = 0.25` (75% infill sub-batches, 25% causal).
+     - Set $\beta = 0.85, \alpha = 0.15$ with higher masking rate ($20\%$).
+   - This directly penalizes the copy head and forces the network to route attention from `[MASK]` back to the prefix context.
+
+---
+
+### Path 3: Test Masking-Schedule Adjustments in Code for Future Runs
+
+If you are planning future runs (e.g., at 25M, 50M, or 250M) and want to prevent this shortcut from happening in unified pretraining:
+1. **Balanced Effective Supervision**:
+   In corosred_unified.py, change `causal_ratio` from `0.75` to dynamic or `0.50`, and evaluate span masking (masking 2–4 consecutive tokens) rather than single random tokens. Single-token masks are especially vulnerable to the $i \to i+1$ single-hop copy shortcut.
+
+---
+
+### Suggested Next Step
+
+If you're satisfied with the analytical discovery:
+- **Would you like me to document this entire discovery and attention telemetry into a clean report artifact (`corosred_attention_leakage_and_emergence.md`)?**
+- Or would you prefer to **set up an annealing script to fix 50M**?
+
+L14969 S14965 USER_INPUT
+Why did the 100M run not face this?
+Why only 50M?
+

@@ -1,0 +1,18 @@
+L2236 S2245 PLANNER_RESPONSE
+I have rewritten the TPU initialization logic in `telos/training/xla_utils.py` to fix the `SIGSEGV` (Signal 11) crashes. 
+
+Here is what was happening and why the previous code made it worse:
+1. **The cascade:** The `reclaim_vfio_devices()` function correctly identified and killed stale processes holding the TPU `/dev/vfio/*` locks.
+2. **The hardware corruption:** Killing the OS process frees the file descriptor, but it **does not reset the TPU chip's internal state** (its High Bandwidth Memory, command queues, or DMA descriptors). 
+3. **The fatal blow:** We then eagerly ran a test tensor operation (`torch.zeros(1, device=dev)` + `xm.mark_step()`) to probe the device. Because the TPU hardware was in a corrupted, half-finished state from the killed process, this operation triggered a cascading `SIGSEGV` across all of PyTorch-XLA's Eigen worker threads during `ExecuteReplicated()`.
+
+### The Fix
+I have completely removed `reclaim_vfio_devices()` and the eager tensor probe. I replaced them with `_preflight_check_vfio()`:
+- It acts as a passive, read-only OS-level check to see if `/dev/vfio/*` is busy *before* PyTorch-XLA attempts to initialize its computation client.
+- If the hardware is locked by a stale process, it immediately aborts cleanly with a clear error message.
+- It **does not attempt to kill the process**, because as we saw, doing so leaves the TPU hardware corrupted and causes worse C++ level crashes.
+
+The only reliable way to reset the TPU hardware state after a crash on a VM/Kaggle is a full session restart.
+
+You can now push these changes and test again on Kaggle. If the previous run crashed, you will likely get a clean exit instructing you to restart the session. Once restarted, the training should proceed without the segmentation fault. Let me know if you run into any other blockers!
+

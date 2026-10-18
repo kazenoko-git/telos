@@ -1,0 +1,368 @@
+L7204 S7290 USER_INPUT
+--- Searching for any checkpoint files across filesystem ---
+/root/.cache/huggingface/hub/models--Kazenowoko--telos-corosred-50m-ar/snapshots/dc249aeacc75d1ae5eb6f18eb36be01a8f9d0c84/checkpoint_final.pt
+
+--- Listing exact contents of phase_a and phase_b ---
+total 12
+drwxr-xr-x 2 root root 4096 Sep  8 08:23 .
+drwxr-xr-x 4 root root 4096 Sep  8 08:24 ..
+-rw-r--r-- 1 root root 1009 Sep  8 08:23 config.json
+total 12
+drwxr-xr-x 2 root root 4096 Sep  8 09:35 .
+drwxr-xr-x 4 root root 4096 Sep  8 08:24 ..
+-rw-r--r-- 1 root root 1009 Sep  8 09:35 config.json
+
+L7219 S7305 PLANNER_RESPONSE
+To diagnose why `xm.save()` did not write the file, run this in a Kaggle cell right now:
+
+[fenced code/output: original retained]
+
+### What Likely Happened
+In `trainer_pytorch.py`:
+1. The code guards saving with `if self.is_master:`.
+2. Because `self.is_master` was True, Python wrote `config.json` via standard `open()`.
+3. But inside `save_checkpoint`, it called `xm.save(checkpoint, path)` (which defaults to `master_only=True`).
+4. In PyTorch-XLA PJRT, if `xm.is_master_ordinal()` evaluates to `False` on the process checking it, **`xm.save()` silently does nothing and returns without raising an exception**.
+
+Run the test snippet above to confirm what `xm.is_master_ordinal()` returns.
+
+L7220 S7306 USER_INPUT
+/usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+  warnings.warn(
+xr.process_index(): 0
+Error: module 'torch_xla.core.xla_model' has no attribute 'get_ordinal'
+WARNING: Logging before InitGoogle() is written to STDERR
+E0000 00:00:1788860625.150266      14 common_lib.cc:648] Could not set metric server port: INVALID_ARGUMENT: Could not find SliceBuilder port 8471 in any of the 0 ports provided in `tpu_process_addresses`="local"
+=== Source Location Trace: === 
+learning/45eac/tfrc/runtime/common_lib.cc:238
+
+L7221 S7307 PLANNER_RESPONSE
+To see what `xm.save()` does with the Kaggle TPU environment properly cleaned, run this in a Kaggle cell:
+
+[fenced code/output: original retained]
+
+Run this snippet—it will immediately tell us whether `xm.save()` is writing to disk or silently failing.
+
+L7222 S7308 USER_INPUT
+xr.process_index: 0
+xm.is_master_ordinal(): True
+xm.save completed! File exists on disk? True
+
+L7223 S7309 PLANNER_RESPONSE
+Let's test what `xm.save` does when given a relative `Path` (which is what `trainer_pytorch.py` passed: `Path("checkpoints/corosred/100m/phase_a/checkpoint_final.pt")`):
+
+Run this in a Kaggle cell:
+
+[fenced code/output: original retained]
+
+Run this snippet—this will pinpoint whether `xm.save` failed on the relative `Path` object or where it actually put it.
+
+L7224 S7310 USER_INPUT
+1. p_rel.exists(): True
+2. p_rel.resolve(): /kaggle/working/telos/checkpoints/test_rel.pt
+3. resolved exists: True
+
+L7225 S7311 PLANNER_RESPONSE
+Run this in a Kaggle cell right now:
+
+[fenced code/output: original retained]
+
+### Why We Need This Immediately
+A 100M checkpoint with AdamW optimizer states (momentum + variance + fp32 master weights) is **~1.5 GB to 1.8 GB per checkpoint file**. 
+If Phase A saved every 1,000 steps (`checkpoint_step_1000.pt` ... `checkpoint_step_10000.pt`), 10 checkpoints $\times 1.8\text{ GB} = \mathbf{18\text{ GB}}$. Combined with the dataset (5 GB), Kaggle's **20 GB local disk limit** would be completely exhausted.
+
+Let's check `df -h` to see remaining disk capacity.
+
+L7226 S7312 USER_INPUT
+Filesystem        Size  Used Avail Use% Mounted on
+overlay           7.9T  6.9T 1018G  88% /
+tmpfs              64M     0   64M   0% /dev
+shm               164G     0  164G   0% /dev/shm
+/dev/loop1         20G  4.8G   15G  25% /kaggle/lib
+/dev/mapper/snap  7.9T  6.9T 1018G  88% /etc/hosts
+tmpfs             189G     0  189G   0% /proc/acpi
+tmpfs             189G     0  189G   0% /proc/scsi
+tmpfs             189G     0  189G   0% /sys/firmware
+
+L7229 S7315 PLANNER_RESPONSE
+To reproduce and expose exactly what happened during `xmp.spawn` training when `xm.save` was called, run this 15-line test in a Kaggle cell right now:
+
+[fenced code/output: original retained]
+
+Run this snippet—it will show the exact behavior of `xm.save()` when running across 8 spawned TPU workers.
+
+L7230 S7316 USER_INPUT
+---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+Cell In[44], line 25
+     21             print(f"[Worker {index}] xm.save finished. File exists?", p.exists())
+     22         except Exception as e:
+     23             print(f"[Worker {index}] xm.save EXCEPTION:", e)
+     24 
+---> 25 xmp.spawn(_test_worker, nprocs=8)
+     26 print("After spawn, file exists on disk?", Path("/kaggle/working/test_spawn_save.pt").exists())
+
+File /usr/local/lib/python3.12/site-packages/torch_xla/distributed/xla_multiprocessing.py:43, in spawn(fn, args, nprocs, join, daemon, start_method)
+     10 def spawn(fn,
+     11           args=(),
+     12           nprocs=None,
+     13           join=True,
+     14           daemon=False,
+     15           start_method='spawn'):
+     16   """Enables multi processing based replication.
+     17 
+     18   Args:
+   (...)     41     return None.
+     42   """
+---> 43   return pjrt.spawn(fn, nprocs, start_method, args)
+
+File /usr/local/lib/python3.12/site-packages/torch_xla/_internal/pjrt.py:209, in spawn(fn, nprocs, start_method, args)
+    207   return _run_singleprocess(spawn_fn)
+    208 elif nprocs is not None:
+--> 209   raise ValueError(
+    210       'Unsupported nprocs (%d). Please use nprocs=1 or None (default). If None, spawn will use all available devices. Use the environment variable X_NUM_DEVICES (where X is CPU, GPU, TPU, NEURONCORE, etc) to limit the number of devices used.'
+    211       % nprocs)
+    213 run_multiprocess(spawn_fn, start_method=start_method)
+
+ValueError: Unsupported nprocs (8). Please use nprocs=1 or None (default). If None, spawn will use all available devices. Use the environment variable X_NUM_DEVICES (where X is CPU, GPU, TPU, NEURONCORE, etc) to limit the number of devices used.
+
+L7233 S7319 PLANNER_RESPONSE
+In PJRT, `nprocs` must be `None` (it automatically detects all available TPU devices). 
+
+Update the last two lines:
+
+[fenced code/output: original retained]
+
+Run this cell now.
+
+L7234 S7320 USER_INPUT
+---------------------------------------------------------------------------
+RuntimeError                              Traceback (most recent call last)
+Cell In[46], line 24
+     20             print(f"[Worker {index}] xm.save finished. File exists?", p.exists())
+     21         except Exception as e:
+     22             print(f"[Worker {index}] xm.save EXCEPTION:", e)
+     23 
+---> 24 xmp.spawn(_test_worker, nprocs=None)
+     25 print("After spawn, file exists on disk?", Path("/kaggle/working/test_spawn_save.pt").exists())
+
+File /usr/local/lib/python3.12/site-packages/torch_xla/distributed/xla_multiprocessing.py:43, in spawn(fn, args, nprocs, join, daemon, start_method)
+     10 def spawn(fn,
+     11           args=(),
+     12           nprocs=None,
+     13           join=True,
+     14           daemon=False,
+     15           start_method='spawn'):
+     16   """Enables multi processing based replication.
+     17 
+     18   Args:
+   (...)     41     return None.
+     42   """
+---> 43   return pjrt.spawn(fn, nprocs, start_method, args)
+
+File /usr/local/lib/python3.12/site-packages/torch_xla/_internal/pjrt.py:213, in spawn(fn, nprocs, start_method, args)
+    208 elif nprocs is not None:
+    209   raise ValueError(
+    210       'Unsupported nprocs (%d). Please use nprocs=1 or None (default). If None, spawn will use all available devices. Use the environment variable X_NUM_DEVICES (where X is CPU, GPU, TPU, NEURONCORE, etc) to limit the number of devices used.'
+    211       % nprocs)
+--> 213 run_multiprocess(spawn_fn, start_method=start_method)
+
+File /usr/local/lib/python3.12/site-packages/torch_xla/_internal/pjrt.py:145, in run_multiprocess(fn, start_method, *args, **kwargs)
+    129 """Runs `fn` on all devices available to PjRt.
+    130 
+    131 Spawns one process per physical device (e.g. TPU chip).
+   (...)    142   return_value is the result of calling `fn`.
+    143 """
+    144 if torch_xla._XLAC._xla_runtime_is_initialized():
+--> 145   raise RuntimeError('Runtime is already initialized. Do not use the XLA '
+    146                      'device before calling xmp.spawn.')
+    148 if plugins.using_dynamic_plugins():
+    149   num_processes = plugins.default().physical_chip_count()
+
+RuntimeError: Runtime is already initialized. Do not use the XLA device before calling xmp.spawn.
+
+L7235 S7321 PLANNER_RESPONSE
+Because the notebook kernel already initialized XLA, run it in a separate Python process via `subprocess`:
+
+[fenced code/output: original retained]
+
+Run this cell now. It runs in a clean subprocess and will tell us whether `xm.save()` works inside `xmp.spawn` when only worker 0 calls it.
+
+L7236 S7322 USER_INPUT
+/usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+  warnings.warn(
+/usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+  warnings.warn(
+/usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+  warnings.warn(
+/usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+  warnings.warn(
+/usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+  warnings.warn(
+/usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+  warnings.warn(
+/usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+  warnings.warn(
+/usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+  warnings.warn(
+/usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+  warnings.warn(
+Process SpawnProcess-1:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/usr/local/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/local/lib/python3.12/concurrent/futures/process.py", line 252, in _process_worker
+    call_item = call_queue.get(block=True)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/multiprocessing/queues.py", line 122, in get
+    return _ForkingPickler.loads(res)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: Can't get attribute '_test_worker' on <module '__main__' (<class '_frozen_importlib.BuiltinImporter'>)>
+Process SpawnProcess-7:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/usr/local/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/local/lib/python3.12/concurrent/futures/process.py", line 252, in _process_worker
+    call_item = call_queue.get(block=True)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/multiprocessing/queues.py", line 122, in get
+    return _ForkingPickler.loads(res)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: Can't get attribute '_test_worker' on <module '__main__' (<class '_frozen_importlib.BuiltinImporter'>)>
+Process SpawnProcess-5:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/usr/local/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/local/lib/python3.12/concurrent/futures/process.py", line 252, in _process_worker
+    call_item = call_queue.get(block=True)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/multiprocessing/queues.py", line 122, in get
+    return _ForkingPickler.loads(res)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: Can't get attribute '_test_worker' on <module '__main__' (<class '_frozen_importlib.BuiltinImporter'>)>
+Process SpawnProcess-8:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/usr/local/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/local/lib/python3.12/concurrent/futures/process.py", line 252, in _process_worker
+    call_item = call_queue.get(block=True)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/multiprocessing/queues.py", line 122, in get
+    return _ForkingPickler.loads(res)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: Can't get attribute '_test_worker' on <module '__main__' (<class '_frozen_importlib.BuiltinImporter'>)>
+Process SpawnProcess-2:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/usr/local/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/local/lib/python3.12/concurrent/futures/process.py", line 252, in _process_worker
+    call_item = call_queue.get(block=True)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/multiprocessing/queues.py", line 122, in get
+    return _ForkingPickler.loads(res)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: Can't get attribute '_test_worker' on <module '__main__' (<class '_frozen_importlib.BuiltinImporter'>)>
+Process SpawnProcess-4:
+Process SpawnProcess-6:
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/usr/local/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/local/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/usr/local/lib/python3.12/concurrent/futures/process.py", line 252, in _process_worker
+    call_item = call_queue.get(block=True)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/local/lib/python3.12/multiprocessing/queues.py", line 122, in get
+    return _ForkingPickler.loads(res)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/process.py", line 252, in _process_worker
+    call_item = call_queue.get(block=True)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/multiprocessing/queues.py", line 122, in get
+    return _ForkingPickler.loads(res)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: Can't get attribute '_test_worker' on <module '__main__' (<class '_frozen_importlib.BuiltinImporter'>)>
+AttributeError: Can't get attribute '_test_worker' on <module '__main__' (<class '_frozen_importlib.BuiltinImporter'>)>
+Process SpawnProcess-3:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/usr/local/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/local/lib/python3.12/concurrent/futures/process.py", line 252, in _process_worker
+    call_item = call_queue.get(block=True)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/multiprocessing/queues.py", line 122, in get
+    return _ForkingPickler.loads(res)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: Can't get attribute '_test_worker' on <module '__main__' (<class '_frozen_importlib.BuiltinImporter'>)>
+Traceback (most recent call last):
+  File "<string>", line 25, in <module>
+  File "/usr/local/lib/python3.12/site-packages/torch_xla/distributed/xla_multiprocessing.py", line 43, in spawn
+    return pjrt.spawn(fn, nprocs, start_method, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/torch_xla/_internal/pjrt.py", line 213, in spawn
+    run_multiprocess(spawn_fn, start_method=start_method)
+  File "/usr/local/lib/python3.12/site-packages/torch_xla/_internal/pjrt.py", line 169, in run_multiprocess
+    replica_results = list(
+                      ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/torch_xla/_internal/pjrt.py", line 171, in <genexpr>
+    result.items() for result in process_results))
+                                 ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/process.py", line 636, in _chain_from_iterable_of_lists
+    for element in iterable:
+                   ^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/_base.py", line 619, in result_iterator
+    yield _result_or_cancel(fs.pop())
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/_base.py", line 317, in _result_or_cancel
+    return fut.result(timeout)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/_base.py", line 456, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+concurrent.futures.process.BrokenProcessPool: A process in the process pool was terminated abruptly while the future was running or pending.
+
+L7237 S7323 PLANNER_RESPONSE
+Run this in a Kaggle cell:
+
+[fenced code/output: original retained]
+
+### Why We Check This
+Let's verify the exact commit and code running on the Kaggle machine, and check if any files were generated or modified during the run.
+
+L7238 S7324 USER_INPUT
+092253d fix: incorporate probe suffix context and bidirectional attention into probe evaluation
+5438819 feat: add realistic suffix context to PROBE_SUITE_100 for bidirectional infilling
+ca973f0 fix: enforce 15% quantile top-k masking in self-conditioned Phase B loss
+
+--- Git Status ---
+On branch main
+Your branch is up to date with 'origin/main'.
+
+nothing to commit, working tree clean
+
+L7239 S7325 PLANNER_RESPONSE
+To run the test with a clean file that `multiprocessing.spawn` can cleanly import, run this in a Kaggle cell:
+
+[fenced code/output: original retained]
+
+Run this cell now. It will execute across all 8 cores and report whether `xm.save()` successfully writes `test_save.pt` to disk.
+

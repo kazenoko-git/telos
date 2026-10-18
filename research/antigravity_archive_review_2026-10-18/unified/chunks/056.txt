@@ -1,0 +1,187 @@
+L11645 S11722 PLANNER_RESPONSE
+The $\gamma$-gate (y-gate) has been updated to gate on **ROC-AUC / Balanced Accuracy** ($\text{EMA}_{\text{auc}} \ge 0.55$) rather than raw accuracy.
+
+---
+
+### Why the 85% Raw Accuracy Was Distorted
+
+Under token-level pretraining at early/mid stages, top-1 next-token prediction accuracy is $\approx 10\%$. This creates an extreme **$9:1$ class imbalance**:
+- True negative tokens ($y = 0$, model was wrong): $\sim 90\%$
+- True positive tokens ($y = 1$, model was correct): $\sim 10\%$
+
+Under this distribution, a degenerate predictor that outputs a constant negative score ($r_i < 0$) gets **$\approx 90\%$ raw classification accuracy** despite having **zero discriminative capability**. The previous threshold `lrh_acc >= 0.65` was therefore opening prematurely on step 1.
+
+By switching the gate to **ROC-AUC / Balanced Accuracy**:
+- Chance level (random or constant prediction) is strictly **$0.50$**, completely invariant to the $9:1$ class ratio.
+- An $\text{EMA}_{\text{auc}} \ge 0.55$ threshold guarantees that the gate only opens when the head demonstrates genuine positive separation ($\text{AUC} > 0.50$).
+- This directly aligns with the `mask_blend` schedule scale ($\text{auc\_gate\_min} = 0.50$, $\text{auc\_gate\_target} = 0.75$).
+
+---
+
+### Code Changes
+
+#### 1. telos/training/schedule.py
+- Added `gamma_gate_auc: float = 0.55` to `COROSredSchedule.__init__`.
+- In `COROSredSchedule.get_weights`, `head_is_competent` now checks `lrh_auc_ema >= self.gamma_gate_auc` as its primary gate:
+  [fenced code/output: original retained]
+
+#### 2. telos/diffusion/corosred_unified.py
+- Implemented static 0-dimensional tensor-native **Balanced Accuracy**:
+  $$\text{TPR} = \frac{\sum (\hat{y}=1 \land y=1)}{\sum (y=1)}, \quad \text{TNR} = \frac{\sum (\hat{y}=0 \land y=0)}{\sum (y=0)}$$
+  $$\text{Balanced Acc} = \frac{\text{TPR} + \text{TNR}}{2}$$
+  This operation is 100% TPU/XLA static-graph compatible (no `.cpu()` synchronization, no dynamic tensor slicing), evaluates to $0.50$ on degenerate imbalance, and serves as an in-step proxy for AUC on accelerators.
+- Added `"lrh_bal_acc"` to the return metrics dictionary.
+
+#### 3. telos/configs/builder.py, trainer_pytorch.py, and trainer_mlx.py
+- Configured `gamma_gate_auc` (default $0.55$) across config builder and both PyTorch and MLX trainer initializations.
+
+#### 4. tests/test_schedule.py
+- Added unit test `test_schedule_auc_gate_for_gamma()` verifying that an uninformative raw accuracy of $85\%$ with chance AUC ($0.52 \le 0.55$) keeps $\gamma = 0.0$, and opens to $\gamma = 0.10$ once $\text{AUC} \ge 0.55$.
+
+---
+
+### Verification
+Ran test suite:
+[fenced code/output: original retained]
+**Result**: 35 passed, 0 failed.
+
+---
+
+### Git Commit Commands and Messages
+
+Per user rules, here are the individual commit commands and messages for review:
+
+[fenced code/output: original retained]
+
+L11646 S11723 USER_INPUT
+Another thing.
+AUC per step field is frozen at 0.75 for all 3815 steps
+Look at the logs
+
+[COROSRED-UNIFIED] Step      1/3815 | Loss: 9.0852 | C-CE: 9.091 | I-CE: 9.053 | α=0.85 β=0.15 γ=0.00 | Acc=0.54 AUC=0.75 |   0.0 st/s |     5,318 tok/s | ETA: 2349.9m
+  [COROSRED-UNIFIED] Step      2/3815 | Loss: 9.0862 | C-CE: 9.085 | I-CE: 9.091 | α=0.85 β=0.15 γ=0.00 | Acc=0.38 AUC=0.75 |   0.0 st/s |     5,097 tok/s | ETA: 2451.3m
+  [COROSRED-UNIFIED] Step      3/3815 | Loss: 9.0776 | C-CE: 9.081 | I-CE: 9.059 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.75 |   0.0 st/s |     7,547 tok/s | ETA: 1655.0m
+  [COROSRED-UNIFIED] Step      4/3815 | Loss: 9.0587 | C-CE: 9.068 | I-CE: 9.006 | α=0.85 β=0.15 γ=0.00 | Acc=0.66 AUC=0.75 |   0.1 st/s |    10,006 tok/s | ETA: 1248.1m
+  [COROSRED-UNIFIED] Step      5/3815 | Loss: 9.0260 | C-CE: 9.030 | I-CE: 9.005 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.75 |   0.1 st/s |    12,437 tok/s | ETA: 1003.8m
+  [COROSRED-UNIFIED] Step     10/3815 | Loss: 8.8060 | C-CE: 8.820 | I-CE: 8.728 | α=0.85 β=0.15 γ=0.00 | Acc=0.62 AUC=0.75 |   0.1 st/s |    24,331 tok/s | ETA: 512.4m
+  [COROSRED-UNIFIED] Step     20/3815 | Loss: 8.4097 | C-CE: 8.402 | I-CE: 8.453 | α=0.85 β=0.15 γ=0.00 | Acc=0.62 AUC=0.75 |   0.2 st/s |    46,720 tok/s | ETA: 266.2m
+  [COROSRED-UNIFIED] Step     30/3815 | Loss: 8.0028 | C-CE: 7.993 | I-CE: 8.061 | α=0.85 β=0.15 γ=0.00 | Acc=0.88 AUC=0.75 |   0.3 st/s |    67,366 tok/s | ETA: 184.1m
+  [COROSRED-UNIFIED] Step     40/3815 | Loss: 7.9697 | C-CE: 7.962 | I-CE: 8.014 | α=0.85 β=0.15 γ=0.00 | Acc=0.97 AUC=0.75 |   0.4 st/s |    86,540 tok/s | ETA: 142.9m
+  [COROSRED-UNIFIED] Step     50/3815 | Loss: 7.0370 | C-CE: 7.040 | I-CE: 7.021 | α=0.85 β=0.15 γ=0.00 | Acc=0.91 AUC=0.75 |   0.5 st/s |   104,191 tok/s | ETA: 118.4m
+  [COROSRED-UNIFIED] Step    100/3815 | Loss: 6.5712 | C-CE: 6.581 | I-CE: 6.518 | α=0.85 β=0.15 γ=0.00 | Acc=0.89 AUC=0.75 |   0.9 st/s |   177,933 tok/s | ETA: 68.4m
+  [COROSRED-UNIFIED] Step    150/3815 | Loss: 6.1732 | C-CE: 6.150 | I-CE: 6.304 | α=0.85 β=0.15 γ=0.00 | Acc=0.46 AUC=0.75 |   1.2 st/s |   232,912 tok/s | ETA: 51.6m
+  [COROSRED-UNIFIED] Step    200/3815 | Loss: 5.4954 | C-CE: 5.409 | I-CE: 5.988 | α=0.85 β=0.15 γ=0.00 | Acc=0.56 AUC=0.75 |   1.4 st/s |   275,314 tok/s | ETA: 43.0m
+  [COROSRED-UNIFIED] Step    250/3815 | Loss: 6.4365 | C-CE: 6.394 | I-CE: 6.678 | α=0.85 β=0.15 γ=0.00 | Acc=0.73 AUC=0.75 |   1.6 st/s |   309,358 tok/s | ETA: 37.8m
+  [COROSRED-UNIFIED] Step    300/3815 | Loss: 5.2852 | C-CE: 5.308 | I-CE: 5.157 | α=0.85 β=0.15 γ=0.00 | Acc=0.45 AUC=0.75 |   1.7 st/s |   337,252 tok/s | ETA: 34.2m
+  [COROSRED-UNIFIED] Step    350/3815 | Loss: 5.2981 | C-CE: 5.285 | I-CE: 5.374 | α=0.85 β=0.15 γ=0.00 | Acc=0.34 AUC=0.75 |   1.5 st/s |   304,504 tok/s | ETA: 37.3m
+  [COROSRED-UNIFIED] Step    400/3815 | Loss: 4.9292 | C-CE: 4.919 | I-CE: 4.986 | α=0.85 β=0.15 γ=0.00 | Acc=0.42 AUC=0.75 |   1.6 st/s |   324,208 tok/s | ETA: 34.5m
+  [COROSRED-UNIFIED] Step    450/3815 | Loss: 4.7688 | C-CE: 4.804 | I-CE: 4.501 | α=0.85 β=0.15 γ=0.02 | Acc=0.81 AUC=0.75 |   1.5 st/s |   300,046 tok/s | ETA: 36.7m
+  [COROSRED-UNIFIED] Step    500/3815 | Loss: 5.3959 | C-CE: 5.451 | I-CE: 4.959 | α=0.85 β=0.15 γ=0.05 | Acc=0.85 AUC=0.75 |   1.6 st/s |   315,926 tok/s | ETA: 34.4m
+  [Dual Probe Step    500] Causal Top-1: 24.3% | C-CE: 4.815 | Infill Top-1: 26.1% | I-CE: 4.883 | LRH AUC: 0.790
+  [Checkpoint Verified] Successfully saved checkpoints/corosred/unified/checkpoint_step_500.pt (205.5 MB)
+  [Checkpoint] Saved weights to checkpoints/corosred/unified/checkpoint_step_500.pt
+  [COROSRED-UNIFIED] Step    550/3815 | Loss: 5.0487 | C-CE: 5.149 | I-CE: 4.266 | α=0.85 β=0.15 γ=0.08 | Acc=0.81 AUC=0.75 |   0.7 st/s |   140,802 tok/s | ETA: 76.0m
+  [COROSRED-UNIFIED] Step    600/3815 | Loss: 4.4429 | C-CE: 4.393 | I-CE: 4.451 | α=0.85 β=0.15 γ=0.10 | Acc=0.82 AUC=0.75 |   0.7 st/s |   143,328 tok/s | ETA: 73.5m
+  [COROSRED-UNIFIED] Step    650/3815 | Loss: 4.7690 | C-CE: 4.792 | I-CE: 4.362 | α=0.85 β=0.15 γ=0.10 | Acc=0.81 AUC=0.75 |   0.8 st/s |   152,132 tok/s | ETA: 68.2m
+  [COROSRED-UNIFIED] Step    700/3815 | Loss: 4.5129 | C-CE: 4.411 | I-CE: 4.804 | α=0.85 β=0.15 γ=0.10 | Acc=0.81 AUC=0.75 |   0.8 st/s |   160,542 tok/s | ETA: 63.6m
+  [COROSRED-UNIFIED] Step    750/3815 | Loss: 4.5342 | C-CE: 4.433 | I-CE: 4.820 | α=0.85 β=0.15 γ=0.10 | Acc=0.82 AUC=0.75 |   0.9 st/s |   168,630 tok/s | ETA: 59.6m
+  [COROSRED-UNIFIED] Step    800/3815 | Loss: 4.6676 | C-CE: 4.677 | I-CE: 4.347 | α=0.84 β=0.15 γ=0.10 | Acc=0.82 AUC=0.75 |   0.8 st/s |   161,657 tok/s | ETA: 61.1m
+  [COROSRED-UNIFIED] Step    850/3815 | Loss: 4.5089 | C-CE: 4.498 | I-CE: 4.286 | α=0.82 β=0.15 γ=0.10 | Acc=0.80 AUC=0.75 |   0.8 st/s |   161,646 tok/s | ETA: 60.1m
+  [COROSRED-UNIFIED] Step    900/3815 | Loss: 4.1617 | C-CE: 4.138 | I-CE: 4.037 | α=0.79 β=0.15 γ=0.10 | Acc=0.83 AUC=0.75 |   0.9 st/s |   168,509 tok/s | ETA: 56.7m
+  [COROSRED-UNIFIED] Step    950/3815 | Loss: 4.0440 | C-CE: 3.996 | I-CE: 4.046 | α=0.77 β=0.15 γ=0.10 | Acc=0.83 AUC=0.75 |   0.9 st/s |   175,146 tok/s | ETA: 53.6m
+  [COROSRED-UNIFIED] Step   1000/3815 | Loss: 4.4635 | C-CE: 4.483 | I-CE: 4.132 | α=0.74 β=0.15 γ=0.10 | Acc=0.83 AUC=0.75 |   0.9 st/s |   181,593 tok/s | ETA: 50.8m
+  [Dual Probe Step   1000] Causal Top-1: 31.4% | C-CE: 4.190 | Infill Top-1: 36.0% | I-CE: 4.072 | LRH AUC: 0.819
+  [Checkpoint Verified] Successfully saved checkpoints/corosred/unified/checkpoint_step_1000.pt (205.5 MB)
+  [Checkpoint] Saved weights to checkpoints/corosred/unified/checkpoint_step_1000.pt
+  [COROSRED-UNIFIED] Step   1050/3815 | Loss: 4.4993 | C-CE: 4.537 | I-CE: 4.100 | α=0.72 β=0.15 γ=0.10 | Acc=0.83 AUC=0.75 |   0.9 st/s |   177,241 tok/s | ETA: 51.1m
+  [COROSRED-UNIFIED] Step   1100/3815 | Loss: 5.4152 | C-CE: 5.346 | I-CE: 5.516 | α=0.70 β=0.15 γ=0.10 | Acc=0.87 AUC=0.75 |   0.9 st/s |   183,065 tok/s | ETA: 48.6m
+  [COROSRED-UNIFIED] Step   1150/3815 | Loss: 4.0372 | C-CE: 3.984 | I-CE: 4.043 | α=0.67 β=0.15 γ=0.10 | Acc=0.84 AUC=0.75 |   1.0 st/s |   188,723 tok/s | ETA: 46.3m
+  [COROSRED-UNIFIED] Step   1200/3815 | Loss: 4.1918 | C-CE: 4.224 | I-CE: 3.858 | α=0.65 β=0.15 γ=0.10 | Acc=0.83 AUC=0.75 |   1.0 st/s |   194,285 tok/s | ETA: 44.1m
+  [COROSRED-UNIFIED] Step   1250/3815 | Loss: 3.9893 | C-CE: 4.170 | I-CE: 3.058 | α=0.63 β=0.15 γ=0.10 | Acc=0.83 AUC=0.75 |   1.0 st/s |   199,672 tok/s | ETA: 42.1m
+  [COROSRED-UNIFIED] Step   1300/3815 | Loss: 3.8977 | C-CE: 3.874 | I-CE: 3.797 | α=0.61 β=0.16 γ=0.10 | Acc=0.83 AUC=0.75 |   1.0 st/s |   204,928 tok/s | ETA: 40.2m
+  [COROSRED-UNIFIED] Step   1350/3815 | Loss: 4.2498 | C-CE: 4.320 | I-CE: 3.796 | α=0.59 β=0.16 γ=0.10 | Acc=0.81 AUC=0.75 |   1.1 st/s |   210,003 tok/s | ETA: 38.5m
+  [COROSRED-UNIFIED] Step   1400/3815 | Loss: 4.3831 | C-CE: 4.386 | I-CE: 4.176 | α=0.57 β=0.16 γ=0.10 | Acc=0.80 AUC=0.75 |   1.1 st/s |   214,989 tok/s | ETA: 36.8m
+  [COROSRED-UNIFIED] Step   1450/3815 | Loss: 3.8021 | C-CE: 3.863 | I-CE: 3.410 | α=0.55 β=0.16 γ=0.10 | Acc=0.82 AUC=0.75 |   1.1 st/s |   219,824 tok/s | ETA: 35.3m
+  [COROSRED-UNIFIED] Step   1500/3815 | Loss: 3.7763 | C-CE: 3.715 | I-CE: 3.822 | α=0.53 β=0.16 γ=0.10 | Acc=0.83 AUC=0.75 |   1.1 st/s |   224,611 tok/s | ETA: 33.8m
+  [Dual Probe Step   1500] Causal Top-1: 34.9% | C-CE: 3.875 | Infill Top-1: 41.6% | I-CE: 3.603 | LRH AUC: 0.831
+  [Checkpoint Verified] Successfully saved checkpoints/corosred/unified/checkpoint_step_1500.pt (205.5 MB)
+  [Checkpoint] Saved weights to checkpoints/corosred/unified/checkpoint_step_1500.pt
+  [COROSRED-UNIFIED] Step   1550/3815 | Loss: 4.2044 | C-CE: 4.114 | I-CE: 4.326 | α=0.52 β=0.17 γ=0.10 | Acc=0.82 AUC=0.75 |   1.1 st/s |   217,664 tok/s | ETA: 34.1m
+  [COROSRED-UNIFIED] Step   1600/3815 | Loss: 3.7505 | C-CE: 3.602 | I-CE: 4.039 | α=0.50 β=0.17 γ=0.10 | Acc=0.84 AUC=0.75 |   1.1 st/s |   222,103 tok/s | ETA: 32.7m
+  [COROSRED-UNIFIED] Step   1650/3815 | Loss: 3.9105 | C-CE: 3.908 | I-CE: 3.766 | α=0.48 β=0.17 γ=0.10 | Acc=0.82 AUC=0.75 |   1.2 st/s |   226,450 tok/s | ETA: 31.3m
+  [COROSRED-UNIFIED] Step   1700/3815 | Loss: 3.6832 | C-CE: 3.504 | I-CE: 4.009 | α=0.47 β=0.18 γ=0.10 | Acc=0.82 AUC=0.75 |   1.2 st/s |   230,693 tok/s | ETA: 30.0m
+  [COROSRED-UNIFIED] Step   1750/3815 | Loss: 3.7797 | C-CE: 3.868 | I-CE: 3.420 | α=0.45 β=0.18 γ=0.10 | Acc=0.83 AUC=0.75 |   1.2 st/s |   234,844 tok/s | ETA: 28.8m
+  [COROSRED-UNIFIED] Step   1800/3815 | Loss: 3.6733 | C-CE: 3.600 | I-CE: 3.719 | α=0.44 β=0.18 γ=0.10 | Acc=0.84 AUC=0.75 |   1.2 st/s |   238,910 tok/s | ETA: 27.6m
+  [COROSRED-UNIFIED] Step   1850/3815 | Loss: 3.1799 | C-CE: 3.240 | I-CE: 2.936 | α=0.42 β=0.19 γ=0.10 | Acc=0.86 AUC=0.75 |   1.2 st/s |   242,867 tok/s | ETA: 26.5m
+  [COROSRED-UNIFIED] Step   1900/3815 | Loss: 3.3861 | C-CE: 3.203 | I-CE: 3.650 | α=0.41 β=0.19 γ=0.10 | Acc=0.82 AUC=0.75 |   1.3 st/s |   246,749 tok/s | ETA: 25.4m
+  [COROSRED-UNIFIED] Step   1950/3815 | Loss: 3.4963 | C-CE: 3.600 | I-CE: 3.170 | α=0.40 β=0.20 γ=0.10 | Acc=0.82 AUC=0.75 |   1.3 st/s |   250,562 tok/s | ETA: 24.4m
+  [COROSRED-UNIFIED] Step   2000/3815 | Loss: 3.7277 | C-CE: 3.748 | I-CE: 3.582 | α=0.38 β=0.20 γ=0.10 | Acc=0.84 AUC=0.75 |   1.3 st/s |   254,313 tok/s | ETA: 23.4m
+  [Dual Probe Step   2000] Causal Top-1: 38.4% | C-CE: 3.587 | Infill Top-1: 46.4% | I-CE: 3.220 | LRH AUC: 0.837
+  [Checkpoint Verified] Successfully saved checkpoints/corosred/unified/checkpoint_step_2000.pt (205.5 MB)
+  [Checkpoint] Saved weights to checkpoints/corosred/unified/checkpoint_step_2000.pt
+  [COROSRED-UNIFIED] Step   2050/3815 | Loss: 3.0621 | C-CE: 2.561 | I-CE: 3.845 | α=0.37 β=0.21 γ=0.10 | Acc=0.84 AUC=0.75 |   1.3 st/s |   248,605 tok/s | ETA: 23.3m
+  [COROSRED-UNIFIED] Step   2100/3815 | Loss: 3.2279 | C-CE: 3.366 | I-CE: 2.902 | α=0.36 β=0.22 γ=0.10 | Acc=0.84 AUC=0.75 |   1.3 st/s |   252,166 tok/s | ETA: 22.3m
+  [COROSRED-UNIFIED] Step   2150/3815 | Loss: 3.2355 | C-CE: 3.377 | I-CE: 2.911 | α=0.35 β=0.22 γ=0.10 | Acc=0.81 AUC=0.75 |   1.3 st/s |   255,670 tok/s | ETA: 21.3m
+  [COROSRED-UNIFIED] Step   2200/3815 | Loss: 3.5084 | C-CE: 3.790 | I-CE: 2.994 | α=0.34 β=0.23 γ=0.10 | Acc=0.82 AUC=0.75 |   1.3 st/s |   259,104 tok/s | ETA: 20.4m
+  [COROSRED-UNIFIED] Step   2250/3815 | Loss: 3.2915 | C-CE: 3.455 | I-CE: 2.974 | α=0.33 β=0.24 γ=0.10 | Acc=0.83 AUC=0.75 |   1.3 st/s |   262,477 tok/s | ETA: 19.5m
+  [COROSRED-UNIFIED] Step   2300/3815 | Loss: 3.2811 | C-CE: 3.358 | I-CE: 3.090 | α=0.32 β=0.25 γ=0.10 | Acc=0.82 AUC=0.75 |   1.4 st/s |   265,774 tok/s | ETA: 18.7m
+  [COROSRED-UNIFIED] Step   2350/3815 | Loss: 3.3356 | C-CE: 3.431 | I-CE: 3.125 | α=0.31 β=0.25 γ=0.10 | Acc=0.80 AUC=0.75 |   1.4 st/s |   269,018 tok/s | ETA: 17.8m
+  [COROSRED-UNIFIED] Step   2400/3815 | Loss: 3.9551 | C-CE: 3.972 | I-CE: 3.851 | α=0.30 β=0.26 γ=0.10 | Acc=0.83 AUC=0.75 |   1.4 st/s |   272,191 tok/s | ETA: 17.0m
+  [COROSRED-UNIFIED] Step   2450/3815 | Loss: 3.4491 | C-CE: 3.602 | I-CE: 3.195 | α=0.29 β=0.27 γ=0.10 | Acc=0.80 AUC=0.75 |   1.4 st/s |   275,317 tok/s | ETA: 16.2m
+  [COROSRED-UNIFIED] Step   2500/3815 | Loss: 3.1925 | C-CE: 3.027 | I-CE: 3.286 | α=0.28 β=0.28 γ=0.10 | Acc=0.84 AUC=0.75 |   1.4 st/s |   278,368 tok/s | ETA: 15.5m
+  [Dual Probe Step   2500] Causal Top-1: 41.9% | C-CE: 3.360 | Infill Top-1: 51.1% | I-CE: 2.899 | LRH AUC: 0.831
+  [Checkpoint Verified] Successfully saved checkpoints/corosred/unified/checkpoint_step_2500.pt (205.5 MB)
+  [Checkpoint] Saved weights to checkpoints/corosred/unified/checkpoint_step_2500.pt
+  [COROSRED-UNIFIED] Step   2550/3815 | Loss: 2.9024 | C-CE: 3.407 | I-CE: 2.351 | α=0.28 β=0.29 γ=0.10 | Acc=0.84 AUC=0.75 |   1.4 st/s |   272,221 tok/s | ETA: 15.2m
+  [COROSRED-UNIFIED] Step   2600/3815 | Loss: 3.6113 | C-CE: 3.685 | I-CE: 3.471 | α=0.27 β=0.30 γ=0.10 | Acc=0.85 AUC=0.75 |   1.4 st/s |   275,113 tok/s | ETA: 14.5m
+  [COROSRED-UNIFIED] Step   2650/3815 | Loss: 3.1649 | C-CE: 3.638 | I-CE: 2.690 | α=0.26 β=0.31 γ=0.10 | Acc=0.82 AUC=0.75 |   1.4 st/s |   277,972 tok/s | ETA: 13.7m
+  [COROSRED-UNIFIED] Step   2700/3815 | Loss: 3.2242 | C-CE: 3.638 | I-CE: 2.820 | α=0.26 β=0.32 γ=0.10 | Acc=0.81 AUC=0.75 |   1.4 st/s |   280,791 tok/s | ETA: 13.0m
+  [COROSRED-UNIFIED] Step   2750/3815 | Loss: 2.9542 | C-CE: 3.296 | I-CE: 2.628 | α=0.25 β=0.33 γ=0.10 | Acc=0.83 AUC=0.75 |   1.4 st/s |   283,563 tok/s | ETA: 12.3m
+  [COROSRED-UNIFIED] Step   2800/3815 | Loss: 3.1299 | C-CE: 3.144 | I-CE: 3.055 | α=0.24 β=0.34 γ=0.10 | Acc=0.83 AUC=0.75 |   1.5 st/s |   286,297 tok/s | ETA: 11.6m
+  [COROSRED-UNIFIED] Step   2850/3815 | Loss: 3.0107 | C-CE: 3.319 | I-CE: 2.736 | α=0.24 β=0.36 γ=0.10 | Acc=0.82 AUC=0.75 |   1.5 st/s |   288,991 tok/s | ETA: 10.9m
+  [COROSRED-UNIFIED] Step   2900/3815 | Loss: 3.0491 | C-CE: 2.999 | I-CE: 3.009 | α=0.23 β=0.37 γ=0.10 | Acc=0.80 AUC=0.75 |   1.5 st/s |   291,646 tok/s | ETA: 10.3m
+  [COROSRED-UNIFIED] Step   2950/3815 | Loss: 3.0719 | C-CE: 3.635 | I-CE: 2.666 | α=0.23 β=0.38 γ=0.10 | Acc=0.81 AUC=0.75 |   1.5 st/s |   294,253 tok/s | ETA:  9.6m
+  [COROSRED-UNIFIED] Step   3000/3815 | Loss: 3.0052 | C-CE: 3.286 | I-CE: 2.776 | α=0.23 β=0.40 γ=0.10 | Acc=0.80 AUC=0.75 |   1.5 st/s |   296,828 tok/s | ETA:  9.0m
+  [Dual Probe Step   3000] Causal Top-1: 44.2% | C-CE: 3.240 | Infill Top-1: 54.9% | I-CE: 2.677 | LRH AUC: 0.828
+  [Checkpoint Verified] Successfully saved checkpoints/corosred/unified/checkpoint_step_3000.pt (205.5 MB)
+  [Checkpoint] Saved weights to checkpoints/corosred/unified/checkpoint_step_3000.pt
+  [COROSRED-UNIFIED] Step   3050/3815 | Loss: 2.6605 | C-CE: 2.987 | I-CE: 2.426 | α=0.22 β=0.41 γ=0.10 | Acc=0.84 AUC=0.75 |   1.5 st/s |   290,200 tok/s | ETA:  8.6m
+  [COROSRED-UNIFIED] Step   3100/3815 | Loss: 2.7698 | C-CE: 2.955 | I-CE: 2.621 | α=0.22 β=0.42 γ=0.10 | Acc=0.84 AUC=0.75 |   1.5 st/s |   292,690 tok/s | ETA:  8.0m
+  [COROSRED-UNIFIED] Step   3150/3815 | Loss: 3.2851 | C-CE: 3.265 | I-CE: 3.235 | α=0.22 β=0.44 γ=0.10 | Acc=0.82 AUC=0.75 |   1.5 st/s |   295,120 tok/s | ETA:  7.4m
+  [COROSRED-UNIFIED] Step   3200/3815 | Loss: 2.9385 | C-CE: 3.015 | I-CE: 2.843 | α=0.21 β=0.46 γ=0.10 | Acc=0.82 AUC=0.75 |   1.5 st/s |   297,520 tok/s | ETA:  6.8m
+  [COROSRED-UNIFIED] Step   3250/3815 | Loss: 2.9018 | C-CE: 3.525 | I-CE: 2.569 | α=0.21 β=0.47 γ=0.10 | Acc=0.83 AUC=0.75 |   1.5 st/s |   299,890 tok/s | ETA:  6.2m
+  [COROSRED-UNIFIED] Step   3300/3815 | Loss: 2.2330 | C-CE: 3.304 | I-CE: 1.716 | α=0.21 β=0.49 γ=0.10 | Acc=0.81 AUC=0.75 |   1.5 st/s |   302,230 tok/s | ETA:  5.6m
+  [COROSRED-UNIFIED] Step   3350/3815 | Loss: 2.6490 | C-CE: 3.550 | I-CE: 2.223 | α=0.21 β=0.51 γ=0.10 | Acc=0.81 AUC=0.75 |   1.5 st/s |   304,535 tok/s | ETA:  5.0m
+  [COROSRED-UNIFIED] Step   3400/3815 | Loss: 3.0913 | C-CE: 3.678 | I-CE: 2.802 | α=0.21 β=0.52 γ=0.10 | Acc=0.81 AUC=0.75 |   1.6 st/s |   306,804 tok/s | ETA:  4.4m
+  [COROSRED-UNIFIED] Step   3450/3815 | Loss: 2.5184 | C-CE: 3.109 | I-CE: 2.237 | α=0.20 β=0.54 γ=0.10 | Acc=0.79 AUC=0.75 |   1.6 st/s |   309,052 tok/s | ETA:  3.9m
+  [COROSRED-UNIFIED] Step   3500/3815 | Loss: 2.4850 | C-CE: 2.961 | I-CE: 2.264 | α=0.20 β=0.56 γ=0.10 | Acc=0.85 AUC=0.75 |   1.6 st/s |   311,256 tok/s | ETA:  3.3m
+  [Dual Probe Step   3500] Causal Top-1: 45.0% | C-CE: 3.191 | Infill Top-1: 57.0% | I-CE: 2.557 | LRH AUC: 0.831
+  [Checkpoint Verified] Successfully saved checkpoints/corosred/unified/checkpoint_step_3500.pt (205.5 MB)
+  [Checkpoint] Saved weights to checkpoints/corosred/unified/checkpoint_step_3500.pt
+  [COROSRED-UNIFIED] Step   3550/3815 | Loss: 2.8410 | C-CE: 3.205 | I-CE: 2.662 | α=0.20 β=0.58 γ=0.10 | Acc=0.83 AUC=0.75 |   1.5 st/s |   304,044 tok/s | ETA:  2.9m
+  [COROSRED-UNIFIED] Step   3600/3815 | Loss: 2.1642 | C-CE: 2.649 | I-CE: 1.955 | α=0.20 β=0.60 γ=0.10 | Acc=0.85 AUC=0.75 |   1.6 st/s |   306,079 tok/s | ETA:  2.3m
+  [COROSRED-UNIFIED] Step   3650/3815 | Loss: 2.7454 | C-CE: 3.281 | I-CE: 2.517 | α=0.20 β=0.62 γ=0.10 | Acc=0.81 AUC=0.75 |   1.6 st/s |   308,070 tok/s | ETA:  1.8m
+  [COROSRED-UNIFIED] Step   3700/3815 | Loss: 2.6462 | C-CE: 3.190 | I-CE: 2.429 | α=0.20 β=0.64 γ=0.10 | Acc=0.84 AUC=0.75 |   1.6 st/s |   310,078 tok/s | ETA:  1.2m
+  [COROSRED-UNIFIED] Step   3750/3815 | Loss: 3.0864 | C-CE: 3.733 | I-CE: 2.840 | α=0.20 β=0.66 γ=0.10 | Acc=0.83 AUC=0.75 |   1.6 st/s |   312,055 tok/s | ETA:  0.7m
+  [COROSRED-UNIFIED] Step   3800/3815 | Loss: 2.9120 | C-CE: 2.969 | I-CE: 2.844 | α=0.20 β=0.68 γ=0.10 | Acc=0.82 AUC=0.75 |   1.6 st/s |   314,004 tok/s | ETA:  0.2m
+  [COROSRED-UNIFIED] Step   3815/3815 | Loss: 2.7948 | C-CE: 3.179 | I-CE: 2.636 | α=0.20 β=0.69 γ=0.10 | Acc=0.83 AUC=0.75 |   1.6 st/s |   314,589 tok/s | ETA:  0.0m
+  [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  [Checkpoint Verified] Successfully saved checkpoints/corosred/unified/checkpoint_final.pt (205.5 MB)
+======================================================================
+  COROSRED PyTorch Training Complete! Total time: 39.74 minutes.
+  Saved standalone model artifact to checkpoints/corosred/unified/
+======================================================================
+  [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+

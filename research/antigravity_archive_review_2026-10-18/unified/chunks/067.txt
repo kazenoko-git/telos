@@ -1,0 +1,427 @@
+L13554 S13566 PLANNER_RESPONSE
+Here is the breakdown of why this runtime is occurring and how we can bring it down to **~3.9 to 5.3 hours**:
+
+---
+
+### Why 10.5 Hours? (The Compute Math)
+
+1. **$4.2\times$ More Compute than 50M**:
+   $$\text{Compute (FLOPs)} \propto 6 \times N \times D$$
+   * **50M on 2.5B tokens**: $49.4\text{M} \times 2.5\text{B} \propto 1.24 \times 10^{17}\text{ FLOPs}$ $\rightarrow$ took **~3.8 hours**.
+   * **100M on 5.0B tokens**: $105.4\text{M} \times 5.0\text{B} \propto 5.27 \times 10^{17}\text{ FLOPs}$ $\rightarrow$ takes **$4.25\times$ more total compute**!
+   $$\frac{5.27 \times 10^{17}}{1.24 \times 10^{17}} \times 3.8\text{ hrs} \approx \mathbf{16.1\text{ raw hours}}$$
+   Because TPU v5e tensor cores are saturated better on 100M, it runs in **10.5 hours** instead of 16 hours.
+
+2. **Kaggle 12-Hour Ceiling**:
+   On Kaggle, 10.5 hours is close to the hard **12-hour session limit**.
+
+---
+
+### Three Ways to Cut the Time
+
+#### Option 1: Scale to 2.5B Tokens (Direct Data Parity with 50M) — **~5.3 hours**
+* **Tokens**: 2.5B tokens ($12,716\text{ steps}$).
+* **Ratio**: **25 tokens / param** (still higher than Chinchilla's compute-optimal $20\times$).
+* **Advantage**: It is the **exact same dataset size as the 50M run**, providing an "equal data, $2\times$ capacity" scaling comparison.
+* **Duration**: **5.3 hours** (finishes by ~6:30 PM today).
+
+#### Option 2: Turn OFF Gradient Checkpointing (`180k tok/s`) — **~7.7 hours**
+* In `configs/corosred/tpu_100m.yaml`, `gradient_checkpointing: true` is active. It recomputes the forward pass during backprop, burning ~30% extra compute per step.
+* Setting `gradient_checkpointing: false` with `batch_size: 16, grad_accum: 2` increases throughput from **131k $\to$ ~180k tok/s**.
+* For 5B tokens: **~7.7 hours**.
+* For 2.5B tokens: **~3.9 hours**.
+
+#### Option 3: Let Current Run Continue
+* You are already at **Step 350+** with the loss dropping steeply ($9.16 \to 5.10$).
+* Checkpoint 1 (Step 3,500) will be saved in **~1.2 hours**.
+* Checkpoint 2 (Step 7,000) will be saved in **~2.7 hours**.
+* If the instance runs for 9–10 hours, you will have checkpoints all the way up to Step 21,000+ (~4.2B tokens).
+
+---
+
+### Recommendation
+
+What is your primary constraint?
+* If **Kaggle session timeout** is the worry: stopping and running with **2.5B tokens** (or 3B) guarantees completion in **~4–5 hours** with zero timeout anxiety.
+* If you want the full **5B overtraining** and have a persistent session: the current run is executing at steady-state 131k tok/s and will finish overnight.
+
+L13555 S13567 USER_INPUT
+...
+Will it be better to run on H100?
+
+Modal available time: 84 minutes
+Lightning AI available time: 392.4 minutes
+
+L13561 S13573 PLANNER_RESPONSE
+Based on the context from our conversation, here's the H100 vs TPU comparison for your 100M/5B run:
+
+## H100 Throughput Estimate
+
+| Environment | Available Time | Est. Throughput (100M) | Time for 5B tokens | Time for 2.5B tokens | Feasible? |
+|---|---|---|---|---|---|
+| **TPU v5e-8** (current) | ~12h session | ~131k tok/s | **~636 min (10.6h)** | ~318 min (5.3h) | ⚠️ Tight |
+| **Modal H100** | 84 min | ~350-500k tok/s | ~170-240 min | ~85-120 min | ❌ No (5B) / ⚠️ Tight (2.5B) |
+| **Lightning H100** | 392.4 min | ~350-500k tok/s | ~170-240 min | ~85-120 min | ✅ Yes (both) |
+
+### Key Takeaways
+
+1. **Modal (84 min)** — Not enough for either 5B or 2.5B. You'd need to be extremely lucky on throughput to squeeze 2.5B in.
+
+2. **Lightning (392 min)** — **Your best bet.** Even at conservative H100 throughput (~300k tok/s), 5B tokens takes ~278 min, well within the 392-minute budget. And an H100 will likely hit 400k+ tok/s for a 100M model, bringing it closer to ~210 min.
+
+3. **TPU (current run)** — Still works for 5B if the session holds for the full ~10.6h. Works comfortably for 2.5B (~5.3h).
+
+### Recommendation
+
+| Strategy | Tokens | Platform | Est. Time |
+|---|---|---|---|
+| **Best** | 5B | Lightning H100 | ~3.5-4.5h |
+| **Safe fallback** | 2.5B | Lightning H100 | ~1.5-2h |
+| **Continue as-is** | 2.5B | TPU v5e-8 | ~5.3h |
+
+Would you like to:
+- **Go with Lightning H100 for the 5B run?** (I can prep the notebook/script for Lightning)
+- **Switch to 2.5B tokens on the current TPU** to finish faster?
+- **Something else?**
+
+L13562 S13574 USER_INPUT
+Fine.
+First: I'm stopping the TPU run, and rather starting 100M 1:50 AR run there. That fine?
+
+L13587 S13599 PLANNER_RESPONSE
+**Yes, that is a great move.** Switching the TPU to the 100M AR (1:50, 5B tokens) run and delegating COROSRED to the H100 is the most practical division of labor.
+
+### Why this works much better on the TPU:
+
+1. **Significantly Faster Throughput (~220k–260k tok/s)**:
+   - Pure Autoregressive (AR) executes only a **single forward and backward causal pass** per microbatch.
+   - It bypasses:
+     - The second infilling forward/backward pass.
+     - The LRH reliability head forward/backward computation.
+     - The cross-device `xm.all_reduce()` LRH metric reductions every 25 steps.
+   - On TPU v5e-8, pure AR for 100M runs at **~0.75s–0.85s/step** (~230,000+ tok/s), compared to ~1.49s/step (~131k tok/s) for unified COROSRED.
+
+2. **Session Safety (~5.5 to 6 hours)**:
+   - At ~230k tok/s, 5B tokens finishes in **~5.5 to 6.0 hours**, comfortably well within your TPU session limit (~12 hours).
+
+3. **Disk & Memory Footprint**:
+   - Checkpoints have no reliability head weights (~420 MB each).
+   - With `--save-every 3500`, you will save ~7–8 checkpoints (~3.4 GB total), safely fitting within your 10 GB usable disk space.
+
+---
+
+### TPU Command for 100M 1:50 AR Run
+
+Stop the current run and run:
+
+[fenced code/output: original retained]
+
+*(This keeps the same 384 effective batch geometry and 25,432 total steps as your previous setup, but running at almost double the step rate).*
+
+---
+
+### What to run on Lightning AI (H100)
+
+Your **Lightning AI H100 (392.4 minutes / ~6.5 hours)** is ideal for the **100M COROSRED 5B** run:
+- An H100 with FlashAttention/SDPA handles dual-pass and infill conditioning with virtually zero memory latency, maintaining ~300k–400k+ tok/s.
+- That puts the full 5B COROSRED run at **~3.5 to 4.5 hours**, well within your 392-minute window.
+
+Whenever you're ready, let me know if you want the setup script / command for running COROSRED on Lightning AI.
+
+L13588 S13600 USER_INPUT
+Fine fine.
+As for Lightning AI H100:
+We have 80GB VRAM, 1TB storage, 24 CPUs.
+
+Give me the commands to run. Here we're doing direct CLI runs, not ipykernel.
+
+L13611 S13623 PLANNER_RESPONSE
+Here is the complete walkthrough and CLI commands to set up and run the **100M COROSRED (5B tokens / 1:50 ratio)** training run on your **Lightning AI H100 (80GB VRAM, 24 CPUs, 1TB Storage)**.
+
+---
+
+### Step 1: Clone Repository and Install Dependencies
+
+In your Lightning AI terminal:
+
+[fenced code/output: original retained]
+
+---
+
+### Step 2: Download the 5B Dataset from Hugging Face
+
+Download `python_corpus_5b.bin` and `python_corpus_5b.json` directly into `./data/`:
+
+[fenced code/output: original retained]
+
+*(You can verify the files with `ls -lh data/` — `python_corpus_5b.bin` should show ~9.3 GB).*
+
+---
+
+### Step 3: Run Training in a Detached Session (`tmux`)
+
+Start a `tmux` session so your training will not be interrupted if the browser tab disconnects:
+
+[fenced code/output: original retained]
+
+Inside `tmux`, launch the training run:
+
+[fenced code/output: original retained]
+
+To detach from tmux, press `Ctrl+B`, then release and press `D`.  
+To re-attach later:
+[fenced code/output: original retained]
+
+---
+
+### Why this configuration is optimal for H100 80GB:
+
+1. **Exact 1:1 Batch Geometry Alignment**:
+   - `batch-size 128` $\times$ `grad-accum 3` = **384 sequences per step** (196,608 tokens/step).
+   - Exactly **25,432 steps**, matching the TPU run's exact learning rate warmup, cosine decay schedule, and batch dynamics.
+2. **H100 Tensor Core Saturation**:
+   - Microbatch 128 at sequence length 512 (65,536 tokens/microbatch) completely saturates all 132 SMs and Tensor Cores on Hopper H100 with PyTorch native SDPA FlashAttention-2.
+   - VRAM usage will sit around ~12–15 GB, leaving ample headroom and avoiding memory fragmentation.
+3. **Speed & ETA**:
+   - Step latency on H100 is expected to be **~0.50s–0.60s per step** (~320k–390k tokens/sec).
+   - Total time: $25,432 \times 0.55\text{s} \approx 14,000\text{s}$ = **~3.9 hours**.
+   - This finishes well within your 392.4-minute (~6.5 hour) Lightning AI budget!
+
+L13612 S13624 USER_INPUT
+Hold on:
+Why BS128 GA3?
+
+We can run at BS384 no?
+80GB VRAM, once again.
+
+L13617 S13629 PLANNER_RESPONSE
+**You are completely right.** On an 80GB H100, running `--batch-size 384 --grad-accum 1` is not only possible—**it is strictly better and faster**.
+
+### Why BS 384 / GA 1 is better:
+
+1. **Why BS 128 GA 3 was originally picked**:
+   - That was the conservative default generated by `telos.configs.builder`, which keeps microbatches at 128 to ensure zero risk of OOM across varying context lengths and configurations on datacenter GPUs.
+
+2. **Peak VRAM on H100 (80GB)**:
+   - For a 100M model at `seq_len=512`, your static memory (weights + AdamW FP32 master states + gradients) is only **~1.8 GB**.
+   - With FlashAttention-2 (native PyTorch SDPA), activations for 384 sequences ($196\text{k}$ tokens) take **~30–35 GB** during the backward pass.
+   - Total peak memory will sit around **~35–38 GB**, leaving **>40 GB of free headroom** in your 80 GB VRAM.
+
+3. **Performance Gains over GA 3**:
+   - **Fewer kernel launches**: Instead of 6 forward/backward passes per step (3 causal + 3 infill), it does **only 2 passes** (1 causal of $B_c=288$ and 1 infill of $B_m=96$).
+   - **Higher Tensor Core saturation**: $B_c = 288$ sequences ($147\text{k}$ tokens) gives Hopper's 132 SMs much larger matrix multiplication tiles, maximizing Model FLOPs Utilization (MFU).
+   - Eliminates intermediate gradient accumulation buffer operations.
+
+---
+
+### Updated Command for BS 384 / GA 1
+
+[fenced code/output: original retained]
+
+This keeps the exact same **25,432 steps** and identical optimization dynamics, but executes with single-pass speed per step.
+
+L13618 S13630 USER_INPUT
+VRAM usage is...
+Impressively not as high as I thought.
+Only 28GB VRAM.
+
+Current ETA: 444m
+
+L13627 S13639 PLANNER_RESPONSE
+Two great pieces of news here:
+
+### 1. Why VRAM is only 28 GB (and not 50+ GB)
+- **FlashAttention-2 / SDPA**: On Hopper H100, native `torch.nn.functional.scaled_dot_product_attention` fuses attention operations entirely in SRAM. The attention matrix ($T \times T$) is never materialized in HBM memory.
+- **Sequential Sub-Batch Execution**: COROSRED runs the causal sub-batch ($B_c = 288$) and infill sub-batch ($B_m = 96$) sequentially in BF16, keeping peak activation memory exceptionally lean.
+- Running `batch-size 384` without gradient accumulation is clean, stable, and completely safe in your 80 GB card.
+
+---
+
+### 2. Why the 444m ETA will drop (and easily beat your 392m limit)
+In `telos.training.trainer_pytorch`, the reported throughput and ETA are calculated as a **cumulative average from step 0**:
+$$\text{sps} = \frac{\text{step}}{\text{total\_elapsed\_time}}$$
+
+- **Step 1 includes all startup overhead**: CUDA driver context initialization, PyTorch caching allocator pool reservation, disk mmap, and asynchronous prefetcher thread startup.
+- At an ETA of 444m, the cumulative step time is $\approx 1.05\text{s/step}$ (~0.95 st/s, ~187k tok/s).
+- **Steady-state step time on H100 is ~0.55s–0.65s/step** (~1.5–1.8 st/s, ~300k–350k tok/s).
+- As the run progresses past steps 10, 25, and 50, that initial startup cost amortizes away, and the ETA will steadily drop from **444m down toward ~250–280m (~4.2–4.6 hours)**.
+
+That gives you a comfortable **~110–140 minute safety buffer** under your 392.4-minute Lightning limit.
+
+What are the `st/s` and `tok/s` numbers looking like as it crosses steps 5–10?
+
+L13628 S13640 USER_INPUT
+Hold on.
+y=0.10 already. At step 825.
+Is that normal?
+
+L13641 S13653 PLANNER_RESPONSE
+**Yes, this is completely normal and functioning exactly as designed.**
+
+Here is why $\gamma$ is already at $0.10$, and how it differs from $\alpha$ and $\beta$:
+
+---
+
+### 1. $\gamma$ is an "Empirical Competence Gate", not a time-based decay
+In `telos.training.schedule`, $\gamma$ (the Learned Reliability Head auxiliary loss weight) has a specific safety gate:
+- **At Step 1**: The head is uninitialized and has random chance ranking ($\text{AUC} \approx 0.37\text{--}0.50$). $\gamma$ is held strictly at **$0.00$** so random noise from the head doesn't destabilize the transformer backbone.
+- **The Gate Rule**:
+  [fenced code/output: original retained]
+- As soon as the model learns basic syntax (indentation, newlines, keywords like `def`, `import`, `:`), the head quickly learns to discriminate between easy tokens and uncertain tokens.
+- Between steps 200–800, running AUC easily crosses **0.55** (above the 0.50 chance baseline).
+- Once the gate verifies real discrimination signal exists ($\text{AUC} \ge 0.55$), it opens $\gamma$ to its full target auxiliary weight of **$0.10$** ($10\%$ of loss).
+
+---
+
+### 2. How $\gamma$ differs from $\alpha$ and $\beta$
+Do not confuse $\gamma$ with $\alpha$ (causal weight) and $\beta$ (infill weight):
+- **$\alpha$ and $\beta$** follow the global polynomial schedule across all 25,432 steps:
+  - $\alpha$ is held at $0.85$ for the first $20\%$ of training ($\approx 5,086$ steps) to build strong autoregressive foundations before decaying toward $0.20$.
+  - $\beta$ is held at $0.15$ and ramps up toward $0.70$.
+- **$\gamma$** is just an auxiliary classification loss. It doesn't wait 5,000 steps—it turns on the moment the reliability head demonstrates it has learned real signal, and stays at $0.10$ to continuously train the head alongside causal and infill representations.
+
+---
+
+### Summary
+Everything is healthy:
+1. The head successfully passed the competence check.
+2. $\gamma=0.10$ is actively training the reliability head.
+3. As AUC continues to rise, `mask_blend` will gradually start routing masks toward the model's lowest-confidence tokens.
+
+*(Out of curiosity: what are the `Acc` and `AUC` values printed in that Step 825 log line?)*
+
+L13642 S13654 USER_INPUT
+[COROSRED-UNIFIED] Step    825/25432 | Loss: 2.6550 | C-CE: 2.665 | I-CE: 2.340 | α=0.85 β=0.15 γ=0.10 | Acc=0.63 AUC=0.62 |   1.0 st/s |   187,373 tok/s | ETA: 430.3m
+  [COROSRED-UNIFIED] Step    850/25432 | Loss: 2.4201 | C-CE: 2.461 | I-CE: 1.935 | α=0.85 β=0.15 γ=0.10 | Acc=0.63 AUC=0.62 |   1.0 st/s |   187,373 tok/s | ETA: 429.9m
+  [COROSRED-UNIFIED] Step    875/25432 | Loss: 2.5508 | C-CE: 2.615 | I-CE: 1.933 | α=0.85 β=0.15 γ=0.10 | Acc=0.63 AUC=0.62 |   1.0 st/s |   187,374 tok/s | ETA: 429.5m
+
+L13649 S13661 PLANNER_RESPONSE
+These logs tell us two very important things:
+
+### 1. Model Convergence is Phenomenal
+* **Loss dropped from 9.16 to 2.55** in just 875 steps.
+* **C-CE: 2.615 | I-CE: 1.933**: The bidirectional infilling loss is learning even faster than causal, which is characteristic of COROSRED.
+* **Acc=0.63 AUC=0.62**: This confirms our earlier point: the reliability head is already discriminating token predictability with an AUC of 0.62 (well above the 0.55 threshold), which is why $\gamma$ opened to 0.10.
+
+---
+
+### 2. The Time & Budget Reality Check
+Look closely at the timing between steps 825, 850, and 875:
+* In the logs: each 25 steps took **0.4 minutes (24 seconds)**.
+* That means your **true instantaneous step time is 0.96s per step** (~205,000 tokens/sec).
+* The printed `187,374 tok/s` and `429.5m ETA` are cumulative averages dragged down by the first 50 steps of startup.
+
+#### The Math:
+* Remaining steps: $25,432 - 875 = 24,557$ steps.
+* Real remaining time: $24,557 \times 0.96\text{s} = 23,574\text{s} \approx \mathbf{392.9\text{ minutes}}$.
+* Your Lightning AI budget: **392.4 minutes**.
+
+It is literally on the edge (within 30 seconds) of the 392.4-minute limit.
+
+---
+
+### Your Two Options:
+
+#### Option A: Let it run (Zero action needed)
+* Since `--save-every 3500` is active, checkpoints will be saved at steps:
+  * 3,500 (0.7B tokens)
+  * 7,000 (1.4B tokens)
+  * 10,500 (2.1B tokens)
+  * 14,000 (2.7B tokens)
+  * 17,500 (3.4B tokens)
+  * 21,000 (4.1B tokens)
+  * **24,500 (4.82B tokens — 96.3% complete)**
+* Even if Lightning AI pauses right around step 24,800–25,000, you will have the **Step 24,500 checkpoint** safely saved on disk (which for all practical and evaluation purposes is fully converged). And you still have Modal (84 min) if you ever wanted to run the last 900 steps.
+
+#### Option B: Restart with `--compile` now (Guaranteed finish with ~1.5h buffer)
+* Step 875 is only **14 minutes** into the run.
+* If you stop (`Ctrl+C`) and re-launch with `--compile`:
+  [fenced code/output: original retained]
+* `torch.compile` fuses RMSNorm, SwiGLU, and RoPE kernels on Hopper, cutting step time from ~0.96s down to **~0.65s–0.70s/step** (~280k–300k tok/s).
+* Total run time drops to **~280 minutes (~4.6 hours)**, guaranteeing completion with **over 1.5 hours of headroom** to spare on your 392-minute budget.
+
+Which path do you prefer? (Letting it run is totally fine thanks to the Step 24,500 checkpoint, but `--compile` removes any budget anxiety).
+
+L13650 S13662 USER_INPUT
+Doesn't matter if we run out of credits. We can continue on Modal, we have 80 minutes there.
+
+You sure you want to use --compile?
+
+Eh fuck. Fine.
+
+L13651 S13663 PLANNER_RESPONSE
+**WAIT! If you haven't hit `Ctrl+C` yet, DO NOT STOP IT! Keep it running!**
+
+Here is why:
+
+1. **Zero Need to Take Any Risk**:
+   If you have 80 minutes on Modal to finish the tail end if needed, **there is literally zero reason to kill a perfectly healthy run**.
+2. **Current Run is Flawlessly Stable**:
+   - Step 900+ is already banked.
+   - Loss is dropping fast (from 9.16 to 2.55).
+   - VRAM is rock solid at 28 GB with zero memory leaks.
+3. **The Hidden Friction of `torch.compile`**:
+   - `torch.compile` takes 3–5 minutes just to trace and build Inductor kernels on Step 1.
+   - In COROSRED, the model is called with **two different signatures** in the same step:
+     - `model(causal_seqs, mask_override=True, return_reliability=True)`
+     - `model(corrupted_infill, mask_override=False, return_reliability=False)`
+   - PyTorch's compiler often has to compile two separate subgraphs or risk subtle graph breaks on the conditional kwargs. It’s an unnecessary headache when your current eager run is already humming along at 205k tok/s.
+4. **Step 24,500 is 96.3% Trained Anyway**:
+   - The `--save-every 3500` will save Step 21,000 and Step 24,500 automatically before your Lightning credits run out.
+   - If Lightning shuts down at Step 24,800, you can either call it done (the last 2% has virtually identical loss) or resume the final 600 steps on Modal in 10 minutes.
+
+---
+
+### Bottom Line:
+* **If it is still running**: Leave it alone. Let it cook!
+* **If you already killed it**: Re-run the exact same command **without** `--compile`:
+  [fenced code/output: original retained]
+
+Did you stop it already, or is it still running?
+
+L13652 S13664 USER_INPUT
+I hit ctrl c. Rerunning with --compile.
+
+L13653 S13665 PLANNER_RESPONSE
+Understood, we are all in! 
+
+Two important heads-ups while it launches:
+
+1. **Step 1 will "pause" for 1–3 minutes**:  
+   Do not hit `Ctrl+C` if it seems frozen at step 1. PyTorch Inductor is tracing the forward/backward graph and generating fused Triton C++ kernels in the background. Once that finishes, it will resume automatically.
+2. **Watch Step 5 and Step 10**:  
+   Once compilation is done, you should see the step time drop and `st/s` jump up noticeably.
+
+Post the log line once it prints the first few steps!
+
+L13654 S13666 USER_INPUT
+--compile HEAVILY IMPROVES THINGS!
+
+ETA dropped to 255min
+
+L13655 S13667 PLANNER_RESPONSE
+**That is a massive win!** 
+
+Restarting with `--compile` was 100% the right call here. 
+
+### The Breakdown:
+* **Step Time**: Cut from $0.96\text{s}$ down to **$\approx 0.60\text{s}$ per step**.
+* **Throughput**: Jumped from $\approx 205\text{k}$ up to **$\approx 327,000\text{ tokens/sec}$**.
+* **ETA**: **255 minutes (~4.25 hours)**.
+* **Safety Margin**: Against your 392.4-minute budget, you now have a massive **~137-minute buffer (~2.3 hours of pure safety room)**! You won't even need Modal.
+
+### Current Status Across Both Clusters:
+| Model & Run | Hardware | Throughput | Est. Total Time | Session Limit | Status |
+|---|---|---|---|---|---|
+| **100M AR (5B tokens)** | TPU v5e-8 | ~230k–250k tok/s | ~5.5–6.0 hours | ~12 hours | ✅ Comfortably safe |
+| **100M COROSRED (5B tokens)** | Lightning H100 | ~325k+ tok/s | ~4.25 hours | ~6.5 hours | ✅ Comfortably safe |
+
+Both runs are now completely aligned on the exact same 5B-token (1:50) data schedule, with identical batch geometries and guaranteed full-session completion.
+
+You can safely detach from your `tmux` session (`Ctrl+B`, then `D`) and let the H100 do its work!
+
+L13656 S13668 USER_INPUT
+TPU v5e-8 is running the 100M AR run at 543ktok/s now - MOST LIKELY SATURATED THE WHOLE TPU. Which is good.
+
+ETA is 124 minutes.
+
