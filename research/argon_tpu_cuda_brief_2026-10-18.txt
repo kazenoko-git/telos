@@ -1,0 +1,207 @@
+# Independent investigation: Telos 50M unified COROSred TPU–CUDA quality gap
+
+Prepared 18 October 2026. This document is self-contained: it includes the key observations, historical context, checkpoint metadata, measurements, relevant source code, diagnostic implementations and source references. You do not have access to the author's filesystem. Local paths below identify provenance; their relevant contents are embedded here. Raw checkpoint weights and token corpora are not embedded.
+
+## Request to the independent investigator
+
+Investigate why the TPU-trained 50M unified COROSred models substantially underperform a CUDA-trained counterpart. Previous investigators have not established the cause. Do not adopt their conclusions as settled. Audit the evidence and code independently, including the diagnostic code itself.
+
+Return:
+
+1. Your best-supported explanation, or an explicit statement that the evidence does not identify one.
+2. At most three ranked hypotheses, each with the exact mechanism, relevant code, supporting evidence, conflicting evidence and a predicted observable result.
+3. Any errors in previous experimental interpretation or diagnostic implementation. A defective diagnostic can invalidate an inference without explaining the training gap.
+4. The smallest discriminating next test for each surviving hypothesis. Distinguish a test that can run locally now from one that actually requires a TPU. Avoid proposing another full training run by default.
+5. A clear distinction between a confirmed shared implementation defect and a demonstrated backend-specific cause.
+
+The user has been investigating this for a long time with Gemini, Claude and Codex. Effective batch size, token/data accounting and LR scaling have already been investigated repeatedly. Do not restart generic accounting checklists. Reopen an earlier exclusion only if you identify a concrete overlooked mechanism or evidence that invalidates it. The prior exclusions are user-reported historical findings, not a fresh complete independent proof supplied in this packet.
+
+FP32 parameters with BF16 autocast are an intentional performance choice on both training paths. Do not assume the TPU optimizer updates BF16 weights merely from the configuration saying bf16. Do not prescribe blanket FP32 training as the answer. Kaggle TPU access is scarce and currently unavailable to the user. The local Mac has CPU/MPS, no CUDA and no torch_xla; Kaggle credentials are not configured in the investigation session.
+
+## System and architecture
+
+Telos is a custom PyTorch language model. COROSred unified training combines causal next-token prediction, bidirectional masked-token infill and a learned reliability head in one loop. It is not a pretrained Gemma/Qwen evaluation problem. Earlier conversations about Gemma/Qwen throughput are unrelated to this training discrepancy.
+
+The eligible compared models share:
+
+- Vocabulary 8,192; context 512; width 512; 14 transformer layers; 8 query heads and 8 KV heads; tied embedding/output weights; RoPE; pre-RMSNorm; SwiGLU; reliability head enabled.
+- Current strict reconstruction counts **49,430,017 unique parameters**, including the reliability head. Embedded `_resolved_params=49,166,848` is a different recorded count; do not confuse that field with the measured unique-parameter count or silently interpret this discrepancy as untied embeddings.
+- Saved final global step 12,716.
+- Max LR 0.0004242640687119285; min LR 0.000042426406871192855; warmup 254 steps; AdamW betas (0.9, 0.95), epsilon 1e-8; weight decay 0.1 for decayed parameters; global gradient clipping threshold 1.
+- Intended FP32 parameters, BF16 autocast forward/loss. Current code disables manual master copies, re-ties after device transfer and deduplicates optimizer parameters.
+- Unified settings: alpha max 0.85, alpha min 0.50, beta min 0.15, beta max 0.35, gamma max 0.10, hold fraction 0.20, polynomial power 2.5, gamma ranking threshold 0.55, fallback accuracy threshold 0.65, causal ratio 0.65, mask probability 0.20, ambiguity top-k 5, routing-cache refresh interval 50, adaptive rebalancing false.
+- CUDA configuration records batch 192 and accumulation 2, one device. TPU records batch 48 and accumulation 1, eight devices. These facts are included for completeness, not as a request to repeat accounting work.
+- Corpus filenames differ between historical configurations; filenames alone do not establish content differences. No causal claim from this distinction has been established.
+
+Do not confuse the eligible unified models with older separate Phase A/B/C models. Those earlier models failed badly and are excluded. Another old experiment named `50m_2.5b` has different task settings and unequal saved embedding/output tensors; it is excluded from the backend comparison even though its configuration has a unified marker. Its optimizer moments are not used as evidence of the later TPU run's behavior.
+
+## Checkpoint identities and lineage warning
+
+Public model repository: https://huggingface.co/Kazenowoko/telos
+
+Pinned inventory revision: `d728840aada52094748903ddc56256807a0bfd61`.
+
+Relevant checkpoint labels:
+
+- CUDA: `checkpoints/corosred/50m_lightning/checkpoint_final.pt`.
+- TPU baseline endpoint: `checkpoints/corosred/unified/50m_python/checkpoint_final.pt`.
+- TPU objective-cadence-1 endpoint: `checkpoints/corosred/unified/50m_tpu_schedstep1/checkpoint_final.pt`.
+- TPU LR-and-objective-cadence-1 candidate endpoint: `checkpoints/corosred/unified/50m_tpu_lrcadence_schedstep1/checkpoint_final.pt` (available locally; absent from the pinned HF inventory).
+
+All three endpoints in the original comparison store FP32 tensors and equal embedding/output tensor values. Equality in a saved state does not establish original in-memory aliasing. CUDA saves optimizer moments; the eligible TPU endpoints/intermediates omit them.
+
+Crucially, **the `50m_python` directory cannot be assumed to represent one continuous run**. Its step-4,000/8,000/12,000 files explicitly record LR/objective cadence 1; its final file records LR cadence 10 and lacks those overrides. The step-12,000 weights have relative L2 distance 0.024999 and cosine 0.999688 to the local LR-and-objective-cadence-1 final, but distance 1.240007/cosine 0.228330 to the final stored beside them. The separate matching endpoint is a strong lineage candidate, not a proven resume chain. Weight proximity alone is not a training manifest.
+
+The eligible HF files were hash-verified locally against the pinned remote inventory. CUDA files were uploaded 14 September; TPU Python files 18 September 2026. Upload dates are not training dates. The saved files do not identify exact source commits or runtime versions.
+
+## What actually happened in training, versus present-day evaluation
+
+Older validation trajectory records at step 12,716:
+
+| Endpoint | Historical recorded causal CE | Historical recorded infill CE |
+|---|---:|---:|
+| CUDA | 1.3870304823 | 1.0212213993 |
+| TPU baseline | 1.9093503952 | 1.7630840540 |
+| TPU objective-cadence-1 | 1.8766576052 | 1.6967291832 |
+
+These are retained historical records, not regenerated with today's evaluator. Exact original validation inputs/implementation are not reconstructed. New evaluations below use different specified inputs and must not replace these numbers in the historical trajectory.
+
+## New endpoint measurements, actually executed locally
+
+Common CPU FP32 evaluator; dropout/checkpointing disabled; explicit causal attention for next-token prediction and explicit bidirectional attention for infill; no optimizer update. Two corpus slices of 16 sequences each, length 512, at token offsets 6 billion and 7 billion in local `python_corpus_15b.bin`. Uint16 interpretation was explicit, consistent with the earlier scripts; a sidecar proving this format was unavailable. Document-level absence from training is not established.
+
+Four microbatches per slice, same seed-42 corruption mask across models; probability 0.20, first position preserved. Causal and infill gradients are separately token-weighted means over the entire slice. Reliability loss excluded. Geometry uses normalized alpha 0.50 and beta 0.35. This is the current declared task objective, not a reconstruction of historical training loss.
+
+Pooled across both slices:
+
+| Endpoint | Causal CE | Causal top-1 | Infill CE | Infill top-1 |
+|---|---:|---:|---:|---:|
+| CUDA | 1.56465 | 67.01% | 1.08619 | 77.05% |
+| TPU baseline | 2.06959 | 60.68% | 1.78634 | 67.55% |
+| TPU objective-cadence-1 | 2.04450 | 61.14% | 1.71204 | 68.20% |
+
+CUDA has lower loss for both tasks in all eight paired microbatches against both TPU endpoints. All measured gradients were finite. Overall causal-versus-infill gradient cosine within each model was positive on both slices. No TPU layer group showed negative cosine. CUDA had one slightly negative layer on slice 2 (layers.1, -0.01255). The infill weighted gradient norm exceeded the causal weighted norm in every endpoint, including CUDA. No TPU-specific endpoint task-conflict pattern was found. None of these observations establishes what happened during historical training.
+
+## Intermediate measurements, same first-slice evaluator
+
+| Checkpoint | Step | Causal CE | Infill CE | Within-model task-gradient cosine |
+|---|---:|---:|---:|---:|
+| CUDA | 1,271 | 2.20181 | 2.40955 | 0.1571 |
+| CUDA | 3,813 | 1.74667 | 1.65492 | 0.1252 |
+| CUDA | 7,626 | 1.55809 | 1.23012 | 0.0874 |
+| CUDA | 11,439 | 1.48908 | 1.09837 | 0.0968 |
+| TPU cadence-1 intermediate | 4,000 | 2.43701 | 2.82393 | 0.2688 |
+| TPU cadence-1 intermediate | 8,000 | 2.11615 | 2.11556 | 0.2155 |
+| TPU cadence-1 intermediate | 12,000 | 1.99400 | 1.80241 | 0.1678 |
+| TPU cadence-1 candidate final | 12,716 | 1.99400 | 1.77821 | 0.1858 |
+
+The deficit is present by the earliest eligible TPU intermediate at step 4,000, even relative to CUDA step 1,271. This does not locate the first divergent update. TPU continues improving. These sparse observations do not prove an irreducible loss floor, establish continuous-run lineage, or rule out between-save instability. Nearby steps are not exact matched steps.
+
+## Cadence findings and their limits
+
+There are distinct LR, objective-step and metric-feedback cadences. `sched_cadence=1` alone did not isolate LR cadence: the objective-only endpoint still saves LR scheduler cadence 10. The LR-and-objective-cadence-1 candidate saves LR cadence 1 and still has a deficit. No independently recovered complete metric-cadence trace exists.
+
+A synthetic replay fed identical per-step metrics: 0.50 until step 999, then 0.60. This is a deliberately invented step response, not recovered training telemetry.
+
+| Tracker | Metric-update cadence | First gamma-active step |
+|---|---:|---:|
+| Historical EMA | 1 | 1,069 |
+| Historical EMA | 25 | 2,701 |
+| Current cadence-adjusted EMA | 1 | 1,069 |
+| Current cadence-adjusted EMA | 25 | 1,051 |
+
+Current correction is `decay_eff=max(0,1-cadence*(1-0.99))`; it is a linear time-constant approximation, not exact equivalence to sampling all fine-grained measurements. Alpha/beta were identical across these metric-only replays because nominal alpha/beta depend on progress rather than reliability metrics, with adaptive rebalancing disabled.
+
+Quantized LR cadence 10 changes summed applied LR by +0.0580%; cadence 25 by +0.1547%. Max nominal alpha differences from objective-step quantization: 0.000773 at cadence 10, 0.002059 at cadence 25. Small schedule differences alone do not prove small long-run training effects.
+
+Actual source inspection and controlled backward tests found:
+
+1. Reliability scores use `reliability_head(h.detach())`; BCE has no direct gradient into the backbone.
+2. The trainer refresh guard calls `schedule.get_weights(step)` **without EMA arguments**. That always returns mask_blend 0. A new empty routing cache is therefore not populated through this guard. Both the inspected historical and current sources share this defect.
+3. With an empty cache, random-mask fallback ignores the requested positive blend.
+4. In a tiny controlled model, changing gamma 0 to 0.1 and blend 0 to 0.8 left backbone gradients exactly identical before clipping, in both current and representative historical loss implementations.
+5. Global clipping includes head and backbone. Head gradients can therefore indirectly rescale backbone updates when clipping is active. Clipping threshold 1 was inactive in the tiny probe; forcing threshold 0.25 demonstrated this indirect effect. The measured max change 0.00009583 is a tiny-model mechanism check, not the historical 50M effect size.
+6. CUDA/CPU validation probes additionally feed ROC-AUC into the tracker at checkpoint boundaries; multi-core TPU skips these probes. Training accelerator feedback uses balanced accuracy as its ranking proxy. This is a real source asymmetry, not a demonstrated explanation of the gap.
+
+Do not conclude that a shared routing defect explains TPU-specific degradation, or that the detached head proves all cadence effects impossible: the global-clipping route remains.
+
+## Optimizer and numerical probes actually executed
+
+A fixed 50M CPU probe from the CUDA final used eight 64-token sequences, a frozen mask and weights alpha .7/beta .3/gamma .1. Independent captures exactly matched across 267 recorded forward/gradient/update tensors. Diagnostic loss 1.6790300608; preclip norm 7.4013557434. This was a fresh-optimizer, one-device operator probe, not a distributed trainer or original resume. A CPU BF16 smoke probe detected differences, confirming the comparator was not always returning zero. No actual TPU/CUDA capture exists.
+
+A subsequent CPU-only ordinary-versus-fused AdamW replay used the CUDA final's saved optimizer moments at step 12,716, independently cloned weights/states and the same captured FP32 gradient tensors. Eight prescribed scaled/sign-changed gradients were applied, seven clipped at threshold 1 and one unclipped. All **49,430,017 parameters and both moments matched bit for bit after every update**. Dispatch instrumentation confirmed 16 ordinary and 16 fused calls. Aliasing checks and tests verified states were independent; deliberately different gradients produced detectable differences. Parameter group sizes and moment shapes match current order, but original checkpoint has no per-parameter name manifest.
+
+This tests CPU implementations in local PyTorch 2.13.0. It does NOT test CUDA fused kernels, XLA lowering, distributed reduction, original TPU moments, or BF16 forward/backward execution. Treating it as accelerator parity would be an error.
+
+A separate CPU float64 algebra check compared gradient averaging with scaled sequential accumulation: 20 AdamW updates, eight prescribed contributions, identical aggregate gradients/states produced zero parameter/moment differences. Re-averaging identical replicas changed values by at most 2.22e-16. This rejects a generic algebraic "distributed Adam variance damping" claim, not actual runtime defects.
+
+## Historical investigations and corrections
+
+The retained 19 September user statement reports prior investigations of FP32 causal-mask infinities, identical loss coefficients across cores, loss-pooling algebra, fixed task-slot effects, lexical skew, effective batch/token/LR accounting and coherent raw model outputs. Precision and FP32/master-weight handling had already been investigated. These are coverage reports; the packet does not recreate every historical experiment.
+
+Earlier proposed explanations were overclaimed:
+
+- Distributed averaging before Adam does not intrinsically change moments compared with equivalent accumulation when resulting gradients/state are identical.
+- Repeated averaging of already identical gradients does not introduce a universal additional factor 1/world_size. A current trainer comment claims otherwise; it is mathematically misleading. Repeated collectives can still affect communication/numerical rounding.
+- `xm.optimizer_step` is not known to supply mysterious additional optimizer graph tracking. Reviewed v2.8 code reduces gradients, calls optimizer.step, and optionally synchronizes. Exact historical installed build was not recovered.
+- BF16 output logits do not prove BF16 cross-entropy intermediates under autocast, much less actual underflow.
+- An earlier gradient audit was canceled before final tables yet followed by a claimed diagnosis. It also omitted explicit bidirectional attention and compared 50M CUDA against larger TPU models. Its claimed resolution is not trusted.
+- A claimed universal copying threshold around CE 1.4 is unsupported.
+
+Verified source chronology:
+
+- 14 September: `29840d2`, on-device re-tying and optimizer deduplication.
+- 17 September: `a2f09a0`, explicit cadence controls; used as representative historical source in the local audit, not proven source for every checkpoint.
+- 20 September: `def9953`, seed initialization and XLA RNG synchronization.
+- 22 September: `a8a2386`, configurable shared cadence defaults; `ebc7cae`, corrected task-mean objective; `3c1331b`, cadence-dependent EMA; `44ccf63`, pass actual metric cadence.
+
+The reviewed October 6 archive recap still proposed new training with corrected code. Completed evaluations of older weights do not establish successful paired post-fix retraining. No such completed paired retraining was found in the reviewed archive segments; this is not proof none exists anywhere.
+
+## Historical versus current objective
+
+Representative historical code at a2f09a0 uses:
+
+```python
+w_c = B_c / B
+w_m = B_m / B
+causal_seq_norm = causal_loss_sum / (B_c * (T - 1))
+infill_seq_norm = infill_loss_sum / (B_m * (T - 1))
+pooled = (alpha*w_c*causal_seq_norm + beta*w_m*infill_seq_norm) / (alpha*w_c + beta*w_m)
+loss = pooled + gamma * reliability_bce
+```
+
+Current corrected code uses:
+
+```python
+causal_mean = causal_loss_sum / causal_target_count
+infill_mean = infill_loss_sum / masked_target_count
+pooled = (alpha*causal_mean + beta*infill_mean) / (alpha + beta)
+loss = pooled + gamma * reliability_bce
+```
+
+New endpoint-gradient measurements use separate current task means, not the historical pooling. A common historical objective defect is not automatically a backend differentiator.
+
+## Environment evidence
+
+The old Kaggle bootstrap cell shown by the user clears selected stale TPU environment variables, kills lingering VFIO device holders, clones/fetches the repository and resets to origin/main, then executes `pip install -q --no-deps -e .`. The screenshot shows clearing `TPU_PROCESS_ADDRESSES`, `CLOUD_TPU_TASK_ID`, `XLA_PERSISTENT_CACHE_PATH` and `LIBTPU_INIT_ARGS`. The screenshot is cropped; do not infer the complete cleared-variable list.
+
+It preserves Kaggle's preinstalled Torch/XLA stack rather than upgrading dependencies. This establishes the intended environment source, not exact torch/torch_xla/libtpu versions. Pulling origin/main means identical notebook cells could execute different Telos commits. No usable historical runtime-version output was found in the targeted archived chats. Do not demand that the currently away-from-home user produce inaccessible Kaggle output.
+
+## Documented external precedents: context, not diagnosis
+
+- https://github.com/pytorch/xla/pull/8094 — merged September 2024, enabled FP32 cross-entropy autocasting. Example HLO (AWS Neuron) shows why a final FP32 loss could hide BF16 intermediates. It is a shared XLA policy fix, not a reproduction of this TPU failure. Reviewed v2.8 policy already includes it.
+- https://github.com/pytorch/xla/pull/7878 — August 2024 norm-result dtype fix under AMP, tagged XLA GPU. Confirms historical integration defects; does not establish a TPU clipping bug in our runtime.
+- https://github.com/huggingface/pytorch-image-models/discussions/934 — researchers reported lower short-run TPU DeiT accuracy; recipe/LR differences complicated the comparison, and longer training reportedly caught up. Not proof of an inherent TPU penalty.
+- https://github.com/pytorch/xla/issues/5755 — unresolved visible report of accuracy drop after TPU load/save, even without training. A checkpoint report, not the same demonstrated convergence mechanism.
+- https://docs.pytorch.org/docs/2.14/notes/numerical_accuracy.html — numerical/kernel differences are documented; ordinary rounding differences alone do not explain this sustained observed gap.
+- https://docs.pytorch.org/docs/2.14/generated/torch.nn.functional.scaled_dot_product_attention.html — attention implementations can differ numerically. Telos uses this API; no kernel-level comparison has been captured.
+- https://github.com/pytorch/xla/blob/v2.8.0/torch_xla/core/xla_model.py — reviewed reduction/optimizer wrapper semantics.
+- https://github.com/pytorch/xla/blob/v2.8.0/torch_xla/csrc/autocast_mode.cpp — reviewed FP32 loss autocast registrations.
+
+## What the evidence currently permits
+
+A substantial learned-quality deficit is confirmed under a common evaluator. It is already present by the earliest eligible TPU save. Simple LR/objective cadence-1 experiments did not remove it. No TPU-specific endpoint task-gradient conflict was found. Several shared code defects and historical experimental interpretation problems are documented. Actual matched CUDA-versus-XLA forward/backward/reduction/clipping/update captures are absent.
+
+The remaining possibilities include an unmeasured runtime/operator/precision difference, historical execution differences not recorded in configs, or effects of optimization trajectories not isolated by endpoint tests. This packet does not establish which is responsible. Challenge those possibilities rather than rebranding uncertainty as "TPU quirk" or claiming a cause merely because its mechanism is conceivable.
+
+The appendices below provide the actual source and compact machine-readable evidence so you can reason beyond this summary.
