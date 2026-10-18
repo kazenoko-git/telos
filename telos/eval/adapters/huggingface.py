@@ -76,7 +76,7 @@ class HuggingFaceAdapter(BaseModelAdapter):
         gen_kwargs: Dict[str, Any] = {
             "max_new_tokens": max_new_tokens,
             "pad_token_id": self.tokenizer.pad_token_id,
-            "eos_token_id": self.tokenizer.eos_token_id,
+            "eos_token_id": self.model.generation_config.eos_token_id or self.tokenizer.eos_token_id,
         }
 
         if temperature > 0.0:
