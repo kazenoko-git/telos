@@ -1,0 +1,522 @@
+[
+  {
+    "task_id": "MBPP/2",
+    "prompt": "def similar_elements(test_tup1, test_tup2):\n  \"\"\"Write a function to find the shared elements from the given two lists.\"\"\"\n",
+    "ar_draft": "  # your code here\n  # return the list of elements that are common to both lists\n  # example: if the input is (1,2,3,4,5,6) and (2,3,4,5,6,7), the output is [2,3,4,5,6]\n  # if the input is (1,2,3,4,5,6) and (2,3,4,5,6,7), the output is [2,3,4,5,6]\n  # if the input is (1,2,3",
+    "ar_passed": false,
+    "ar_outcome": "TIMEOUT",
+    "policy1_single": {
+      "text": "  # your code here\n  # return the list of elements that are common to both lists\n  # example: if the input is (1,2,3,4,5,6) and (2,3,4,5,6,7), the output is [2,3,4,5,6]\n  # if the input is (1,2,3,4,5,6) and (2,3,4,5,6,7), the output is [2,3,4,5,6]\n  # if the input is (1,2,3",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "latency": 0.9244143749820068
+    },
+    "policy2_budget_k3": {
+      "text": "  # the code here\n  # return the list of elements that are common to both lists\n  # example: if the input is (1,2,3,4,5,6) and (2,3,4,5,6,7), the output is [2,3,4,5,6]\n  # if the input is (1,2,3,4,5,6) and (2,3,4,5,6,7), the output is [2,3,4,5,6]\n  # if the input is (1,2,3",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "latency": 0.2642384589998983
+    },
+    "policy3_iterative": {
+      "text": "  # the code here\n  # return the list of elements that are common to both lists\n  # test: if the input is (1,2,3,4,5,6) and (2,3,4,5,6,7), the output is [2,3,4,5,6]\n  # if the input is (1,2,3,4,5,6) and (2,3,4,5,6,7), the output is [2,3,4,5,6]\n  # if the input is (1,2,3",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "passes": 3,
+      "latency": 0.5650064579676837
+    }
+  },
+  {
+    "task_id": "MBPP/3",
+    "prompt": "import math\n\ndef is_not_prime(n):\n    \"\"\"Write a python function to identify non-prime numbers.\"\"\"\n",
+    "ar_draft": "    if n < 2:\n        return True\n    for i in range(2, int(math.sqrt(n)) + 1):\n        if n % i == 0:\n            return True\n    return False\n\ndef is",
+    "ar_passed": true,
+    "ar_outcome": "PASSED",
+    "policy1_single": {
+      "text": "    if n < 2:\n        return True\n    for i in range(2, int(math.sqrt(n)) + 1):\n        if n % i == 0:\n            return True\n    return False\n\ndef __",
+      "passed": true,
+      "outcome": "PASSED",
+      "latency": 0.2004070000257343
+    },
+    "policy2_budget_k3": {
+      "text": "    if n < 2:\n        return True\n    for i in range(2, int(math.sqrt(n)) + 1):\n        if n % i == 0:\n            return True\n    return False\n\ndef __",
+      "passed": true,
+      "outcome": "PASSED",
+      "latency": 0.17049087496707216
+    },
+    "policy3_iterative": {
+      "text": "    if n < 2:\n        return True\n    for i in range(2, int(math.sqrt(n)) + 1):\n        if n % i == 0:\n            return True\n    return False\n\ndef __",
+      "passed": true,
+      "outcome": "PASSED",
+      "passes": 3,
+      "latency": 0.28440208302345127
+    }
+  },
+  {
+    "task_id": "MBPP/4",
+    "prompt": "import heapq as hq\n\ndef heap_queue_largest(nums,n):\n  \"\"\"Write a function to find the n largest integers from a given list of numbers, returned in descending order.\"\"\"\n",
+    "ar_draft": "  # create a max heap\n  max_heap = hq.MaxHeap()\n  for num in nums:\n    max_heap.push(num)\n  # create a min heap\n  min_heap = hq.MinHeap()\n  for num in nums:\n    min_heap.push(num)\n  # find the n largest numbers\n  # max_heap is a max heap, so the largest is at the top\n  # min_heap is a min heap, so the smallest is at the top\n  # but we need to find the n largest numbers\n  # so we can pop n elements from the max heap\n  # and then compare",
+    "ar_passed": false,
+    "ar_outcome": "RUNTIME_EXCEPTION",
+    "policy1_single": {
+      "text": "  # create a max heap\n  max_heap = hq.MaxHeap()\n  for num in nums:\n    max_heap.push(num)\n  # create a min heap\n  min_heap = hq.MinHeap()\n  for num in nums:\n    min_heap.push(num)\n  # find the n largest numbers\n  # max_heap is a max heap, so the largest is at the top\n  # min_heap is a min heap, so the smallest is at the top\n  # but we need to find the n largest numbers\n  # so we can pop n elements from the max heap\n  # and then compare",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "latency": 0.7475150840473361
+    },
+    "policy2_budget_k3": {
+      "text": "  # create a max heap\n  max_heap = hq.MaxHeap()\n  for num in nums:\n    max_heap.push(num)\n  # create a min heap\n  min_heap = hq.MinHeap()\n  for num in nums:\n    min_heap.push(num)\n  # find the n largest numbers\n  # max_heap is a max heap, so the largest is at the top\n  # min_heap is a min heap, so the smallest is at the top\n  # and we need to find the n largest numbers\n  # so we can pop n elements from the max heap\n  # and then compare",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "latency": 0.21980741701554507
+    },
+    "policy3_iterative": {
+      "text": "  # create a max heap\n  max_heap = hq.MaxHeap()\n  for num in nums:\n    max_heap.push(num)\n  # create a min heap\n  min_heap = hq.MinHeap()\n  for num in nums:\n    min_heap.push(num)\n  # find the n largest numbers\n  # max_heap is a max heap, so the largest is at the top\n  # min_heap is a min heap, so the smallest is at the top\n  # and we need to find the n largest numbers\n  # so we can pop n elements from the max heap\n  # and then compare",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "passes": 3,
+      "latency": 0.37321191700175405
+    }
+  },
+  {
+    "task_id": "MBPP/6",
+    "prompt": "def is_Power_Of_Two (x): \n    return x and (not(x & (x - 1)))\n\ndef differ_At_One_Bit_Pos(a,b): \n    \"\"\"Write a python function to check whether the two numbers differ at one bit position only or not.\"\"\"\n",
+    "ar_draft": "    return (a ^ b) & (a ^ b - 1)\n\ndef main",
+    "ar_passed": false,
+    "ar_outcome": "FAILED_ASSERTION",
+    "policy1_single": {
+      "text": "    return (a ^ b) & (a ^ b - 1)\n\ndef return",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.39025441597914323
+    },
+    "policy2_budget_k3": {
+      "text": "    return (a ^ b) & (a ^ b - 1)\n\n    return",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.18875408300664276
+    },
+    "policy3_iterative": {
+      "text": "    return (a ^ b) & (a ^ b - 1)\n\ndef return",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "passes": 3,
+      "latency": 0.3816129999468103
+    }
+  },
+  {
+    "task_id": "MBPP/7",
+    "prompt": "import re\n\ndef find_char_long(text):\n  \"\"\"Write a function to find all words which are at least 4 characters long in a string.\"\"\"\n",
+    "ar_draft": "  # Your code here\n  # The function should return a list of all such words\n  # The function should not return anything\n  # The function should not return a string\n  # The function should not return a list\n  # The function should not return a boolean\n  # The function should not return a number\n  # The function should not return a dictionary\n  # The function should not return a tuple\n  # The function should not return a set\n  # The function should not return a class\n  # The function should not return a variable\n  # The function should not return a function\n",
+    "ar_passed": false,
+    "ar_outcome": "RUNTIME_EXCEPTION",
+    "policy1_single": {
+      "text": "  # Your code here\n  # The function should return a list of all such words\n  # The function should not return anything\n  # The function should not return a string\n  # The function should not return a list\n  # The function should not return a boolean\n  # The function should not return a number\n  # The function should not return a dictionary\n  # The function should not return a tuple\n  # The function should not return a set\n  # The function should not return a class\n  # The function should not return a variable\n  # The function should not return a function\n",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "latency": 0.777522082964424
+    },
+    "policy2_budget_k3": {
+      "text": "  # write code here\n  # The function should return a list of all such words\n  # The function should not return anything\n  # The function should not return a string\n  # The function should not return a list\n  # The function should not return a boolean\n  # The function should not return a number\n  # The function should not return a dictionary\n  # The function should not return a tuple\n  # The function should not return a set\n  # The function should not return a class\n  # The function should not return a variable\n  # The function should not return a function\n",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "latency": 0.20277929096482694
+    },
+    "policy3_iterative": {
+      "text": "  # Write code here\n  # The function should return a list of all such words\n  # The function should not return anything\n  # The function should not return a string\n  # The function should not return a list\n  # The function should not return a boolean\n  # The function should not return a number\n  # The function should not return a dictionary\n  # The function should not return a tuple\n  # The function should not return a set\n  # The function should not return a class\n  # The function should not return a variable\n  # The function should not return a function\n",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "passes": 3,
+      "latency": 0.3684520829701796
+    }
+  },
+  {
+    "task_id": "MBPP/8",
+    "prompt": "def square_nums(nums):\n \"\"\"Write a function to find squares of individual elements in a list.\"\"\"\n",
+    "ar_draft": "    squares = []\n    for num in nums:\n        squares.append(num ** 2)\n    return squares\n\n# Test the function\nnums = [1, 2, 3, 4, 5]\nsquares = square_nums(nums)\nprint(squares)  # Output: [1, 4, 9, 16, 25]\n\n# Test the function with a list of strings\nnums = [\"apple\", \"banana\", \"cherry\"]\nsquares = square_nums(nums)\nprint(squares)  # Output: ['apple', 'banana', 'cherry']\n\n# Test the function with",
+    "ar_passed": false,
+    "ar_outcome": "SYNTAX_ERROR",
+    "policy1_single": {
+      "text": "    squares = []\n    for num in nums:\n        squares.append(num ** 2)\n    return squares\n\n# Test the function\nnums = [1, 2, 3, 4, 5]\nsquares = square_nums(nums)\nprint(squares)  # Output: [1, 4, 9, 16, 25]\n\n# Test the function with a list of strings\nnums = [\"apple\", \"banana\", \"cherry\"]\nsquares = square_nums(nums)\nprint(squares)  # Output: ['apple', 'banana', 'cherry']\n\n# Test the function with",
+      "passed": false,
+      "outcome": "SYNTAX_ERROR",
+      "latency": 0.2629158339696005
+    },
+    "policy2_budget_k3": {
+      "text": "    squares = []\n    for num in nums:\n        squares.append(num ** 2)\n    return squares\n\n# Test the function\nnums = [1, 2, 3, 4, 5]\nsquares = square_nums(nums)\nprint(squares)  # Output: [1, 4, 9, 16, 25]\n\n# Test the function with a list of strings\nnums = [\"apple\", \"banana\", \"cherry\"]\nsquares = square_nums(nums)\nprint(squares)  # Output: ['apple', 'banana', 'cherry']\n\n# Test the function with",
+      "passed": false,
+      "outcome": "SYNTAX_ERROR",
+      "latency": 0.2381227919831872
+    },
+    "policy3_iterative": {
+      "text": "    squares = []\n    for num in nums:\n        squares.append(num ** 2)\n    return squares\n\n# Test the function\nnums = [1, 2, 3, 4, 5]\nsquares = square_nums(nums)\nprint(squares)  # Output: [1, 4, 9, 16, 25]\n\n# Test the function with a list of strings\nnums = [\"apple\", \"banana\", \"cherry\"]\nsquares = square_nums(nums)\nprint(squares)  # Output: ['apple', 'banana', 'cherry']\n\n# Test the function with",
+      "passed": false,
+      "outcome": "SYNTAX_ERROR",
+      "passes": 3,
+      "latency": 0.397128792013973
+    }
+  },
+  {
+    "task_id": "MBPP/9",
+    "prompt": "def find_Rotations(str): \n    \"\"\"Write a python function to find the minimum number of rotations (greater than 0) required to get the same string.\"\"\"\n",
+    "ar_draft": "    # your code here\n    # O(n^2) time and O(1) space\n    # n is the length of the string\n    n = len(str)\n    # if the string is empty, return 0\n    if n == 0:\n        return 0\n    # if the string is of length 1, return 0\n    if n == 1:\n        return 0\n    # if the string is of length 2, return 1\n    if n == 2:\n        return 1\n    # if the string is of length 3, return ",
+    "ar_passed": false,
+    "ar_outcome": "FAILED_ASSERTION",
+    "policy1_single": {
+      "text": "    # your code here\n    # O(n^2) time and O(1) space\n    # n is the length of the string\n    n = len(str)\n    # if the string is empty, return 0\n    if n == 0:\n        return 0\n    # if the string is of length 1, return 0\n    if n == 1:\n        return 0\n    # if the string is of length 2, return 1\n    if n == 2:\n        return 1\n    # if the string is of length 3, return ",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.6924749169847928
+    },
+    "policy2_budget_k3": {
+      "text": "    # the code here\n    # log(n^2) time and O(1) space\n    # n is the length of the string\n    n = len(str)\n    # if the string is empty, return 0\n    if n == 0:\n        return 0\n    # if the string is of length 1, return 0\n    if n == 1:\n        return 0\n    # if the string is of length 2, return 1\n    if n == 2:\n        return 1\n    # if the string is of length 3, return ",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.22094670904334635
+    },
+    "policy3_iterative": {
+      "text": "    # the code here\n    # log(n^2) time and O(1) space\n    # n is the length of the string\n    n = len(str)\n    # if the string is empty, return 0\n    if n == 0:\n        return 0\n    # if the string is of length 1, return 0\n    if n == 1:\n        return 0\n    # if the string is of length 2, return 1\n    if n == 2:\n        return 1\n    # if the string is of length 3, return ",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "passes": 3,
+      "latency": 0.38066608301596716
+    }
+  },
+  {
+    "task_id": "MBPP/11",
+    "prompt": "def remove_Occ(s,ch): \n    \"\"\"Write a python function to remove first and last occurrence of a given character from the string.\"\"\"\n",
+    "ar_draft": "    s = s[:i] + s[i+1:] \n    return s \n\ndef main",
+    "ar_passed": false,
+    "ar_outcome": "RUNTIME_EXCEPTION",
+    "policy1_single": {
+      "text": "    s = s[:i] + s[i+1:] \n    return s \n\ndef main",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "latency": 0.8835276250028983
+    },
+    "policy2_budget_k3": {
+      "text": "    s = s[:i] + s[i+1] \n    return s \n\ndef main",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "latency": 0.19643487501889467
+    },
+    "policy3_iterative": {
+      "text": "    s = s[:i] + s[i+1] \n    return s \n\ndef main",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "passes": 3,
+      "latency": 0.2977976669790223
+    }
+  },
+  {
+    "task_id": "MBPP/12",
+    "prompt": "def sort_matrix(M):\n    \"\"\"Write a function to sort a given matrix in ascending order according to the sum of its rows.\"\"\"\n",
+    "ar_draft": "    # Your code here\n    # Convert the matrix to a list of lists\n    matrix = [row for row in M]\n    # Sort the matrix by the sum of each row\n    matrix.sort(key=lambda x: sum(x))\n    return matrix\n\n# Test the function\nmatrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]\nprint(sort_matrix(matrix))  # Should output [[1, 2, 3], [4, 5, 6], [7, 8, 9]]\nmatrix = [[1,",
+    "ar_passed": true,
+    "ar_outcome": "PASSED",
+    "policy1_single": {
+      "text": "    # Your code here\n    # Convert the matrix to a list of lists\n    matrix = [row for row in M]\n    # Sort the matrix by the sum of each row\n    matrix.sort(key=lambda x: sum(x))\n    return matrix\n\n# Test the function\nmatrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]\nprint(sort_matrix(matrix))  # Should output [[1, 2, 3], [4, 5, 6], [7, 8, 9]]\nmatrix = [[1,",
+      "passed": true,
+      "outcome": "PASSED",
+      "latency": 0.2519355840049684
+    },
+    "policy2_budget_k3": {
+      "text": "    # Write code here\n    # Convert the matrix to a list of lists\n    matrix = [row for row in M]\n    # Sort the matrix by the sum of each row\n    matrix.sort(key=lambda x: sum(x))\n    return matrix\n\n# Test the function\nmatrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]\nprint(sort_matrix(matrix))  # Should output [[1, 2, 3], [4, 5, 6], [7, 8, 9]]\nmatrix = [[1,",
+      "passed": true,
+      "outcome": "PASSED",
+      "latency": 0.24591387499822304
+    },
+    "policy3_iterative": {
+      "text": "    # Write code here\n    # Convert the matrix to a list of lists\n    matrix = [row for row in M]\n    # Sort the matrix by the sum of each row\n    matrix.sort(key=lambda x: sum(x))\n    return matrix\n\n# Test the function\nmatrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]\nprint(sort_matrix(matrix))  # Should output [[1, 2, 3], [4, 5, 6], [7, 8, 9]]\nmatrix = [[1,",
+      "passed": true,
+      "outcome": "PASSED",
+      "passes": 3,
+      "latency": 0.601002250041347
+    }
+  },
+  {
+    "task_id": "MBPP/14",
+    "prompt": "def find_Volume(l,b,h) : \n    \"\"\"Write a python function to find the volume of a triangular prism.\"\"\"\n",
+    "ar_draft": "    # calculate the area of the base\n    base_area = (l * b) / 2\n    # calculate the volume\n    volume = base_area * h\n    return volume\n\n# call the function\nvolume = find_Volume(3,4,5)\nprint(volume)\n\n# expected output: 30\n\n# test case 1: input 3,4,5\n# test case 2: input 6,8,10\n# test case 3: input 1,2,3\n# test case 4: input 5,5,5\n# test case",
+    "ar_passed": true,
+    "ar_outcome": "PASSED",
+    "policy1_single": {
+      "text": "    # calculate the area of the base\n    base_area = (l * b) / 2\n    # calculate the volume\n    volume = base_area * h\n    return volume\n\n# call the function\nvolume = find_Volume(3,4,5)\nprint(volume)\n\n# expected output: 30\n\n# test case 1: input 3,4,5\n# test case 2: input 6,8,10\n# test case 3: input 1,2,3\n# test case 4: input 5,5,5\n# test case",
+      "passed": true,
+      "outcome": "PASSED",
+      "latency": 0.2679041670053266
+    },
+    "policy2_budget_k3": {
+      "text": "    # calculate the area of the base\n    base_area = (l * b) / 2\n    # calculate the volume\n    volume = base_area * h\n    return volume\n\n# call the function\nvolume = find_Volume(3,4,5)\nprint(volume)\n\n# expected output: 30\n\n# test case 1: input 3,4,5\n# test case 2: input 6,8,10\n# test case 3: input 1,2,3\n# test case 4: input 5,5,5\n# test case",
+      "passed": true,
+      "outcome": "PASSED",
+      "latency": 0.2515042500454001
+    },
+    "policy3_iterative": {
+      "text": "    # calculate the area of the base\n    base_area = (l * b) / 2\n    # calculate the volume\n    volume = base_area * h\n    return volume\n\n# call the function\nvolume = find_Volume(3,4,5)\nprint(volume)\n\n# expected output: 30\n\n# test case 1: input 3,4,5\n# test case 2: input 6,8,10\n# test case 3: input 1,2,3\n# test case 4: input 5,5,5\n# test case",
+      "passed": true,
+      "outcome": "PASSED",
+      "passes": 3,
+      "latency": 0.4731756250257604
+    }
+  },
+  {
+    "task_id": "MBPP/16",
+    "prompt": "import re\n\ndef text_lowercase_underscore(text):\n        \"\"\"Write a function to that returns true if the input string contains sequences of lowercase letters joined with an underscore and false otherwise.\"\"\"\n",
+    "ar_draft": "        return re.search(r'([a-z0-9_]+)', text)\n\ndef main",
+    "ar_passed": false,
+    "ar_outcome": "FAILED_ASSERTION",
+    "policy1_single": {
+      "text": "        return re.search(r'([a-z0-9_]+)', text)\n\ndef text",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.18572687497362494
+    },
+    "policy2_budget_k3": {
+      "text": "        assert re.search(r'([a-z0-9_]+', text)\n\ndef text",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "latency": 0.17303133400855586
+    },
+    "policy3_iterative": {
+      "text": "        assert re.search(r'([a-z0-9_]+', text)\n\ndef text",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "passes": 3,
+      "latency": 0.38102708401856944
+    }
+  },
+  {
+    "task_id": "MBPP/17",
+    "prompt": "def square_perimeter(a):\n  \"\"\"Write a function that returns the perimeter of a square given its side length as input.\"\"\"\n",
+    "ar_draft": "  return 4 * a\n\ndef square",
+    "ar_passed": true,
+    "ar_outcome": "PASSED",
+    "policy1_single": {
+      "text": "  return 4 * a\n\ndef a",
+      "passed": true,
+      "outcome": "PASSED",
+      "latency": 0.4352700419840403
+    },
+    "policy2_budget_k3": {
+      "text": "  = 4 * a\n\n the,",
+      "passed": false,
+      "outcome": "SYNTAX_ERROR",
+      "latency": 0.1885586659773253
+    },
+    "policy3_iterative": {
+      "text": "  = 4 * a\n\n. =",
+      "passed": false,
+      "outcome": "SYNTAX_ERROR",
+      "passes": 3,
+      "latency": 0.27857429103460163
+    }
+  },
+  {
+    "task_id": "MBPP/18",
+    "prompt": "NO_OF_CHARS = 256\ndef str_to_list(string): \n\ttemp = [] \n\tfor x in string: \n\t\ttemp.append(x) \n\treturn temp \ndef lst_to_string(List): \n\treturn ''.join(List) \ndef get_char_count_array(string): \n\tcount = [0] * NO_OF_CHARS \n\tfor i in string: \n\t\tcount[ord(i)] += 1\n\treturn count\n\ndef remove_dirty_chars(string, second_string): \n\t\"\"\"Write a function to remove characters from the first string which are present in the second string.\"\"\"\n",
+    "ar_draft": "\t# your code here\n\t# first, create a count array for the second string\n\t# then, iterate through the first string and count the characters\n\t# if the count is zero, keep it, else remove it\n\t# but how to do this?\"\"\"\n\t# first, create a count array for the second string\n\t# then, iterate through the first string and count the characters\n\t# if the count is zero, keep it, else remove it\n\t# but how to do this?\"\"\"\n\t# create a count array for the second string\n\t# then, iterate through the first string",
+    "ar_passed": false,
+    "ar_outcome": "FAILED_ASSERTION",
+    "policy1_single": {
+      "text": "\t# write code here\n\t# first, create a count array for the second string\n\t# then, iterate through the first string and count the characters\n\t# if the count is zero, keep it, else remove it\n\t# but how to do this?\"\"\"\n\t# first, create a count array for the second string\n\t# then, iterate through the first string and count the characters\n\t# if the count is zero, keep it, else remove it\n\t# but how to do this?\"\"\"\n\t# create a count array for the second string\n\t# then, iterate through the first string",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 1.1326260829810053
+    },
+    "policy2_budget_k3": {
+      "text": "\t# your code here\n\t# first, create a count array for the second string\n\t# then, iterate through the first string and count the characters\n\t# if the count is zero, keep it, else remove it\n\t# but how to do this?\"\"\"\n\t# first, create a count array for the second string\n\t# then, iterate through the first string and count the characters\n\t# if the count is zero, keep it, else remove it\n\t# but how to do this?\"\"\"\n\t# create a count array for the second string\n\t# then, iterate through the first string",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.29403808299684897
+    },
+    "policy3_iterative": {
+      "text": "\t# write code here\n\t# first, create a count array for the second string\n\t# then, iterate through the first string and count the characters\n\t# if the count is zero, keep it, else remove it\n\t# but how to do this?\"\"\"\n\t# first, create a count array for the second string\n\t# then, iterate through the first string and count the characters\n\t# if the count is zero, keep it, else remove it\n\t# but how to do this?\"\"\"\n\t# create a count array for the second string\n\t# then, iterate through the first string",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "passes": 3,
+      "latency": 0.40366004104726017
+    }
+  },
+  {
+    "task_id": "MBPP/19",
+    "prompt": "def test_duplicate(arraynums):\n    \"\"\"Write a function to find whether a given array of integers contains any duplicate element.\"\"\"\n",
+    "ar_draft": "    # your code here\n    # first, check if the array is empty\n    if not arraynums:\n        return False\n    # check if the array has any duplicates\n    # first, check if the array has any duplicates by checking if the length is not equal to the sum of the unique elements\n    # sum of unique elements is len(arraynums) - duplicates\n    # if len(arraynums) != len(arraynums) - duplicates, then there are duplicates\n    # but how to find duplicates? Well, we can use a set to check for duplicates\n    # but since the array is passed as a",
+    "ar_passed": false,
+    "ar_outcome": "FAILED_ASSERTION",
+    "policy1_single": {
+      "text": "    # your code here\n    # First, check if the array is empty\n    if not arraynums:\n        return False\n    # check if the array has any duplicates\n    # first, check if the array has any duplicates by checking if the length is not equal to the sum of the unique elements\n    # sum of unique elements is len(arraynums) - duplicates\n    # if len(arraynums) != len(arraynums) - duplicates, then there are duplicates\n    # but how to find duplicates? Well, we can use a set to check for duplicates\n    # but since the array is passed as a",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.7080547910300083
+    },
+    "policy2_budget_k3": {
+      "text": "    # the code here\n    # First, check if the array is empty\n    if not arraynums:\n        return False\n    # check if the array has any duplicates\n    # First, check if the array has any duplicates by checking if the length is not equal to the sum of the unique elements\n    # sum of unique elements is len(arraynums) - duplicates\n    # if len(arraynums) != len(arraynums) - duplicates, then there are duplicates\n    # but how to find duplicates? Well, we can use a set to check for duplicates\n    # but since the array is passed as a",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.2537270000320859
+    },
+    "policy3_iterative": {
+      "text": "    # the code here\n    # First, check if the array is empty\n    if not arraynums:\n        return False\n    # check if the array has any duplicates\n    # First, check if the array has any duplicates by checking if the length is not equal to the sum of the unique elements\n    # sum of unique elements is len(arraynums) - duplicates\n    # if len(arraynums) != len(arraynums) - duplicates, then there are duplicates\n    # but how to find duplicates? Well, we can use a set to check for duplicates\n    # but since the array is passed as a",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "passes": 3,
+      "latency": 0.5235548330238089
+    }
+  },
+  {
+    "task_id": "MBPP/20",
+    "prompt": "def is_woodall(x): \n\t\"\"\"Write a function to check if the given number is woodball or not.\"\"\"\n",
+    "ar_draft": "\t# your code here\n\t# woodball is a number that is divisible by 3 and 5\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a",
+    "ar_passed": false,
+    "ar_outcome": "FAILED_ASSERTION",
+    "policy1_single": {
+      "text": "\t# your code here\n\t# woodball is a number that is divisible by 3 and 5\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.2724047909723595
+    },
+    "policy2_budget_k3": {
+      "text": "\t# the code here\n\t# woodball is a number that is divisible by 3 and 5\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.2570593749987893
+    },
+    "policy3_iterative": {
+      "text": "\t# the code here\n\t# woodball is a number that is divisible by 3 and 5\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a prime number\n\t# and has at least 3 digits\n\t# and is a",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "passes": 3,
+      "latency": 0.4897229580092244
+    }
+  },
+  {
+    "task_id": "MBPP/56",
+    "prompt": "def rev(num):    \n    rev_num = 0\n    while (num > 0):  \n        rev_num = (rev_num * 10 + num % 10) \n        num = num // 10  \n    return rev_num\n\ndef check(n):    \n    \"\"\"Write a python function to check if a given number is one less than twice its reverse.\"\"\"\n",
+    "ar_draft": "    rev = rev(n)  \n    if (n - 1) == (2 * rev):  \n        return True  \n    else:  \n        return False\n\ndef main",
+    "ar_passed": false,
+    "ar_outcome": "RUNTIME_EXCEPTION",
+    "policy1_single": {
+      "text": "    n = rev(n)  \n    if (n - 1) == (2 * rev):  \n        return True  \n    else:  \n        return False\n\ndef main",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "latency": 0.2154757910175249
+    },
+    "policy2_budget_k3": {
+      "text": "    n = rev(n) \n    if (n - 1) == (2 * rev):  \n        return True  \n    else:  \n        return False\n\n def main",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "latency": 0.19643704197369516
+    },
+    "policy3_iterative": {
+      "text": "    n = rev(n) \n    if (n - 1) == (2 * rev):  \n        return True  \n    else:  \n        return False\n\n def main",
+      "passed": false,
+      "outcome": "RUNTIME_EXCEPTION",
+      "passes": 3,
+      "latency": 0.36589158297283575
+    }
+  },
+  {
+    "task_id": "MBPP/57",
+    "prompt": "def find_Max_Num(arr) : \n    \"\"\"Write a python function to find the largest number that can be formed with the given list of digits.\"\"\"\n",
+    "ar_draft": "    # your code here\n    # convert the list to a string and then to a list\n    # then sort the list in descending order\n    # then join the list into a string and return\n    # but wait, the list is a list of integers, not strings\n    # so we need to convert each element to a string first\n    # then sort the list in descending order\n    # then join the list into a string and return\n    # but wait, the list is a list of integers, not strings\n    # so we need to convert each element to a string first\n    # then sort",
+    "ar_passed": false,
+    "ar_outcome": "FAILED_ASSERTION",
+    "policy1_single": {
+      "text": "    # your code here\n    # convert the list to a string and then to a list\n    # then sort the list in descending order\n    # then join the list into a string and return\n    # but wait, the list is a list of integers, not strings\n    # so we need to convert each element to a string first\n    # then sort the list in descending order\n    # then join the list into a string and return\n    # but wait, the list is a list of integers, not strings\n    # so we need to convert each element to a string first\n    # then sort",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.5132924999925308
+    },
+    "policy2_budget_k3": {
+      "text": "    # the code here\n    # convert the list to a string and then to a list\n    # then sort the list in descending order\n    # then join the list into a string and return\n    # but wait, the list is a list of integers, not strings\n    # so we need to convert each element to a string first\n    # then sort the list in descending order\n    # then join the list into a string and return\n    # but wait, the list is a list of integers, not strings\n    # so we need to convert each element to a string first\n    # then sort",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.26080749998800457
+    },
+    "policy3_iterative": {
+      "text": "    # your code here\n    # convert the list to a string and then to a list\n    # then sort the list in descending order\n    # then join the list into a string and return\n    # but wait, the list is a list of integers, not strings\n    # so we need to convert each element to a string first\n    # then sort the list in descending order\n    # then join the list into a string and return\n    # but wait, the list is a list of integers, not strings\n    # so we need to convert each element to a string first\n    # then sort",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "passes": 3,
+      "latency": 0.4402717089978978
+    }
+  },
+  {
+    "task_id": "MBPP/58",
+    "prompt": "def opposite_Signs(x,y): \n    \"\"\"Write a python function to check whether the given two integers have opposite sign or not.\"\"\"\n",
+    "ar_draft": "    if x < 0 and y < 0:\n        return True\n    elif x > 0 and y < 0:\n        return False\n    elif x < 0 and y > 0:\n        return True\n    else:\n        return False\n\n# Test the function\nx = 5\ny = -3\nprint(opposite_Signs(x,y))  # Output: True\n\nx = 5\ny = -5\nprint(opposite_Signs(x,y))  # Output: True\n\nx = -5\ny = 3\nprint(opposite_Signs(x,y",
+    "ar_passed": false,
+    "ar_outcome": "FAILED_ASSERTION",
+    "policy1_single": {
+      "text": "    if x < 0 and y < 0:\n        return True\n    elif x > 0 and y < 0:\n        return False\n    elif x < 0 and y > 0:\n        return True\n    else:\n        return False\n\n# Test the function\nx = 5\ny = -3\nprint(opposite_Signs(x,y))  # Output: True\n\nx = 5\ny = -5\nprint(opposite_Signs(x,y))  # Output: True\n\nx = -5\ny = 3\nprint(opposite_Signs(x,y",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.2613277079653926
+    },
+    "policy2_budget_k3": {
+      "text": "    if x < 0 and y < 0:\n        return True\n    elif x > 0 and y < 0:\n        return False\n    elif x < 0 and y > 0:\n        return True\n    else:\n        return False\n\n# Test the function\nx = 5\ny = -3\nprint(opposite_Signs(x,y))  # Output: True\n\nx = 5\ny = -5\nprint(opposite_Signs(x,y))  # Output: True\n\nx = -5\ny = 3\nprint(opposite_Signs(x,y",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.267888291971758
+    },
+    "policy3_iterative": {
+      "text": "    if x < 0 and y < 0:\n        return True\n    elif x > 0 and y < 0:\n        return False\n    elif x < 0 and y > 0:\n        return True\n    else:\n        return False\n\n # Test the function\nx = 5\ny = -3\nprint(opposite_Signs(x,y))  # Output: True\n\nx = 5\ny = -5\nprint(opposite_Signs(x,y))  # Output: True\n\nx = -5\ny = 3\nprint(opposite_Signs(x,y",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "passes": 3,
+      "latency": 0.4162044170079753
+    }
+  },
+  {
+    "task_id": "MBPP/59",
+    "prompt": "def is_octagonal(n): \n\t\"\"\"Write a function to find the nth octagonal number.\"\"\"\n",
+    "ar_draft": "\t# calculate the nth octagonal number\n\t# formula: n*(n+1)*(3n+1)/2\n\t# check if the result is integer\n\t# if it is, return True, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return",
+    "ar_passed": false,
+    "ar_outcome": "FAILED_ASSERTION",
+    "policy1_single": {
+      "text": "\t# calculate the nth octagonal number\n\t# formula: n*(n+1)*(3n+1)/2\n\t# check if the result is integer\n\t# if it is, return True, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.2696501669706777
+    },
+    "policy2_budget_k3": {
+      "text": "\t# find the nth octagonal number\n\t# formula: n*(n+1)*(3n+1)/2\n\t# check if the result is integer\n\t# if it is, return True, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.24719304096652195
+    },
+    "policy3_iterative": {
+      "text": "\t# find the nth octagonal number\n\t# formula: n*(n+1)*(3n+1)/2\n\t# check if the result is integer\n\t# if it is, return True, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return True if the result is integer, else False\n\t# return",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "passes": 3,
+      "latency": 0.41774920898023993
+    }
+  },
+  {
+    "task_id": "MBPP/61",
+    "prompt": "from collections import defaultdict\n\ndef count_Substrings(s):\n    \"\"\"Write a python function to count the number of substrings with the sum of digits equal to their length.\"\"\"\n",
+    "ar_draft": "    # your code here\n    # count the number of substrings with sum of digits equal to their length\n    # for example, if s is \"1234\", then the substrings are \"1\", \"2\", \"3\", \"4\", \"12\", \"23\", \"34\", \"123\", \"234\", \"1234\"\n    # and the sum of digits for each substring is equal to their length\n    # so the answer is 10 for this example\n    # but for the code, we need to count all substrings\n    #",
+    "ar_passed": false,
+    "ar_outcome": "FAILED_ASSERTION",
+    "policy1_single": {
+      "text": "    # your code here\n    # count the number of substrings with sum of digits equal to their length\n    # for example, if s is \"1234\", then the substrings are \"1\", \"2\", \"3\", \"4\", \"12\", \"23\", \"34\", \"123\", \"234\", \"1234\"\n    # and the sum of digits for each substring is equal to their length\n    # so the answer is 10 for this example\n    # but for the code, we need to count all substrings\n    #",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.4965207090135664
+    },
+    "policy2_budget_k3": {
+      "text": "    # write code here\n    # count the number of substrings with sum of digits equal to their length\n    # # example, if s is \"1234\", then the substrings are \"1\", \"2\", \"3\", \"4\", \"12\", \"23\", \"34\", \"123\", \"234\", \"1234\"\n    # and the sum of digits for each substring is equal to their length\n    # so the answer is 10 for this example\n    # but for the code, we need to count all substrings\n    #",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "latency": 0.23666933295316994
+    },
+    "policy3_iterative": {
+      "text": "    # write code here\n    # count the number of substrings with sum of digits equal to their length\n    # the example, if s is \"1234\", then the substrings are \"1\", \"2\", \"3\", \"4\", \"12\", \"23\", \"34\", \"123\", \"234\", \"1234\"\n    # and the sum of digits for each substring is equal to their length\n    # so the answer is 10 for this example\n    # but for the code, we need to count all substrings\n    #",
+      "passed": false,
+      "outcome": "FAILED_ASSERTION",
+      "passes": 3,
+      "latency": 0.39392208302160725
+    }
+  }
+]

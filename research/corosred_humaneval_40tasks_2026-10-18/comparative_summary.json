@@ -1,0 +1,77 @@
+{
+  "suite": "humaneval",
+  "total_tasks": 40,
+  "timestamp": 1792327063,
+  "pinned_revisions": {
+    "ar_model": "Qwen/Qwen3-0.6B @ c1899de289a04d12100db370d81485cdf75e47ca",
+    "diff_model": "dllm-hub/Qwen3-0.6B-diffusion-mdlm-v0.1 @ c8d24a3f4adaeef46881b450e1bf7d1005203bd7"
+  },
+  "decoding_parameters": {
+    "temperature": 0.0,
+    "max_new_tokens": 128,
+    "mdlm_block_size": 32,
+    "mdlm_steps": 32,
+    "corosred_margin_threshold": 0.5,
+    "corosred_entropy_threshold": 1.0
+  },
+  "systems": {
+    "native_ar": {
+      "pass_at_1_pct": 42.5,
+      "ast_validity_pct": 100.0,
+      "total_time_seconds": 221.34,
+      "mean_latency_per_task": 5.534,
+      "outcomes": {
+        "PASSED": 17,
+        "FAILED_ASSERTION": 18,
+        "SYNTAX_ERROR": 0,
+        "TIMEOUT": 1,
+        "RUNTIME_EXCEPTION": 4,
+        "MEMORY_EXCEEDED": 0
+      }
+    },
+    "native_mdlm": {
+      "pass_at_1_pct": 0.0,
+      "ast_validity_pct": 7.5,
+      "total_time_seconds": 187.77,
+      "mean_latency_per_task": 4.694,
+      "outcomes": {
+        "PASSED": 0,
+        "FAILED_ASSERTION": 1,
+        "SYNTAX_ERROR": 37,
+        "TIMEOUT": 0,
+        "RUNTIME_EXCEPTION": 2,
+        "MEMORY_EXCEEDED": 0
+      }
+    },
+    "corosred": {
+      "pass_at_1_pct": 20.0,
+      "ast_validity_pct": 87.5,
+      "total_time_seconds": 220.97,
+      "mean_latency_per_task": 5.524,
+      "outcomes": {
+        "PASSED": 8,
+        "FAILED_ASSERTION": 19,
+        "SYNTAX_ERROR": 5,
+        "TIMEOUT": 0,
+        "RUNTIME_EXCEPTION": 8,
+        "MEMORY_EXCEEDED": 0
+      },
+      "routing_frequency": "40/40 (100.0%)",
+      "total_mdlm_forward_passes": 40,
+      "drafts_fixed_count": 0,
+      "drafts_fixed_task_ids": [],
+      "drafts_broken_count": 9,
+      "drafts_broken_task_ids": [
+        "HumanEval/4",
+        "HumanEval/8",
+        "HumanEval/14",
+        "HumanEval/15",
+        "HumanEval/21",
+        "HumanEval/23",
+        "HumanEval/28",
+        "HumanEval/31",
+        "HumanEval/34"
+      ]
+    }
+  }
+}

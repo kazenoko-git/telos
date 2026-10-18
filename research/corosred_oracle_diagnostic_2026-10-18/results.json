@@ -1,0 +1,43 @@
+{
+  "diagnostic_suite": "MBPP Offline Oracle Single-Token Diagnostic",
+  "sample_size": 15,
+  "timestamp": 1792343016,
+  "drafts_with_executable_code": 13,
+  "comment_only_drafts": 2,
+  "total_eligible_tokens_scanned": 317,
+  "total_effective_edits_tested": 61,
+  "drafts_with_any_successful_repair": 2,
+  "repairable_percentage": 13.3,
+  "all_successful_repairs": [
+    {
+      "task_id": "MBPP/3",
+      "position": 9,
+      "original_token_id": 3007,
+      "original_token_str": " True",
+      "replacement_token_id": 3557,
+      "replacement_token_str": " False",
+      "replacement_prob": 0.6863899827003479,
+      "ar_entropy": 0.26008492708206177,
+      "entropy_rank": "10/33",
+      "ar_margin": 0.8954360485076904,
+      "margin_rank": "10/33",
+      "original_code": "    if n < 2:\n        return True\n    for i in range(2, int(math.sqrt(n)) + 1):\n        if n % i == 0:\n            return True\n    return False\n",
+      "repaired_code": "    if n < 2:\n        return False\n    for i in range(2, int(math.sqrt(n)) + 1):\n        if n % i == 0:\n            return True\n    return False\n"
+    },
+    {
+      "task_id": "MBPP/58",
+      "position": 3,
+      "original_token_id": 366,
+      "original_token_str": " <",
+      "replacement_token_id": 861,
+      "replacement_token_str": " >",
+      "replacement_prob": 0.5773288011550903,
+      "ar_entropy": 1.8779672384262085,
+      "entropy_rank": "3/44",
+      "ar_margin": 0.035492122173309326,
+      "margin_rank": "1/44",
+      "original_code": "    if x < 0 and y < 0:\n        return True\n    elif x > 0 and y < 0:\n        return False\n    elif x < 0 and y > 0:\n        return True\n    else:\n        return False\n\n# Test the function\nx = 5\ny = -3",
+      "repaired_code": "    if x > 0 and y < 0:\n        return True\n    elif x > 0 and y < 0:\n        return False\n    elif x < 0 and y > 0:\n        return True\n    else:\n        return False\n\n# Test the function\nx = 5\ny = -3"
+    }
+  ]
+}

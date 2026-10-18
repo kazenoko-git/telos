@@ -1,0 +1,30 @@
+Prepared 4 cases at research/qwen3_attention_probe_2026-10-18/smoke; no model loaded.
+Traceback (most recent call last):
+  File "/Users/ivansamuel/Documents/Projects/telos/scripts/probe_qwen3_attention.py", line 314, in <module>
+    main()
+    ~~~~^^
+  File "/Users/ivansamuel/Documents/Projects/telos/scripts/probe_qwen3_attention.py", line 310, in main
+    run(args, cases, tokenizer, model_dir)
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ivansamuel/Documents/Projects/telos/scripts/probe_qwen3_attention.py", line 222, in run
+    custom = forward(case, "zero", "causal")[:, 0, :]
+             ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ivansamuel/Documents/Projects/telos/scripts/probe_qwen3_attention.py", line 210, in forward
+    h = layer(h, mask=mask, cache=None)
+  File "/tmp/telos-qwen-attention-probe/lib/python3.13/site-packages/mlx_lm/models/qwen3.py", line 133, in __call__
+    r = self.self_attn(self.input_layernorm(x), mask, cache)
+  File "/tmp/telos-qwen-attention-probe/lib/python3.13/site-packages/mlx_lm/models/qwen3.py", line 96, in __call__
+    output = scaled_dot_product_attention(
+        queries, keys, values, cache=cache, scale=self.scale, mask=mask
+    )
+  File "/tmp/telos-qwen-attention-probe/lib/python3.13/site-packages/mlx_lm/models/base.py", line 132, in scaled_dot_product_attention
+    return mx.fast.scaled_dot_product_attention(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        queries,
+        ^^^^^^^^
+    ...<4 lines>...
+        sinks=sinks,
+        ^^^^^^^^^^^^
+    )
+    ^
+ValueError: [scaled_dot_product_attention] Mask type must promote to output type bfloat16.
