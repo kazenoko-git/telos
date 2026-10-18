@@ -1,0 +1,938 @@
+[
+  {
+    "path": "checkpoints/corosred/unified/50m_2.5b/checkpoint_step_6000.pt",
+    "step": 6000,
+    "keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 512,
+        "n_layers": 14,
+        "n_heads": 8,
+        "n_kv_heads": 8,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 12716,
+        "max_lr": 0.0004242640687119285,
+        "min_lr": 4.2426406871192855e-05,
+        "warmup_steps": 254,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16"
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/50m_2.5b",
+        "save_every_steps": 3000
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 49166848,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.2,
+        "beta_min": 0.15,
+        "beta_max": 0.7,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.1,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.6,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5
+      },
+      "paradigm": "corosred"
+    },
+    "scheduler": {
+      "warmup_steps": 254,
+      "max_steps": 12716,
+      "min_lr": 4.2426406871192855e-05,
+      "update_cadence": 10,
+      "base_lrs": [
+        0.0004242640687119285,
+        0.0004242640687119285
+      ],
+      "last_epoch": 6000,
+      "_step_count": 6001,
+      "_is_initial": false,
+      "_get_lr_called_within_step": false,
+      "_last_lr": [
+        0.00025662990618328257,
+        0.00025662990618328257
+      ]
+    }
+  },
+  {
+    "path": "checkpoints/corosred/unified/50m_2.5b/checkpoint_step_1000.pt",
+    "step": 1000,
+    "keys": [
+      "global_step",
+      "model_state_dict",
+      "optimizer_state_dict",
+      "scheduler_state_dict",
+      "config"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 512,
+        "n_layers": 14,
+        "n_heads": 8,
+        "n_kv_heads": 8,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 12716,
+        "max_lr": 0.0004242640687119285,
+        "min_lr": 4.2426406871192855e-05,
+        "warmup_steps": 254,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16"
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/50m_2.5b",
+        "save_every_steps": 1000
+      },
+      "data": {
+        "train_path": "data/python_corpus_2.5b.bin"
+      },
+      "_resolved_params": 49166848,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.2,
+        "beta_min": 0.15,
+        "beta_max": 0.7,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.75,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.15,
+        "k_amb": 5
+      },
+      "paradigm": "corosred"
+    },
+    "scheduler": {
+      "warmup_steps": 254,
+      "max_steps": 12716,
+      "min_lr": 4.2426406871192855e-05,
+      "update_cadence": 10,
+      "base_lrs": [
+        0.0004242640687119285,
+        0.0004242640687119285
+      ],
+      "last_epoch": 1000,
+      "_step_count": 1001,
+      "_is_initial": false,
+      "_get_lr_called_within_step": false,
+      "_last_lr": [
+        0.00042089786562103437,
+        0.00042089786562103437
+      ]
+    },
+    "optimizer_groups": [
+      {
+        "weight_decay": 0.1,
+        "lr": 0.00042089786562103437,
+        "betas": [
+          0.9,
+          0.95
+        ],
+        "eps": 1e-08,
+        "amsgrad": false,
+        "maximize": false,
+        "foreach": null,
+        "capturable": false,
+        "differentiable": false,
+        "fused": null,
+        "decoupled_weight_decay": true,
+        "initial_lr": 0.0004242640687119285
+      },
+      {
+        "weight_decay": 0.0,
+        "lr": 0.00042089786562103437,
+        "betas": [
+          0.9,
+          0.95
+        ],
+        "eps": 1e-08,
+        "amsgrad": false,
+        "maximize": false,
+        "foreach": null,
+        "capturable": false,
+        "differentiable": false,
+        "fused": null,
+        "decoupled_weight_decay": true,
+        "initial_lr": 0.0004242640687119285
+      }
+    ],
+    "optimizer_steps": [
+      1000.0
+    ]
+  },
+  {
+    "path": "checkpoints/corosred/unified/50m_2.5b/checkpoint_final.pt",
+    "step": 12716,
+    "keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 512,
+        "n_layers": 14,
+        "n_heads": 8,
+        "n_kv_heads": 8,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 12716,
+        "max_lr": 0.0004242640687119285,
+        "min_lr": 4.2426406871192855e-05,
+        "warmup_steps": 254,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16"
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/50m_2.5b",
+        "save_every_steps": 3000
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 49166848,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.2,
+        "beta_min": 0.15,
+        "beta_max": 0.7,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.1,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.6,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5
+      },
+      "paradigm": "corosred"
+    },
+    "scheduler": {
+      "warmup_steps": 254,
+      "max_steps": 12716,
+      "min_lr": 4.2426406871192855e-05,
+      "update_cadence": 10,
+      "base_lrs": [
+        0.0004242640687119285,
+        0.0004242640687119285
+      ],
+      "last_epoch": 12716,
+      "_step_count": 12717,
+      "_is_initial": false,
+      "_get_lr_called_within_step": false,
+      "_last_lr": [
+        4.2426406871192855e-05,
+        4.2426406871192855e-05
+      ]
+    }
+  },
+  {
+    "path": "checkpoints/corosred/unified/50m_seed/checkpoint_step_6000.pt",
+    "step": 6000,
+    "keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 512,
+        "n_layers": 14,
+        "n_heads": 8,
+        "n_kv_heads": 8,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 12716,
+        "max_lr": 0.0004242640687119285,
+        "min_lr": 4.2426406871192855e-05,
+        "warmup_steps": 254,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16",
+        "seed": 42,
+        "sched_cadence": 1
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/50m_seed",
+        "save_every_steps": 2000
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 49166848,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "seed": 42,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.6,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.65,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5,
+        "sched_cadence": 1
+      },
+      "paradigm": "corosred"
+    },
+    "scheduler": {
+      "warmup_steps": 254,
+      "max_steps": 12716,
+      "min_lr": 4.2426406871192855e-05,
+      "update_cadence": 10,
+      "base_lrs": [
+        0.0004242640687119285,
+        0.0004242640687119285
+      ],
+      "last_epoch": 6000,
+      "_step_count": 6001,
+      "_is_initial": false,
+      "_get_lr_called_within_step": false,
+      "_last_lr": [
+        0.00025662990618328257,
+        0.00025662990618328257
+      ]
+    }
+  },
+  {
+    "path": "checkpoints/corosred/unified/50m_seed/checkpoint_step_4000.pt",
+    "step": 4000,
+    "keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 512,
+        "n_layers": 14,
+        "n_heads": 8,
+        "n_kv_heads": 8,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 12716,
+        "max_lr": 0.0004242640687119285,
+        "min_lr": 4.2426406871192855e-05,
+        "warmup_steps": 254,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16",
+        "seed": 42,
+        "sched_cadence": 1
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/50m_seed",
+        "save_every_steps": 2000
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 49166848,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "seed": 42,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.6,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.65,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5,
+        "sched_cadence": 1
+      },
+      "paradigm": "corosred"
+    },
+    "scheduler": {
+      "warmup_steps": 254,
+      "max_steps": 12716,
+      "min_lr": 4.2426406871192855e-05,
+      "update_cadence": 10,
+      "base_lrs": [
+        0.0004242640687119285,
+        0.0004242640687119285
+      ],
+      "last_epoch": 4000,
+      "_step_count": 4001,
+      "_is_initial": false,
+      "_get_lr_called_within_step": false,
+      "_last_lr": [
+        0.0003452761780797113,
+        0.0003452761780797113
+      ]
+    }
+  },
+  {
+    "path": "checkpoints/corosred/unified/50m_seed/checkpoint_step_2000.pt",
+    "step": 2000,
+    "keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 512,
+        "n_layers": 14,
+        "n_heads": 8,
+        "n_kv_heads": 8,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 12716,
+        "max_lr": 0.0004242640687119285,
+        "min_lr": 4.2426406871192855e-05,
+        "warmup_steps": 254,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16",
+        "seed": 42,
+        "sched_cadence": 1
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/50m_seed",
+        "save_every_steps": 2000
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 49166848,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "seed": 42,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.6,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.65,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5,
+        "sched_cadence": 1
+      },
+      "paradigm": "corosred"
+    },
+    "scheduler": {
+      "warmup_steps": 254,
+      "max_steps": 12716,
+      "min_lr": 4.2426406871192855e-05,
+      "update_cadence": 10,
+      "base_lrs": [
+        0.0004242640687119285,
+        0.0004242640687119285
+      ],
+      "last_epoch": 2000,
+      "_step_count": 2001,
+      "_is_initial": false,
+      "_get_lr_called_within_step": false,
+      "_last_lr": [
+        0.00040606670113951554,
+        0.00040606670113951554
+      ]
+    }
+  },
+  {
+    "path": "checkpoints/corosred/unified/50m_seed/checkpoint_final.pt",
+    "step": 12716,
+    "keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 512,
+        "n_layers": 14,
+        "n_heads": 8,
+        "n_kv_heads": 8,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 12716,
+        "max_lr": 0.0004242640687119285,
+        "min_lr": 4.2426406871192855e-05,
+        "warmup_steps": 254,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16",
+        "seed": 42,
+        "sched_cadence": 1
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/50m_seed",
+        "save_every_steps": 2000
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 49166848,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "seed": 42,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.6,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.65,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5,
+        "sched_cadence": 1
+      },
+      "paradigm": "corosred"
+    },
+    "scheduler": {
+      "warmup_steps": 254,
+      "max_steps": 12716,
+      "min_lr": 4.2426406871192855e-05,
+      "update_cadence": 10,
+      "base_lrs": [
+        0.0004242640687119285,
+        0.0004242640687119285
+      ],
+      "last_epoch": 12716,
+      "_step_count": 12717,
+      "_is_initial": false,
+      "_get_lr_called_within_step": false,
+      "_last_lr": [
+        4.2426406871192855e-05,
+        4.2426406871192855e-05
+      ]
+    }
+  },
+  {
+    "path": "checkpoints/corosred/unified/50m_seed/checkpoint_step_8000.pt",
+    "step": 8000,
+    "keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 512,
+        "n_layers": 14,
+        "n_heads": 8,
+        "n_kv_heads": 8,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 12716,
+        "max_lr": 0.0004242640687119285,
+        "min_lr": 4.2426406871192855e-05,
+        "warmup_steps": 254,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16",
+        "seed": 42,
+        "sched_cadence": 1
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/50m_seed",
+        "save_every_steps": 2000
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 49166848,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "seed": 42,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.6,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.65,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5,
+        "sched_cadence": 1
+      },
+      "paradigm": "corosred"
+    },
+    "scheduler": {
+      "warmup_steps": 254,
+      "max_steps": 12716,
+      "min_lr": 4.2426406871192855e-05,
+      "update_cadence": 10,
+      "base_lrs": [
+        0.0004242640687119285,
+        0.0004242640687119285
+      ],
+      "last_epoch": 8000,
+      "_step_count": 8001,
+      "_is_initial": false,
+      "_get_lr_called_within_step": false,
+      "_last_lr": [
+        0.00016218888376663026,
+        0.00016218888376663026
+      ]
+    }
+  },
+  {
+    "path": "checkpoints/corosred/unified/50m_seed/checkpoint_step_10000.pt",
+    "step": 10000,
+    "keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 512,
+        "n_layers": 14,
+        "n_heads": 8,
+        "n_kv_heads": 8,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 12716,
+        "max_lr": 0.0004242640687119285,
+        "min_lr": 4.2426406871192855e-05,
+        "warmup_steps": 254,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16",
+        "seed": 42,
+        "sched_cadence": 1
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/50m_seed",
+        "save_every_steps": 2000
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 49166848,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "seed": 42,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.6,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.65,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5,
+        "sched_cadence": 1
+      },
+      "paradigm": "corosred"
+    },
+    "scheduler": {
+      "warmup_steps": 254,
+      "max_steps": 12716,
+      "min_lr": 4.2426406871192855e-05,
+      "update_cadence": 10,
+      "base_lrs": [
+        0.0004242640687119285,
+        0.0004242640687119285
+      ],
+      "last_epoch": 10000,
+      "_step_count": 10001,
+      "_is_initial": false,
+      "_get_lr_called_within_step": false,
+      "_last_lr": [
+        8.54562226015291e-05,
+        8.54562226015291e-05
+      ]
+    }
+  },
+  {
+    "path": "checkpoints/corosred/unified/50m_seed/checkpoint_step_12000.pt",
+    "step": 12000,
+    "keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 512,
+        "n_layers": 14,
+        "n_heads": 8,
+        "n_kv_heads": 8,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 12716,
+        "max_lr": 0.0004242640687119285,
+        "min_lr": 4.2426406871192855e-05,
+        "warmup_steps": 254,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16",
+        "seed": 42,
+        "sched_cadence": 1
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/50m_seed",
+        "save_every_steps": 2000
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 49166848,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "seed": 42,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.6,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.65,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5,
+        "sched_cadence": 1
+      },
+      "paradigm": "corosred"
+    },
+    "scheduler": {
+      "warmup_steps": 254,
+      "max_steps": 12716,
+      "min_lr": 4.2426406871192855e-05,
+      "update_cadence": 10,
+      "base_lrs": [
+        0.0004242640687119285,
+        0.0004242640687119285
+      ],
+      "last_epoch": 12000,
+      "_step_count": 12001,
+      "_is_initial": false,
+      "_get_lr_called_within_step": false,
+      "_last_lr": [
+        4.55280343750454e-05,
+        4.55280343750454e-05
+      ]
+    }
+  }
+]
