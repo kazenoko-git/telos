@@ -1,0 +1,1121 @@
+
+=== ORIGINAL STEP 0 | JSONL LINE 1 | USER_EXPLICIT | 2026-09-22T14:17:02Z ===
+Commit messages
+
+Matching your existing <type>: <lowercase> style:
+
+pyproject.toml                          build: correct PEP 639 metadata and scope sdist to an allow-list
+telos/__init__.py                       feat: expose __version__ and lazy telos.afm from the package root
+telos/__main__.py                       feat: add the python -m telos entry point
+telos/cli.py                            feat: add --version and route the afm subcommand
+telos/data/tokenizer.py                 fix: load the bundled tokenizer through importlib.resources
+telos/afm/__init__.py                   feat: add telos.afm, Python access to Apple on-device Foundation Models
+telos/afm/availability.py               feat: probe on-device Foundation Models availability
+telos/afm/bridge.py                     feat: compile the Swift bridge into a user cache and drive it over JSON IPC
+telos/afm/cli.py                        feat: add telos afm status and generate subcommands
+telos/afm/_swift/afm_bridge.swift       refactor: move the Swift bridge into telos.afm and add a --status probe
+telos/eval/adapters/swift_afm.py        refactor: delegate the Swift AFM adapter to telos.afm
+telos/eval/adapters/registry.py         docs: note the AFM adapter routes through the native Swift bridge
+.gitignore                              chore: ignore compiled AFM bridge artifacts
+README.md                               docs: point figures at absolute raw URLs so they render on PyPI
+CHANGELOG.md                            docs: add the 0.1.0 changelog
+DEPLOYMENT.md                           docs: document the afm command and the release rehearsal
+.github/workflows/release.yml           ci: publish to TestPyPI on tags and PyPI on release via Trusted Publishing
+pyproject.toml                            build: set the first release version to 1.0.0
+CHANGELOG.md                              docs: record 1.0.0 and the Metal fallback behavior
+telos/training/core.py                    fix: probe Metal before claiming MLX is available
+telos/diffusion/ar.py                     fix: gate the mlx.nn import on a working Metal device
+telos/diffusion/mdlm.py                   fix: gate the mlx.nn import on a working Metal device
+telos/diffusion/undlm.py                  fix: gate the mlx.nn import on a working Metal device
+telos/diffusion/corosred.py               fix: gate the mlx.nn import on a working Metal device
+telos/diffusion/sampler.py                fix: gate the mlx.nn import on a working Metal device
+telos/testing/suite.py                    fix: gate the mlx.nn import on a working Metal device
+telos/training/trainer_mlx.py             fix: raise a clear ImportError when MLX cannot run
+telos/models/mlx_components.py            fix: refuse to import MLX components without Metal
+telos/models/mlx_transformer.py           fix: refuse to import the MLX backbone without Metal
+tests/test_mlx_unified.py                 test: skip MLX tests when Metal is unavailable
+tests/test_optim_lr_and_master.py         test: skip MLX tests when Metal is unavailable
+
+Update these commits to our standard
+
+Run telos afm generate, and the fresh-venv/TestPyPI steps that need pypi.org.
+
+=== ORIGINAL STEP 113 | JSONL LINE 114 | MODEL | 2026-09-22T14:21:11Z ===
+### 1. Verification Evidence: `telos afm generate` and Fresh Venv Rehearsal
+
+#### A. Execution of `telos afm generate`
+Executed natively via the Swift `FoundationModels.framework` bridge on Apple Silicon:
+
+```bash
+telos afm generate "Explain rotary position embeddings in two sentences."
+```
+**Output**:
+> *Rotary position embeddings (RoPE) are a method that encodes positional information in a transformer model using learned rotary transformations. They allow the model to effectively represent relative positions and generalize well to sequences of varying lengths.*
+
+---
+
+#### B. Fresh-Venv Installation & PyPI Dependency Resolution
+Rehearsed the packaging deployment steps from [DEPLOYMENT.md](file:///Users/ivansamuel/Documents/Projects/telos/DEPLOYMENT.md#L324-L336) in an isolated environment (`/tmp/telos-smoke`), fetching external runtime dependencies (`torch`, `tokenizers`, `datasets`, `numpy`, `safetensors`, `pyarrow`) directly from `https://pypi.org/simple/`:
+
+```bash
+# 1. Create clean smoke venv
+uv venv /tmp/telos-smoke
+
+# 2. Install built wheel with dependencies resolved from pypi.org
+uv pip install --python /tmp/telos-smoke/bin/python \
+  --index-url https://pypi.org/simple/ dist/telos-1.0.0-py3-none-any.whl
+
+# 3. Test entry points and bundled assets
+/tmp/telos-smoke/bin/telos --version
+# Output: telos 1.0.0
+
+/tmp/telos-smoke/bin/telos afm status
+# Output:
+#   Apple on-device Foundation Models
+#   ------------------------------------------------------------------
+#     Available                 yes
+#     Model                     afm-3-core-advanced
+#     Fallback model            afm-3-core
+#     Reason                    ok
+#     macOS                     27.0
+#     Chip family               M5
+#     FoundationModels check    available
+
+/tmp/telos-smoke/bin/telos afm generate "Explain rotary position embeddings in two sentences."
+# Output: Rotary position embeddings (RoPE)...
+
+/tmp/telos-smoke/bin/python -c "from telos.data.tokenizer import load_tokenizer; tok = load_tokenizer(); print('Vocab size:', tok.get_vocab_size())"
+# Output: Vocab size: 4096 (bundled asset loaded via importlib.resources)
+```
+
+> [!NOTE]
+> `https://test.pypi.org/simple/telos/` was verified via HTTP request (returned 404, confirming the namespace is clear for the initial upload). Direct upload via `uv publish --publish-url https://test.pypi.org/legacy/` pauses for interactive credentials (`UV_PUBLISH_TOKEN`); once your token is configured, the TestPyPI upload and subsequent install can be triggered.
+
+---
+
+### 2. Standardized Commit Messages and Commands
+
+In accordance with repository standards and `<RULE[user_global]>` (using `add:`, `fix:`, `docs:`, and `remove:` instead of `feat:`, `build:`, `chore:`, `ci:`, or `test:`):
+
+#### Part 1: Packaging & Apple Foundation Models (AFM)
+
+1. [pyproject.toml](file:///Users/ivansamuel/Documents/Projects/telos/pyproject.toml)
+   ```bash
+   git add pyproject.toml && git commit -m "fix: correct PEP 639 metadata and scope sdist to allow-list"
+   ```
+
+2. [telos/\_\_init\_\_.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/__init__.py)
+   ```bash
+   git add telos/__init__.py && git commit -m "add: expose __version__ and lazy telos.afm from package root"
+   ```
+
+3. [telos/\_\_main\_\_.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/__main__.py)
+   ```bash
+   git add telos/__main__.py && git commit -m "add: python -m telos entry point"
+   ```
+
+4. [telos/cli.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/cli.py)
+   ```bash
+   git add telos/cli.py && git commit -m "add: --version flag and route afm subcommand in CLI"
+   ```
+
+5. [telos/data/tokenizer.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/data/tokenizer.py)
+   ```bash
+   git add telos/data/tokenizer.py && git commit -m "fix: load bundled tokenizer through importlib.resources"
+   ```
+
+6. [telos/afm/\_\_init\_\_.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/afm/__init__.py)
+   ```bash
+   git add telos/afm/__init__.py && git commit -m "add: telos.afm module for Apple on-device Foundation Models"
+   ```
+
+7. [telos/afm/availability.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/afm/availability.py)
+   ```bash
+   git add telos/afm/availability.py && git commit -m "add: probe on-device Foundation Models availability"
+   ```
+
+8. [telos/afm/bridge.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/afm/bridge.py)
+   ```bash
+   git add telos/afm/bridge.py && git commit -m "add: compile Swift bridge into user cache and drive via JSON IPC"
+   ```
+
+9. [telos/afm/cli.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/afm/cli.py)
+   ```bash
+   git add telos/afm/cli.py && git commit -m "add: telos afm status and generate CLI subcommands"
+   ```
+
+10. [telos/afm/_swift/afm_bridge.swift](file:///Users/ivansamuel/Documents/Projects/telos/telos/afm/_swift/afm_bridge.swift)
+    ```bash
+    git add telos/afm/_swift/afm_bridge.swift && git commit -m "fix: move Swift bridge into telos.afm and add --status probe"
+    ```
+
+11. [telos/eval/adapters/swift_afm.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/eval/adapters/swift_afm.py)
+    ```bash
+    git add telos/eval/adapters/swift_afm.py && git commit -m "fix: delegate Swift AFM adapter to telos.afm bridge"
+    ```
+
+12. [telos/eval/adapters/registry.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/eval/adapters/registry.py)
+    ```bash
+    git add telos/eval/adapters/registry.py && git commit -m "docs: note AFM adapter routes through native Swift bridge"
+    ```
+
+13. [.gitignore](file:///Users/ivansamuel/Documents/Projects/telos/.gitignore)
+    ```bash
+    git add .gitignore && git commit -m "fix: ignore compiled AFM bridge artifacts in .gitignore"
+    ```
+
+14. [README.md](file:///Users/ivansamuel/Documents/Projects/telos/README.md)
+    ```bash
+    git add README.md && git commit -m "docs: point figures at absolute raw URLs for PyPI rendering"
+    ```
+
+15. [CHANGELOG.md](file:///Users/ivansamuel/Documents/Projects/telos/CHANGELOG.md) *(initial entry)*
+    ```bash
+    git add CHANGELOG.md && git commit -m "docs: add changelog documentation"
+    ```
+
+16. [DEPLOYMENT.md](file:///Users/ivansamuel/Documents/Projects/telos/DEPLOYMENT.md)
+    ```bash
+    git add DEPLOYMENT.md && git commit -m "docs: document afm command and release rehearsal in deployment guide"
+    ```
+
+17. [.github/workflows/release.yml](file:///Users/ivansamuel/Documents/Projects/telos/.github/workflows/release.yml)
+    ```bash
+    git add .github/workflows/release.yml && git commit -m "add: release workflow publishing to TestPyPI and PyPI via Trusted Publishing"
+    ```
+
+---
+
+#### Part 2: 1.0.0 Release Bump & Metal Fallback Hardening
+
+18. [pyproject.toml](file:///Users/ivansamuel/Documents/Projects/telos/pyproject.toml) *(version bump)*
+    ```bash
+    git add pyproject.toml && git commit -m "fix: set first release version to 1.0.0 in pyproject.toml"
+    ```
+    *(Or consolidated for `pyproject.toml`: `git commit -m "fix: set version to 1.0.0, correct PEP 639 metadata, and scope sdist allow-list"`)*
+
+19. [CHANGELOG.md](file:///Users/ivansamuel/Documents/Projects/telos/CHANGELOG.md) *(release notes)*
+    ```bash
+    git add CHANGELOG.md && git commit -m "docs: record 1.0.0 release and Metal fallback behavior in CHANGELOG"
+    ```
+
+20. [telos/training/core.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/training/core.py)
+    ```bash
+    git add telos/training/core.py && git commit -m "fix: probe Metal before claiming MLX is available"
+    ```
+
+21. [telos/diffusion/ar.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/diffusion/ar.py)
+    ```bash
+    git add telos/diffusion/ar.py && git commit -m "fix: gate mlx.nn import on working Metal device in AR module"
+    ```
+
+22. [telos/diffusion/mdlm.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/diffusion/mdlm.py)
+    ```bash
+    git add telos/diffusion/mdlm.py && git commit -m "fix: gate mlx.nn import on working Metal device in MDLM module"
+    ```
+
+23. [telos/diffusion/undlm.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/diffusion/undlm.py)
+    ```bash
+    git add telos/diffusion/undlm.py && git commit -m "fix: gate mlx.nn import on working Metal device in UNDLM module"
+    ```
+
+24. [telos/diffusion/corosred.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/diffusion/corosred.py)
+    ```bash
+    git add telos/diffusion/corosred.py && git commit -m "fix: gate mlx.nn import on working Metal device in COROSred module"
+    ```
+
+25. [telos/diffusion/sampler.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/diffusion/sampler.py)
+    ```bash
+    git add telos/diffusion/sampler.py && git commit -m "fix: gate mlx.nn import on working Metal device in sampler module"
+    ```
+
+26. [telos/testing/suite.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/testing/suite.py)
+    ```bash
+    git add telos/testing/suite.py && git commit -m "fix: gate mlx.nn import on working Metal device in testing suite"
+    ```
+
+27. [telos/training/trainer_mlx.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/training/trainer_mlx.py)
+    ```bash
+    git add telos/training/trainer_mlx.py && git commit -m "fix: raise clear ImportError when MLX cannot run without Metal"
+    ```
+
+28. [telos/models/mlx_components.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/models/mlx_components.py)
+    ```bash
+    git add telos/models/mlx_components.py && git commit -m "fix: refuse to import MLX components without working Metal device"
+    ```
+
+29. [telos/models/mlx_transformer.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/models/mlx_transformer.py)
+    ```bash
+    git add telos/models/mlx_transformer.py && git commit -m "fix: refuse to import MLX backbone without working Metal device"
+    ```
+
+30. [tests/test_mlx_unified.py](file:///Users/ivansamuel/Documents/Projects/telos/tests/test_mlx_unified.py)
+    ```bash
+    git add tests/test_mlx_unified.py && git commit -m "fix: skip MLX tests when Metal is unavailable in unified test suite"
+    ```
+
+31. [tests/test_optim_lr_and_master.py](file:///Users/ivansamuel/Documents/Projects/telos/tests/test_optim_lr_and_master.py)
+    ```bash
+    git add tests/test_optim_lr_and_master.py && git commit -m "fix: skip MLX tests when Metal is unavailable in optimizer tests"
+    ```
+
+=== ORIGINAL STEP 114 | JSONL LINE 115 | USER_EXPLICIT | 2026-09-22T16:13:36Z ===
+Well update the README and docs now. All the README should contain is:
+
+1. What Telos by Wing It Research is about
+2. Latest Findings (update by whichever is most popular)
+a. Latest Benchmarks (AFM vs LFM vs IBM Prelim)
+b. Latest Research (COROSred Prelim)
+c. Latest Models (None)
+3. Routing to correct md file
+a. Research -> /research/README.md (here goes the Scaling Law, COROSred in separate mds.)
+b. Benchmarks -> /benchmarks/README.md (here goes AFM, LFM, IBM tests and further in separate mds)
+c. CLI Usage -> /cli/README.md (replacement for DEPLOYMENT.md, no more DEPLOYMENT.md for this repo)
+4. Basic CLI usage
+5. Citations (self, MLX repo, other related AI research papers)
+
+Refer telos.research.wingit.tech via screenshots. I've still provided other content here.
+
+Paper 2:
+
+télos (τέλος): Preliminary Report 2 — Capability Divergence, Positional Encoding, and the Limits of Masked Diffusion Scaling
+Abstract
+Following the initial scaling observations in Masked Diffusion Language Models (MDLMs) for code autocomplete, we complete our scaling sweeps across the 12.5M, 25M, and 50M parameter tiers. We identify a fundamental limitation in MDLM capacity allocation: past a critical, scale-dependent over-training ratio, aggregate Cross-Entropy (CE) and Average Target Rank decouple. While overall CE continues to improve, the model hyper-specializes on structurally predictable tokens (literals, operators, keywords) at the catastrophic expense of semantic tokens (function names, attributes). Furthermore, we evaluate the impact of Rotary Positional Embeddings (RoPE). We demonstrate that while native RoPE training yields record Top-5 accuracies, attempting to retrofit RoPE via 150-step fine-tuning on converged absolute-position models uniformly degrades performance by ~0.6 nats across all scales. These findings suggest that the strictly monotonic commitment of discrete masking creates a hard ceiling for semantic learning, motivating a transition toward Uniform Noise Diffusion Language Models (UNDLM) featuring self-correction.
+
+1. Introduction
+In Preliminary Report 1, we demonstrated that token-budget scaling for Masked Diffusion Language Models (MDLMs) does not follow a constant parameter-to-token ratio. Instead, we observed preliminary evidence that larger MDLMs require proportionally larger token budgets to reach optimal contextual prediction performance.
+
+This second report details the completion of the 50M parameter suite and expands our analysis of the 12.5M and 25M models. By deeply analyzing category-level probe performance, we uncover a novel phenomenon: the CE-Rank Divergence. We find that MDLMs eventually hit a representational wall where the loss continues to decrease solely due to high-confidence structural predictions, while open-vocabulary semantic predictions actively degrade.
+
+Additionally, we investigate architectural modifications, specifically Rotary Positional Embeddings (RoPE), documenting a stark difference between native RoPE training and post-hoc RoPE fine-tuning.
+
+2. Completed Scaling Sweeps and the "Sweet Spot"
+We evaluated all three model tiers across extended token-to-parameter ratios. We consistently observe three distinct regimes: a baseline plateau, an optimal "sweet spot", and a divergence/collapse phase.
+
+Model Tier	Optimal "Sweet Spot" Ratio	Sweet Spot CE	Sweet Spot Rank	Collapse / Divergence Ratio
+12.5M	1:20 (250M tokens)	7.84	729	1:30 (CE 8.40, Rank 1,721)
+25M	1:30 (750M tokens)	6.90	409	1:35 (CE 7.39, Rank 1,175)
+50M	1:35 (1.75B tokens)	7.05	446	1:40 (CE 9.67, Rank 3,988)
+Observation 1: The optimal over-training ratio scales with parameter count. Larger models can absorb proportionally more data before they begin to over-specialize or destabilize.
+
+Observation 2 (Experimental Caveat on PE Confounding): Note that the 25M 1:30 → 1:35 transition is confounded by both an increase in token budget and an architectural change in positional encoding (from absolute PE to native RoPE). We cannot cleanly separate the two effects at the 25M tier alone. A similar PE confound applies to the 12.5M 1:25 → 1:30 transition.
+
+Observation 3 (Cleanest Over-Training Curve): The 50M series (all non-RoPE, absolute PE) represents our cleanest over-training trajectory: 1:25 (7.19 CE) → 1:35 (7.05 CE) → 1:40 (9.67 CE, catastrophic collapse). Because positional encoding remained invariant across these runs, this provides unconfounded evidence for scale-dependent over-training limits in MDLM.
+
+3. Empirical Scaling Laws: Cross-Entropy and Top-5 Accuracy
+The figure below illustrates the progression of average target token cross-entropy across all models up to the 1:45 ratio.
+
+Target Cross-Entropy vs. Token Multiplier
+12.5M25M50M
+0
+15
+30
+45
+Token-to-Parameter Ratio (1:N)
+6.5
+7.4
+8.3
+9.2
+10
+Cross-Entropy (nats)
+
+Key Insights:
+New Project Record Cross-Entropy: 25M 1:40 achieved the lowest cross-entropy in the entire project at 7.24 nats, outperforming 50M 1:45 (7.41 nats) and 25M 1:35 (7.39 nats).
+Monotonic Reduction: Scaling the over-training ratio systematically reduces uncertainty across all syntactic probe categories.
+The figure below shows the percentage of target tokens that the model successfully predicted within its Top-5 logits.
+
+Top-5 Accuracy Scaling (%)
+12.5M25M50M
+0
+15
+30
+45
+Token-to-Parameter Ratio (1:N)
+0
+5
+10
+15
+20
+Top-5 Accuracy (%)
+
+Key Insights:
+Top-1 Breakthrough: 25M 1:40 achieved 7.92% Top-1 exact accuracy (8 out of 101 target tokens were the absolute #1 highest-probability prediction out of 8,192 classes).
+Top-5 Consistency: Maintained a strong 17.82% Top-5 accuracy (18 out of 101 in Top 5).
+4. The CE-Rank Divergence Phenomenon
+The most critical finding from extended scaling is the decoupling of Cross-Entropy and Average Target Rank.
+
+Average Probe Prediction Rank Scaling
+12.5M25M50M
+0
+15
+30
+45
+Token-to-Parameter Ratio (1:N)
+0
+1500
+3000
+4500
+Average Target Rank
+
+CE and Average Rank decouple past a critical over-training ratio. CE continues to decrease while rank increases — the model becomes a better syntactic predictor but a worse semantic predictor.
+
+In the 25M tier, training from 1:30 to 1:40 yielded an improvement in overall CE (from 7.39 at 1:35 down to 7.24 at 1:40), while average target rank tripled (from 409 at 1:30 to 1,239 at 1:40). However, this 25M divergence cannot be attributed purely to over-training, as part of the rank explosion may stem from native RoPE inducing positional over-specialization.
+
+The unconfounded 50M series serves as the primary clean evidence: the 50M 1:35 model reached an optimal target rank of 446 (CE 7.05) before catastrophically collapsing at 1:40 (CE 9.67, Rank 3,988).
+
+Category-Level Analysis: Where Rank Explodes
+By dissecting probe categories, we observe the nature of this divergence:
+
+25M: 1:30 → 1:40 Category Transitions (Caveat: Confounded by PE change)
+
+Literals Rank: 351 → 32 (11× improvement)
+Operators Rank: 66 → 67 (Maintained)
+Imports Rank: 70 → 290 (4× degradation)
+Function Names Rank: (previously ~3,100) → 3,452 (Severe degradation)
+Attribute Names Rank: (previously ~3,500) → 3,954 (Severe degradation)
+The chart below compares category-by-category prediction ranks between the 25M 1:40 model and the collapsed 50M 1:40 model.
+
+Category Rank Breakdown: 25M (1:40) vs 50M (1:40 Collapse)
+25M 1:40 (Sweet Spot / Diverging)50M 1:40 (Collapsed)
+0
+1500
+3000
+4500
+6000
+Target Rank (Lower = Better)
+Literals
+Operators
+Imports
+Identifiers
+Attributes
+Functions
+
+The 50M 1:40 native model didn't just diverge — it catastrophically collapsed across ALL categories. This is a different failure mode than the gradual divergence seen at 25M. The RoPE fine-tuned version recovered it (Rank 615), suggesting the collapse was a training instability, not a fundamental capacity limit.
+
+Capacity Allocation in MDLMs
+As over-training progresses, the gradient signal disproportionately rewards easily predictable structural tokens (which produce the largest, most consistent loss reductions). The model concentrates its fixed representational budget on position-predictable tokens (e.g., predicting an operator after a variable, or a boolean literal).
+
+Consequently, the model is "starved" of the capacity required to learn complex, context-dependent semantic bindings. An MDLM can predict that self._____ requires an attribute, but lacking self-correction during generation, it loses the nuanced semantic resolution to distinguish self.logger from self.config.
+
+5. Positional Encoding: The RoPE Fine-Tuning Regression
+To improve sequence extrapolation and positional alignment, we attempted to retrofit Rotary Positional Embeddings (RoPE) onto converged absolute/learned positional embedding models using a 150-step (~19M token) fine-tuning phase.
+
+The results were unequivocally negative across all scales:
+
+Original Base Checkpoint (Absolute PE)	After 150-step RoPE FT	Delta
+50M 1:25: 7.19 CE (Rank 469)	7.79 CE (Rank 725)	❌ +0.60 CE (Regressed)
+50M 1:35: 7.05 CE (Rank 446)	7.72 CE (Rank 823)	❌ +0.67 CE (Regressed)
+25M 1:30: 6.90 CE (Rank 409)	7.55 CE (Rank 620)	❌ +0.65 CE (Regressed)
+The RoPE Shock: The base checkpoints had converged using absolute/learned positional embeddings (e.g., 1.75B tokens for 50M 1:35). Injecting mlx.fast.rope directly into the attention blocks subjected the 
+W
+q
+W 
+q
+
+  and 
+W
+k
+W 
+k
+
+  matrices to an immediate, violent geometric shift (from additive offsets to rotary phase angles). 150 steps (~1% of the original budget) was vastly insufficient to re-align the attention circuits, resulting in systematic ~0.6 nat degradation across all scales.
+
+Native RoPE from Initialization: By contrast, models trained natively with RoPE from step 0 (e.g., 25M 1:35 and 1:40) achieved record Top-5 accuracies (17.82%). This demonstrates that RoPE is highly effective when trained from scratch. However, the observed category-level trade-offs (e.g., strong literal/operator performance vs. degraded function/attribute ranking) require further investigation with strictly matched non-RoPE controls.
+
+6. Implications for Telos
+The MDLM scaling study provides two concrete findings:
+
+Scale-Dependent Over-Training Limits: The clean 50M absolute-PE series demonstrates that extreme over-training eventually leads to instability and catastrophic collapse (50M 1:40).
+Positional Encoding Constraints: RoPE cannot be trivially retrofitted post-hoc via short fine-tuning, though native RoPE provides strong peak token accuracy.
+While the CE-Rank divergence observed in the 25M series is partially confounded by the transition to native RoPE, the motivation to transition to alternative diffusion paradigms remains clear. In standard discrete MDLMs, the fundamental one-shot masked commitment locks predictions in permanently without the ability to revise early structural decisions when global context resolves.
+
+This motivates the exploration of alternative diffusion mechanisms:
+
+Uniform Noise DLMs (UNDLM): Introduces a uniform noise schedule enabling tokens to transition across vocabulary states dynamically, providing an intrinsic self-correction mechanism to refine semantic dependencies.
+Continuous-Time Discrete-Space DLMs (CTDS-DLM): Uses a continuous transition rate matrix to avoid discrete masking commitment.
+7. Conclusion
+The MDLM scaling sweeps across the 12.5M, 25M, and 50M tiers establish the practical operating limits and sweet spots of masked discrete diffusion for code models. The observed 50M over-training collapse and one-shot commitment bottlenecks provide the empirical motivation for the next phase of télos: evaluating Uniform Noise Diffusion architectures.
+
+Paper 1:
+télos (τέλος): Preliminary Evidence on Token-Budget Scaling in Masked Diffusion Language Models for Code Autocomplete
+Abstract
+Autoregressive language models currently dominate code generation, yet they are fundamentally constrained by strict left-to-right generation. Masked Diffusion Language Models (MDLMs) offer a compelling alternative via bidirectional context and non-monotonic iterative decoding. While scaling behavior in autoregressive models has been extensively characterized, the relationship between parameter count and optimal training token budgets in MDLMs remains underexplored. We introduce télos (τέλος), a narrow-domain MDLM for Python code autocomplete, and investigate its capability formation using a suite of targeted contextual probes. Evaluating models at 12.5M and 25M parameters under a Beta(1.5, 1.5) timestep distribution, we observe preliminary evidence that the token-to-parameter ratio associated with best observed probe performance increases with model scale. Specifically, under the tested configuration, probe cross-entropy for the 12.5M model reached a minimum at a 1:15 ratio (~187.5M tokens) before degrading, whereas the 25M model continued improving through the highest tested ratio of 1:25 (~625M tokens). Furthermore, we demonstrate that aggregate cross-entropy often conceals sharp, localized capability transitions, and that structural token prediction tends to improve earlier than semantic identifier recovery in our probe suite. We detail the empirical corrections and hardware-specific engineering required to reliably measure these dynamics.
+
+1. Introduction
+Autoregressive (AR) language models have established the paradigm for modern code generation. However, code is inherently non-linear; developers frequently write signatures before bodies, or reference variables before defining them. Masked Diffusion Language Models (MDLMs) reframe sequence generation as an iterative denoising process. An MDLM observes a heavily masked sequence and predicts missing tokens using full bidirectional attention, progressively refining the output.
+
+The scaling laws of AR models—most notably formalised by Hoffmann et al. (Chinchilla)—demonstrate a predictable relationship between parameter counts and the token budgets required for compute-efficient training. Whether MDLMs adhere to similar token-budget scaling dynamics remains less well characterized. Furthermore, aggregate validation loss (Cross-Entropy or Evidence Lower Bound) provides only a macro-level view of model performance, potentially obscuring when and how specific coding capabilities (e.g., syntax closure vs. variable binding) emerge.
+
+In this paper, we present télos, an open-source, narrow-domain Python MDLM. We focus our empirical investigation on the following research questions:
+
+RQ1: How does contextual code prediction evolve with additional training tokens?
+RQ2: Do different code-token categories exhibit different learning trajectories?
+RQ3: Can target rank and probability reveal capability transitions hidden by aggregate Cross-Entropy?
+RQ4: Does the token-to-parameter ratio associated with best observed MDLM performance increase with model size?
+RQ5: What engineering techniques make MDLM experimentation practical on constrained hardware?
+2. Background and Related Work
+Masked Diffusion Language Models. Continuous-time diffusion models have recently been adapted for discrete categorical data. Sahoo et al. (MDLM) and the related RADD architecture demonstrated that simple categorical masking processes, when paired with appropriate timestep sampling and loss reweighting, optimize a rigorous variational Evidence Lower Bound (ELBO). MaskGIT explored similar confidence-based unmasking for images, which has since been adapted for text. Recent works like LLaDA and DiffusionGemma have scaled these principles to billions of parameters. However, the systematic characterization of scaling properties in these architectures has received comparatively less systematic study than their AR counterparts.
+
+Scaling Laws. The Chinchilla scaling laws describe compute-efficient training for AR models, identifying a constant optimal parameter-to-token ratio under a specific training and compute envelope. télos asks a related but distinct question: do MDLMs—with a fundamentally different objective, bidirectional architecture, and masked generation process—exhibit a different empirical relationship between parameter scale and required training data?
+
+3. Model Architecture
+We treat the repo-grounded implementation of télos as the authoritative architecture. The model is a bidirectional Transformer devoid of the causal triangular attention mask, enabling unconstrained global context.
+
+Figure 1: The télos MDLM Architecture
+Step 1
+Clean Code Sequence
+Step 2
+ByteLevel BPE Tokenization
+Step 3
+Beta(1.5, 1.5) Masking
+Step 4
+Bidirectional Transformer
+Step 5
+Full Sequence Logits
+No timestep embeddings are provided. The bidirectional Transformer attends to all unmasked tokens simultaneously.
+
+Figure 1: The télos MDLM architecture. The bidirectional Transformer attends to all unmasked tokens simultaneously. No timestep embeddings are provided.
+
+Core design choices:
+
+Normalization: RMSNorm (Root Mean Square Layer Normalization) for training stability.
+Position Encoding: Standard learnable absolute positional embeddings (1D).
+Feed-Forward Network: SwiGLU activation with expansion factor ≈ 2.67, dimensions aligned to multiples of 64 for hardware efficiency.
+Attention: Full bidirectional multi-head self-attention with GQA (Grouped Query Attention) support.
+Embeddings: Untied input token embeddings (self.emb) and output projection matrices (self.head).
+No Timestep Conditioning: The model receives no information about the masking ratio 
+t
+t. This follows findings that time-agnostic MDLM architectures achieve near-optimal ELBO performance.
+Configurations: Parameter configurations were selected via a grid search to target specific scale classes. Notably, depth and width vary across scales, representing an inherent confound in pure parameter scaling:
+
+12.5M: 
+d
+model
+=
+256
+d 
+model
+
+ =256, Layers = 13, Heads = 4, KV Heads = 4, Seq Len = 512.
+25M: 
+d
+model
+=
+512
+d 
+model
+
+ =512, Layers = 8, Heads = 8, KV Heads = 8, Seq Len = 512.
+50M: 
+d
+model
+=
+768
+d 
+model
+
+ =768, Layers = 8, Heads = 12, KV Heads = 12, Seq Len = 512.
+Net2Net Initialization: To scale efficiently, larger models were initialized from smaller checkpoints (e.g., 12.5M 
+→
+→ 25M) via Net2Net-style zero-padding and layer mapping. We note this as a potential cross-scale evaluation confound compared to from-scratch initialization.
+
+4. Diffusion Objective
+The forward process independently replaces tokens with a [MASK] token with probability 
+t
+t. Special structural tokens ([PAD], [BOS], [EOS]) are explicitly excluded from masking.
+
+Figure 2: Confidence-Based Iterative Unmasking Sampler
+Phase 1
+Partially Masked Sequence
+Phase 2
+Parallel Model Prediction
+Phase 3
+Confidence-Based Selection
+Phase 4
+Permanent Unmasking of Top Tokens
+Iterative denoising loop: at each step, the highest-confidence predictions are permanently unmasked.
+
+Figure 2: Inference via confidence-based unmasking. At each step, the highest-confidence predictions are permanently unmasked.
+
+The model is trained to predict the original tokens exclusively at the masked positions. Following the continuous-time ELBO derivation, the training objective utilizes a reweighted cross-entropy loss:
+
+L
+=
+1
+t
+⋅
+CE
+masked
+L= 
+t
+1
+
+ ⋅CE 
+masked
+
+ 
+The timestep 
+t
+t is clamped (e.g., 
+t
+∈
+[
+1
+e
+−
+3
+,
+1.0
+]
+t∈[1e−3,1.0]) to maintain numerical stability against exploding gradients as 
+t
+→
+0
+t→0.
+
+5. Data and Tokenization
+Dataset: Training relies on the CodeParrot-Clean corpus, restricted to Python source code. Data is prepared via an AST-filtered extraction prioritizing functions with docstrings. Tokenization: A custom ByteLevel BPE tokenizer with a vocabulary of 8,192 is used. Byte-level pre-tokenization preserves critical Python indentation. Storage: Pre-tokenized sequences are stored as contiguous memory-mapped arrays utilizing int32 token IDs.
+
+6. Experimental Setup and Corrections
+6.1 Timestep Sampling
+We explicitly sample the masking ratio from a Beta distribution: 
+t
+∼
+Beta
+(
+1.5
+,
+1.5
+)
+t∼Beta(1.5,1.5). This concentrates probability mass around 
+t
+≈
+0.5
+t≈0.5. This is a critical correction: our historical implementation used a cosine transform (
+t
+=
+0.5
+−
+0.5
+cos
+
+(
+π
+u
+)
+t=0.5−0.5cos(πu), 
+u
+∼
+U
+(
+0
+,
+1
+)
+u∼U(0,1)) that accidentally produces an invalid Beta(0.5, 0.5) arcsine distribution, heavily biasing training toward trivial (
+t
+≈
+0
+t≈0) and impossible (
+t
+≈
+1
+t≈1) masking levels. All results reported in this paper use the mathematically corrected Beta(1.5, 1.5) sampling regime.
+
+Figure 3: Training Timestep Probability Density Distributions
+Beta(1.5, 1.5) concentrates sampling around intermediate masking (t ≈ 0.5), whereas invalid Beta(0.5, 0.5) arcsine heavily over-samples trivial (t ≈ 0) and impossible (t ≈ 1) regimes.
+
+Beta(0.5, 0.5) Arcsine [INVALIDATED]Beta(1.5, 1.5) [CURRENT / VALIDATED]
+0.03
+0.11
+0.19
+0.27
+0.35
+0.43
+0.51
+0.59
+0.67
+0.75
+0.83
+0.91
+0.99
+Timestep (t)
+0
+2
+4
+5
+Probability Density
+
+6.2 Dtype and Pipeline Corrections
+Early experiments suffered from datatype inconsistencies across backends (e.g., uint16 vs int32), causing incorrect numerical behavior in specific backend configurations. The current pipeline enforces strict int32 casting, resolving these historical artifacts.
+
+6.3 Validated Experimental Runs
+To contextualize the scaling study, the following table details the primary experimental runs discussed in this paper:
+
+Model	Params	Ratio	Tokens	Init	Status	Mean probe CE
+télos-12.5M	12.5M	1:1	12.5M	scratch	complete	8.1754
+télos-12.5M	12.5M	1:5	62.5M	scratch	complete	8.0957
+télos-12.5M	12.5M	1:10	125M	scratch	complete	7.9897
+télos-12.5M	12.5M	1:15	187.5M	scratch	complete	7.5604
+télos-12.5M	12.5M	1:20	250M	scratch	complete	7.7388
+télos-12.5M	12.5M	1:25	312.5M	scratch	complete	7.8470
+télos-25M	25M	1:1	25M	Net2Net	complete	7.8068
+télos-25M	25M	1:10	250M	Net2Net	complete	7.5627
+télos-25M	25M	1:15	375M	Net2Net	complete	7.6237
+télos-25M	25M	1:20	500M	Net2Net	complete	7.6413
+télos-25M	25M	1:25	625M	Net2Net	complete	7.4361
+télos-50M	50M	1:25	1.25B	Net2Net	complete	7.1873
+télos-50M	50M	>1:25	>1.25B	from scratch	ongoing	—
+7. Token-Budget Scaling Observations
+The primary scaling investigation evaluates Beta(1.5,1.5)-trained models across token-to-parameter ratios up to 1:25, with completed sweeps at 12.5M and 25M and the 50M sweep currently extending beyond 1:25.
+
+Figure 4 and 5: Contextual Probe Cross-Entropy vs. Token-to-Parameter Ratio
+12.5M saturates at 1:15 ratio, while 25M and 50M continue to improve monotonically up to 1:25.
+
+12.5M Beta(1.5, 1.5)25M (Net2Net) Beta(1.5, 1.5)50M 1:25 (Net2Net)
+0
+8
+16
+24
+30
+Token-to-Parameter Ratio (1:N)
+7
+7.35
+7.7
+8.05
+8.4
+Mean Probe Cross-Entropy
+
+12.5M Saturation and Reversal: At 12.5M parameters, mean probe CE reached its minimum at the 1:15 ratio (187.5M tokens, CE 
+≈
+≈ 7.5604). Extended training to 1:20 and 1:25 resulted in degradation (CE rising to 7.8470). This reversal may reflect representational limitations, optimization dynamics, overtraining, or probe-specific effects.
+25M Continued Improvement: The 25M model improved monotonically through the highest tested ratio of 1:25 (625M tokens, CE 
+≈
+≈ 7.4361). We observed no saturation within the tested range.
+These results provide preliminary evidence that the token-to-parameter ratio associated with best observed probe performance shifts toward higher token-to-parameter ratios as model size increases.
+
+Figure 6: Cross-Scale Optimal Token-to-Parameter Ratios
+Empirical evidence that optimal token budgets grow as MDLM model scale increases. 50M suite is ongoing (expected peak ratio > 1:25).
+
+12.5M
+25M
+50M (Expected)
+0
+9
+18
+27
+35
+Optimal Ratio (1:N)
+
+8. Contextual Probe Benchmark
+To measure localized capability formation, we developed a benchmark of ~100 contextual Python probes. Each probe consists of a fixed context, a target token, and a semantic category. Examples include:
+
+Identifiers: return a + [MASK] 
+→
+→ b
+Class Names: class Model([MASK]) 
+→
+→ object
+Imports: import [MASK] 
+→
+→ os
+We evaluate the target token's probability, cross-entropy, and vocabulary rank. This methodology is designed to unmask capabilities that aggregate sequence-level loss obscures.
+
+9. Results: Capability Formations
+9.1 Capability Transitions
+We observe that aggregate Cross-Entropy can change gradually while individual contextual probes exhibit dramatic phase transitions. For example, in a historical capability-formation case study using the 85M model, the target token rank for an identifier recovery probe rapidly progressed through vocabulary ranks as training advanced: 
+2815
+→
+283
+→
+177
+→
+135
+→
+77
+2815→283→177→135→77. Another probe demonstrated an even sharper transition: 
+6239
+→
+36
+→
+78
+→
+31
+→
+11
+→
+9
+6239→36→78→31→11→9. This demonstrates that aggregate CE alone is insufficient for tracking the discrete onset of logical capabilities.
+
+Figure 7: Contextual Probe Target Rank Transition Trajectories
+Probing uncovers sharp non-linear capability transitions (vocabulary rank 6239 → 36 → 9) obscured by macro validation loss.
+
+Probe A (Identifier Recovery)Probe B (Variable Binding)
+0k
+20k
+40k
+60k
+80k
+100k
+Training Steps
+1
+2001
+4001
+6001
+7000
+Vocabulary Target Rank (Lower = Better)
+
+9.2 Structural vs. Semantic Learning Trajectories
+Probe categories exhibit starkly different learning trajectories across all model scales. Within our probe suite, structural-token categories generally achieve lower CE than semantic/context-dependent categories.
+
+At the best currently evaluated configuration for each scale: (Note: 50M values correspond to the completed 1:25 run; the broader 50M ratio sweep remains incomplete.)
+
+Category	12.5M (1:15) CE	25M (1:25) CE	50M (1:25) CE	Trend
+Operators	6.26	6.50	6.03	↓ Consistent improvement
+Keywords	6.82	6.56	6.05	↓ Rapid improvement with scale
+Literals	7.02	6.83	5.87	↓ Largest improvement
+Imports	7.05	6.12	6.16	↓ Near-saturated
+Identifiers	7.77	7.64	6.29	↓ Improving but hard
+Functions	8.33	8.43	8.45	→ Stalled
+Attributes	8.21	8.98	8.90	→ Stalled
+Class names	9.54	8.39	9.75	↑↓ Inconsistent
+Key finding: Structural tokens (operators, keywords, literals) consistently improve with both more data and more parameters. Semantic tokens (function names, attribute names, class names) remain stubbornly difficult, requiring contextual integration that current model scales may be insufficient to achieve. The gap between the easiest category (Literals at 5.87 CE for 50M) and the hardest (Class names at 9.75 CE) spans nearly 4 nats—corresponding to roughly a 55× difference in the target-token likelihood under the probe metric. This reveals a structural-token advantage in the current probe suite.
+
+Figure 8: 50M 1:25 Category-Level Probe Cross-Entropy Difficulty Breakdown
+Structural syntax (operators, keywords, literals) is learned significantly earlier than semantic tokens (function & class names), creating a ~4 nat gap.
+
+0
+3
+6
+9
+11
+Target Cross-Entropy (Lower = Better)
+Literals
+Operators
+Keywords
+Imports
+Identifiers
+Functions
+Attributes
+Class names
+■ Structural Syntax Tokens
+■ Semantic Context Tokens
+Data source: Historical token breakdown report (85M TPU baseline, arcsine distribution), presented here for illustrative category structure pending current Beta evaluation.
+
+9.3 Candidate Scaling Formulae
+Let 
+R
+∗
+(
+N
+)
+R 
+∗
+ (N) denote the optimal token-to-parameter ratio for a model of 
+N
+N parameters (where 
+N
+N is expressed in millions). From two confirmed data points (12.5M → 1:15, 25M → 1:25) and one partial observation (50M → ≥1:25, still improving), we fit three candidate functional forms:
+
+Logarithmic:
+
+R
+∗
+(
+N
+)
+=
+14.43
+⋅
+ln
+
+(
+N
+)
+−
+21.44
+R 
+∗
+ (N)=14.43⋅ln(N)−21.44
+Square-root plus constant:
+
+R
+∗
+(
+N
+)
+=
+6.83
+⋅
+N
+−
+9.14
+R 
+∗
+ (N)=6.83⋅ 
+N
+
+ −9.14
+Power law:
+
+R
+∗
+(
+N
+)
+=
+2.39
+⋅
+N
+0.74
+R 
+∗
+ (N)=2.39⋅N 
+0.74
+ 
+Formula	Predicted 50M Optimal	Predicted 100M Optimal
+Logarithmic	~1:35	~1:45
+Sqrt + const	~1:39	~1:59
+Power law	~1:42	~1:71
+All three mathematically predict that the 50M model's optimal ratio significantly exceeds 1:25, consistent with our empirical observation that the 50M 1:25 model has not yet saturated. The ongoing 50M suite will heavily constrain these candidates: if the 50M model saturates near 1:35, the logarithmic fit is favored; if it continues improving past 1:40, the power law or square-root form is supported.
+
+Caveat: These fits are exploratory. Two confirmed data points cannot strictly determine a functional form. We present them as falsifiable hypotheses, not established laws.
+
+9.4 Capability Transitions Hidden by Aggregate CE
+Aggregate CE can change gradually while individual probes exhibit dramatic phase transitions. As an illustrative example from our historical 85M TPU experiments, the target token rank for an identifier recovery probe progressed through these vocabulary ranks as training advanced:
+
+Rank
+:
+2815
+→
+283
+→
+177
+→
+135
+→
+77
+Rank:2815→283→177→135→77
+Another probe demonstrated an even sharper transition:
+
+Rank
+:
+6239
+→
+36
+→
+78
+→
+31
+→
+11
+→
+9
+Rank:6239→36→78→31→11→9
+These transitions—from "effectively random" to "nearly correct"—occurred within narrow training windows while the aggregate CE decreased smoothly. This demonstrates that aggregate loss alone is insufficient for tracking the discrete onset of logical coding capabilities. (Historical illustration only — not part of the corrected Beta(1.5,1.5) scaling dataset).
+
+10. Systems and Hardware Implementation
+Practical MDLM research requires careful hardware engineering.
+
+Apple Silicon (MLX): Native MLX implementation required microbatch gradient accumulation and memory-aware graph evaluation (mx.eval) to prevent memory exhaustion. We observed that fusing the SwiGLU gate and up-projections, followed by mx.split(), caused an 8.7–11.5% throughput regression due to non-contiguous strided outputs. Reverting to separate linear layers resolved this on the Metal backend.
+Figure 4: MLX/Metal Framework Throughput Optimization on Apple M5 Pro
+Impact of micro-batch (MB) size vs gradient accumulation (GA) on GPU tensor core utilization. Tested on Apple M5 Pro (15-core CPU, 16-core GPU, 24GB Unified Memory).
+
+12.5M
+25M (MB=32)
+25M (MB=16)
+50M (MB=16)
+0
+25000
+50000
+75000
+100000
+Throughput (tok/s)
+Note: Throughput corresponds to training step speed (including data loading). Configuration: sequence length 512, bfloat16 precision. Effective batch=256 across all sizes. 12.5M (MB=32, GA=8); 25M (MB=32, GA=8 and MB=16, GA=16); 50M (MB=16, GA=16). Net2Net initialization was used for 25M and 50M.
+
+TPU v6e-1 (PyTorch-XLA): Dynamic random masking disrupts static graph tracing. We found that strategically placing xm.mark_step() immediately following masking operations successfully forced graph materialization, preventing windowing compilation crashes. Furthermore, special token exclusions were explicitly sorted to ensure deterministic graph tracing.
+11. Discussion and Scaling Hypothesis
+The observed behavior motivates a preliminary empirical hypothesis: the optimal training-token budget for an MDLM may not follow a constant token-to-parameter ratio across scales. The delayed capability formation of identifiers suggests that as models grow, exposing them to proportionally more code is necessary to fully resolve long-range semantic dependencies. With only two completed model scales, we cannot yet determine whether this relationship is linear, super-linear, or follows another functional form.
+
+12. Limitations
+This study has several notable limitations:
+
+Probe Sparsity: The benchmark contains ~100 static probes.
+Sparse Scale: We evaluate only two completed model scales (12.5M and 25M) with varying depths/widths.
+Confounding Variables: Net2Net initialization and architectural variances across parameter counts may confound pure scaling observations.
+Proxy Metric: Single-pass target rank is a proxy metric and does not perfectly equate to iterative sampling generation quality.
+Incomplete 50M Suite: The 50M Beta(1.5,1.5) experiments are not yet complete to verify the continuation of the trend.
+13. Conclusion
+télos demonstrates the viability of narrow-domain MDLM code autocomplete. Through targeted contextual probing and corrected experimental regimes, we observe that code capability formation occurs in categorical phases. Crucially, preliminary scaling evidence suggests that larger MDLMs may benefit from proportionally larger token budgets to achieve comparable contextual prediction performance.
+
+14. Future Work
+Future work will complete the 50M parameter evaluation suite to test the continuity of the scaling hypothesis. Additionally, expanding the contextual probe dataset and analyzing the correlation between single-pass probe accuracy and multi-step iterative generation quality remain critical next steps.
+
+References
+[1] Sahoo, S., et al. (2024). Masked Diffusion Language Models.
+[2] Hoffmann, J., et al. (2022). Training Compute-Optimal Large Language Models (Chinchilla).
+[3] Chang, H., et al. (2022). MaskGIT: Masked Generative Image Transformer.
+[4] Zheng, L., et al. (2024). RADD: Reparameterized Absorbing Discrete Diffusion.
+[5] Nie, J., et al. (2025). LLaDA: Large Language Diffusion Models.
+[6] Google DeepMind (2026). DiffusionGemma: An experimental discrete diffusion model based on Gemma.
+
+Appendix A: Historical Experiments
+Early explorations utilizing TPU hardware evaluated 85M, 125M, and 250M parameter models. These models were trained under the invalidated Uniform-Cosine (arcsine) timestep distribution and encountered severe gradient explosion issues at depth (250M) due to unclipped 
+1
+/
+t
+1/t scaling. Initial runs also suffered from datatype mismatches (uint16 vs int32) across backends. While these experiments provided critical systems engineering insights (e.g., XLA graph breaks), historical arcsine-trained models are excluded from the primary scaling comparison because their training objective differs from the corrected experimental regime.
+
+Figure 10: Project Validity Timeline & Objective Correction
+Phase 1
+Initial Runs
+Datatype mismatch (uint16 vs int32)
+Phase 2
+TPU Explorations
+Uniform-Cosine (Arcsine) sampling & Gradient Explosion
+Phase 3
+Pipeline & Objective Correction
+Strict int32 casting & Beta(1.5, 1.5) concentrated t ≈ 0.5 sampling
+Phase 4
+Current Validated Epoch
+Primary 12.5M and 25M scaling suite
+Historical experiments utilizing the uncorrected arcsine timestep distribution and early dtype bugs are excluded from primary scaling results.
+
+Figure 10: Project validity timeline. Historical experiments utilizing the uncorrected arcsine timestep distribution and early dtype bugs are excluded from the primary scaling results.
+
+=== ORIGINAL STEP 145 | JSONL LINE 145 | USER_EXPLICIT | 2026-09-22T16:21:43Z ===
+Continue
+
+=== ORIGINAL STEP 186 | JSONL LINE 186 | MODEL | 2026-09-22T16:31:32Z ===
+### Documentation Restructuring & Verification Summary
+
+The documentation layout has been restructured according to your 5-part architecture, replacing `DEPLOYMENT.md` with dedicated hubs in `research/`, `benchmarks/`, and `cli/`.
+
+---
+
+### Directory Architecture Overview
+
+```
+telos/
+├── README.md                                          # Clean 5-section root landing page
+├── research/
+│   ├── README.md                                      # Research hub & scaling study overview
+│   ├── paper_1_token_budget_scaling.md                # Paper 1: Token-Budget Scaling in MDLMs
+│   ├── paper_2_capability_divergence_and_rope.md      # Paper 2: CE-Rank Divergence & RoPE Dynamics
+│   └── corosred_architecture.md                       # COROSred Architecture & Dual-Paradigm Loss
+├── benchmarks/
+│   ├── README.md                                      # Master benchmark hub & 7-suite leaderboard
+│   ├── afm_vs_lfm_vs_ibm.md                           # Head-to-Head Comparison (AFM-3 vs Granite vs LFM)
+│   ├── afm.md                                         # Apple Foundation Models Swift IPC Report
+│   ├── ibm_granite.md                                 # IBM Granite 4.2 3B Evaluation Report
+│   └── liquid_lfm.md                                  # LiquidAI LFM 8B A1B Evaluation Report
+└── cli/
+    └── README.md                                      # Master CLI & Deployment Guide (Replaces DEPLOYMENT.md)
+```
+
+---
+
+### Root `README.md` 5-Section Layout
+
+1. **What Télos by Wing It Research is About**: High-level overview of **τέλος** (télos), discrete diffusion, non-monotonic generation, and dual-paradigm language modeling, referencing **[telos.research.wingit.tech](https://telos.research.wingit.tech)**.
+2. **Latest Findings**:
+   - **a. Latest Benchmarks**: 7-suite comparative scorecard (AFM-3 Core Advanced 56.37% vs. IBM Granite 4.2 3B 56.33% vs. LiquidAI LFM 8B 47.14%).
+   - **b. Latest Research**: COROSred architecture diagram, $1.29\times$ lower PPL than pure AR, 63.0% infill Top-1, anti-cheat span immunity, and CE-Rank divergence.
+   - **c. Latest Models**: `None` *(No pre-trained model weights are hosted/distributed publicly; users can train architectures from scratch via CLI)*.
+3. **Routing to Documentation Directories**:
+   - Research $\to$ [`research/README.md`](research/README.md)
+   - Benchmarks $\to$ [`benchmarks/README.md`](benchmarks/README.md)
+   - CLI Usage $\to$ [`cli/README.md`](cli/README.md) *(Official replacement for DEPLOYMENT.md)*
+4. **Basic CLI Usage**: Installation options (`pip install telos`, `pip install "telos[mlx]"`), master subcommands (`dataprep`, `train`, `eval`, `bench`, `afm`, `test`), and Python API snippets.
+5. **Citations & References**: BibTeX entries for Télos (Wing It Research), Apple MLX, and foundational research papers (Chinchilla, Sahoo MDLM, RADD, LLaDA, MaskGIT, DiffusionGemma).
+
+---
+
+### Non-Doc Code Update Proposal (`pyproject.toml`)
+
+Per Rule 6, code/config files are not directly edited. To update the package URL metadata and sdist allow-list to reflect the replacement of `DEPLOYMENT.md` with `cli/README.md`, update lines 50 and 94 in [pyproject.toml](file:///Users/ivansamuel/Documents/Projects/telos/pyproject.toml):
+
+```diff
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -47,7 +47,7 @@ Homepage = "https://telos.research.wingit.tech"
+ Repository = "https://github.com/kazenoko-git/telos"
+ Issues = "https://github.com/kazenoko-git/telos/issues"
+-Documentation = "https://github.com/kazenoko-git/telos/blob/main/DEPLOYMENT.md"
++Documentation = "https://github.com/kazenoko-git/telos/blob/main/cli/README.md"
+ Changelog = "https://github.com/kazenoko-git/telos/blob/main/CHANGELOG.md"
+
+@@ -91,4 +91,4 @@ only-include = [
+     "README.md",
+     "LICENSE",
+     "CHANGELOG.md",
+-    "DEPLOYMENT.md",
++    "cli/README.md",
+ ]
+```
+
+---
+
+### File-by-File Commit Messages and Commands
+
+Per Rule 2, here are the standardized commit messages (`add:`, `fix:`, `docs:`, `remove:`) and commands for each individual file:
+
+1. [research/README.md](file:///Users/ivansamuel/Documents/Projects/telos/research/README.md)
+   ```bash
+   git add research/README.md && git commit -m "add: research index and paper navigation hub"
+   ```
+
+2. [research/paper_1_token_budget_scaling.md](file:///Users/ivansamuel/Documents/Projects/telos/research/paper_1_token_budget_scaling.md)
+   ```bash
+   git add research/paper_1_token_budget_scaling.md && git commit -m "docs: add Preliminary Report 1 on token-budget scaling"
+   ```
+
+3. [research/paper_2_capability_divergence_and_rope.md](file:///Users/ivansamuel/Documents/Projects/telos/research/paper_2_capability_divergence_and_rope.md)
+   ```bash
+   git add research/paper_2_capability_divergence_and_rope.md && git commit -m "docs: add Preliminary Report 2 on capability divergence and RoPE dynamics"
+   ```
+
+4. [research/corosred_architecture.md](file:///Users/ivansamuel/Documents/Projects/telos/research/corosred_architecture.md)
+   ```bash
+   git add research/corosred_architecture.md && git commit -m "docs: add COROSred architecture specification and empirical metrics"
+   ```
+
+5. [benchmarks/README.md](file:///Users/ivansamuel/Documents/Projects/telos/benchmarks/README.md)
+   ```bash
+   git add benchmarks/README.md && git commit -m "add: institutional benchmark index and 7-suite master leaderboard"
+   ```
+
+6. [benchmarks/afm_vs_lfm_vs_ibm.md](file:///Users/ivansamuel/Documents/Projects/telos/benchmarks/afm_vs_lfm_vs_ibm.md)
+   ```bash
+   git add benchmarks/afm_vs_lfm_vs_ibm.md && git commit -m "docs: add head-to-head benchmark report for AFM-3 vs Granite 4.2 vs LFM 8B"
+   ```
+
+7. [benchmarks/afm.md](file:///Users/ivansamuel/Documents/Projects/telos/benchmarks/afm.md)
+   ```bash
+   git add benchmarks/afm.md && git commit -m "docs: add Apple Foundation Models native Swift IPC benchmark report"
+   ```
+
+8. [benchmarks/ibm_granite.md](file:///Users/ivansamuel/Documents/Projects/telos/benchmarks/ibm_granite.md)
+   ```bash
+   git add benchmarks/ibm_granite.md && git commit -m "docs: add IBM Granite 4.2 3B evaluation report"
+   ```
+
+9. [benchmarks/liquid_lfm.md](file:///Users/ivansamuel/Documents/Projects/telos/benchmarks/liquid_lfm.md)
+   ```bash
+   git add benchmarks/liquid_lfm.md && git commit -m "docs: add LiquidAI LFM 8B A1B benchmark report"
+   ```
+
+10. [cli/README.md](file:///Users/ivansamuel/Documents/Projects/telos/cli/README.md)
+    ```bash
+    git add cli/README.md && git commit -m "add: master CLI usage and deployment guide in cli/README.md"
+    ```
+
+11. **`DEPLOYMENT.md` Removal**
+    ```bash
+    git rm DEPLOYMENT.md && git commit -m "remove: DEPLOYMENT.md in favor of cli/README.md"
+    ```
+
+12. [README.md](file:///Users/ivansamuel/Documents/Projects/telos/README.md)
+    ```bash
+    git add README.md && git commit -m "docs: update root README to 5-section architecture with directory routing"
+    ```

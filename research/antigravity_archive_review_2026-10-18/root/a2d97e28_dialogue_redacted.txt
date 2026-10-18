@@ -1,0 +1,43 @@
+
+=== ORIGINAL STEP 0 | JSONL LINE 1 | USER_EXPLICIT | 2026-09-13T16:09:27Z ===
+Unrelated question. Just look into this:
+Is the telos dataprep algorithm only doing tokenizing or does it transform and filter too?
+
+=== ORIGINAL STEP 48 | JSONL LINE 49 | MODEL | 2026-09-13T16:10:23Z ===
+The Télos data preparation algorithm in [telos/dataprep/prepare.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/dataprep/prepare.py) is **primarily a tokenization and binary packaging pipeline**, but it **does include specific filtering rules and structural transformations**. 
+
+It does **not** perform semantic text transformations (such as AST parsing, code formatting, or comment stripping).
+
+---
+
+### 1. What It Filters
+
+* **File Extension Filtering**: When recursing directories, it only admits files matching recognized extensions: `.py`, `.txt`, `.md`, `.json`, `.rs`, `.js`, `.ts`, `.c`, `.cpp` ([prepare.py:34, 57](file:///Users/ivansamuel/Documents/Projects/telos/telos/dataprep/prepare.py#L34-L57)).
+* **Empty / Whitespace Filtering**: Drops empty lines or whitespace-only documents across directory reads, JSONL, and Hugging Face datasets ([prepare.py:42, 63, 77, 85](file:///Users/ivansamuel/Documents/Projects/telos/telos/dataprep/prepare.py#L42-L85)).
+* **Minimum Document Length**: Filters out any document with fewer than 20 characters after stripping whitespace:
+  ```python
+  if len(doc.strip()) >= 20:
+      buffer.append(doc)
+  ```
+  ([prepare.py:182-183](file:///Users/ivansamuel/Documents/Projects/telos/telos/dataprep/prepare.py#L182-L183)).
+* **Document Cap (`limit_docs`)**: Halts iteration if `limit_docs` threshold is reached ([prepare.py:45, 65, 80](file:///Users/ivansamuel/Documents/Projects/telos/telos/dataprep/prepare.py#L45-L80)).
+* **Token Budget Truncation (`max_tokens`)**: Slices and flushes the token stream to an exact token budget ([prepare.py:196-208](file:///Users/ivansamuel/Documents/Projects/telos/telos/dataprep/prepare.py#L196-L208)).
+* **Encoding Fault Filtering**: Discards decode failures silently via `errors="ignore"` ([prepare.py:60, 71, 83](file:///Users/ivansamuel/Documents/Projects/telos/telos/dataprep/prepare.py#L60-L83)).
+
+---
+
+### 2. What It Transforms
+
+* **Text to Subword IDs**: Batched byte-level BPE tokenization using [telos/data/tokenizer.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/data/tokenizer.py). It preserves exact whitespace, tabs, and newlines without mutating the text.
+* **1D Stream Flattening**: Flattens separate document token lists into a single continuous 1D token stream (no document padding or delimiter insertion).
+* **Binary Serialization**: Converts token arrays to binary bytes (`uint16` if vocab ≤ 65,536, otherwise `int32`) written directly to disk (`.bin`) for zero-copy memory mapping (`np.memmap`) during training ([prepare.py:170, 190](file:///Users/ivansamuel/Documents/Projects/telos/telos/dataprep/prepare.py#L170-L190)).
+* **Sidecar Metadata Generation**: Writes `.bin.json` metadata containing `vocab_size`, `dtype`, and `total_tokens`.
+
+---
+
+### 3. What It Does NOT Do
+
+* **No Text Alterations**: Does not normalize whitespace, lowercase, remove comments, or clean code.
+* **No AST Parsing**: An older legacy script (`mdiff/data/prepare.py`) previously parsed Python AST to isolate docstring functions, but the current unified [telos.dataprep.prepare](file:///Users/ivansamuel/Documents/Projects/telos/telos/dataprep/prepare.py) streams documents raw.
+* **No Special Token Wrapping**: Does not insert `[BOS]` or `[EOS]` between documents.
+* **No Dynamic Masking/Noise**: All diffusion corruptions and masking happen dynamically at train time in [telos/training/trainer_pytorch.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/training/trainer_pytorch.py) and [telos/training/trainer_mlx.py](file:///Users/ivansamuel/Documents/Projects/telos/telos/training/trainer_mlx.py), not in data preparation.

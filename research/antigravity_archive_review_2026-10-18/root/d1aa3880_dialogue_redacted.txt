@@ -1,0 +1,112 @@
+
+=== ORIGINAL STEP 0 | JSONL LINE 1 | USER_EXPLICIT | 2026-09-13T17:03:02Z ===
+Problem Analysis: Why 100M AR Diverged on TPU v5e-8
+1. The Timeline Difference (Why Earlier Runs Succeeded)
+Empirical inspection of checkpoint files and git history reveals that the models did not run on the same codebase:
+
+Model Checkpoint	Completed Timestamp	Hardware	Codebase State & TPU Step Mechanism	Result
+100M AR (1:40, 4B)	Sep 9, 00:23	CUDA H100	Eager PyTorch, native FlashAttention-2, standard AdamW	Healthy (52.2% Top-1, 1.59 Val CE)
+15M COROSred (1:50, 750M)	Sep 10, 23:32	TPU v5e-8	Canonical xm.optimizer_step(self.optimizer)	Healthy (8.47% Top-1, 6.56 Val CE)
+50M COROSred (1:50, 2.5B)	Sep 12, 01:07	TPU v5e-8	Canonical xm.optimizer_step(self.optimizer)	Healthy (50.89% Top-1, 2.91 Val CE)
+100M AR (1:50, 5B)	Sep 13, 19:54	TPU v5e-8	Commit b286a90 (Sep 12, 20:27): bypassed xm.optimizer_step	Diverged (2.7% Top-1, 10.42 CE)
+2. The Three Root Causes of the TPU Divergence
+A. PyTorch-XLA Optimizer Stepping & Lazy Gradient Clipping Desync
+In 
+
+telos/training/trainer_pytorch.py
+ (Commit b286a90):
+
+python
+# Current code in trainer_pytorch.py:
+if not getattr(self, "is_spmd", False):
+    xm.reduce_gradients(self.optimizer)
+if self.grad_clip > 0:
+    target_params = self.master_params if self.use_master_weights else self.model.parameters()
+    nn.utils.clip_grad_norm_(target_params, self.grad_clip)
+self.optimizer.step()
+Calling nn.utils.clip_grad_norm_ on lazy XLA tensors without proper graph evaluation or barrier creates unreduced XLA subgraphs across the 8 TPU cores.
+Bypassing PyTorch-XLA's canonical optimizer tracking (xm.optimizer_step) caused parameter updates to fall out of step with the PJRT execution graph, causing loss drift starting at step ~7,000 and total divergence by step 21,000.
+B. bfloat16 Underflow in AR Cross-Entropy
+In 
+
+telos/diffusion/ar.py
+ (Commit 17ec14a):
+
+python
+shift_logits = logits[:, :-1, :].contiguous().view(-1, vocab_size)
+shift_targets = batch_seqs[:, 1:].contiguous().view(-1)
+# shift_logits is in bfloat16 under torch.autocast("xla", torch.bfloat16)
+ce_loss_per_token = F.cross_entropy(shift_logits, shift_targets, reduction="none").view(batch_size, seq_len - 1)
+Under TPU XLA autocast, shift_logits is in bfloat16 (7-bit mantissa). Computing cross-entropy over a vocabulary of 8,192 tokens in raw bfloat16 without upcasting to float32 causes severe underflow and numerical instability in the log-sum-exp reduction.
+CUDA handles this natively in cuDNN; PyTorch-XLA requires explicit shift_logits.float().
+C. Lack of Bidirectional Entropy Regularization
+In COROSred (both 15M and 50M), 25% of the batch uses bidirectional attention for masked token infilling, and the LRH head computes binary cross-entropy on token certainty. This prevents logits from collapsing into repetitive whitespace or punctuation attractors. Pure AR had no such anchor.
+Suggested Solutions
+Solution 1: Fix Cross-Entropy Float32 Upcast
+File: 
+
+telos/diffusion/ar.py
+ Change: Upcast shift_logits to float32 before computing cross-entropy:
+
+python
+# Upcast to float32 to eliminate bfloat16 log-sum-exp underflow on TPU XLA MXUs
+ce_loss_per_token = F.cross_entropy(shift_logits.float(), shift_targets, reduction="none").view(batch_size, seq_len - 1)
+Solution 2: Stabilize TPU Optimizer Step & Gradient Clipping
+File: 
+
+telos/training/trainer_pytorch.py
+ Change: Ensure gradients are cleanly reduced and clipped using canonical PyTorch-XLA semantics:
+
+python
+elif self.is_tpu:
+    import torch_xla.core.xla_model as xm
+    if not getattr(self, "is_spmd", False):
+        xm.reduce_gradients(self.optimizer)
+    if self.grad_clip > 0:
+        nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
+    
+    self.optimizer.step()
+    xm.mark_step()
+Solution 3: Verify with a 100-Step TPU Sanity Probe
+Before starting the next full 15B token run:
+
+Launch a short 100-step test on TPU v5e-8.
+Verify that Cross-Entropy starts at $\approx 9.01$ (random initialization for $V=8192$) and drops monotonically below $\approx 7.20$ within the first 100 steps.
+Ready-to-use Commit Details for the Fixes:
+File: telos/diffusion/ar.py
+Commit: fix: upcast AR logits to float32 before cross entropy to eliminate TPU XLA underflow
+Command: git add telos/diffusion/ar.py && git commit -m "fix: upcast AR logits to float32 before cross entropy to eliminate TPU XLA underflow"
+File: telos/training/trainer_pytorch.py
+Commit: fix: stabilize TPU XLA gradient reduction, norm clipping, and optimizer step barrier
+Command: git add telos/training/trainer_pytorch.py && git commit -m "fix: stabilize TPU XLA gradient reduction, norm clipping, and optimizer step barrier"
+
+Well - look into the repo more. We don't want any further critical issues like this.
+Also: implement this. Don't commit.
+
+you are allowed to make file edits. And you should ideally plan first.
+
+=== ORIGINAL STEP 138 | JSONL LINE 139 | MODEL | 2026-09-13T17:07:52Z ===
+I have completed the repository-wide audit and formulated the remediation plan.
+
+### Summary of Key Findings
+
+1. **PyTorch-XLA Optimizer Stepping (`trainer_pytorch.py`)**:
+   - In commit `b286a90`, `xm.optimizer_step(self.optimizer)` was bypassed under the mistaken belief that calling `xm.reduce_gradients()` followed by `xm.optimizer_step()` would scale gradients by $1/\text{world\_size}^2$ ($1/64\times$ on 8 cores).
+   - In reality, an all-reduce mean on identical tensors across all replicas is **strictly idempotent** ($\frac{1}{N} \sum_{i=1}^N g = g$).
+   - Bypassing `xm.optimizer_step()` prevented PyTorch-XLA from tracking parameter updates in the PJRT device execution graph, accumulating unreduced lazy subgraphs and causing the loss drift starting at step ~7,000 and total divergence by step 21,000.
+   - Similar bypasses were discovered in `scripts/colab/train_25m_upscaled.py` and `scripts/lightning/train_25m_lightning.py`.
+
+2. **Repository-Wide bfloat16 Log-Sum-Exp Underflow**:
+   - In `telos/diffusion/ar.py`, `shift_logits` was passed to `F.cross_entropy` in raw `bfloat16`. Over an 8,192-token vocabulary, raw `bfloat16` (7-bit mantissa) causes underflow during log-sum-exp reductions on TPU MXUs.
+   - **Critical Extension**: This underflow issue was also present across **all other loss modules** in the repo:
+     - `telos/diffusion/corosred_unified.py` (causal CE, infill CE, and LRH BCE)
+     - `telos/diffusion/corosred.py` (all phases)
+     - `telos/diffusion/mdlm.py`
+     - `telos/diffusion/undlm.py`
+     - `telos/training/monitor.py`
+     - `scripts/eval_50m_suite.py` & `scripts/eval_50m_head_to_head.py`
+
+3. **100-Step Sanity Probe & Documentation**:
+   - We have designed a 100-step pre-flight probe recipe to be integrated into `DEPLOYMENT.md` so runs can be verified before committing to multi-billion-token compute budgets.
+
+Please review the detailed plan in [implementation_plan.md](file:///Users/ivansamuel/.gemini/antigravity-ide/brain/d1aa3880-8338-4612-b659-7a752b762d65/implementation_plan.md). Once approved, I will implement the edits and provide the individual commit messages and commands without committing.

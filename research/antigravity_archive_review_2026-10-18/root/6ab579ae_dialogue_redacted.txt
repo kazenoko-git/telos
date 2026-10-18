@@ -1,0 +1,103 @@
+
+=== ORIGINAL STEP 0 | JSONL LINE 1 | USER_EXPLICIT | 2026-08-13T17:34:57Z ===
+I need to send a couple of emails to some researchers. Do research about these researchers and give me the email I can send to them asking for review,
+
+1. kenji@comp.nus.edu.sg
+2. wei.lu@ntu.edu.sg
+3. srjoty@ntu.edu.sg
+4. aseschng@ntu.edu.sg
+5. anhtuan.luu@ntu.edu.sg
+6. aarpit@cse.iitb.ac.in
+7. bagchis@acm.org
+8. sujoy@cse.iitb.ac.in
+9. saketh@cse.iitb.ac.in
+10. miteshk@cse.iitm.ac.in
+11.  sutanuc@cse.iitm.ac.in
+12. parags@cse.iitd.ac.in
+13. sayanranu@cse.iitd.ac.in
+14. m_anandkumar@nitk.edu.in
+15. sowmyakamath@nitk.edu.in
+16. barry.smyth@ucd.ie
+17. padraig.cunningham@ucd.ie
+18. david.gregg@tcd.ie
+19. john.kelleher@tcd.ie
+20. anya.belz@dcu.ie
+
+=== ORIGINAL STEP 80 | JSONL LINE 80 | MODEL | 2026-08-13T17:37:08Z ===
+I have completed research on all 20 researchers and compiled customized outreach emails tailored to your paper **"télos (τέλος): Preliminary Evidence on Token-Budget Scaling in Masked Diffusion Language Models for Code Autocomplete"**.
+
+All detailed researcher profiles, master email templates, and personalized opening hooks have been saved in the artifact document:
+[researcher_outreach_emails.md](file:///Users/ivansamuel/.gemini/antigravity-ide/brain/6ab579ae-f7b0-4203-b6f0-8cd2ce4c8021/researcher_outreach_emails.md)
+
+---
+
+### Suggested Commit Info (as per workspace rules)
+- **Commit Message**: `add: Add researcher profiles and customized review request emails for télos paper`
+- **Command**:  
+  `git add .gemini/antigravity-ide/brain/6ab579ae-f7b0-4203-b6f0-8cd2ce4c8021/researcher_outreach_emails.md && git commit -m "add: Add researcher profiles and customized review request emails for télos paper"`
+
+---
+
+### Master Email Template
+
+```text
+Subject: Feedback request: Token-Budget Scaling in Masked Diffusion Models for Code Autocomplete
+
+Dear Prof. / Dr. [Last Name],
+
+I hope this email finds you well.
+
+I have been following your research in [Researcher's Primary Field], particularly your work on [Personalized Research Reference / Hook]. 
+
+I am writing to share our recent paper titled "télos (τέλος): Preliminary Evidence on Token-Budget Scaling in Masked Diffusion Language Models for Code Autocomplete" and to respectfully request your preliminary feedback or critical review.
+
+### Summary of the Paper
+While autoregressive (AR) language models dominate code generation, Masked Diffusion Language Models (MDLMs) offer an alternative through bidirectional context and iterative non-monotonic decoding. In this work, we present télos, a narrow-domain MDLM for Python code autocomplete, and investigate its capability formation and scaling dynamics:
+1. Token-Budget Scaling Dynamics: We observe preliminary evidence that the optimal token-to-parameter ratio for MDLMs increases with scale (e.g., 12.5M peaks at 1:15 ratio, while 25M continues improving past 1:25), contrasting with standard constant-ratio Chinchilla scaling in AR models.
+2. Contextual Probing vs Aggregate Loss: Aggregate cross-entropy hides sharp, localized capability transitions; structural token syntax closure improves significantly earlier than semantic identifier recovery.
+3. Engineering & Hardware Optimizations: We detail empirical corrections, loss reweighting (1/t), and hardware-specific optimizations (MPS/MLX / GPU memory alignment) required for reliable MDLM training.
+
+Given your deep expertise in [Researcher's Specialty], your perspective on [Specific Research Question / Angle] would be invaluable to us as we prepare this work for submission.
+
+The full paper draft and open-source implementation are available here:
+- Paper Draft: [Link to Paper PDF/Draft]
+- Repository: https://github.com/kazenoko/telos
+
+We completely understand that your schedule is extremely demanding. Even brief comments or a high-level impression would be immensely appreciated.
+
+Thank you very much for your time and consideration.
+
+Best regards,
+
+[Your Name]  
+[Your Affiliation / Contact Info]
+```
+
+---
+
+### Quick Reference of All 20 Targeted Researchers & Personalized Hooks
+
+| # | Researcher | Institution | Key Expertise | Customized Opening Hook & Angle |
+|---|---|---|---|---|
+| 1 | **Prof. Kenji Kawaguchi** (`kenji@comp.nus.edu.sg`) | NUS | DL Theory, Scaling Laws, Optimization (NeurIPS '24 Best Paper) | *"I have been closely following your foundational work on deep learning theory and scaling dynamics..."* <br>**Angle:** RQ4 (Token-budget scaling dynamics vs Chinchilla AR scaling). |
+| 2 | **Prof. Wei Lu** (`wei.lu@ntu.edu.sg`) | NTU | Structured Prediction, NLP, Editor-in-Chief of *Comp. Ling.* | *"I have long admired your contributions to structured prediction and statistical NLP..."* <br>**Angle:** Non-monotonic sequence generation vs causal left-to-right code prediction. |
+| 3 | **Prof. Shafiq Joty** (`srjoty@ntu.edu.sg` / `sjoty@salesforce.com`) | Salesforce AI / NTU | Code LLMs (CodeT5, xGen), Code Generation | *"Your pioneering work on CodeT5 and generative models for code intelligence has been a major inspiration..."* <br>**Angle:** Bidirectional diffusion denoising vs encoder-decoder / AR code models. |
+| 4 | **Prof. Chng Eng Siong** (`aseschng@ntu.edu.sg`) | NTU | Sequence Modeling, Speech & Language, LLMs | *"I am familiar with your extensive work in sequence modeling and language technologies..."* <br>**Angle:** Iterative unmasking & non-causal sequence modeling efficiency. |
+| 5 | **Prof. Luu Anh Tuan** (`anhtuan.luu@ntu.edu.sg`) | NTU (ex-MIT CSAIL) | LLMs, Robustness, Representation Probing | *"I have read with great interest your research on LLM robustness and representation analysis..."* <br>**Angle:** Contextual probing (RQ1–RQ3) to uncover hidden capability transitions. |
+| 6 | **Prof. Arpit Agarwal** (`aarpit@cse.iitb.ac.in`) | IIT Bombay | Algorithmic ML, Optimization | *"I have been following your work at IIT Bombay and C-MInDS on machine learning algorithms..."* <br>**Angle:** Time-agnostic $1/t$ ELBO weighting under Beta-distributed masking. |
+| 7 | **Prof. Saurabh Bagchi** (`bagchis@acm.org` / `sbagchi@purdue.edu`) | Purdue (ACM Fellow) | Dependable Computing, AI Engineering | *"Your distinguished work on resilient computing systems and scalable AI engineering..."* <br>**Angle:** RQ5 (Engineering efficiency, SwiGLU memory alignment, throughput scaling). |
+| 8 | **Prof. Sujoy Bhore** (`sujoy@cse.iitb.ac.in`) | IIT Bombay | Discrete Algorithms, Theoretical CS | *"I am aware of your rigorous work on discrete algorithms and theoretical computational models..."* <br>**Angle:** Discrete categorical state space diffusion & iterative decoding trajectories. |
+| 9 | **Prof. Saketh Nath** (`saketh@cse.iitb.ac.in`) | IIT Bombay | Convex Optimization, Machine Learning Theory | *"I have followed your foundational contributions to optimization algorithms and machine learning..."* <br>**Angle:** Variational lower bounds & Beta(1.5, 1.5) reweighted discrete ELBO estimation. |
+| 10 | **Prof. Mitesh M. Khapra** (`miteshk@cse.iitm.ac.in`) | IIT Madras (TIME 100 AI '25) | NLP, NLG Evaluation Metrics | *"Congratulations on your recognition in TIME 100 AI 2025; your work with AI4Bharat and deep contributions to NLP evaluation metrics..."* <br>**Angle:** Probing syntax closure & semantic recovery beyond aggregate validation loss. |
+| 11 | **Prof. Sutanu Chakraborty** (`sutanuc@cse.iitm.ac.in`) | IIT Madras | Machine Learning, Reasoning Models, IR | *"I have followed your research at IIT Madras on reasoning models and memory-based algorithms..."* <br>**Angle:** Global bidirectional context retrieval for code pattern autocomplete. |
+| 12 | **Prof. Parag Singla** (`parags@cse.iitd.ac.in`) | IIT Delhi | Neuro-Symbolic AI, Relational Learning | *"Your extensive research in neuro-symbolic reasoning and statistical relational learning..."* <br>**Angle:** Neuro-symbolic syntax recovery (deterministic closure vs probabilistic identifiers). |
+| 13 | **Prof. Sayan Ranu** (`sayanranu@cse.iitd.ac.in`) | IIT Delhi | Graph Neural Networks, Machine Learning | *"I am very familiar with your work on graph neural networks and structured representation learning..."* <br>**Angle:** Modeling non-causal code token dependencies via graph-like discrete diffusion. |
+| 14 | **Prof. Anand Kumar M** (`m_anandkumar@nitk.edu.in`) | NITK Surathkal | NLP, Deep Learning, Text Analytics | *"I have followed your research contributions in NLP and deep learning text analytics..."* <br>**Angle:** Empirical training efficiency of discrete diffusion vs causal AR models. |
+| 15 | **Prof. Sowmya Kamath S** (`sowmyakamath@nitk.edu.in`) | NITK Surathkal | Generative AI, NLP, HALE Lab | *"I am impressed by the ongoing generative AI and NLP research coming out of your HALE Lab..."* <br>**Angle:** Diagnostic probing of capability acquisition in generative models. |
+| 16 | **Prof. Barry Smyth** (`barry.smyth@ucd.ie`) | UCD (RIA Member) | AI, User Context, Autocomplete | *"I have long admired your distinguished contributions to AI, user context modeling, and intelligent systems..."* <br>**Angle:** Interactive middle-out code editing and non-monotonic diffusion autocomplete. |
+| 17 | **Prof. Pádraig Cunningham** (`padraig.cunningham@ucd.ie`) | UCD | ML Model Evaluation, Feature Selection | *"I am familiar with your extensive work in machine learning model evaluation and feature dynamics..."* <br>**Angle:** Diagnostic probe micro-metrics vs aggregate validation loss. |
+| 18 | **Prof. David Gregg** (`david.gregg@tcd.ie`) | Trinity College Dublin | Hardware Acceleration, Compilers, Optimization | *"I have read with interest your work on deep learning acceleration and compiler systems..."* <br>**Angle:** RQ5 (Hardware optimization, memory alignment, RoPE/SwiGLU execution efficiency). |
+| 19 | **Prof. John D. Kelleher** (`john.kelleher@tcd.ie`) | Trinity College Dublin | Machine Learning, NLP, ADAPT Director | *"Your extensive research in deep learning and NLP architectures, as well as your leadership of the ADAPT Centre..."* <br>**Angle:** Non-causal discrete diffusion vs autoregressive Transformer scaling. |
+| 20 | **Prof. Anya Belz** (`anya.belz@dcu.ie`) | DCU / ADAPT | NLP Evaluation, NLG, Reproducibility | *"Your pioneering leadership on NLG evaluation, the HumEval workshops, and reproducibility..."* <br>**Angle:** Reproducible evaluation metrics and targeted probe design for non-AR models. |
+
+Please let me know if you would like me to adjust any of the email copy or focus areas!

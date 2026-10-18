@@ -1,0 +1,68 @@
+
+=== ORIGINAL STEP 0 | JSONL LINE 1 | USER_EXPLICIT | 2026-09-23T07:35:01Z ===
+Access this website and tell me what you understand:
+
+https://telos.research.wingit.tech
+
+=== ORIGINAL STEP 10 | JSONL LINE 11 | MODEL | 2026-09-23T07:47:32Z ===
+Based on the live inspection of [telos.research.wingit.tech](https://telos.research.wingit.tech), here is an overview of the platform, the research thesis, and the empirical findings presented on the site:
+
+---
+
+### 1. Overview & Project Purpose
+**télos (τέλος)** is an open-source research initiative by **Ivan Samuel (Wing It Research)** investigating **Masked Diffusion Language Models (MDLM)** for narrow-domain code completion (specifically Python).
+
+* **Core Motivation**: Standard autoregressive (AR) models generate code strictly left-to-right. However, programming logic is non-linear (e.g., function signatures are declared before bodies, variables may be referenced before declaration or used across contexts). télos reframes generation as iterative denoising over masked tokens using full bidirectional attention.
+* **Site Structure**:
+  * **Interactive Model Playground (`/`)**: A live Monaco Editor interface for testing Python autocomplete across 21 trained checkpoints.
+  * **Research Papers Hub (`/pages`)**: Houses detailed technical reports (**Preliminary Report #1** and **Preliminary Report #2**).
+
+---
+
+### 2. Model Architecture & Training Setup
+* **Backbone**: Bidirectional Transformer (no causal triangular masking).
+* **Components**: RMSNorm, SwiGLU activation ($\text{expansion} \approx 2.67$), Grouped Query Attention (GQA), and untied input embeddings and language model head.
+* **Positional Encodings**: Evaluated 1D learned absolute positional embeddings vs. Native Rotary Positional Embeddings (RoPE) vs. RoPE fine-tuning.
+* **Diffusion Objective**:
+  * Masking ratio sampled from $t \sim \text{Beta}(1.5, 1.5)$ (concentrating mass around $t \approx 0.5$ to avoid edge collapses).
+  * Loss reweighting: $\mathcal{L} = \frac{1}{t} \cdot \text{CE}_{\text{masked}}$.
+* **Data & Vocabulary**: CodeParrot-Clean Python dataset (filtered for functions with docstrings), Byte-Level BPE tokenizer with an 8,192-token vocabulary.
+* **Model Scales**:
+  * **12.5M**: $d_{\text{model}} = 256$, 13 layers, 4 heads.
+  * **25M**: $d_{\text{model}} = 512$, 8 layers, 8 heads (Net2Net initialized from 12.5M).
+  * **50M**: $d_{\text{model}} = 768$, 8 layers, 12 heads (Net2Net initialized from 25M).
+
+---
+
+### 3. Key Research Findings & Empirical Benchmarks
+
+#### A. Token-Budget Scaling Laws
+The optimal token-to-parameter ratio ($R^*$) increases as model size scales:
+* **12.5M**: Saturates early at **1:15** to **1:20** (187.5M–250M tokens; CE ~7.56–7.84), degrading with further training.
+* **25M**: Peaks around **1:30** (750M tokens; probe CE ~6.90, target rank ~409).
+* **50M**: Peaks around **1:35** (1.75B tokens; probe CE ~7.05, target rank ~446), followed by steep collapse at 1:40 (rank degraded to 3,988).
+
+#### B. Structural vs. Semantic Capability Gap
+Across all scales, models exhibit a persistent gap of nearly **4 nats** (~$55\times$ target likelihood) between syntax and semantics:
+* **Structural/Syntactic tokens**: Rapidly mastered early in training (*Literals*: ~5.87 CE, *Operators*: ~6.03 CE, *Keywords*: ~6.05 CE).
+* **Semantic/Open-vocabulary tokens**: Stall or fail to generalize (*Functions*: ~8.45 CE, *Attributes*: ~8.90 CE, *Class names*: ~9.75 CE).
+
+#### C. The CE-Rank Divergence Phenomenon
+When over-trained past their optimal ratio, models exhibit a decoupling between aggregate Cross-Entropy and Target Rank:
+* Cross-Entropy continues to improve because the model hyper-optimizes on predictable structural tokens (e.g., literal rank improving from 351 to 32).
+* Target Rank across open-vocabulary probes simultaneously explodes because the model loses semantic generalization, showing that aggregate CE alone is an unreliable indicator for code autocomplete quality.
+
+#### D. Rotary Positional Embeddings (RoPE)
+* **Native RoPE**: Models trained with RoPE from step 0 achieved the project's record accuracy (**25M 1:40 Native RoPE** achieved **7.24 CE**, **7.92% Top-1 exact accuracy**, and **17.82% Top-5 accuracy**).
+* **RoPE Fine-Tuning Regression**: Injecting RoPE via fine-tuning onto checkpoints pre-trained with absolute positional encodings caused a uniform **~0.6 nat regression** across all scales (e.g., 50M 1:35 regressed from 7.05 CE to 7.72 CE).
+
+#### E. Future Directions
+The reports conclude that hard discrete masking imposes a strict one-shot commitment where errors cannot be revisited during generation, pointing to **Uniform Noise Diffusion Language Models (UNDLM)** with continuous state-space corruption and self-correction as the next iteration.
+
+---
+
+### 4. Interactive Playground Details
+The homepage hosts the generation engine allowing direct comparison of all 21 checkpoints:
+* **Sliders**: Temperature (default `0.3`) and Generation Token Count (default `32`).
+* **Generation Process**: Iterative unmasking based on token-confidence decoding.
+* **Checkpoints Available**: 6 variants for 12.5M, 7 variants for 25M, and 8 variants for 50M (covering baseline ratios, over-trained ratios, native RoPE, and fine-tuned RoPE).
