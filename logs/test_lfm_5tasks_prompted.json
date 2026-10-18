@@ -1,0 +1,661 @@
+{
+  "model_checkpoint": "<telos.eval.adapters.openai_api.OpenAIAPIAdapter object at 0x107a3a900>",
+  "backend": "openai_api",
+  "paradigm": "corosred",
+  "vocab_size": 32000,
+  "timestamp": 1789915569,
+  "mode": "functional",
+  "benchmark_type": "code",
+  "language": "auto",
+  "suites_evaluated": [
+    "code"
+  ],
+  "code": {
+    "functional": {
+      "suite": "humaneval",
+      "total_tasks": 5,
+      "pass_at_1_pct": 80.0,
+      "pass_at_1_95ci": [
+        40.0,
+        100.0
+      ],
+      "ast_validity_pct": 80.0,
+      "execution_outcomes": {
+        "PASSED": 4,
+        "FAILED_ASSERTION": 0,
+        "SYNTAX_ERROR": 1,
+        "TIMEOUT": 0,
+        "RUNTIME_EXCEPTION": 0,
+        "MEMORY_EXCEEDED": 0
+      },
+      "repetition": {
+        "avg_token_length": 755.4,
+        "early_exit_pct": 0.0,
+        "rep_2gram_pct": 31.6,
+        "rep_3gram_pct": 18.6,
+        "rep_4gram_pct": 11.8,
+        "line_repetition_pct": 11.2,
+        "consecutive_dup_line_pct": 20.0,
+        "degenerate_loop_pct": 0.0
+      },
+      "numerical_accuracy": {
+        "tasks_with_prompt_numbers": 4,
+        "numeric_recall_pct": 58.3,
+        "numeric_precision_pct": 70.8,
+        "exact_number_match_pct": 50.0,
+        "zero_numbers_emitted_pct": 0.0,
+        "hallucinated_numbers_pct": 50.0
+      },
+      "extended_metrics": {
+        "count": 5,
+        "avg_token_length": 755.4,
+        "early_exit_pct": 0.0,
+        "rep_2gram_pct": 31.6,
+        "rep_3gram_pct": 18.6,
+        "rep_4gram_pct": 11.8,
+        "line_repetition_pct": 11.2,
+        "consecutive_dup_line_pct": 20.0,
+        "degenerate_loop_pct": 0.0,
+        "numerical": {
+          "tasks_with_prompt_numbers": 4,
+          "numeric_recall_pct": 58.3,
+          "numeric_precision_pct": 70.8,
+          "exact_number_match_pct": 50.0,
+          "zero_numbers_emitted_pct": 0.0,
+          "hallucinated_numbers_pct": 50.0
+        }
+      },
+      "category_breakdown": {
+        "HumanEval": {
+          "count": 5,
+          "pass_at_1_pct": 80.0,
+          "ast_valid_pct": 80.0,
+          "outcomes": {
+            "PASSED": 4,
+            "SYNTAX_ERROR": 1
+          },
+          "extended_metrics": {
+            "count": 5,
+            "avg_token_length": 755.4,
+            "early_exit_pct": 0.0,
+            "rep_2gram_pct": 31.6,
+            "rep_3gram_pct": 18.6,
+            "rep_4gram_pct": 11.8,
+            "line_repetition_pct": 11.2,
+            "consecutive_dup_line_pct": 20.0,
+            "degenerate_loop_pct": 0.0,
+            "numerical": {
+              "tasks_with_prompt_numbers": 4,
+              "numeric_recall_pct": 58.3,
+              "numeric_precision_pct": 70.8,
+              "exact_number_match_pct": 50.0,
+              "zero_numbers_emitted_pct": 0.0,
+              "hallucinated_numbers_pct": 50.0
+            }
+          }
+        }
+      },
+      "tasks": [
+        {
+          "id": "HumanEval/0",
+          "category": "HumanEval",
+          "outcome": "PASSED",
+          "ast_valid": true,
+          "ast_error": null,
+          "details": "All assertions and statements passed",
+          "extended_metrics": {
+            "token_count": 182,
+            "is_early_exit": false,
+            "rep_2gram": 0.2375690607734806,
+            "rep_3gram": 0.12222222222222223,
+            "rep_4gram": 0.04469273743016755,
+            "line_rep": 0.08333333333333337,
+            "has_consecutive_dup_lines": false,
+            "is_degenerate_loop": false,
+            "numerical": {
+              "has_prompt_numbers": true,
+              "prompt_numbers": [
+                "1.0",
+                "2.0",
+                "0.3",
+                "3.0",
+                "2.8",
+                "5.0",
+                "4.0",
+                "0.5"
+              ],
+              "completion_numbers": [
+                "1",
+                "2"
+              ],
+              "overlap_numbers": [],
+              "hallucinated_numbers": [
+                "1",
+                "2"
+              ],
+              "numeric_recall": 0.0,
+              "numeric_precision": 0.0,
+              "exact_number_match": false,
+              "zero_numbers_emitted": false
+            }
+          }
+        },
+        {
+          "id": "HumanEval/1",
+          "category": "HumanEval",
+          "outcome": "SYNTAX_ERROR",
+          "ast_valid": false,
+          "ast_error": "SyntaxError: unterminated string literal (detected at line 49) (line 49)",
+          "details": "SyntaxError: unterminated string literal (detected at line 49)",
+          "extended_metrics": {
+            "token_count": 3030,
+            "is_early_exit": false,
+            "rep_2gram": 0.6890062726972599,
+            "rep_3gram": 0.523447820343461,
+            "rep_4gram": 0.39874463164849683,
+            "line_rep": 0.47572815533980584,
+            "has_consecutive_dup_lines": true,
+            "is_degenerate_loop": false,
+            "numerical": {
+              "has_prompt_numbers": false,
+              "prompt_numbers": [],
+              "completion_numbers": [
+                "3",
+                "6",
+                "12",
+                "9",
+                "11",
+                "15",
+                "5",
+                "14",
+                "7",
+                "13",
+                "2",
+                "1",
+                "8",
+                "10",
+                "4"
+              ],
+              "overlap_numbers": [],
+              "hallucinated_numbers": [
+                "3",
+                "6",
+                "12",
+                "9",
+                "11",
+                "15",
+                "5",
+                "14",
+                "7",
+                "13",
+                "2",
+                "1",
+                "8",
+                "10",
+                "4"
+              ],
+              "numeric_recall": null,
+              "numeric_precision": null,
+              "exact_number_match": null,
+              "zero_numbers_emitted": null
+            }
+          }
+        },
+        {
+          "id": "HumanEval/2",
+          "category": "HumanEval",
+          "outcome": "PASSED",
+          "ast_valid": true,
+          "ast_error": null,
+          "details": "All assertions and statements passed",
+          "extended_metrics": {
+            "token_count": 152,
+            "is_early_exit": false,
+            "rep_2gram": 0.1258278145695364,
+            "rep_3gram": 0.033333333333333326,
+            "rep_4gram": 0.006711409395973145,
+            "line_rep": 0.0,
+            "has_consecutive_dup_lines": false,
+            "is_degenerate_loop": false,
+            "numerical": {
+              "has_prompt_numbers": true,
+              "prompt_numbers": [
+                "1",
+                "0.5",
+                "3.5"
+              ],
+              "completion_numbers": [
+                "1"
+              ],
+              "overlap_numbers": [
+                "1"
+              ],
+              "hallucinated_numbers": [],
+              "numeric_recall": 0.3333333333333333,
+              "numeric_precision": 1.0,
+              "exact_number_match": false,
+              "zero_numbers_emitted": false
+            }
+          }
+        },
+        {
+          "id": "HumanEval/3",
+          "category": "HumanEval",
+          "outcome": "PASSED",
+          "ast_valid": true,
+          "ast_error": null,
+          "details": "All assertions and statements passed",
+          "extended_metrics": {
+            "token_count": 199,
+            "is_early_exit": false,
+            "rep_2gram": 0.25757575757575757,
+            "rep_3gram": 0.12690355329949243,
+            "rep_4gram": 0.0714285714285714,
+            "line_rep": 0.0,
+            "has_consecutive_dup_lines": false,
+            "is_degenerate_loop": false,
+            "numerical": {
+              "has_prompt_numbers": true,
+              "prompt_numbers": [
+                "3",
+                "5",
+                "2",
+                "1",
+                "4"
+              ],
+              "completion_numbers": [
+                "3",
+                "5",
+                "2",
+                "1",
+                "0",
+                "4"
+              ],
+              "overlap_numbers": [
+                "3",
+                "5",
+                "2",
+                "1",
+                "4"
+              ],
+              "hallucinated_numbers": [
+                "0"
+              ],
+              "numeric_recall": 1.0,
+              "numeric_precision": 0.8333333333333334,
+              "exact_number_match": true,
+              "zero_numbers_emitted": false
+            }
+          }
+        },
+        {
+          "id": "HumanEval/4",
+          "category": "HumanEval",
+          "outcome": "PASSED",
+          "ast_valid": true,
+          "ast_error": null,
+          "details": "All assertions and statements passed",
+          "extended_metrics": {
+            "token_count": 214,
+            "is_early_exit": false,
+            "rep_2gram": 0.2723004694835681,
+            "rep_3gram": 0.12264150943396224,
+            "rep_4gram": 0.06635071090047395,
+            "line_rep": 0.0,
+            "has_consecutive_dup_lines": false,
+            "is_degenerate_loop": false,
+            "numerical": {
+              "has_prompt_numbers": true,
+              "prompt_numbers": [
+                "2.0",
+                "1.0",
+                "3.0",
+                "4.0"
+              ],
+              "completion_numbers": [
+                "2.0",
+                "1.0",
+                "3.0",
+                "4.0"
+              ],
+              "overlap_numbers": [
+                "2.0",
+                "1.0",
+                "3.0",
+                "4.0"
+              ],
+              "hallucinated_numbers": [],
+              "numeric_recall": 1.0,
+              "numeric_precision": 1.0,
+              "exact_number_match": true,
+              "zero_numbers_emitted": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "functional": {
+    "suite": "humaneval",
+    "total_tasks": 5,
+    "pass_at_1_pct": 80.0,
+    "pass_at_1_95ci": [
+      40.0,
+      100.0
+    ],
+    "ast_validity_pct": 80.0,
+    "execution_outcomes": {
+      "PASSED": 4,
+      "FAILED_ASSERTION": 0,
+      "SYNTAX_ERROR": 1,
+      "TIMEOUT": 0,
+      "RUNTIME_EXCEPTION": 0,
+      "MEMORY_EXCEEDED": 0
+    },
+    "repetition": {
+      "avg_token_length": 755.4,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 31.6,
+      "rep_3gram_pct": 18.6,
+      "rep_4gram_pct": 11.8,
+      "line_repetition_pct": 11.2,
+      "consecutive_dup_line_pct": 20.0,
+      "degenerate_loop_pct": 0.0
+    },
+    "numerical_accuracy": {
+      "tasks_with_prompt_numbers": 4,
+      "numeric_recall_pct": 58.3,
+      "numeric_precision_pct": 70.8,
+      "exact_number_match_pct": 50.0,
+      "zero_numbers_emitted_pct": 0.0,
+      "hallucinated_numbers_pct": 50.0
+    },
+    "extended_metrics": {
+      "count": 5,
+      "avg_token_length": 755.4,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 31.6,
+      "rep_3gram_pct": 18.6,
+      "rep_4gram_pct": 11.8,
+      "line_repetition_pct": 11.2,
+      "consecutive_dup_line_pct": 20.0,
+      "degenerate_loop_pct": 0.0,
+      "numerical": {
+        "tasks_with_prompt_numbers": 4,
+        "numeric_recall_pct": 58.3,
+        "numeric_precision_pct": 70.8,
+        "exact_number_match_pct": 50.0,
+        "zero_numbers_emitted_pct": 0.0,
+        "hallucinated_numbers_pct": 50.0
+      }
+    },
+    "category_breakdown": {
+      "HumanEval": {
+        "count": 5,
+        "pass_at_1_pct": 80.0,
+        "ast_valid_pct": 80.0,
+        "outcomes": {
+          "PASSED": 4,
+          "SYNTAX_ERROR": 1
+        },
+        "extended_metrics": {
+          "count": 5,
+          "avg_token_length": 755.4,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 31.6,
+          "rep_3gram_pct": 18.6,
+          "rep_4gram_pct": 11.8,
+          "line_repetition_pct": 11.2,
+          "consecutive_dup_line_pct": 20.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 4,
+            "numeric_recall_pct": 58.3,
+            "numeric_precision_pct": 70.8,
+            "exact_number_match_pct": 50.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 50.0
+          }
+        }
+      }
+    },
+    "tasks": [
+      {
+        "id": "HumanEval/0",
+        "category": "HumanEval",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "All assertions and statements passed",
+        "extended_metrics": {
+          "token_count": 182,
+          "is_early_exit": false,
+          "rep_2gram": 0.2375690607734806,
+          "rep_3gram": 0.12222222222222223,
+          "rep_4gram": 0.04469273743016755,
+          "line_rep": 0.08333333333333337,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1.0",
+              "2.0",
+              "0.3",
+              "3.0",
+              "2.8",
+              "5.0",
+              "4.0",
+              "0.5"
+            ],
+            "completion_numbers": [
+              "1",
+              "2"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "1",
+              "2"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/1",
+        "category": "HumanEval",
+        "outcome": "SYNTAX_ERROR",
+        "ast_valid": false,
+        "ast_error": "SyntaxError: unterminated string literal (detected at line 49) (line 49)",
+        "details": "SyntaxError: unterminated string literal (detected at line 49)",
+        "extended_metrics": {
+          "token_count": 3030,
+          "is_early_exit": false,
+          "rep_2gram": 0.6890062726972599,
+          "rep_3gram": 0.523447820343461,
+          "rep_4gram": 0.39874463164849683,
+          "line_rep": 0.47572815533980584,
+          "has_consecutive_dup_lines": true,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [
+              "3",
+              "6",
+              "12",
+              "9",
+              "11",
+              "15",
+              "5",
+              "14",
+              "7",
+              "13",
+              "2",
+              "1",
+              "8",
+              "10",
+              "4"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "3",
+              "6",
+              "12",
+              "9",
+              "11",
+              "15",
+              "5",
+              "14",
+              "7",
+              "13",
+              "2",
+              "1",
+              "8",
+              "10",
+              "4"
+            ],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/2",
+        "category": "HumanEval",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "All assertions and statements passed",
+        "extended_metrics": {
+          "token_count": 152,
+          "is_early_exit": false,
+          "rep_2gram": 0.1258278145695364,
+          "rep_3gram": 0.033333333333333326,
+          "rep_4gram": 0.006711409395973145,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1",
+              "0.5",
+              "3.5"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.3333333333333333,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/3",
+        "category": "HumanEval",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "All assertions and statements passed",
+        "extended_metrics": {
+          "token_count": 199,
+          "is_early_exit": false,
+          "rep_2gram": 0.25757575757575757,
+          "rep_3gram": 0.12690355329949243,
+          "rep_4gram": 0.0714285714285714,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "2",
+              "1",
+              "4"
+            ],
+            "completion_numbers": [
+              "3",
+              "5",
+              "2",
+              "1",
+              "0",
+              "4"
+            ],
+            "overlap_numbers": [
+              "3",
+              "5",
+              "2",
+              "1",
+              "4"
+            ],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 1.0,
+            "numeric_precision": 0.8333333333333334,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/4",
+        "category": "HumanEval",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "All assertions and statements passed",
+        "extended_metrics": {
+          "token_count": 214,
+          "is_early_exit": false,
+          "rep_2gram": 0.2723004694835681,
+          "rep_3gram": 0.12264150943396224,
+          "rep_4gram": 0.06635071090047395,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2.0",
+              "1.0",
+              "3.0",
+              "4.0"
+            ],
+            "completion_numbers": [
+              "2.0",
+              "1.0",
+              "3.0",
+              "4.0"
+            ],
+            "overlap_numbers": [
+              "2.0",
+              "1.0",
+              "3.0",
+              "4.0"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 1.0,
+            "numeric_precision": 1.0,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      }
+    ]
+  }
+}

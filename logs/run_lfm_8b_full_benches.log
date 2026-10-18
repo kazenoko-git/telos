@@ -1,0 +1,767 @@
+
+==========================================================================================
+  LAUNCHING INSTITUTIONAL BENCHMARKS ON LFM2.5-8B-A1B-MLX (LM STUDIO)
+  Server Base: http://127.0.0.1:1234/v1 | Reasoning Budget: 8,096 Tokens | Metal Acceleration
+==========================================================================================
+
+✓ Suite OpenAI HumanEval (Python Code) already completed (164 tasks, Pass@1: 45.73%). Resuming next...
+
+################################################################################
+  STARTING BENCHMARK: BFCL TOOL-USE & FUNCTION CALLING (tooluse)
+  Target File: logs/eval_report_lfm8b_tooluse_full.json | Reasoning Token Budget: 4096
+################################################################################
+
+
+=====================================================================================
+  TÉLOS TOOL-USE & FUNCTION CALLING BENCHMARK (30 TASKS)
+  Decoding: Greedy (T=0.0) | Max Tokens: 4096
+=====================================================================================
+
+-------------------------------------------------------------------------------------
+  Category                     | Total | Tool Acc (%)  | Syntax (%)  | Pass Rate (%)
+-------------------------------------------------------------------------------------
+  Math & Calculation           | 5     |         60.0% |       60.0% |         60.0%
+  Weather & Environment        | 5     |        100.0% |      100.0% |         80.0%
+  Information Retrieval        | 5     |        100.0% |      100.0% |         40.0%
+  Filesystem Operations        | 5     |        100.0% |      100.0% |         60.0%
+  Communication                | 3     |        100.0% |      100.0% |        100.0%
+  Database Operations          | 3     |         66.7% |       66.7% |         66.7%
+  System Execution             | 4     |        100.0% |      100.0% |         50.0%
+-------------------------------------------------------------------------------------
+  OVERALL TOOL SELECTION: 90.0%
+  OVERALL SYNTAX VALIDITY:90.0%
+  OVERALL PASS RATE:      63.3% (95% CI: [46.58%, 80.0%])
+=====================================================================================
+
+✓ Saved evaluation report to logs/eval_report_lfm8b_tooluse_full.json
+
+
+✓ Completed BFCL Tool-Use & Function Calling in 0.79 minutes (Pass@1: 63.33%).
+
+
+==========================================================================================
+  MASTER BENCHMARK SCORECARD: LIQUID AI LFM 2.5 8B A1B MLX (LM STUDIO)
+  Saved to: logs/eval_report_lfm8b_master_summary.json
+==========================================================================================
+Benchmark Suite                               | Tasks  | Pass@1 (%) | 95% CI             | AST Valid
+-----------------------------------------------------------------------------------------------
+OpenAI HumanEval (Python Code)                |    164 |     45.73% | [38.4%, 53.0%]     |     61.6%
+BFCL Tool-Use & Function Calling              |     30 |     63.33% | [46.6%, 80.0%]     |     90.0%
+===============================================================================================
+
+
+################################################################################
+  STARTING BENCHMARK: CYBERSECURITY OWASP/CWE AUDITING (cyber)
+  Target File: logs/eval_report_lfm8b_cyber_full.json | Reasoning Token Budget: 8096
+################################################################################
+
+
+================================================================================
+  TÉLOS BENCHMARK EVALUATION: CYBER (50 TASKS)
+  Subprocess Sandbox: spawn | Timeout: 3.0s | Decoding: Greedy (T=0.0)
+================================================================================
+  [10/50] Completed... Current Pass@1: 40.0%
+  [20/50] Completed... Current Pass@1: 30.0%
+  [30/50] Completed... Current Pass@1: 30.0%
+  [40/50] Completed... Current Pass@1: 30.0%
+  [50/50] Completed... Current Pass@1: 24.0%
+
+---------------------------------------------------------------------------------------------------------
+  Category                     | Total | Pass@1 (%) | AST Valid (%) | Rep-3 (%) | Num Recall | Num Prec
+---------------------------------------------------------------------------------------------------------
+  SQL Injection                | 10    |      80.0% |        100.0% |      6.4% |      65.0% | 95.0%
+  Command Injection            | 8     |       0.0% |        100.0% |      6.3% |      51.2% | 70.0%
+  Cross-Site Scripting         | 6     |      33.3% |        100.0% |     16.7% |      66.7% | 68.3%
+  Path Traversal               | 6     |      33.3% |        100.0% |     14.1% |       0.0% | 0.0%
+  Insecure Deserialization     | 4     |       0.0% |        100.0% |     11.2% |      62.5% | 58.3%
+  Hardcoded Credentials        | 4     |       0.0% |        100.0% |      6.1% |      67.5% | 67.5%
+  Weak Hashing                 | 2     |       0.0% |        100.0% |     13.3% |      75.0% | 50.0%
+  Broken Cryptography          | 2     |       0.0% |        100.0% |     32.3% |      40.0% | 20.0%
+  Server-Side Request Forgery  | 4     |       0.0% |        100.0% |     31.0% |      70.0% | 65.0%
+  XML External Entity Injection | 2     |       0.0% |        100.0% |      6.8% |      25.0% | 100.0%
+  Insecure Direct Object Reference | 1     |       0.0% |        100.0% |     43.8% |      25.0% | 100.0%
+  Resource Exhaustion          | 1     |       0.0% |        100.0% |     39.8% |      20.0% | 25.0%
+---------------------------------------------------------------------------------------------------------
+  OVERALL PASS@1:       24.00% (95% CI: [12.0%, 36.0%])
+  OVERALL AST VALIDITY: 100.00%
+  Execution Breakdown:  {'PASSED': 12, 'FAILED_ASSERTION': 38, 'SYNTAX_ERROR': 0, 'TIMEOUT': 0, 'RUNTIME_EXCEPTION': 0, 'MEMORY_EXCEEDED': 0}
+
+  [GENERATION DYNAMICS & REPETITION METRICS]
+  Avg Token Length:     735.1 tokens | Early Exits (<=4 tok): 0.0%
+  N-Gram Repetition:    2-gram: 23.3% | 3-gram: 13.6% | 4-gram: 8.8%
+  Redundancy & Loops:   Line Repetition: 3.4% | Consecutive Dups: 0.0% | Degenerate Loops: 0.0%
+
+  [NUMERICAL & CONSTANT RETENTION (TASKS WITH PROMPT/DOCSTRING NUMBERS)]
+  Evaluated Tasks:      50 tasks containing explicit numeric specifications
+  Numeric Recall:       51.7% of required numbers appeared in completions
+  Numeric Precision:    63.0% of generated numbers were ground-truth matches
+  Exact Constant Match: 16.0% of tasks preserved ALL required numbers
+  Zero Numbers Emitted: 0.0% of tasks omitted numbers entirely (e.g. 'return val')
+  Hallucinated Numbers: 70.0% of tasks generated invented numbers
+=========================================================================================================
+
+✓ Saved evaluation report to logs/eval_report_lfm8b_cyber_full.json
+
+
+✓ Completed Cybersecurity OWASP/CWE Auditing in 7.21 minutes (Pass@1: 24.0%).
+
+
+==========================================================================================
+  MASTER BENCHMARK SCORECARD: LIQUID AI LFM 2.5 8B A1B MLX (LM STUDIO)
+  Saved to: logs/eval_report_lfm8b_master_summary.json
+==========================================================================================
+Benchmark Suite                               | Tasks  | Pass@1 (%) | 95% CI             | AST Valid
+-----------------------------------------------------------------------------------------------
+OpenAI HumanEval (Python Code)                |    164 |     45.73% | [38.4%, 53.0%]     |     61.6%
+BFCL Tool-Use & Function Calling              |     30 |     63.33% | [46.6%, 80.0%]     |     90.0%
+Cybersecurity OWASP/CWE Auditing              |     50 |     24.00% | [12.0%, 36.0%]     |    100.0%
+===============================================================================================
+
+
+################################################################################
+  STARTING BENCHMARK: GPQA DIAMOND (PHD SCIENCE — 8,096 TOKENS) (gpqa_diamond)
+  Target File: logs/eval_report_lfm8b_gpqa_diamond_full.json | Reasoning Token Budget: 8096
+################################################################################
+
+
+================================================================================
+  TÉLOS BENCHMARK EVALUATION: GPQA_DIAMOND (198 TASKS)
+  Subprocess Sandbox: spawn | Timeout: 3.0s | Decoding: Greedy (T=0.0)
+================================================================================
+  [10/198] Completed... Current Pass@1: 30.0%
+  [20/198] Completed... Current Pass@1: 30.0%
+  [30/198] Completed... Current Pass@1: 26.7%
+  [40/198] Completed... Current Pass@1: 30.0%
+  [50/198] Completed... Current Pass@1: 28.0%
+  [60/198] Completed... Current Pass@1: 25.0%
+  [70/198] Completed... Current Pass@1: 25.7%
+  [80/198] Completed... Current Pass@1: 25.0%
+  [90/198] Completed... Current Pass@1: 24.4%
+  [100/198] Completed... Current Pass@1: 23.0%
+  [110/198] Completed... Current Pass@1: 22.7%
+  [120/198] Completed... Current Pass@1: 20.8%
+  [130/198] Completed... Current Pass@1: 20.8%
+  [140/198] Completed... Current Pass@1: 21.4%
+  [150/198] Completed... Current Pass@1: 22.0%
+  [160/198] Completed... Current Pass@1: 21.9%
+  [170/198] Completed... Current Pass@1: 21.2%
+  [180/198] Completed... Current Pass@1: 21.7%
+  [190/198] Completed... Current Pass@1: 21.6%
+  [198/198] Completed... Current Pass@1: 20.7%
+
+---------------------------------------------------------------------------------------------------------
+  Category                     | Total | Pass@1 (%) | AST Valid (%) | Rep-3 (%) | Num Recall | Num Prec
+---------------------------------------------------------------------------------------------------------
+  science                      | 198   |      20.7% |        100.0% |     37.9% |      71.1% | 60.7%
+---------------------------------------------------------------------------------------------------------
+  OVERALL PASS@1:       20.71% (95% CI: [15.15%, 26.26%])
+  OVERALL AST VALIDITY: 100.00%
+  Execution Breakdown:  {'PASSED': 41, 'FAILED_ASSERTION': 157, 'SYNTAX_ERROR': 0, 'TIMEOUT': 0, 'RUNTIME_EXCEPTION': 0, 'MEMORY_EXCEEDED': 0}
+
+  [GENERATION DYNAMICS & REPETITION METRICS]
+  Avg Token Length:     1486.1 tokens | Early Exits (<=4 tok): 0.0%
+  N-Gram Repetition:    2-gram: 50.8% | 3-gram: 37.9% | 4-gram: 28.8%
+  Redundancy & Loops:   Line Repetition: 0.7% | Consecutive Dups: 0.0% | Degenerate Loops: 1.5%
+
+  [NUMERICAL & CONSTANT RETENTION (TASKS WITH PROMPT/DOCSTRING NUMBERS)]
+  Evaluated Tasks:      180 tasks containing explicit numeric specifications
+  Numeric Recall:       71.1% of required numbers appeared in completions
+  Numeric Precision:    60.7% of generated numbers were ground-truth matches
+  Exact Constant Match: 41.7% of tasks preserved ALL required numbers
+  Zero Numbers Emitted: 5.6% of tasks omitted numbers entirely (e.g. 'return val')
+  Hallucinated Numbers: 69.4% of tasks generated invented numbers
+=========================================================================================================
+
+✓ Saved evaluation report to logs/eval_report_lfm8b_gpqa_diamond_full.json
+
+
+✓ Completed GPQA Diamond (PhD Science — 8,096 Tokens) in 26.50 minutes (Pass@1: 20.71%).
+
+
+==========================================================================================
+  MASTER BENCHMARK SCORECARD: LIQUID AI LFM 2.5 8B A1B MLX (LM STUDIO)
+  Saved to: logs/eval_report_lfm8b_master_summary.json
+==========================================================================================
+Benchmark Suite                               | Tasks  | Pass@1 (%) | 95% CI             | AST Valid
+-----------------------------------------------------------------------------------------------
+OpenAI HumanEval (Python Code)                |    164 |     45.73% | [38.4%, 53.0%]     |     61.6%
+BFCL Tool-Use & Function Calling              |     30 |     63.33% | [46.6%, 80.0%]     |     90.0%
+Cybersecurity OWASP/CWE Auditing              |     50 |     24.00% | [12.0%, 36.0%]     |    100.0%
+GPQA Diamond (PhD Science — 8,096 Tokens)     |    198 |     20.71% | [15.2%, 26.3%]     |    100.0%
+===============================================================================================
+
+
+################################################################################
+  STARTING BENCHMARK: MMLU SCIENCE & STEM (mmlu_science)
+  Target File: logs/eval_report_lfm8b_mmlu_science_full.json | Reasoning Token Budget: 8096
+################################################################################
+
+
+================================================================================
+  TÉLOS BENCHMARK EVALUATION: MMLU_SCIENCE (833 TASKS)
+  Subprocess Sandbox: spawn | Timeout: 3.0s | Decoding: Greedy (T=0.0)
+================================================================================
+  [10/833] Completed... Current Pass@1: 90.0%
+  [20/833] Completed... Current Pass@1: 90.0%
+  [30/833] Completed... Current Pass@1: 80.0%
+  [40/833] Completed... Current Pass@1: 75.0%
+  [50/833] Completed... Current Pass@1: 74.0%
+  [60/833] Completed... Current Pass@1: 73.3%
+  [70/833] Completed... Current Pass@1: 72.9%
+  [80/833] Completed... Current Pass@1: 75.0%
+  [90/833] Completed... Current Pass@1: 75.6%
+  [100/833] Completed... Current Pass@1: 75.0%
+  [110/833] Completed... Current Pass@1: 76.4%
+  [120/833] Completed... Current Pass@1: 76.7%
+  [130/833] Completed... Current Pass@1: 76.2%
+  [140/833] Completed... Current Pass@1: 75.0%
+  [150/833] Completed... Current Pass@1: 74.0%
+  [160/833] Completed... Current Pass@1: 71.9%
+  [170/833] Completed... Current Pass@1: 70.0%
+  [180/833] Completed... Current Pass@1: 68.3%
+  [190/833] Completed... Current Pass@1: 68.4%
+  [200/833] Completed... Current Pass@1: 68.0%
+  [210/833] Completed... Current Pass@1: 67.6%
+  [220/833] Completed... Current Pass@1: 68.6%
+  [230/833] Completed... Current Pass@1: 68.3%
+  [240/833] Completed... Current Pass@1: 67.9%
+  [250/833] Completed... Current Pass@1: 68.0%
+  [260/833] Completed... Current Pass@1: 67.7%
+  [270/833] Completed... Current Pass@1: 67.4%
+  [280/833] Completed... Current Pass@1: 68.2%
+  [290/833] Completed... Current Pass@1: 68.3%
+  [300/833] Completed... Current Pass@1: 68.0%
+  [310/833] Completed... Current Pass@1: 68.4%
+  [320/833] Completed... Current Pass@1: 68.8%
+  [330/833] Completed... Current Pass@1: 68.2%
+  [340/833] Completed... Current Pass@1: 68.8%
+  [350/833] Completed... Current Pass@1: 68.0%
+  [360/833] Completed... Current Pass@1: 68.1%
+  [370/833] Completed... Current Pass@1: 67.8%
+  [380/833] Completed... Current Pass@1: 67.4%
+  [390/833] Completed... Current Pass@1: 67.4%
+  [400/833] Completed... Current Pass@1: 67.2%
+  [410/833] Completed... Current Pass@1: 67.1%
+  [420/833] Completed... Current Pass@1: 66.7%
+  [430/833] Completed... Current Pass@1: 66.0%
+  [440/833] Completed... Current Pass@1: 66.1%
+  [450/833] Completed... Current Pass@1: 66.4%
+  [460/833] Completed... Current Pass@1: 67.0%
+  [470/833] Completed... Current Pass@1: 67.4%
+  [480/833] Completed... Current Pass@1: 67.3%
+  [490/833] Completed... Current Pass@1: 67.3%
+  [500/833] Completed... Current Pass@1: 67.4%
+  [510/833] Completed... Current Pass@1: 67.6%
+  [520/833] Completed... Current Pass@1: 67.3%
+  [530/833] Completed... Current Pass@1: 67.7%
+  [540/833] Completed... Current Pass@1: 67.8%
+  [550/833] Completed... Current Pass@1: 68.2%
+  [560/833] Completed... Current Pass@1: 68.6%
+  [570/833] Completed... Current Pass@1: 69.1%
+  [580/833] Completed... Current Pass@1: 69.1%
+  [590/833] Completed... Current Pass@1: 69.5%
+  [600/833] Completed... Current Pass@1: 69.8%
+  [610/833] Completed... Current Pass@1: 69.8%
+  [620/833] Completed... Current Pass@1: 70.3%
+  [630/833] Completed... Current Pass@1: 70.3%
+  [640/833] Completed... Current Pass@1: 70.5%
+  [650/833] Completed... Current Pass@1: 70.6%
+  [660/833] Completed... Current Pass@1: 70.9%
+  [670/833] Completed... Current Pass@1: 71.2%
+  [680/833] Completed... Current Pass@1: 71.2%
+  [690/833] Completed... Current Pass@1: 71.4%
+  [700/833] Completed... Current Pass@1: 71.7%
+  [710/833] Completed... Current Pass@1: 71.5%
+  [720/833] Completed... Current Pass@1: 71.7%
+  [730/833] Completed... Current Pass@1: 71.6%
+  [740/833] Completed... Current Pass@1: 72.0%
+  [750/833] Completed... Current Pass@1: 72.0%
+  [760/833] Completed... Current Pass@1: 72.0%
+  [770/833] Completed... Current Pass@1: 72.3%
+  [780/833] Completed... Current Pass@1: 72.6%
+  [790/833] Completed... Current Pass@1: 72.8%
+  [800/833] Completed... Current Pass@1: 73.0%
+  [810/833] Completed... Current Pass@1: 73.1%
+  [820/833] Completed... Current Pass@1: 73.4%
+  [830/833] Completed... Current Pass@1: 73.4%
+  [833/833] Completed... Current Pass@1: 73.1%
+
+---------------------------------------------------------------------------------------------------------
+  Category                     | Total | Pass@1 (%) | AST Valid (%) | Rep-3 (%) | Num Recall | Num Prec
+---------------------------------------------------------------------------------------------------------
+  science                      | 833   |      73.1% |        100.0% |     13.3% |      41.5% | 28.1%
+---------------------------------------------------------------------------------------------------------
+  OVERALL PASS@1:       73.11% (95% CI: [69.99%, 75.87%])
+  OVERALL AST VALIDITY: 100.00%
+  Execution Breakdown:  {'PASSED': 609, 'FAILED_ASSERTION': 224, 'SYNTAX_ERROR': 0, 'TIMEOUT': 0, 'RUNTIME_EXCEPTION': 0, 'MEMORY_EXCEEDED': 0}
+
+  [GENERATION DYNAMICS & REPETITION METRICS]
+  Avg Token Length:     474.0 tokens | Early Exits (<=4 tok): 0.0%
+  N-Gram Repetition:    2-gram: 18.4% | 3-gram: 13.3% | 4-gram: 9.9%
+  Redundancy & Loops:   Line Repetition: 1.0% | Consecutive Dups: 0.1% | Degenerate Loops: 0.5%
+
+  [NUMERICAL & CONSTANT RETENTION (TASKS WITH PROMPT/DOCSTRING NUMBERS)]
+  Evaluated Tasks:      277 tasks containing explicit numeric specifications
+  Numeric Recall:       41.5% of required numbers appeared in completions
+  Numeric Precision:    28.1% of generated numbers were ground-truth matches
+  Exact Constant Match: 26.4% of tasks preserved ALL required numbers
+  Zero Numbers Emitted: 42.6% of tasks omitted numbers entirely (e.g. 'return val')
+  Hallucinated Numbers: 47.7% of tasks generated invented numbers
+=========================================================================================================
+
+✓ Saved evaluation report to logs/eval_report_lfm8b_mmlu_science_full.json
+
+
+✓ Completed MMLU Science & STEM in 65.34 minutes (Pass@1: 73.11%).
+
+
+==========================================================================================
+  MASTER BENCHMARK SCORECARD: LIQUID AI LFM 2.5 8B A1B MLX (LM STUDIO)
+  Saved to: logs/eval_report_lfm8b_master_summary.json
+==========================================================================================
+Benchmark Suite                               | Tasks  | Pass@1 (%) | 95% CI             | AST Valid
+-----------------------------------------------------------------------------------------------
+OpenAI HumanEval (Python Code)                |    164 |     45.73% | [38.4%, 53.0%]     |     61.6%
+BFCL Tool-Use & Function Calling              |     30 |     63.33% | [46.6%, 80.0%]     |     90.0%
+Cybersecurity OWASP/CWE Auditing              |     50 |     24.00% | [12.0%, 36.0%]     |    100.0%
+GPQA Diamond (PhD Science — 8,096 Tokens)     |    198 |     20.71% | [15.2%, 26.3%]     |    100.0%
+MMLU Science & STEM                           |    833 |     73.11% | [70.0%, 75.9%]     |    100.0%
+===============================================================================================
+
+
+################################################################################
+  STARTING BENCHMARK: COMPETITION MATH (HENDRYCKS — 8,096 TOKENS) (competition_math)
+  Target File: logs/eval_report_lfm8b_competition_math_full.json | Reasoning Token Budget: 8096
+################################################################################
+
+
+================================================================================
+  TÉLOS BENCHMARK EVALUATION: COMPETITION_MATH (700 TASKS)
+  Subprocess Sandbox: spawn | Timeout: 3.0s | Decoding: Greedy (T=0.0)
+================================================================================
+  [10/700] Completed... Current Pass@1: 60.0%
+  [20/700] Completed... Current Pass@1: 70.0%
+  [30/700] Completed... Current Pass@1: 63.3%
+  [40/700] Completed... Current Pass@1: 67.5%
+  [50/700] Completed... Current Pass@1: 72.0%
+  [60/700] Completed... Current Pass@1: 71.7%
+  [70/700] Completed... Current Pass@1: 72.9%
+  [80/700] Completed... Current Pass@1: 73.8%
+  [90/700] Completed... Current Pass@1: 71.1%
+  [100/700] Completed... Current Pass@1: 70.0%
+  [110/700] Completed... Current Pass@1: 69.1%
+  [120/700] Completed... Current Pass@1: 65.8%
+  [130/700] Completed... Current Pass@1: 63.1%
+  [140/700] Completed... Current Pass@1: 60.7%
+  [150/700] Completed... Current Pass@1: 58.7%
+  [160/700] Completed... Current Pass@1: 58.1%
+  [170/700] Completed... Current Pass@1: 58.8%
+  [180/700] Completed... Current Pass@1: 57.2%
+  [190/700] Completed... Current Pass@1: 56.3%
+  [200/700] Completed... Current Pass@1: 55.5%
+  [210/700] Completed... Current Pass@1: 54.8%
+  [220/700] Completed... Current Pass@1: 53.2%
+  [230/700] Completed... Current Pass@1: 52.6%
+  [240/700] Completed... Current Pass@1: 51.7%
+  [250/700] Completed... Current Pass@1: 50.8%
+  [260/700] Completed... Current Pass@1: 49.2%
+  [270/700] Completed... Current Pass@1: 47.8%
+  [280/700] Completed... Current Pass@1: 47.9%
+  [290/700] Completed... Current Pass@1: 47.9%
+  [300/700] Completed... Current Pass@1: 48.0%
+  [310/700] Completed... Current Pass@1: 47.1%
+  [320/700] Completed... Current Pass@1: 46.9%
+  [330/700] Completed... Current Pass@1: 46.7%
+  [340/700] Completed... Current Pass@1: 46.2%
+  [350/700] Completed... Current Pass@1: 45.1%
+  [360/700] Completed... Current Pass@1: 44.4%
+  [370/700] Completed... Current Pass@1: 44.1%
+  [380/700] Completed... Current Pass@1: 43.9%
+  [390/700] Completed... Current Pass@1: 43.3%
+  [400/700] Completed... Current Pass@1: 43.2%
+  [410/700] Completed... Current Pass@1: 43.4%
+  [420/700] Completed... Current Pass@1: 42.9%
+  [430/700] Completed... Current Pass@1: 43.0%
+  [440/700] Completed... Current Pass@1: 42.5%
+  [450/700] Completed... Current Pass@1: 42.9%
+  [460/700] Completed... Current Pass@1: 42.8%
+  [470/700] Completed... Current Pass@1: 43.6%
+  [480/700] Completed... Current Pass@1: 43.5%
+  [490/700] Completed... Current Pass@1: 43.5%
+  [500/700] Completed... Current Pass@1: 43.4%
+  [510/700] Completed... Current Pass@1: 43.7%
+  [520/700] Completed... Current Pass@1: 43.8%
+  [530/700] Completed... Current Pass@1: 43.8%
+
+==========================================================================================
+  LAUNCHING INSTITUTIONAL BENCHMARKS ON LFM2.5-8B-A1B-MLX (LM STUDIO)
+  Server Base: http://127.0.0.1:1234/v1 | Reasoning Budget: 8,096 Tokens | Metal Acceleration
+==========================================================================================
+
+✓ Suite OpenAI HumanEval (Python Code) already completed (164 tasks, Pass@1: 45.73%). Resuming next...
+✓ Suite BFCL Tool-Use & Function Calling already completed (30 tasks, Pass@1: 63.33%). Resuming next...
+✓ Suite Cybersecurity OWASP/CWE Auditing already completed (50 tasks, Pass@1: 24.0%). Resuming next...
+✓ Suite GPQA Diamond (PhD Science — 8,096 Tokens) already completed (198 tasks, Pass@1: 20.71%). Resuming next...
+✓ Suite MMLU Science & STEM already completed (833 tasks, Pass@1: 73.11%). Resuming next...
+
+################################################################################
+  STARTING BENCHMARK: COMPETITION MATH (HENDRYCKS — 8,096 TOKENS) (competition_math)
+  Target File: logs/eval_report_lfm8b_competition_math_full.json | Reasoning Token Budget: 8096
+################################################################################
+
+
+================================================================================
+  TÉLOS BENCHMARK EVALUATION: COMPETITION_MATH (700 TASKS)
+  Subprocess Sandbox: spawn | Timeout: 3.0s | Decoding: Greedy (T=0.0)
+================================================================================
+  [10/700] Completed... Current Pass@1: 60.0%
+  [20/700] Completed... Current Pass@1: 70.0%
+  [30/700] Completed... Current Pass@1: 63.3%
+  [40/700] Completed... Current Pass@1: 67.5%
+  [50/700] Completed... Current Pass@1: 72.0%
+  [60/700] Completed... Current Pass@1: 71.7%
+  [70/700] Completed... Current Pass@1: 72.9%
+  [80/700] Completed... Current Pass@1: 73.8%
+  [90/700] Completed... Current Pass@1: 71.1%
+  [100/700] Completed... Current Pass@1: 70.0%
+[LFMStudioAdapter Error attempt 0]: OpenAI API Error 400 from http://127.0.0.1:1234/v1/chat/completions: {"error":"Model unloaded."}
+  [110/700] Completed... Current Pass@1: 69.1%
+  [120/700] Completed... Current Pass@1: 65.8%
+  [130/700] Completed... Current Pass@1: 63.1%
+
+==========================================================================================
+  LAUNCHING INSTITUTIONAL BENCHMARKS ON LFM2.5-8B-A1B-MLX (LM STUDIO)
+  Server Base: http://127.0.0.1:1234/v1 | Reasoning Budget: 8,096 Tokens | Metal Acceleration
+==========================================================================================
+
+✓ Suite OpenAI HumanEval (Python Code) already completed (164 tasks, Pass@1: 45.73%). Resuming next...
+✓ Suite BFCL Tool-Use & Function Calling already completed (30 tasks, Pass@1: 63.33%). Resuming next...
+✓ Suite Cybersecurity OWASP/CWE Auditing already completed (50 tasks, Pass@1: 24.0%). Resuming next...
+✓ Suite GPQA Diamond (PhD Science — 8,096 Tokens) already completed (198 tasks, Pass@1: 20.71%). Resuming next...
+✓ Suite MMLU Science & STEM already completed (833 tasks, Pass@1: 73.11%). Resuming next...
+
+################################################################################
+  STARTING BENCHMARK: COMPETITION MATH (HENDRYCKS — 4,096 TOKENS) (competition_math)
+  Target File: logs/eval_report_lfm8b_competition_math_full.json | Reasoning Token Budget: 4096
+################################################################################
+
+
+================================================================================
+  TÉLOS BENCHMARK EVALUATION: COMPETITION_MATH (700 TASKS)
+  Subprocess Sandbox: spawn | Timeout: 3.0s | Decoding: Greedy (T=0.0)
+================================================================================
+  [10/700] Completed... Current Pass@1: 60.0%
+  [20/700] Completed... Current Pass@1: 70.0%
+  [30/700] Completed... Current Pass@1: 63.3%
+  [40/700] Completed... Current Pass@1: 67.5%
+  [50/700] Completed... Current Pass@1: 72.0%
+  [60/700] Completed... Current Pass@1: 71.7%
+  [70/700] Completed... Current Pass@1: 72.9%
+  [80/700] Completed... Current Pass@1: 73.8%
+  [90/700] Completed... Current Pass@1: 71.1%
+  [100/700] Completed... Current Pass@1: 70.0%
+  [110/700] Completed... Current Pass@1: 69.1%
+  [120/700] Completed... Current Pass@1: 65.8%
+  [130/700] Completed... Current Pass@1: 63.1%
+  [140/700] Completed... Current Pass@1: 60.7%
+  [150/700] Completed... Current Pass@1: 58.7%
+  [160/700] Completed... Current Pass@1: 58.1%
+  [170/700] Completed... Current Pass@1: 58.8%
+  [180/700] Completed... Current Pass@1: 57.2%
+  [190/700] Completed... Current Pass@1: 56.3%
+  [200/700] Completed... Current Pass@1: 55.5%
+  [210/700] Completed... Current Pass@1: 54.8%
+  [220/700] Completed... Current Pass@1: 53.2%
+  [230/700] Completed... Current Pass@1: 52.6%
+  [240/700] Completed... Current Pass@1: 51.7%
+  [250/700] Completed... Current Pass@1: 50.8%
+  [260/700] Completed... Current Pass@1: 49.2%
+  [270/700] Completed... Current Pass@1: 47.8%
+  [280/700] Completed... Current Pass@1: 47.9%
+  [290/700] Completed... Current Pass@1: 47.9%
+  [300/700] Completed... Current Pass@1: 48.0%
+  [310/700] Completed... Current Pass@1: 47.1%
+  [320/700] Completed... Current Pass@1: 46.9%
+  [330/700] Completed... Current Pass@1: 46.7%
+  [340/700] Completed... Current Pass@1: 46.2%
+  [350/700] Completed... Current Pass@1: 45.1%
+  [360/700] Completed... Current Pass@1: 44.4%
+  [370/700] Completed... Current Pass@1: 44.1%
+  [380/700] Completed... Current Pass@1: 43.9%
+  [390/700] Completed... Current Pass@1: 43.3%
+  [400/700] Completed... Current Pass@1: 43.2%
+  [410/700] Completed... Current Pass@1: 43.4%
+  [420/700] Completed... Current Pass@1: 42.9%
+  [430/700] Completed... Current Pass@1: 43.0%
+  [440/700] Completed... Current Pass@1: 42.5%
+  [450/700] Completed... Current Pass@1: 42.9%
+  [460/700] Completed... Current Pass@1: 42.8%
+  [470/700] Completed... Current Pass@1: 43.6%
+  [480/700] Completed... Current Pass@1: 43.5%
+  [490/700] Completed... Current Pass@1: 43.5%
+  [500/700] Completed... Current Pass@1: 43.4%
+  [510/700] Completed... Current Pass@1: 43.7%
+  [520/700] Completed... Current Pass@1: 43.8%
+  [530/700] Completed... Current Pass@1: 43.8%
+  [540/700] Completed... Current Pass@1: 44.4%
+  [550/700] Completed... Current Pass@1: 44.7%
+  [560/700] Completed... Current Pass@1: 45.2%
+  [570/700] Completed... Current Pass@1: 45.8%
+  [580/700] Completed... Current Pass@1: 46.0%
+  [590/700] Completed... Current Pass@1: 46.6%
+  [600/700] Completed... Current Pass@1: 47.0%
+  [610/700] Completed... Current Pass@1: 46.6%
+  [620/700] Completed... Current Pass@1: 46.1%
+  [630/700] Completed... Current Pass@1: 45.7%
+  [640/700] Completed... Current Pass@1: 45.5%
+  [650/700] Completed... Current Pass@1: 45.1%
+  [660/700] Completed... Current Pass@1: 45.0%
+  [670/700] Completed... Current Pass@1: 44.5%
+  [680/700] Completed... Current Pass@1: 44.0%
+  [690/700] Completed... Current Pass@1: 44.1%
+  [700/700] Completed... Current Pass@1: 43.6%
+
+---------------------------------------------------------------------------------------------------------
+  Category                     | Total | Pass@1 (%) | AST Valid (%) | Rep-3 (%) | Num Recall | Num Prec
+---------------------------------------------------------------------------------------------------------
+  algebra                      | 100   |      70.0% |        100.0% |     30.7% |      96.2% | 42.4%
+  counting_and_probability     | 100   |      41.0% |        100.0% |     31.7% |      91.2% | 36.1%
+  geometry                     | 100   |      33.0% |        100.0% |     35.5% |      85.4% | 46.8%
+  intermediate_algebra         | 100   |      29.0% |        100.0% |     36.4% |      96.2% | 47.5%
+  number_theory                | 100   |      44.0% |        100.0% |     31.5% |      94.7% | 26.9%
+  prealgebra                   | 100   |      65.0% |        100.0% |     29.1% |      94.2% | 42.9%
+  precalculus                  | 100   |      23.0% |        100.0% |     40.3% |      93.6% | 45.9%
+---------------------------------------------------------------------------------------------------------
+  OVERALL PASS@1:       43.57% (95% CI: [39.86%, 47.29%])
+  OVERALL AST VALIDITY: 100.00%
+  Execution Breakdown:  {'PASSED': 305, 'FAILED_ASSERTION': 395, 'SYNTAX_ERROR': 0, 'TIMEOUT': 0, 'RUNTIME_EXCEPTION': 0, 'MEMORY_EXCEEDED': 0}
+
+  [GENERATION DYNAMICS & REPETITION METRICS]
+  Avg Token Length:     916.2 tokens | Early Exits (<=4 tok): 0.1%
+  N-Gram Repetition:    2-gram: 48.1% | 3-gram: 33.6% | 4-gram: 24.2%
+  Redundancy & Loops:   Line Repetition: 14.7% | Consecutive Dups: 0.0% | Degenerate Loops: 0.6%
+
+  [NUMERICAL & CONSTANT RETENTION (TASKS WITH PROMPT/DOCSTRING NUMBERS)]
+  Evaluated Tasks:      661 tasks containing explicit numeric specifications
+  Numeric Recall:       93.2% of required numbers appeared in completions
+  Numeric Precision:    41.2% of generated numbers were ground-truth matches
+  Exact Constant Match: 81.7% of tasks preserved ALL required numbers
+  Zero Numbers Emitted: 0.3% of tasks omitted numbers entirely (e.g. 'return val')
+  Hallucinated Numbers: 93.8% of tasks generated invented numbers
+=========================================================================================================
+
+✓ Saved evaluation report to logs/eval_report_lfm8b_competition_math_full.json
+
+
+✓ Completed Competition MATH (Hendrycks — 4,096 Tokens) in 70.48 minutes (Pass@1: 43.57%).
+
+
+==========================================================================================
+  MASTER BENCHMARK SCORECARD: LIQUID AI LFM 2.5 8B A1B MLX (LM STUDIO)
+  Saved to: logs/eval_report_lfm8b_master_summary.json
+==========================================================================================
+Benchmark Suite                               | Tasks  | Pass@1 (%) | 95% CI             | AST Valid
+-----------------------------------------------------------------------------------------------
+OpenAI HumanEval (Python Code)                |    164 |     45.73% | [38.4%, 53.0%]     |     61.6%
+BFCL Tool-Use & Function Calling              |     30 |     63.33% | [46.6%, 80.0%]     |     90.0%
+Cybersecurity OWASP/CWE Auditing              |     50 |     24.00% | [12.0%, 36.0%]     |    100.0%
+GPQA Diamond (PhD Science — 8,096 Tokens)     |    198 |     20.71% | [15.2%, 26.3%]     |    100.0%
+MMLU Science & STEM                           |    833 |     73.11% | [70.0%, 75.9%]     |    100.0%
+Competition MATH (Hendrycks — 4,096 Tokens)   |    700 |     43.57% | [39.9%, 47.3%]     |    100.0%
+===============================================================================================
+
+
+################################################################################
+  STARTING BENCHMARK: ARC-CHALLENGE SCIENCE REASONING (arc)
+  Target File: logs/eval_report_lfm8b_arc_full.json | Reasoning Token Budget: 4096
+################################################################################
+
+
+================================================================================
+  TÉLOS BENCHMARK EVALUATION: ARC (1172 TASKS)
+  Subprocess Sandbox: spawn | Timeout: 3.0s | Decoding: Greedy (T=0.0)
+================================================================================
+  [10/1172] Completed... Current Pass@1: 60.0%
+  [20/1172] Completed... Current Pass@1: 65.0%
+  [30/1172] Completed... Current Pass@1: 66.7%
+  [40/1172] Completed... Current Pass@1: 62.5%
+  [50/1172] Completed... Current Pass@1: 64.0%
+  [60/1172] Completed... Current Pass@1: 61.7%
+  [70/1172] Completed... Current Pass@1: 58.6%
+  [80/1172] Completed... Current Pass@1: 60.0%
+  [90/1172] Completed... Current Pass@1: 57.8%
+  [100/1172] Completed... Current Pass@1: 57.0%
+  [110/1172] Completed... Current Pass@1: 57.3%
+  [120/1172] Completed... Current Pass@1: 57.5%
+  [130/1172] Completed... Current Pass@1: 56.9%
+  [140/1172] Completed... Current Pass@1: 57.1%
+  [150/1172] Completed... Current Pass@1: 56.0%
+  [160/1172] Completed... Current Pass@1: 56.9%
+  [170/1172] Completed... Current Pass@1: 56.5%
+  [180/1172] Completed... Current Pass@1: 55.6%
+  [190/1172] Completed... Current Pass@1: 55.8%
+  [200/1172] Completed... Current Pass@1: 55.0%
+  [210/1172] Completed... Current Pass@1: 55.7%
+  [220/1172] Completed... Current Pass@1: 55.9%
+  [230/1172] Completed... Current Pass@1: 56.1%
+  [240/1172] Completed... Current Pass@1: 56.7%
+  [250/1172] Completed... Current Pass@1: 56.8%
+  [260/1172] Completed... Current Pass@1: 57.3%
+  [270/1172] Completed... Current Pass@1: 57.8%
+  [280/1172] Completed... Current Pass@1: 57.9%
+  [290/1172] Completed... Current Pass@1: 56.9%
+  [300/1172] Completed... Current Pass@1: 57.0%
+  [310/1172] Completed... Current Pass@1: 56.8%
+  [320/1172] Completed... Current Pass@1: 56.6%
+  [330/1172] Completed... Current Pass@1: 57.3%
+  [340/1172] Completed... Current Pass@1: 57.6%
+  [350/1172] Completed... Current Pass@1: 58.3%
+  [360/1172] Completed... Current Pass@1: 58.1%
+  [370/1172] Completed... Current Pass@1: 57.8%
+  [380/1172] Completed... Current Pass@1: 57.9%
+  [390/1172] Completed... Current Pass@1: 58.2%
+  [400/1172] Completed... Current Pass@1: 58.5%
+  [410/1172] Completed... Current Pass@1: 58.8%
+  [420/1172] Completed... Current Pass@1: 58.1%
+  [430/1172] Completed... Current Pass@1: 58.4%
+  [440/1172] Completed... Current Pass@1: 58.2%
+  [450/1172] Completed... Current Pass@1: 58.2%
+  [460/1172] Completed... Current Pass@1: 58.0%
+  [470/1172] Completed... Current Pass@1: 58.1%
+  [480/1172] Completed... Current Pass@1: 57.9%
+  [490/1172] Completed... Current Pass@1: 57.6%
+  [500/1172] Completed... Current Pass@1: 57.6%
+  [510/1172] Completed... Current Pass@1: 57.8%
+  [520/1172] Completed... Current Pass@1: 57.7%
+  [530/1172] Completed... Current Pass@1: 57.7%
+  [540/1172] Completed... Current Pass@1: 57.4%
+  [550/1172] Completed... Current Pass@1: 57.3%
+  [560/1172] Completed... Current Pass@1: 57.7%
+  [570/1172] Completed... Current Pass@1: 57.7%
+  [580/1172] Completed... Current Pass@1: 57.8%
+  [590/1172] Completed... Current Pass@1: 57.8%
+  [600/1172] Completed... Current Pass@1: 57.7%
+  [610/1172] Completed... Current Pass@1: 58.0%
+  [620/1172] Completed... Current Pass@1: 58.4%
+  [630/1172] Completed... Current Pass@1: 58.4%
+  [640/1172] Completed... Current Pass@1: 58.8%
+  [650/1172] Completed... Current Pass@1: 59.1%
+  [660/1172] Completed... Current Pass@1: 58.8%
+  [670/1172] Completed... Current Pass@1: 58.7%
+  [680/1172] Completed... Current Pass@1: 58.7%
+  [690/1172] Completed... Current Pass@1: 58.4%
+  [700/1172] Completed... Current Pass@1: 58.4%
+  [710/1172] Completed... Current Pass@1: 58.7%
+  [720/1172] Completed... Current Pass@1: 59.2%
+  [730/1172] Completed... Current Pass@1: 59.0%
+  [740/1172] Completed... Current Pass@1: 58.8%
+  [750/1172] Completed... Current Pass@1: 58.9%
+  [760/1172] Completed... Current Pass@1: 58.8%
+  [770/1172] Completed... Current Pass@1: 58.7%
+  [780/1172] Completed... Current Pass@1: 58.8%
+  [790/1172] Completed... Current Pass@1: 58.7%
+  [800/1172] Completed... Current Pass@1: 58.8%
+  [810/1172] Completed... Current Pass@1: 58.8%
+  [820/1172] Completed... Current Pass@1: 59.0%
+  [830/1172] Completed... Current Pass@1: 59.0%
+  [840/1172] Completed... Current Pass@1: 59.2%
+  [850/1172] Completed... Current Pass@1: 58.8%
+  [860/1172] Completed... Current Pass@1: 58.5%
+  [870/1172] Completed... Current Pass@1: 58.6%
+  [880/1172] Completed... Current Pass@1: 58.5%
+  [890/1172] Completed... Current Pass@1: 58.3%
+  [900/1172] Completed... Current Pass@1: 58.6%
+  [910/1172] Completed... Current Pass@1: 58.6%
+  [920/1172] Completed... Current Pass@1: 58.5%
+  [930/1172] Completed... Current Pass@1: 58.8%
+  [940/1172] Completed... Current Pass@1: 58.5%
+  [950/1172] Completed... Current Pass@1: 58.6%
+  [960/1172] Completed... Current Pass@1: 58.5%
+  [970/1172] Completed... Current Pass@1: 58.5%
+  [980/1172] Completed... Current Pass@1: 58.5%
+  [990/1172] Completed... Current Pass@1: 58.8%
+  [1000/1172] Completed... Current Pass@1: 58.6%
+  [1010/1172] Completed... Current Pass@1: 58.7%
+  [1020/1172] Completed... Current Pass@1: 58.7%
+  [1030/1172] Completed... Current Pass@1: 58.7%
+  [1040/1172] Completed... Current Pass@1: 58.9%
+  [1050/1172] Completed... Current Pass@1: 59.0%
+  [1060/1172] Completed... Current Pass@1: 59.1%
+  [1070/1172] Completed... Current Pass@1: 59.3%
+  [1080/1172] Completed... Current Pass@1: 59.1%
+  [1090/1172] Completed... Current Pass@1: 59.2%
+  [1100/1172] Completed... Current Pass@1: 59.1%
+  [1110/1172] Completed... Current Pass@1: 59.2%
+  [1120/1172] Completed... Current Pass@1: 59.2%
+  [1130/1172] Completed... Current Pass@1: 59.3%
+  [1140/1172] Completed... Current Pass@1: 59.1%
+  [1150/1172] Completed... Current Pass@1: 59.1%
+  [1160/1172] Completed... Current Pass@1: 59.2%
+  [1170/1172] Completed... Current Pass@1: 59.5%
+  [1172/1172] Completed... Current Pass@1: 59.6%
+
+---------------------------------------------------------------------------------------------------------
+  Category                     | Total | Pass@1 (%) | AST Valid (%) | Rep-3 (%) | Num Recall | Num Prec
+---------------------------------------------------------------------------------------------------------
+  science                      | 1172  |      59.6% |        100.0% |     12.2% |      45.9% | 41.7%
+---------------------------------------------------------------------------------------------------------
+  OVERALL PASS@1:       59.56% (95% CI: [56.83%, 62.46%])
+  OVERALL AST VALIDITY: 100.00%
+  Execution Breakdown:  {'PASSED': 698, 'FAILED_ASSERTION': 474, 'SYNTAX_ERROR': 0, 'TIMEOUT': 0, 'RUNTIME_EXCEPTION': 0, 'MEMORY_EXCEEDED': 0}
+
+  [GENERATION DYNAMICS & REPETITION METRICS]
+  Avg Token Length:     297.0 tokens | Early Exits (<=4 tok): 0.3%
+  N-Gram Repetition:    2-gram: 17.8% | 3-gram: 12.2% | 4-gram: 8.5%
+  Redundancy & Loops:   Line Repetition: 0.1% | Consecutive Dups: 0.0% | Degenerate Loops: 0.1%
+
+  [NUMERICAL & CONSTANT RETENTION (TASKS WITH PROMPT/DOCSTRING NUMBERS)]
+  Evaluated Tasks:      180 tasks containing explicit numeric specifications
+  Numeric Recall:       45.9% of required numbers appeared in completions
+  Numeric Precision:    41.7% of generated numbers were ground-truth matches
+  Exact Constant Match: 37.8% of tasks preserved ALL required numbers
+  Zero Numbers Emitted: 45.6% of tasks omitted numbers entirely (e.g. 'return val')
+  Hallucinated Numbers: 26.7% of tasks generated invented numbers
+=========================================================================================================
+
+✓ Saved evaluation report to logs/eval_report_lfm8b_arc_full.json
+
+
+✓ Completed ARC-Challenge Science Reasoning in 42.83 minutes (Pass@1: 59.56%).
+
+
+==========================================================================================
+  MASTER BENCHMARK SCORECARD: LIQUID AI LFM 2.5 8B A1B MLX (LM STUDIO)
+  Saved to: logs/eval_report_lfm8b_master_summary.json
+==========================================================================================
+Benchmark Suite                               | Tasks  | Pass@1 (%) | 95% CI             | AST Valid
+-----------------------------------------------------------------------------------------------
+OpenAI HumanEval (Python Code)                |    164 |     45.73% | [38.4%, 53.0%]     |     61.6%
+BFCL Tool-Use & Function Calling              |     30 |     63.33% | [46.6%, 80.0%]     |     90.0%
+Cybersecurity OWASP/CWE Auditing              |     50 |     24.00% | [12.0%, 36.0%]     |    100.0%
+GPQA Diamond (PhD Science — 8,096 Tokens)     |    198 |     20.71% | [15.2%, 26.3%]     |    100.0%
+MMLU Science & STEM                           |    833 |     73.11% | [70.0%, 75.9%]     |    100.0%
+Competition MATH (Hendrycks — 4,096 Tokens)   |    700 |     43.57% | [39.9%, 47.3%]     |    100.0%
+ARC-Challenge Science Reasoning               |   1172 |     59.56% | [56.8%, 62.5%]     |    100.0%
+===============================================================================================
+
+
+==========================================================================================
+  MASTER BENCHMARK SCORECARD: LIQUID AI LFM 2.5 8B A1B MLX (LM STUDIO)
+  Saved to: logs/eval_report_lfm8b_master_summary.json
+==========================================================================================
+Benchmark Suite                               | Tasks  | Pass@1 (%) | 95% CI             | AST Valid
+-----------------------------------------------------------------------------------------------
+OpenAI HumanEval (Python Code)                |    164 |     45.73% | [38.4%, 53.0%]     |     61.6%
+BFCL Tool-Use & Function Calling              |     30 |     63.33% | [46.6%, 80.0%]     |     90.0%
+Cybersecurity OWASP/CWE Auditing              |     50 |     24.00% | [12.0%, 36.0%]     |    100.0%
+GPQA Diamond (PhD Science — 8,096 Tokens)     |    198 |     20.71% | [15.2%, 26.3%]     |    100.0%
+MMLU Science & STEM                           |    833 |     73.11% | [70.0%, 75.9%]     |    100.0%
+Competition MATH (Hendrycks — 4,096 Tokens)   |    700 |     43.57% | [39.9%, 47.3%]     |    100.0%
+ARC-Challenge Science Reasoning               |   1172 |     59.56% | [56.8%, 62.5%]     |    100.0%
+===============================================================================================
+
+
+==========================================================================================
+  ALL BENCHMARKS COMPLETED FOR LIQUID AI LFM 2.5 8B A1B MLX
+==========================================================================================
+

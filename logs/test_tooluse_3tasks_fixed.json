@@ -1,0 +1,83 @@
+{
+  "model_checkpoint": "<scripts.run_lfm_8b_full_benches.LFMStudioAdapter object at 0x106119160>",
+  "backend": "openai_api",
+  "paradigm": "corosred",
+  "vocab_size": 32000,
+  "timestamp": 1789918829,
+  "mode": "functional",
+  "benchmark_type": "tooluse",
+  "language": "auto",
+  "suites_evaluated": [
+    "tooluse"
+  ],
+  "tooluse": {
+    "benchmark_type": "tooluse",
+    "total_tasks": 3,
+    "tool_accuracy_pct": 66.67,
+    "syntax_validity_pct": 66.67,
+    "pass_rate_pct": 66.67,
+    "pass_rate_95ci": [
+      0.0,
+      100.0
+    ],
+    "categories": {
+      "Math & Calculation": {
+        "count": 3,
+        "tool_accuracy_pct": 66.7,
+        "syntax_validity_pct": 66.7,
+        "pass_rate_pct": 66.7
+      }
+    },
+    "tasks": [
+      {
+        "id": "tool_001",
+        "category": "Math & Calculation",
+        "prompt": "What is 458 multiplied by 32?",
+        "expected_tool": "calculator",
+        "expected_args": {
+          "expression": "458 * 32"
+        },
+        "parsed_tool": "calculator",
+        "parsed_args": {
+          "expression": "458 * 32"
+        },
+        "completion": "{\"tool\": \"calculator\", \"arguments\": {\"expression\": \"458 * 32\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_002",
+        "category": "Math & Calculation",
+        "prompt": "Compute 15% tip on a bill of $84.50.",
+        "expected_tool": "calculator",
+        "expected_args": {
+          "expression": "84.50 * 0.15"
+        },
+        "parsed_tool": "calculator",
+        "parsed_args": {
+          "expression": "0.15 * 84.5"
+        },
+        "completion": "{\"tool\": \"calculator\", \"arguments\": {\"expression\": \"0.15 * 84.5\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_003",
+        "category": "Math & Calculation",
+        "prompt": "Calculate 2 to the power of 16.",
+        "expected_tool": "calculator",
+        "expected_args": {
+          "expression": "2 ** 16"
+        },
+        "parsed_tool": null,
+        "parsed_args": null,
+        "completion": "The user asks: \"Calculate 2 to the power of 16.\" That's a straightforward math problem. We can compute using calculator tool: expression \"2^16\". However, we need to consider the format. The user says:",
+        "syntax_valid": false,
+        "tool_correct": false,
+        "passed": false
+      }
+    ]
+  }
+}

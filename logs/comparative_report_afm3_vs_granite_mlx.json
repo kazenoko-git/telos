@@ -1,0 +1,169 @@
+{
+  "metadata": {
+    "timestamp": "2026-09-20T17:42:24Z",
+    "model_a": {
+      "name": "Apple AFM 3 Core Advanced",
+      "runtime": "Native Swift FoundationModels.framework IPC (Apple Silicon)"
+    },
+    "model_b": {
+      "name": "IBM Granite 4.2 3B MLX",
+      "runtime": "LM Studio Metal Acceleration (Apple Silicon)"
+    }
+  },
+  "benchmarks": {
+    "humaneval": {
+      "label": "OpenAI HumanEval (Python Code)",
+      "tasks": 164,
+      "afm3_core_advanced": {
+        "pass_at_1_pct": 62.8,
+        "pass_at_1_95ci": [
+          56.1,
+          70.12
+        ],
+        "ast_validity_pct": 92.68
+      },
+      "granite_4_2_3b_mlx": {
+        "pass_at_1_pct": 60.37,
+        "pass_at_1_95ci": [
+          53.05,
+          67.68
+        ],
+        "ast_validity_pct": 100.0
+      },
+      "delta_granite_vs_afm3_pct": -2.43,
+      "winner": "Apple AFM 3 Core Advanced"
+    },
+    "tooluse": {
+      "label": "BFCL Tool-Use & Function Calling",
+      "tasks": 30,
+      "afm3_core_advanced": {
+        "pass_at_1_pct": 73.33,
+        "pass_at_1_95ci": [
+          56.67,
+          86.67
+        ],
+        "ast_validity_pct": 100.0
+      },
+      "granite_4_2_3b_mlx": {
+        "pass_at_1_pct": 70.0,
+        "pass_at_1_95ci": [
+          53.33,
+          86.67
+        ],
+        "ast_validity_pct": 90.0
+      },
+      "delta_granite_vs_afm3_pct": -3.33,
+      "winner": "Apple AFM 3 Core Advanced"
+    },
+    "cyber": {
+      "label": "Cybersecurity OWASP/CWE Auditing",
+      "tasks": 50,
+      "afm3_core_advanced": {
+        "pass_at_1_pct": 12.0,
+        "pass_at_1_95ci": [
+          4.0,
+          22.0
+        ],
+        "ast_validity_pct": 100.0
+      },
+      "granite_4_2_3b_mlx": {
+        "pass_at_1_pct": 22.0,
+        "pass_at_1_95ci": [
+          12.0,
+          34.0
+        ],
+        "ast_validity_pct": 100.0
+      },
+      "delta_granite_vs_afm3_pct": 10.0,
+      "winner": "IBM Granite 4.2 3B"
+    },
+    "gpqa_diamond": {
+      "label": "GPQA Diamond (PhD Science \u2014 1,024 Tokens)",
+      "tasks": 198,
+      "afm3_core_advanced": {
+        "pass_at_1_pct": 25.25,
+        "pass_at_1_95ci": [
+          18.69,
+          31.31
+        ],
+        "ast_validity_pct": 100.0
+      },
+      "granite_4_2_3b_mlx": {
+        "pass_at_1_pct": 11.11,
+        "pass_at_1_95ci": [
+          7.07,
+          15.66
+        ],
+        "ast_validity_pct": 100.0
+      },
+      "delta_granite_vs_afm3_pct": -14.14,
+      "winner": "Apple AFM 3 Core Advanced"
+    },
+    "mmlu_science": {
+      "label": "MMLU Science & STEM",
+      "tasks": 833,
+      "afm3_core_advanced": {
+        "pass_at_1_pct": 69.75,
+        "pass_at_1_95ci": [
+          66.87,
+          72.99
+        ],
+        "ast_validity_pct": 100.0
+      },
+      "granite_4_2_3b_mlx": {
+        "pass_at_1_pct": 59.9,
+        "pass_at_1_95ci": [
+          56.42,
+          63.15
+        ],
+        "ast_validity_pct": 100.0
+      },
+      "delta_granite_vs_afm3_pct": -9.85,
+      "winner": "Apple AFM 3 Core Advanced"
+    },
+    "competition_math": {
+      "label": "Competition MATH (Hendrycks \u2014 1,024 Tokens)",
+      "tasks": 700,
+      "afm3_core_advanced": {
+        "pass_at_1_pct": 45.0,
+        "pass_at_1_95ci": [
+          41.57,
+          48.57
+        ],
+        "ast_validity_pct": 100.0
+      },
+      "granite_4_2_3b_mlx": {
+        "pass_at_1_pct": 35.57,
+        "pass_at_1_95ci": [
+          32.14,
+          39.0
+        ],
+        "ast_validity_pct": 100.0
+      },
+      "delta_granite_vs_afm3_pct": -9.43,
+      "winner": "Apple AFM 3 Core Advanced"
+    },
+    "arc": {
+      "label": "ARC-Challenge Science Reasoning",
+      "tasks": 1172,
+      "afm3_core_advanced": {
+        "pass_at_1_pct": 85.32,
+        "pass_at_1_95ci": [
+          83.28,
+          87.2
+        ],
+        "ast_validity_pct": 100.0
+      },
+      "granite_4_2_3b_mlx": {
+        "pass_at_1_pct": 37.8,
+        "pass_at_1_95ci": [
+          35.07,
+          40.44
+        ],
+        "ast_validity_pct": 100.0
+      },
+      "delta_granite_vs_afm3_pct": -47.52,
+      "winner": "Apple AFM 3 Core Advanced"
+    }
+  }
+}

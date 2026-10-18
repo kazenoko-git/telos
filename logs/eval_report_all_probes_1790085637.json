@@ -1,0 +1,443 @@
+{
+  "model_checkpoint": "/tmp/claude-502/telos-e2e/ckpt/checkpoint_step_20.pt",
+  "backend": "pytorch",
+  "paradigm": "ar",
+  "vocab_size": 8192,
+  "timestamp": 1790085637,
+  "mode": "probes",
+  "benchmark_type": "all",
+  "language": "auto",
+  "suites_evaluated": [
+    "code",
+    "math",
+    "science",
+    "cyber",
+    "tooluse",
+    "linguistic"
+  ],
+  "code": {
+    "probes": {
+      "causal": {
+        "probe_type": "causal",
+        "overall": {
+          "top1_acc_pct": 0.0,
+          "top1_95ci": [
+            0.0,
+            0.0
+          ],
+          "top5_acc_pct": 0.0,
+          "mean_rank": 4494.1,
+          "mean_ce": 9.05,
+          "total_probes": 10
+        },
+        "categories": {
+          "Contextually Deterministic Identifiers": {
+            "count": 10,
+            "top1_pct": 0.0,
+            "top5_pct": 0.0,
+            "avg_rank": 4494.1,
+            "avg_ce": 9.05
+          }
+        },
+        "probes": [
+          {
+            "category": "Contextually Deterministic Identifiers",
+            "prompt": "x = 10\nprint(",
+            "target": "x",
+            "rank": 4599,
+            "target_ce": 9.050116298406174,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "category": "Contextually Deterministic Identifiers",
+            "prompt": "y = 20\nprint(",
+            "target": "y",
+            "rank": 2913,
+            "target_ce": 8.966295845701321,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "category": "Contextually Deterministic Identifiers",
+            "prompt": "def get_name(self):\n    return self._",
+            "target": "name",
+            "rank": 3613,
+            "target_ce": 8.997735661146788,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "category": "Contextually Deterministic Identifiers",
+            "prompt": "def get_value(self):\n    return self._",
+            "target": "value",
+            "rank": 2486,
+            "target_ce": 8.942535753181595,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "category": "Contextually Deterministic Identifiers",
+            "prompt": "def get_id(self):\n    return self._",
+            "target": "id",
+            "rank": 3867,
+            "target_ce": 9.014297697421517,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "category": "Contextually Deterministic Identifiers",
+            "prompt": "def get_path(self):\n    return self._",
+            "target": "path",
+            "rank": 6853,
+            "target_ce": 9.178141779888936,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "category": "Contextually Deterministic Identifiers",
+            "prompt": "def get_data(self):\n    return self._",
+            "target": "data",
+            "rank": 6944,
+            "target_ce": 9.185042563776653,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "category": "Contextually Deterministic Identifiers",
+            "prompt": "def get_status(self):\n    return self._",
+            "target": "status",
+            "rank": 6827,
+            "target_ce": 9.17640462246808,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "category": "Contextually Deterministic Identifiers",
+            "prompt": "def get_config(self):\n    return self._",
+            "target": "config",
+            "rank": 3491,
+            "target_ce": 8.99409354517494,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "category": "Contextually Deterministic Identifiers",
+            "prompt": "def set_count(self, count):\n    self._count =",
+            "target": "count",
+            "rank": 3348,
+            "target_ce": 8.986503992814336,
+            "top1": false,
+            "top5": false
+          }
+        ]
+      },
+      "infill": {
+        "status": "not_applicable",
+        "reason": "AR models are strictly causal-only and cannot condition on bidirectional suffixes",
+        "overall": {
+          "top1_acc_pct": null,
+          "top5_acc_pct": null,
+          "mean_ce": null,
+          "mean_rank": null,
+          "total_probes": 0
+        },
+        "categories": {}
+      }
+    }
+  },
+  "probes": {
+    "causal": {
+      "probe_type": "causal",
+      "overall": {
+        "top1_acc_pct": 0.0,
+        "top1_95ci": [
+          0.0,
+          0.0
+        ],
+        "top5_acc_pct": 0.0,
+        "mean_rank": 4494.1,
+        "mean_ce": 9.05,
+        "total_probes": 10
+      },
+      "categories": {
+        "Contextually Deterministic Identifiers": {
+          "count": 10,
+          "top1_pct": 0.0,
+          "top5_pct": 0.0,
+          "avg_rank": 4494.1,
+          "avg_ce": 9.05
+        }
+      },
+      "probes": [
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "x = 10\nprint(",
+          "target": "x",
+          "rank": 4599,
+          "target_ce": 9.050116298406174,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "y = 20\nprint(",
+          "target": "y",
+          "rank": 2913,
+          "target_ce": 8.966295845701321,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def get_name(self):\n    return self._",
+          "target": "name",
+          "rank": 3613,
+          "target_ce": 8.997735661146788,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def get_value(self):\n    return self._",
+          "target": "value",
+          "rank": 2486,
+          "target_ce": 8.942535753181595,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def get_id(self):\n    return self._",
+          "target": "id",
+          "rank": 3867,
+          "target_ce": 9.014297697421517,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def get_path(self):\n    return self._",
+          "target": "path",
+          "rank": 6853,
+          "target_ce": 9.178141779888936,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def get_data(self):\n    return self._",
+          "target": "data",
+          "rank": 6944,
+          "target_ce": 9.185042563776653,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def get_status(self):\n    return self._",
+          "target": "status",
+          "rank": 6827,
+          "target_ce": 9.17640462246808,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def get_config(self):\n    return self._",
+          "target": "config",
+          "rank": 3491,
+          "target_ce": 8.99409354517494,
+          "top1": false,
+          "top5": false
+        },
+        {
+          "category": "Contextually Deterministic Identifiers",
+          "prompt": "def set_count(self, count):\n    self._count =",
+          "target": "count",
+          "rank": 3348,
+          "target_ce": 8.986503992814336,
+          "top1": false,
+          "top5": false
+        }
+      ]
+    },
+    "infill": {
+      "status": "not_applicable",
+      "reason": "AR models are strictly causal-only and cannot condition on bidirectional suffixes",
+      "overall": {
+        "top1_acc_pct": null,
+        "top5_acc_pct": null,
+        "mean_ce": null,
+        "mean_rank": null,
+        "total_probes": 0
+      },
+      "categories": {}
+    }
+  },
+  "linguistic": {
+    "benchmark_type": "linguistic",
+    "language": "english",
+    "mode": "probes",
+    "timestamp": 1790085637,
+    "probes": {
+      "causal": {
+        "probe_type": "causal",
+        "overall": {
+          "top1_acc_pct": 0.0,
+          "top1_95ci": [
+            0.0,
+            0.0
+          ],
+          "top5_acc_pct": 0.0,
+          "mean_rank": 6284.9,
+          "mean_ce": 9.15,
+          "total_probes": 10
+        },
+        "categories": {
+          "Subject-Verb Agreement & Morphology": {
+            "count": 10,
+            "top1_pct": 0.0,
+            "top5_pct": 0.0,
+            "avg_rank": 6284.9,
+            "avg_ce": 9.15
+          }
+        },
+        "probes": [
+          {
+            "id": "en_agr_001",
+            "category": "Subject-Verb Agreement & Morphology",
+            "prompt": "The dog in the backyard always",
+            "target": "barks",
+            "target_token": 301,
+            "target_token_str": "\u0120b",
+            "rank": 5367,
+            "target_ce": 9.088,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "id": "en_agr_002",
+            "category": "Subject-Verb Agreement & Morphology",
+            "prompt": "The dogs in the backyard always",
+            "target": "bark",
+            "target_token": 301,
+            "target_token_str": "\u0120b",
+            "rank": 5642,
+            "target_ce": 9.102,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "id": "en_agr_003",
+            "category": "Subject-Verb Agreement & Morphology",
+            "prompt": "Every student in the three classrooms",
+            "target": "is",
+            "target_token": 334,
+            "target_token_str": "\u0120is",
+            "rank": 4682,
+            "target_ce": 9.051,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "id": "en_agr_004",
+            "category": "Subject-Verb Agreement & Morphology",
+            "prompt": "All students in the three classrooms",
+            "target": "are",
+            "target_token": 774,
+            "target_token_str": "\u0120are",
+            "rank": 6314,
+            "target_ce": 9.142,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "id": "en_agr_005",
+            "category": "Subject-Verb Agreement & Morphology",
+            "prompt": "The box of old vintage photographs",
+            "target": "was",
+            "target_token": 1936,
+            "target_token_str": "\u0120was",
+            "rank": 7534,
+            "target_ce": 9.25,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "id": "en_agr_006",
+            "category": "Subject-Verb Agreement & Morphology",
+            "prompt": "The boxes of old vintage photographs",
+            "target": "were",
+            "target_token": 4880,
+            "target_token_str": "\u0120were",
+            "rank": 6837,
+            "target_ce": 9.182,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "id": "en_agr_007",
+            "category": "Subject-Verb Agreement & Morphology",
+            "prompt": "Neither the teacher nor the students",
+            "target": "were",
+            "target_token": 4880,
+            "target_token_str": "\u0120were",
+            "rank": 6915,
+            "target_ce": 9.186,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "id": "en_agr_008",
+            "category": "Subject-Verb Agreement & Morphology",
+            "prompt": "Neither the students nor the teacher",
+            "target": "was",
+            "target_token": 1936,
+            "target_token_str": "\u0120was",
+            "rank": 5049,
+            "target_ce": 9.07,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "id": "en_agr_009",
+            "category": "Subject-Verb Agreement & Morphology",
+            "prompt": "One of the most experienced engineers",
+            "target": "was",
+            "target_token": 1936,
+            "target_token_str": "\u0120was",
+            "rank": 7902,
+            "target_ce": 9.314,
+            "top1": false,
+            "top5": false
+          },
+          {
+            "id": "en_agr_010",
+            "category": "Subject-Verb Agreement & Morphology",
+            "prompt": "Yesterday, after a long walk, she",
+            "target": "sat",
+            "target_token": 279,
+            "target_token_str": "\u0120s",
+            "rank": 6607,
+            "target_ce": 9.161,
+            "top1": false,
+            "top5": false
+          }
+        ]
+      },
+      "infill": {
+        "status": "not_applicable",
+        "reason": "AR models are causal-only and cannot condition on bidirectional suffixes",
+        "overall": {
+          "top1_acc_pct": null,
+          "top5_acc_pct": null,
+          "mean_ce": null,
+          "mean_rank": null,
+          "total_probes": 0
+        },
+        "categories": {}
+      }
+    }
+  }
+}

@@ -1,0 +1,2880 @@
+{
+  "model_checkpoint": "<telos.eval.adapters.openai_api.OpenAIAPIAdapter object at 0x109709090>",
+  "backend": "openai_api",
+  "paradigm": "corosred",
+  "vocab_size": 32000,
+  "timestamp": 1790004495,
+  "mode": "functional",
+  "benchmark_type": "cyber",
+  "language": "auto",
+  "suites_evaluated": [
+    "cyber"
+  ],
+  "cyber": {
+    "suite": "cyber",
+    "total_tasks": 50,
+    "pass_at_1_pct": 52.0,
+    "pass_at_1_95ci": [
+      38.0,
+      66.0
+    ],
+    "ast_validity_pct": 100.0,
+    "execution_outcomes": {
+      "PASSED": 26,
+      "FAILED_ASSERTION": 24,
+      "SYNTAX_ERROR": 0,
+      "TIMEOUT": 0,
+      "RUNTIME_EXCEPTION": 0,
+      "MEMORY_EXCEEDED": 0
+    },
+    "repetition": {
+      "avg_token_length": 1370.6,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 30.2,
+      "rep_3gram_pct": 16.7,
+      "rep_4gram_pct": 9.4,
+      "line_repetition_pct": 4.6,
+      "consecutive_dup_line_pct": 4.0,
+      "degenerate_loop_pct": 52.0
+    },
+    "numerical_accuracy": {
+      "tasks_with_prompt_numbers": 50,
+      "numeric_recall_pct": 80.0,
+      "numeric_precision_pct": 63.2,
+      "exact_number_match_pct": 22.0,
+      "zero_numbers_emitted_pct": 0.0,
+      "hallucinated_numbers_pct": 88.0
+    },
+    "extended_metrics": {
+      "count": 50,
+      "avg_token_length": 1370.6,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 30.2,
+      "rep_3gram_pct": 16.7,
+      "rep_4gram_pct": 9.4,
+      "line_repetition_pct": 4.6,
+      "consecutive_dup_line_pct": 4.0,
+      "degenerate_loop_pct": 52.0,
+      "numerical": {
+        "tasks_with_prompt_numbers": 50,
+        "numeric_recall_pct": 80.0,
+        "numeric_precision_pct": 63.2,
+        "exact_number_match_pct": 22.0,
+        "zero_numbers_emitted_pct": 0.0,
+        "hallucinated_numbers_pct": 88.0
+      }
+    },
+    "category_breakdown": {
+      "SQL Injection": {
+        "count": 10,
+        "pass_at_1_pct": 80.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "PASSED": 8,
+          "FAILED_ASSERTION": 2
+        },
+        "extended_metrics": {
+          "count": 10,
+          "avg_token_length": 1116.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 26.5,
+          "rep_3gram_pct": 13.8,
+          "rep_4gram_pct": 7.5,
+          "line_repetition_pct": 5.3,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 40.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 10,
+            "numeric_recall_pct": 100.0,
+            "numeric_precision_pct": 92.0,
+            "exact_number_match_pct": 100.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 40.0
+          }
+        }
+      },
+      "Command Injection": {
+        "count": 8,
+        "pass_at_1_pct": 50.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "FAILED_ASSERTION": 4,
+          "PASSED": 4
+        },
+        "extended_metrics": {
+          "count": 8,
+          "avg_token_length": 1448.5,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 30.3,
+          "rep_3gram_pct": 16.1,
+          "rep_4gram_pct": 8.5,
+          "line_repetition_pct": 4.9,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 25.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 8,
+            "numeric_recall_pct": 72.5,
+            "numeric_precision_pct": 65.0,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 100.0
+          }
+        }
+      },
+      "Cross-Site Scripting": {
+        "count": 6,
+        "pass_at_1_pct": 33.3,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "FAILED_ASSERTION": 4,
+          "PASSED": 2
+        },
+        "extended_metrics": {
+          "count": 6,
+          "avg_token_length": 1091.3,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 25.7,
+          "rep_3gram_pct": 13.4,
+          "rep_4gram_pct": 6.9,
+          "line_repetition_pct": 2.4,
+          "consecutive_dup_line_pct": 33.3,
+          "degenerate_loop_pct": 100.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 6,
+            "numeric_recall_pct": 75.0,
+            "numeric_precision_pct": 75.0,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 100.0
+          }
+        }
+      },
+      "Path Traversal": {
+        "count": 6,
+        "pass_at_1_pct": 33.3,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "PASSED": 2,
+          "FAILED_ASSERTION": 4
+        },
+        "extended_metrics": {
+          "count": 6,
+          "avg_token_length": 1502.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 33.5,
+          "rep_3gram_pct": 19.1,
+          "rep_4gram_pct": 10.8,
+          "line_repetition_pct": 4.4,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 100.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 6,
+            "numeric_recall_pct": 75.0,
+            "numeric_precision_pct": 47.8,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 100.0
+          }
+        }
+      },
+      "Insecure Deserialization": {
+        "count": 4,
+        "pass_at_1_pct": 50.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "FAILED_ASSERTION": 2,
+          "PASSED": 2
+        },
+        "extended_metrics": {
+          "count": 4,
+          "avg_token_length": 1316.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 32.6,
+          "rep_3gram_pct": 18.6,
+          "rep_4gram_pct": 10.7,
+          "line_repetition_pct": 6.1,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 4,
+            "numeric_recall_pct": 75.0,
+            "numeric_precision_pct": 62.5,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 100.0
+          }
+        }
+      },
+      "Hardcoded Credentials": {
+        "count": 4,
+        "pass_at_1_pct": 50.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "FAILED_ASSERTION": 2,
+          "PASSED": 2
+        },
+        "extended_metrics": {
+          "count": 4,
+          "avg_token_length": 1577.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 31.7,
+          "rep_3gram_pct": 18.0,
+          "rep_4gram_pct": 10.4,
+          "line_repetition_pct": 5.5,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 4,
+            "numeric_recall_pct": 67.5,
+            "numeric_precision_pct": 55.0,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 100.0
+          }
+        }
+      },
+      "Weak Hashing": {
+        "count": 2,
+        "pass_at_1_pct": 0.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "FAILED_ASSERTION": 2
+        },
+        "extended_metrics": {
+          "count": 2,
+          "avg_token_length": 1503.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 28.4,
+          "rep_3gram_pct": 14.8,
+          "rep_4gram_pct": 7.5,
+          "line_repetition_pct": 2.0,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 100.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 2,
+            "numeric_recall_pct": 75.0,
+            "numeric_precision_pct": 60.0,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 100.0
+          }
+        }
+      },
+      "Broken Cryptography": {
+        "count": 2,
+        "pass_at_1_pct": 100.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "PASSED": 2
+        },
+        "extended_metrics": {
+          "count": 2,
+          "avg_token_length": 1650.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 32.6,
+          "rep_3gram_pct": 18.5,
+          "rep_4gram_pct": 10.2,
+          "line_repetition_pct": 1.8,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 2,
+            "numeric_recall_pct": 80.0,
+            "numeric_precision_pct": 36.4,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 100.0
+          }
+        }
+      },
+      "Server-Side Request Forgery": {
+        "count": 4,
+        "pass_at_1_pct": 50.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "FAILED_ASSERTION": 2,
+          "PASSED": 2
+        },
+        "extended_metrics": {
+          "count": 4,
+          "avg_token_length": 1641.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 34.8,
+          "rep_3gram_pct": 20.7,
+          "rep_4gram_pct": 12.6,
+          "line_repetition_pct": 7.5,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 50.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 4,
+            "numeric_recall_pct": 77.5,
+            "numeric_precision_pct": 22.5,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 100.0
+          }
+        }
+      },
+      "XML External Entity Injection": {
+        "count": 2,
+        "pass_at_1_pct": 100.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "PASSED": 2
+        },
+        "extended_metrics": {
+          "count": 2,
+          "avg_token_length": 1577.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 34.4,
+          "rep_3gram_pct": 21.3,
+          "rep_4gram_pct": 14.0,
+          "line_repetition_pct": 2.0,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 100.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 2,
+            "numeric_recall_pct": 75.0,
+            "numeric_precision_pct": 42.9,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 100.0
+          }
+        }
+      },
+      "Insecure Direct Object Reference": {
+        "count": 1,
+        "pass_at_1_pct": 0.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "FAILED_ASSERTION": 1
+        },
+        "extended_metrics": {
+          "count": 1,
+          "avg_token_length": 1210.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 28.0,
+          "rep_3gram_pct": 15.4,
+          "rep_4gram_pct": 8.3,
+          "line_repetition_pct": 6.5,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 100.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 1,
+            "numeric_recall_pct": 100.0,
+            "numeric_precision_pct": 66.7,
+            "exact_number_match_pct": 100.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 100.0
+          }
+        }
+      },
+      "Resource Exhaustion": {
+        "count": 1,
+        "pass_at_1_pct": 0.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "FAILED_ASSERTION": 1
+        },
+        "extended_metrics": {
+          "count": 1,
+          "avg_token_length": 1414.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 31.6,
+          "rep_3gram_pct": 19.3,
+          "rep_4gram_pct": 13.3,
+          "line_repetition_pct": 2.3,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 100.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 1,
+            "numeric_recall_pct": 80.0,
+            "numeric_precision_pct": 80.0,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 100.0
+          }
+        }
+      }
+    },
+    "tasks": [
+      {
+        "id": "cyber/sqli_login_bypass",
+        "category": "SQL Injection",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=1.00",
+        "extended_metrics": {
+          "token_count": 1202,
+          "is_early_exit": false,
+          "rep_2gram": 0.25312239800166525,
+          "rep_3gram": 0.12416666666666665,
+          "rep_4gram": 0.06672226855713093,
+          "line_rep": 0.04347826086956519,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "overlap_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 1.0,
+            "numeric_precision": 1.0,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/sqli_search_filter",
+        "category": "SQL Injection",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 1360,
+          "is_early_exit": false,
+          "rep_2gram": 0.29801324503311255,
+          "rep_3gram": 0.16273932253313694,
+          "rep_4gram": 0.0950626381724392,
+          "line_rep": 0.06779661016949157,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "1",
+              "0",
+              "2",
+              "89"
+            ],
+            "overlap_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 1.0,
+            "numeric_precision": 0.8,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/sqli_raw_orm_query",
+        "category": "SQL Injection",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=1.00",
+        "extended_metrics": {
+          "token_count": 1026,
+          "is_early_exit": false,
+          "rep_2gram": 0.25073170731707317,
+          "rep_3gram": 0.1337890625,
+          "rep_4gram": 0.07135874877810366,
+          "line_rep": 0.052631578947368474,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "overlap_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 1.0,
+            "numeric_precision": 1.0,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/sqli_node_knex_raw",
+        "category": "SQL Injection",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=1.00",
+        "extended_metrics": {
+          "token_count": 1096,
+          "is_early_exit": false,
+          "rep_2gram": 0.24200913242009137,
+          "rep_3gram": 0.11151736745886653,
+          "rep_4gram": 0.04940530649588293,
+          "line_rep": 0.023809523809523836,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "overlap_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 1.0,
+            "numeric_precision": 1.0,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/sqli_second_order",
+        "category": "SQL Injection",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=1.00",
+        "extended_metrics": {
+          "token_count": 878,
+          "is_early_exit": false,
+          "rep_2gram": 0.2690992018244014,
+          "rep_3gram": 0.14497716894977164,
+          "rep_4gram": 0.08342857142857141,
+          "line_rep": 0.05882352941176472,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "123",
+              "1",
+              "2",
+              "89"
+            ],
+            "overlap_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "hallucinated_numbers": [
+              "123"
+            ],
+            "numeric_recall": 1.0,
+            "numeric_precision": 0.8,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/cmd_ping_utility",
+        "category": "Command Injection",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 1463,
+          "is_early_exit": false,
+          "rep_2gram": 0.3153214774281806,
+          "rep_3gram": 0.17043121149897333,
+          "rep_4gram": 0.0931506849315068,
+          "line_rep": 0.045454545454545414,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "1",
+              "4",
+              "2",
+              "89"
+            ],
+            "completion_numbers": [
+              "0.1",
+              "3",
+              "1",
+              "4",
+              "8.8",
+              "127.0",
+              "2",
+              "78"
+            ],
+            "overlap_numbers": [
+              "2",
+              "4",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "127.0",
+              "0.1",
+              "78",
+              "8.8"
+            ],
+            "numeric_recall": 0.8,
+            "numeric_precision": 0.5,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/cmd_pdf_converter",
+        "category": "Command Injection",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 1474,
+          "is_early_exit": false,
+          "rep_2gram": 0.29463679565512557,
+          "rep_3gram": 0.1494565217391305,
+          "rep_4gram": 0.07205982324949012,
+          "line_rep": 0.044117647058823484,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "3",
+              "78",
+              "1"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "78"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.75,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/cmd_git_checkout",
+        "category": "Command Injection",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.50",
+        "extended_metrics": {
+          "token_count": 1518,
+          "is_early_exit": false,
+          "rep_2gram": 0.3157547791694133,
+          "rep_3gram": 0.183377308707124,
+          "rep_4gram": 0.10363036303630369,
+          "line_rep": 0.07352941176470584,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "3",
+              "78",
+              "1"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "78"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.75,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/cmd_nslookup_tool",
+        "category": "Command Injection",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.50",
+        "extended_metrics": {
+          "token_count": 1339,
+          "is_early_exit": false,
+          "rep_2gram": 0.28774289985052315,
+          "rep_3gram": 0.1406133133881825,
+          "rep_4gram": 0.07185628742514971,
+          "line_rep": 0.032786885245901676,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "1",
+              "0",
+              "2",
+              "89"
+            ],
+            "completion_numbers": [
+              "3",
+              "1",
+              "8.8",
+              "2",
+              "78"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "78",
+              "8.8"
+            ],
+            "numeric_recall": 0.6,
+            "numeric_precision": 0.6,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/xss_reflected_flask",
+        "category": "Cross-Site Scripting",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.25",
+        "extended_metrics": {
+          "token_count": 1329,
+          "is_early_exit": false,
+          "rep_2gram": 0.26957831325301207,
+          "rep_3gram": 0.14318010550113036,
+          "rep_4gram": 0.07239819004524883,
+          "line_rep": 0.018181818181818188,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "79",
+              "1",
+              "3"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "79"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.75,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/xss_stored_react_dangerously",
+        "category": "Cross-Site Scripting",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 1042,
+          "is_early_exit": false,
+          "rep_2gram": 0.2689721421709894,
+          "rep_3gram": 0.15000000000000002,
+          "rep_4gram": 0.08469682386910493,
+          "line_rep": 0.02631578947368418,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "79",
+              "1",
+              "3"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "79"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.75,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/xss_dom_innerhtml",
+        "category": "Cross-Site Scripting",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.50",
+        "extended_metrics": {
+          "token_count": 903,
+          "is_early_exit": false,
+          "rep_2gram": 0.23392461197339243,
+          "rep_3gram": 0.10765815760266373,
+          "rep_4gram": 0.05111111111111111,
+          "line_rep": 0.02857142857142858,
+          "has_consecutive_dup_lines": true,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "79",
+              "1",
+              "3"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "79"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.75,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/path_traversal_file_reader",
+        "category": "Path Traversal",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.60",
+        "extended_metrics": {
+          "token_count": 1460,
+          "is_early_exit": false,
+          "rep_2gram": 0.3461274845784784,
+          "rep_3gram": 0.200960219478738,
+          "rep_4gram": 0.12285518188057654,
+          "line_rep": 0.051724137931034475,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "22",
+              "4",
+              "1",
+              "2",
+              "5"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "4",
+              "5",
+              "22"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.5,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/path_traversal_archive_extract",
+        "category": "Path Traversal",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.25",
+        "extended_metrics": {
+          "token_count": 1604,
+          "is_early_exit": false,
+          "rep_2gram": 0.32875857766687466,
+          "rep_3gram": 0.1772784019975031,
+          "rep_4gram": 0.08557151780137418,
+          "line_rep": 0.06493506493506496,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "22",
+              "4",
+              "1",
+              "2"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "4",
+              "22"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.6,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/path_traversal_send_from_directory",
+        "category": "Path Traversal",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 1442,
+          "is_early_exit": false,
+          "rep_2gram": 0.3310201249132547,
+          "rep_3gram": 0.19444444444444442,
+          "rep_4gram": 0.11674774148714384,
+          "line_rep": 0.016393442622950838,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "22",
+              "403",
+              "500",
+              "1",
+              "4",
+              "2",
+              "404",
+              "5"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "22",
+              "403",
+              "500",
+              "4",
+              "404",
+              "5"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.3333333333333333,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/deserialization_pickle_load",
+        "category": "Insecure Deserialization",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 1385,
+          "is_early_exit": false,
+          "rep_2gram": 0.3258670520231214,
+          "rep_3gram": 0.18365871294287783,
+          "rep_4gram": 0.1078147612156295,
+          "line_rep": 0.05555555555555558,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "123",
+              "1",
+              "2",
+              "502",
+              "8"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "8",
+              "502",
+              "123"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.5,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/deserialization_yaml_unsafe",
+        "category": "Insecure Deserialization",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.50",
+        "extended_metrics": {
+          "token_count": 1247,
+          "is_early_exit": false,
+          "rep_2gram": 0.326645264847512,
+          "rep_3gram": 0.1879518072289157,
+          "rep_4gram": 0.1061093247588425,
+          "line_rep": 0.06666666666666665,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "3",
+              "1",
+              "502"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "502"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.75,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/hardcoded_jwt_secret",
+        "category": "Hardcoded Credentials",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.33",
+        "extended_metrics": {
+          "token_count": 1523,
+          "is_early_exit": false,
+          "rep_2gram": 0.30617608409986863,
+          "rep_3gram": 0.16896778435239979,
+          "rep_4gram": 0.09342105263157896,
+          "line_rep": 0.017241379310344862,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "12345",
+              "1",
+              "2",
+              "89"
+            ],
+            "completion_numbers": [
+              "3",
+              "123",
+              "1",
+              "2",
+              "798",
+              "60"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "798",
+              "60",
+              "123"
+            ],
+            "numeric_recall": 0.6,
+            "numeric_precision": 0.5,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/hardcoded_aws_credentials",
+        "category": "Hardcoded Credentials",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.67",
+        "extended_metrics": {
+          "token_count": 1631,
+          "is_early_exit": false,
+          "rep_2gram": 0.3276073619631902,
+          "rep_3gram": 0.19091467157765496,
+          "rep_4gram": 0.11486486486486491,
+          "line_rep": 0.09230769230769231,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "1",
+              "4",
+              "2",
+              "798"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "798",
+              "4"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.6,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/crypto_md5_password_hash",
+        "category": "Weak Hashing",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=False, RemScore=0.50",
+        "extended_metrics": {
+          "token_count": 1503,
+          "is_early_exit": false,
+          "rep_2gram": 0.2836218375499334,
+          "rep_3gram": 0.1479013990672885,
+          "rep_4gram": 0.07533333333333336,
+          "line_rep": 0.020000000000000018,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "916",
+              "3",
+              "1",
+              "2",
+              "8"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "916",
+              "8"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.6,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/crypto_aes_ecb_mode",
+        "category": "Broken Cryptography",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.75",
+        "extended_metrics": {
+          "token_count": 1650,
+          "is_early_exit": false,
+          "rep_2gram": 0.3262583383869011,
+          "rep_3gram": 0.18507281553398058,
+          "rep_4gram": 0.10200364298724951,
+          "line_rep": 0.01754385964912286,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "16",
+              "1",
+              "2",
+              "89"
+            ],
+            "completion_numbers": [
+              "192",
+              "3",
+              "128",
+              "16",
+              "256",
+              "1",
+              "4",
+              "2",
+              "24",
+              "327",
+              "32"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1",
+              "16"
+            ],
+            "hallucinated_numbers": [
+              "192",
+              "128",
+              "256",
+              "4",
+              "24",
+              "327",
+              "32"
+            ],
+            "numeric_recall": 0.8,
+            "numeric_precision": 0.36363636363636365,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/ssrf_webhook_fetch",
+        "category": "Server-Side Request Forgery",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 1546,
+          "is_early_exit": false,
+          "rep_2gram": 0.32944983818770224,
+          "rep_3gram": 0.1871761658031088,
+          "rep_4gram": 0.10823071937783535,
+          "line_rep": 0.06756756756756754,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "1",
+              "2",
+              "89",
+              "5"
+            ],
+            "completion_numbers": [
+              "1918",
+              "0.1",
+              "3",
+              "503",
+              "169.254",
+              "192.168",
+              "1.1",
+              "403",
+              "1",
+              "0",
+              "127.0",
+              "2",
+              "400",
+              "5",
+              "8080",
+              "918"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1",
+              "5"
+            ],
+            "hallucinated_numbers": [
+              "1918",
+              "918",
+              "0.1",
+              "503",
+              "169.254",
+              "403",
+              "1.1",
+              "0",
+              "127.0",
+              "400",
+              "8080",
+              "192.168"
+            ],
+            "numeric_recall": 0.8,
+            "numeric_precision": 0.25,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/ssrf_image_proxy",
+        "category": "Server-Side Request Forgery",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.50",
+        "extended_metrics": {
+          "token_count": 1736,
+          "is_early_exit": false,
+          "rep_2gram": 0.3665706051873199,
+          "rep_3gram": 0.2260668973471741,
+          "rep_4gram": 0.14425851125216382,
+          "line_rep": 0.08235294117647063,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "0.5",
+              "12",
+              "8",
+              "3",
+              "128",
+              "16",
+              "0.0",
+              "172.16",
+              "169.254",
+              "192.168",
+              "1",
+              "127.0",
+              "2",
+              "10.0",
+              "918"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "0.5",
+              "12",
+              "918",
+              "128",
+              "16",
+              "0.0",
+              "172.16",
+              "169.254",
+              "192.168",
+              "127.0",
+              "10.0",
+              "8"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.2,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/xxe_xml_parser",
+        "category": "XML External Entity Injection",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.67",
+        "extended_metrics": {
+          "token_count": 1577,
+          "is_early_exit": false,
+          "rep_2gram": 0.34390862944162437,
+          "rep_3gram": 0.21333333333333337,
+          "rep_4gram": 0.14040660736975863,
+          "line_rep": 0.020000000000000018,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "169.254",
+              "100.50",
+              "1",
+              "2",
+              "611",
+              "1.0"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "169.254",
+              "100.50",
+              "1.0",
+              "611"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.42857142857142855,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/idor_user_invoice",
+        "category": "Insecure Direct Object Reference",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.25",
+        "extended_metrics": {
+          "token_count": 1210,
+          "is_early_exit": false,
+          "rep_2gram": 0.2803970223325062,
+          "rep_3gram": 0.1539735099337748,
+          "rep_4gram": 0.08285004142502073,
+          "line_rep": 0.06521739130434778,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "1",
+              "284",
+              "639",
+              "2",
+              "89"
+            ],
+            "overlap_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "hallucinated_numbers": [
+              "284",
+              "639"
+            ],
+            "numeric_recall": 1.0,
+            "numeric_precision": 0.6666666666666666,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/redos_email_regex",
+        "category": "Resource Exhaustion",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 1414,
+          "is_early_exit": false,
+          "rep_2gram": 0.3163481953290871,
+          "rep_3gram": 0.193342776203966,
+          "rep_4gram": 0.13323883770375622,
+          "line_rep": 0.022727272727272707,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "9",
+              "1",
+              "2",
+              "89"
+            ],
+            "completion_numbers": [
+              "3",
+              "9",
+              "1",
+              "2",
+              "400"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1",
+              "9"
+            ],
+            "hallucinated_numbers": [
+              "400"
+            ],
+            "numeric_recall": 0.8,
+            "numeric_precision": 0.8,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/sqli_login_bypass_2",
+        "category": "SQL Injection",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=1.00",
+        "extended_metrics": {
+          "token_count": 1238,
+          "is_early_exit": false,
+          "rep_2gram": 0.2813257881972514,
+          "rep_3gram": 0.1472491909385113,
+          "rep_4gram": 0.08744939271255059,
+          "line_rep": 0.08333333333333337,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "overlap_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 1.0,
+            "numeric_precision": 1.0,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/sqli_search_filter_2",
+        "category": "SQL Injection",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 1360,
+          "is_early_exit": false,
+          "rep_2gram": 0.29801324503311255,
+          "rep_3gram": 0.16273932253313694,
+          "rep_4gram": 0.0950626381724392,
+          "line_rep": 0.06779661016949157,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "1",
+              "0",
+              "2",
+              "89"
+            ],
+            "overlap_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 1.0,
+            "numeric_precision": 0.8,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/sqli_raw_orm_query_2",
+        "category": "SQL Injection",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=1.00",
+        "extended_metrics": {
+          "token_count": 1026,
+          "is_early_exit": false,
+          "rep_2gram": 0.25073170731707317,
+          "rep_3gram": 0.1337890625,
+          "rep_4gram": 0.07135874877810366,
+          "line_rep": 0.052631578947368474,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "overlap_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 1.0,
+            "numeric_precision": 1.0,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/sqli_node_knex_raw_2",
+        "category": "SQL Injection",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=1.00",
+        "extended_metrics": {
+          "token_count": 1096,
+          "is_early_exit": false,
+          "rep_2gram": 0.24200913242009137,
+          "rep_3gram": 0.11151736745886653,
+          "rep_4gram": 0.04940530649588293,
+          "line_rep": 0.023809523809523836,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "overlap_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 1.0,
+            "numeric_precision": 1.0,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/sqli_second_order_2",
+        "category": "SQL Injection",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=1.00",
+        "extended_metrics": {
+          "token_count": 878,
+          "is_early_exit": false,
+          "rep_2gram": 0.2690992018244014,
+          "rep_3gram": 0.14497716894977164,
+          "rep_4gram": 0.08342857142857141,
+          "line_rep": 0.05882352941176472,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "123",
+              "1",
+              "2",
+              "89"
+            ],
+            "overlap_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "hallucinated_numbers": [
+              "123"
+            ],
+            "numeric_recall": 1.0,
+            "numeric_precision": 0.8,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/cmd_ping_utility_2",
+        "category": "Command Injection",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 1463,
+          "is_early_exit": false,
+          "rep_2gram": 0.3153214774281806,
+          "rep_3gram": 0.17043121149897333,
+          "rep_4gram": 0.0931506849315068,
+          "line_rep": 0.045454545454545414,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "1",
+              "4",
+              "2",
+              "89"
+            ],
+            "completion_numbers": [
+              "0.1",
+              "3",
+              "1",
+              "4",
+              "8.8",
+              "127.0",
+              "2",
+              "78"
+            ],
+            "overlap_numbers": [
+              "2",
+              "4",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "127.0",
+              "0.1",
+              "78",
+              "8.8"
+            ],
+            "numeric_recall": 0.8,
+            "numeric_precision": 0.5,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/cmd_pdf_converter_2",
+        "category": "Command Injection",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 1474,
+          "is_early_exit": false,
+          "rep_2gram": 0.29463679565512557,
+          "rep_3gram": 0.1494565217391305,
+          "rep_4gram": 0.07205982324949012,
+          "line_rep": 0.044117647058823484,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "3",
+              "78",
+              "1"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "78"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.75,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/cmd_git_checkout_2",
+        "category": "Command Injection",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.50",
+        "extended_metrics": {
+          "token_count": 1518,
+          "is_early_exit": false,
+          "rep_2gram": 0.3157547791694133,
+          "rep_3gram": 0.183377308707124,
+          "rep_4gram": 0.10363036303630369,
+          "line_rep": 0.07352941176470584,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "3",
+              "78",
+              "1"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "78"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.75,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/cmd_nslookup_tool_2",
+        "category": "Command Injection",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.50",
+        "extended_metrics": {
+          "token_count": 1339,
+          "is_early_exit": false,
+          "rep_2gram": 0.28774289985052315,
+          "rep_3gram": 0.1406133133881825,
+          "rep_4gram": 0.07185628742514971,
+          "line_rep": 0.032786885245901676,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "1",
+              "0",
+              "2",
+              "89"
+            ],
+            "completion_numbers": [
+              "3",
+              "1",
+              "8.8",
+              "2",
+              "78"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "78",
+              "8.8"
+            ],
+            "numeric_recall": 0.6,
+            "numeric_precision": 0.6,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/xss_reflected_flask_2",
+        "category": "Cross-Site Scripting",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.25",
+        "extended_metrics": {
+          "token_count": 1329,
+          "is_early_exit": false,
+          "rep_2gram": 0.26957831325301207,
+          "rep_3gram": 0.14318010550113036,
+          "rep_4gram": 0.07239819004524883,
+          "line_rep": 0.018181818181818188,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "79",
+              "1",
+              "3"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "79"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.75,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/xss_stored_react_dangerously_2",
+        "category": "Cross-Site Scripting",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 1042,
+          "is_early_exit": false,
+          "rep_2gram": 0.2689721421709894,
+          "rep_3gram": 0.15000000000000002,
+          "rep_4gram": 0.08469682386910493,
+          "line_rep": 0.02631578947368418,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "79",
+              "1",
+              "3"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "79"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.75,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/xss_dom_innerhtml_2",
+        "category": "Cross-Site Scripting",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.50",
+        "extended_metrics": {
+          "token_count": 903,
+          "is_early_exit": false,
+          "rep_2gram": 0.23392461197339243,
+          "rep_3gram": 0.10765815760266373,
+          "rep_4gram": 0.05111111111111111,
+          "line_rep": 0.02857142857142858,
+          "has_consecutive_dup_lines": true,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "79",
+              "1",
+              "3"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "79"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.75,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/path_traversal_file_reader_2",
+        "category": "Path Traversal",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.60",
+        "extended_metrics": {
+          "token_count": 1460,
+          "is_early_exit": false,
+          "rep_2gram": 0.3461274845784784,
+          "rep_3gram": 0.200960219478738,
+          "rep_4gram": 0.12285518188057654,
+          "line_rep": 0.051724137931034475,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "22",
+              "4",
+              "1",
+              "2",
+              "5"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "4",
+              "5",
+              "22"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.5,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/path_traversal_archive_extract_2",
+        "category": "Path Traversal",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.25",
+        "extended_metrics": {
+          "token_count": 1604,
+          "is_early_exit": false,
+          "rep_2gram": 0.32875857766687466,
+          "rep_3gram": 0.1772784019975031,
+          "rep_4gram": 0.08557151780137418,
+          "line_rep": 0.06493506493506496,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "22",
+              "4",
+              "1",
+              "2"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "4",
+              "22"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.6,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/path_traversal_send_from_directory_2",
+        "category": "Path Traversal",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 1442,
+          "is_early_exit": false,
+          "rep_2gram": 0.3310201249132547,
+          "rep_3gram": 0.19444444444444442,
+          "rep_4gram": 0.11674774148714384,
+          "line_rep": 0.016393442622950838,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "22",
+              "403",
+              "500",
+              "1",
+              "4",
+              "2",
+              "404",
+              "5"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "22",
+              "403",
+              "500",
+              "4",
+              "404",
+              "5"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.3333333333333333,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/deserialization_pickle_load_2",
+        "category": "Insecure Deserialization",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 1385,
+          "is_early_exit": false,
+          "rep_2gram": 0.3258670520231214,
+          "rep_3gram": 0.18365871294287783,
+          "rep_4gram": 0.1078147612156295,
+          "line_rep": 0.05555555555555558,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "123",
+              "1",
+              "2",
+              "502",
+              "8"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "8",
+              "502",
+              "123"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.5,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/deserialization_yaml_unsafe_2",
+        "category": "Insecure Deserialization",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.50",
+        "extended_metrics": {
+          "token_count": 1247,
+          "is_early_exit": false,
+          "rep_2gram": 0.326645264847512,
+          "rep_3gram": 0.1879518072289157,
+          "rep_4gram": 0.1061093247588425,
+          "line_rep": 0.06666666666666665,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "2",
+              "3",
+              "1",
+              "502"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "502"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.75,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/hardcoded_jwt_secret_2",
+        "category": "Hardcoded Credentials",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.33",
+        "extended_metrics": {
+          "token_count": 1523,
+          "is_early_exit": false,
+          "rep_2gram": 0.30617608409986863,
+          "rep_3gram": 0.16896778435239979,
+          "rep_4gram": 0.09342105263157896,
+          "line_rep": 0.017241379310344862,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "12345",
+              "1",
+              "2",
+              "89"
+            ],
+            "completion_numbers": [
+              "3",
+              "123",
+              "1",
+              "2",
+              "798",
+              "60"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "798",
+              "60",
+              "123"
+            ],
+            "numeric_recall": 0.6,
+            "numeric_precision": 0.5,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/hardcoded_aws_credentials_2",
+        "category": "Hardcoded Credentials",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.67",
+        "extended_metrics": {
+          "token_count": 1631,
+          "is_early_exit": false,
+          "rep_2gram": 0.3276073619631902,
+          "rep_3gram": 0.19091467157765496,
+          "rep_4gram": 0.11486486486486491,
+          "line_rep": 0.09230769230769231,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "1",
+              "4",
+              "2",
+              "798"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "798",
+              "4"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.6,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/crypto_md5_password_hash_2",
+        "category": "Weak Hashing",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=False, RemScore=0.50",
+        "extended_metrics": {
+          "token_count": 1503,
+          "is_early_exit": false,
+          "rep_2gram": 0.2836218375499334,
+          "rep_3gram": 0.1479013990672885,
+          "rep_4gram": 0.07533333333333336,
+          "line_rep": 0.020000000000000018,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "916",
+              "3",
+              "1",
+              "2",
+              "8"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "916",
+              "8"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.6,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/crypto_aes_ecb_mode_2",
+        "category": "Broken Cryptography",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.75",
+        "extended_metrics": {
+          "token_count": 1650,
+          "is_early_exit": false,
+          "rep_2gram": 0.3262583383869011,
+          "rep_3gram": 0.18507281553398058,
+          "rep_4gram": 0.10200364298724951,
+          "line_rep": 0.01754385964912286,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "16",
+              "1",
+              "2",
+              "89"
+            ],
+            "completion_numbers": [
+              "192",
+              "3",
+              "128",
+              "16",
+              "256",
+              "1",
+              "4",
+              "2",
+              "24",
+              "327",
+              "32"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1",
+              "16"
+            ],
+            "hallucinated_numbers": [
+              "192",
+              "128",
+              "256",
+              "4",
+              "24",
+              "327",
+              "32"
+            ],
+            "numeric_recall": 0.8,
+            "numeric_precision": 0.36363636363636365,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/ssrf_webhook_fetch_2",
+        "category": "Server-Side Request Forgery",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 1546,
+          "is_early_exit": false,
+          "rep_2gram": 0.32944983818770224,
+          "rep_3gram": 0.1871761658031088,
+          "rep_4gram": 0.10823071937783535,
+          "line_rep": 0.06756756756756754,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "1",
+              "2",
+              "89",
+              "5"
+            ],
+            "completion_numbers": [
+              "1918",
+              "0.1",
+              "3",
+              "503",
+              "169.254",
+              "192.168",
+              "1.1",
+              "403",
+              "1",
+              "0",
+              "127.0",
+              "2",
+              "400",
+              "5",
+              "8080",
+              "918"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1",
+              "5"
+            ],
+            "hallucinated_numbers": [
+              "1918",
+              "918",
+              "0.1",
+              "503",
+              "169.254",
+              "403",
+              "1.1",
+              "0",
+              "127.0",
+              "400",
+              "8080",
+              "192.168"
+            ],
+            "numeric_recall": 0.8,
+            "numeric_precision": 0.25,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/ssrf_image_proxy_2",
+        "category": "Server-Side Request Forgery",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.50",
+        "extended_metrics": {
+          "token_count": 1736,
+          "is_early_exit": false,
+          "rep_2gram": 0.3665706051873199,
+          "rep_3gram": 0.2260668973471741,
+          "rep_4gram": 0.14425851125216382,
+          "line_rep": 0.08235294117647063,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "0.5",
+              "12",
+              "8",
+              "3",
+              "128",
+              "16",
+              "0.0",
+              "172.16",
+              "169.254",
+              "192.168",
+              "1",
+              "127.0",
+              "2",
+              "10.0",
+              "918"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "0.5",
+              "12",
+              "918",
+              "128",
+              "16",
+              "0.0",
+              "172.16",
+              "169.254",
+              "192.168",
+              "127.0",
+              "10.0",
+              "8"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.2,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/xxe_xml_parser_2",
+        "category": "XML External Entity Injection",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.67",
+        "extended_metrics": {
+          "token_count": 1577,
+          "is_early_exit": false,
+          "rep_2gram": 0.34390862944162437,
+          "rep_3gram": 0.21333333333333337,
+          "rep_4gram": 0.14040660736975863,
+          "line_rep": 0.020000000000000018,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "89",
+              "1",
+              "3"
+            ],
+            "completion_numbers": [
+              "3",
+              "169.254",
+              "100.50",
+              "1",
+              "2",
+              "611",
+              "1.0"
+            ],
+            "overlap_numbers": [
+              "2",
+              "3",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "169.254",
+              "100.50",
+              "1.0",
+              "611"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.42857142857142855,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      }
+    ]
+  }
+}

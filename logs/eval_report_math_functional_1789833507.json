@@ -1,0 +1,244 @@
+{
+  "model_checkpoint": "afm-3-core-advanced",
+  "backend": "swift_afm",
+  "paradigm": "corosred",
+  "vocab_size": 32000,
+  "timestamp": 1789833500,
+  "mode": "functional",
+  "benchmark_type": "math",
+  "language": "auto",
+  "suites_evaluated": [
+    "math"
+  ],
+  "math": {
+    "suite": "gsm8k",
+    "total_tasks": 3,
+    "pass_at_1_pct": 66.67,
+    "pass_at_1_95ci": [
+      0.0,
+      100.0
+    ],
+    "ast_validity_pct": 100.0,
+    "execution_outcomes": {
+      "PASSED": 2,
+      "FAILED_ASSERTION": 1,
+      "SYNTAX_ERROR": 0,
+      "TIMEOUT": 0,
+      "RUNTIME_EXCEPTION": 0,
+      "MEMORY_EXCEEDED": 0
+    },
+    "repetition": {
+      "avg_token_length": 148.7,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 29.6,
+      "rep_3gram_pct": 17.9,
+      "rep_4gram_pct": 9.8,
+      "line_repetition_pct": 0.0,
+      "consecutive_dup_line_pct": 0.0,
+      "degenerate_loop_pct": 0.0
+    },
+    "numerical_accuracy": {
+      "tasks_with_prompt_numbers": 3,
+      "numeric_recall_pct": 100.0,
+      "numeric_precision_pct": 36.1,
+      "exact_number_match_pct": 100.0,
+      "zero_numbers_emitted_pct": 0.0,
+      "hallucinated_numbers_pct": 100.0
+    },
+    "extended_metrics": {
+      "count": 3,
+      "avg_token_length": 148.7,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 29.6,
+      "rep_3gram_pct": 17.9,
+      "rep_4gram_pct": 9.8,
+      "line_repetition_pct": 0.0,
+      "consecutive_dup_line_pct": 0.0,
+      "degenerate_loop_pct": 0.0,
+      "numerical": {
+        "tasks_with_prompt_numbers": 3,
+        "numeric_recall_pct": 100.0,
+        "numeric_precision_pct": 36.1,
+        "exact_number_match_pct": 100.0,
+        "zero_numbers_emitted_pct": 0.0,
+        "hallucinated_numbers_pct": 100.0
+      }
+    },
+    "category_breakdown": {
+      "math": {
+        "count": 3,
+        "pass_at_1_pct": 66.7,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "PASSED": 2,
+          "FAILED_ASSERTION": 1
+        },
+        "extended_metrics": {
+          "count": 3,
+          "avg_token_length": 148.7,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 29.6,
+          "rep_3gram_pct": 17.9,
+          "rep_4gram_pct": 9.8,
+          "line_repetition_pct": 0.0,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 3,
+            "numeric_recall_pct": 100.0,
+            "numeric_precision_pct": 36.1,
+            "exact_number_match_pct": 100.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 100.0
+          }
+        }
+      }
+    },
+    "tasks": [
+      {
+        "id": "gsm8k/0001",
+        "category": "math",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "Cand=18.0, Gold=18.0",
+        "extended_metrics": {
+          "token_count": 151,
+          "is_early_exit": false,
+          "rep_2gram": 0.23333333333333328,
+          "rep_3gram": 0.09395973154362414,
+          "rep_4gram": 0.027027027027026973,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "16"
+            ],
+            "completion_numbers": [
+              "16",
+              "13",
+              "9",
+              "18",
+              "1",
+              "4",
+              "3",
+              "2"
+            ],
+            "overlap_numbers": [
+              "2",
+              "16"
+            ],
+            "hallucinated_numbers": [
+              "13",
+              "9",
+              "1",
+              "4",
+              "3",
+              "18"
+            ],
+            "numeric_recall": 1.0,
+            "numeric_precision": 0.25,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "gsm8k/0002",
+        "category": "math",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "Cand=3.0, Gold=3.0",
+        "extended_metrics": {
+          "token_count": 130,
+          "is_early_exit": false,
+          "rep_2gram": 0.2713178294573644,
+          "rep_3gram": 0.171875,
+          "rep_4gram": 0.08661417322834641,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2"
+            ],
+            "completion_numbers": [
+              "3",
+              "2",
+              "1"
+            ],
+            "overlap_numbers": [
+              "2"
+            ],
+            "hallucinated_numbers": [
+              "3",
+              "1"
+            ],
+            "numeric_recall": 1.0,
+            "numeric_precision": 0.3333333333333333,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "gsm8k/0003",
+        "category": "math",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "Cand=80000.0, Gold=70000.0",
+        "extended_metrics": {
+          "token_count": 165,
+          "is_early_exit": false,
+          "rep_2gram": 0.38414634146341464,
+          "rep_3gram": 0.26993865030674846,
+          "rep_4gram": 0.17901234567901236,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "80",
+              "50",
+              "150",
+              "000"
+            ],
+            "completion_numbers": [
+              "1.5",
+              "50",
+              "130",
+              "150",
+              "1",
+              "80",
+              "2",
+              "000"
+            ],
+            "overlap_numbers": [
+              "80",
+              "50",
+              "150",
+              "000"
+            ],
+            "hallucinated_numbers": [
+              "1.5",
+              "2",
+              "130",
+              "1"
+            ],
+            "numeric_recall": 1.0,
+            "numeric_precision": 0.5,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      }
+    ]
+  }
+}

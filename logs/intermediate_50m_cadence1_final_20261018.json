@@ -1,0 +1,324 @@
+{
+  "metadata": {
+    "checkpoint": "checkpoints/corosred/unified/50m_tpu_lrcadence_schedstep1/checkpoint_final.pt",
+    "checkpoint_sha256": "5e62ca9fedc1aaf2ad3951c5a4f7da6085bbf661cf0b25b4cb28bda0c69ae781",
+    "step": 12716,
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 512,
+        "n_layers": 14,
+        "n_heads": 8,
+        "n_kv_heads": 8,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 12716,
+        "max_lr": 0.0004242640687119285,
+        "min_lr": 4.2426406871192855e-05,
+        "warmup_steps": 254,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16",
+        "lr_cadence": 1,
+        "sched_cadence": 1
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/50m_python",
+        "save_every_steps": 4000
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 49166848,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.5,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.65,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5,
+        "sched_cadence": 1
+      },
+      "paradigm": "corosred"
+    },
+    "parameter_count": 49430017,
+    "saved_tensor_dtypes": [
+      "torch.float32"
+    ]
+  },
+  "causal": {
+    "ce": 1.9940016535630198,
+    "top1_pct": 62.25538160469667,
+    "tokens": 8176,
+    "batches": [
+      {
+        "batch": 0,
+        "tokens": 2044,
+        "ce": 2.3473896541707435,
+        "top1_pct": 57.28962818003914
+      },
+      {
+        "batch": 1,
+        "tokens": 2044,
+        "ce": 1.9769128250749144,
+        "top1_pct": 64.77495107632095
+      },
+      {
+        "batch": 2,
+        "tokens": 2044,
+        "ce": 1.7873775235827423,
+        "top1_pct": 65.2641878669276
+      },
+      {
+        "batch": 3,
+        "tokens": 2044,
+        "ce": 1.8643266114236792,
+        "top1_pct": 61.69275929549902
+      }
+    ]
+  },
+  "infill": {
+    "ce": 1.778208022976514,
+    "top1_pct": 67.26708074534162,
+    "tokens": 1610,
+    "batches": [
+      {
+        "batch": 0,
+        "tokens": 408,
+        "ce": 2.2232504451976105,
+        "top1_pct": 60.78431372549019
+      },
+      {
+        "batch": 1,
+        "tokens": 406,
+        "ce": 1.6788932913042642,
+        "top1_pct": 69.45812807881774
+      },
+      {
+        "batch": 2,
+        "tokens": 405,
+        "ce": 1.693412724247685,
+        "top1_pct": 69.38271604938272
+      },
+      {
+        "batch": 3,
+        "tokens": 391,
+        "ce": 1.5047721374980019,
+        "top1_pct": 69.56521739130434
+      }
+    ]
+  },
+  "gradient_geometry": {
+    "all_backbone": {
+      "causal_gradient_norm": 1.0474779106327128,
+      "infill_gradient_norm": 3.398152469054507,
+      "causal_infill_cosine": 0.18580758910274017,
+      "weighted_causal_norm": 0.6161634768427723,
+      "weighted_infill_norm": 1.3992392519636203,
+      "weighted_causal_to_infill_ratio": 0.4403560548905987,
+      "combined_gradient_norm": 1.6303127620083302,
+      "causal_loss_directional_derivative": -0.9177506507375182,
+      "infill_loss_directional_derivative": -5.143875489438248
+    },
+    "tok_embeddings": {
+      "causal_gradient_norm": 0.6229585299255229,
+      "infill_gradient_norm": 1.3799344203234944,
+      "causal_infill_cosine": 0.2721208222554463,
+      "weighted_causal_norm": 0.36644619407383705,
+      "weighted_infill_norm": 0.5682082907214389,
+      "weighted_causal_to_infill_ratio": 0.6449152538914386,
+      "combined_gradient_norm": 0.7552908406364294,
+      "causal_loss_directional_derivative": -0.3246034446375194,
+      "infill_loss_directional_derivative": -0.9216939815375196
+    },
+    "layers.0": {
+      "causal_gradient_norm": 0.5750188511252906,
+      "infill_gradient_norm": 2.053984616701063,
+      "causal_infill_cosine": 0.24096328063664346,
+      "weighted_causal_norm": 0.33824638301487686,
+      "weighted_infill_norm": 0.8457583715827905,
+      "weighted_causal_to_infill_ratio": 0.3999326455165525,
+      "combined_gradient_norm": 0.9836589043093741,
+      "causal_loss_directional_derivative": -0.31168499766528257,
+      "infill_loss_directional_derivative": -1.9045846148297405
+    },
+    "layers.1": {
+      "causal_gradient_norm": 0.13838236383348565,
+      "infill_gradient_norm": 0.7362869202742296,
+      "causal_infill_cosine": 0.05490149570637723,
+      "weighted_causal_norm": 0.08140139049028568,
+      "weighted_infill_norm": 0.3031769671717416,
+      "weighted_causal_to_infill_ratio": 0.26849463944988267,
+      "combined_gradient_norm": 0.31820165108495085,
+      "causal_loss_directional_derivative": -0.013567873147962674,
+      "infill_loss_directional_derivative": -0.22651574447494038
+    },
+    "layers.2": {
+      "causal_gradient_norm": 0.12689706564386907,
+      "infill_gradient_norm": 0.5541750923123839,
+      "causal_infill_cosine": 0.06162455456642034,
+      "weighted_causal_norm": 0.07464533273168769,
+      "weighted_infill_norm": 0.22818974389333455,
+      "weighted_causal_to_infill_ratio": 0.3271195780235419,
+      "combined_gradient_norm": 0.24442140636266804,
+      "causal_loss_directional_derivative": -0.011256711813499765,
+      "infill_loss_directional_derivative": -0.12900626970945414
+    },
+    "layers.3": {
+      "causal_gradient_norm": 0.12687939406689744,
+      "infill_gradient_norm": 0.5306092115729354,
+      "causal_infill_cosine": 0.07748688036159596,
+      "weighted_causal_norm": 0.07463493768641026,
+      "weighted_infill_norm": 0.2184861459417969,
+      "weighted_causal_to_infill_ratio": 0.3416003214514684,
+      "combined_gradient_norm": 0.23629151592585246,
+      "causal_loss_directional_derivative": -0.011617679685467815,
+      "infill_loss_directional_derivative": -0.11899939594577964
+    },
+    "layers.4": {
+      "causal_gradient_norm": 0.1489020441837125,
+      "infill_gradient_norm": 0.5904855799999872,
+      "causal_infill_cosine": 0.10139878487555595,
+      "weighted_causal_norm": 0.08758943775512501,
+      "weighted_infill_norm": 0.2431411211764653,
+      "weighted_causal_to_infill_ratio": 0.36024115267427326,
+      "combined_gradient_norm": 0.2666616056736703,
+      "causal_loss_directional_derivative": -0.016713309228804808,
+      "infill_loss_directional_derivative": -0.1488157015285389
+    },
+    "layers.5": {
+      "causal_gradient_norm": 0.13971807986192586,
+      "infill_gradient_norm": 0.5824985400263777,
+      "causal_infill_cosine": 0.06175103486712145,
+      "weighted_causal_norm": 0.08218710580113286,
+      "weighted_infill_norm": 0.2398523400108614,
+      "weighted_causal_to_infill_ratio": 0.34265709393292193,
+      "combined_gradient_norm": 0.2582991157941107,
+      "causal_loss_directional_derivative": -0.01355240728560511,
+      "infill_loss_directional_derivative": -0.1426698988406112
+    },
+    "layers.6": {
+      "causal_gradient_norm": 0.14465562210344457,
+      "infill_gradient_norm": 0.701653399034008,
+      "causal_infill_cosine": 0.05175837111375822,
+      "weighted_causal_norm": 0.08509154241379092,
+      "weighted_infill_norm": 0.2889161054845915,
+      "weighted_causal_to_infill_ratio": 0.29451989971645604,
+      "combined_gradient_norm": 0.30538168741594734,
+      "causal_loss_directional_derivative": -0.014472125152337867,
+      "infill_loss_directional_derivative": -0.20580918908997353
+    },
+    "layers.7": {
+      "causal_gradient_norm": 0.15345822442652585,
+      "infill_gradient_norm": 0.6289496060425589,
+      "causal_infill_cosine": 0.0588423140288052,
+      "weighted_causal_norm": 0.09026954378030932,
+      "weighted_infill_norm": 0.258979249546936,
+      "weighted_causal_to_infill_ratio": 0.3485589827688081,
+      "combined_gradient_norm": 0.2792312057264924,
+      "causal_loss_directional_derivative": -0.016191144326399502,
+      "infill_loss_directional_derivative": -0.16622566900157248
+    },
+    "layers.8": {
+      "causal_gradient_norm": 0.1738138145059408,
+      "infill_gradient_norm": 0.7091967480663308,
+      "causal_infill_cosine": 0.06525052057229337,
+      "weighted_causal_norm": 0.10224342029761224,
+      "weighted_infill_norm": 0.29202219038025384,
+      "weighted_causal_to_infill_ratio": 0.3501220923124951,
+      "combined_gradient_norm": 0.31563759536748937,
+      "causal_loss_directional_derivative": -0.021083271589687293,
+      "infill_loss_directional_derivative": -0.21183254878034752
+    },
+    "layers.9": {
+      "causal_gradient_norm": 0.19385568878841883,
+      "infill_gradient_norm": 0.7904351058384407,
+      "causal_infill_cosine": 0.07965348643303982,
+      "weighted_causal_norm": 0.1140327581108346,
+      "weighted_infill_norm": 0.32547327887465205,
+      "weighted_causal_to_infill_ratio": 0.35035981603501004,
+      "combined_gradient_norm": 0.35333969810521065,
+      "causal_loss_directional_derivative": -0.027131623380324228,
+      "infill_loss_directional_derivative": -0.26444511208102023
+    },
+    "layers.10": {
+      "causal_gradient_norm": 0.16900939808245827,
+      "infill_gradient_norm": 0.7354164491238114,
+      "causal_infill_cosine": 0.08338140690772583,
+      "weighted_causal_norm": 0.09941729298968134,
+      "weighted_infill_norm": 0.3028185378745106,
+      "weighted_causal_to_infill_ratio": 0.3283064956574103,
+      "combined_gradient_norm": 0.3265016479661137,
+      "causal_loss_directional_derivative": -0.02106984878109861,
+      "infill_loss_directional_derivative": -0.2287940080438586
+    },
+    "layers.11": {
+      "causal_gradient_norm": 0.2523794853123062,
+      "infill_gradient_norm": 0.745628855919562,
+      "causal_infill_cosine": 0.15182490305603336,
+      "weighted_causal_norm": 0.14845852077194482,
+      "weighted_infill_norm": 0.3070236465551137,
+      "weighted_causal_to_infill_ratio": 0.4835409990002027,
+      "combined_gradient_norm": 0.36075461747300885,
+      "causal_loss_directional_derivative": -0.049232260842807775,
+      "infill_loss_directional_derivative": -0.2457319414356529
+    },
+    "layers.12": {
+      "causal_gradient_norm": 0.18241795416758783,
+      "infill_gradient_norm": 0.48762494519839583,
+      "causal_infill_cosine": 0.20822655008703878,
+      "weighted_causal_norm": 0.10730467892211049,
+      "weighted_infill_norm": 0.20078674214051592,
+      "weighted_causal_to_infill_ratio": 0.53442113646635,
+      "combined_gradient_norm": 0.24658110351804552,
+      "causal_loss_directional_derivative": -0.027201036074649427,
+      "infill_loss_directional_derivative": -0.10880396138007373
+    },
+    "layers.13": {
+      "causal_gradient_norm": 0.2176300741395657,
+      "infill_gradient_norm": 0.5050123301389784,
+      "causal_infill_cosine": 0.227412721280676,
+      "weighted_causal_norm": 0.12801769067033278,
+      "weighted_infill_norm": 0.20794625358663815,
+      "weighted_causal_to_infill_ratio": 0.6156287428231826,
+      "combined_gradient_norm": 0.2678394860136822,
+      "causal_loss_directional_derivative": -0.03815214376013203,
+      "infill_loss_directional_derivative": -0.11971777099370406
+    },
+    "final_norm": {
+      "causal_gradient_norm": 0.016655110876790412,
+      "infill_gradient_norm": 0.018919771383861226,
+      "causal_infill_cosine": 0.44393444083956113,
+      "weighted_causal_norm": 0.009797124045170831,
+      "weighted_infill_norm": 0.007790494099236975,
+      "weighted_causal_to_infill_ratio": 1.2575741564492542,
+      "combined_gradient_norm": 0.014981372782458108,
+      "causal_loss_directional_derivative": -0.00022077336593921568,
+      "infill_loss_directional_derivative": -0.0002296817654580636
+    }
+  },
+  "fixture_sha256": "03d264b09f452304161145bc1808ff0f79d30b122b5cbc0eca1c38e17dd8a7fa",
+  "seconds": 61.060005166975316
+}

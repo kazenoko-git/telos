@@ -1,0 +1,931 @@
+{
+  "model_checkpoint": "checkpoints/corosred/50m_lightning/checkpoint_final.pt",
+  "backend": "pytorch",
+  "paradigm": "corosred",
+  "vocab_size": 8192,
+  "timestamp": 1790053076,
+  "mode": "functional",
+  "benchmark_type": "code",
+  "language": "auto",
+  "suites_evaluated": [
+    "code"
+  ],
+  "code": {
+    "functional": {
+      "suite": "private_unseen",
+      "prompt_mode": "both",
+      "total_tasks": 2,
+      "pass_at_1_pct": 0.0,
+      "pass_at_1_hint_pct": 0.0,
+      "pass_at_1_nohint_pct": 0.0,
+      "ast_validity_pct": 100.0,
+      "no_hint": {
+        "suite": "private_unseen",
+        "total_tasks": 2,
+        "pass_at_1_pct": 0.0,
+        "pass_at_1_95ci": [
+          0.0,
+          0.0
+        ],
+        "ast_validity_pct": 100.0,
+        "execution_outcomes": {
+          "PASSED": 0,
+          "FAILED_ASSERTION": 0,
+          "SYNTAX_ERROR": 0,
+          "TIMEOUT": 0,
+          "RUNTIME_EXCEPTION": 2,
+          "MEMORY_EXCEEDED": 0
+        },
+        "repetition": {
+          "avg_token_length": 69.5,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 42.0,
+          "rep_3gram_pct": 34.9,
+          "rep_4gram_pct": 34.0,
+          "line_repetition_pct": 25.0,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0
+        },
+        "numerical_accuracy": {
+          "tasks_with_prompt_numbers": 2,
+          "numeric_recall_pct": 0.0,
+          "numeric_precision_pct": 0.0,
+          "exact_number_match_pct": 0.0,
+          "zero_numbers_emitted_pct": 100.0,
+          "hallucinated_numbers_pct": 0.0
+        },
+        "extended_metrics": {
+          "count": 2,
+          "avg_token_length": 69.5,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 42.0,
+          "rep_3gram_pct": 34.9,
+          "rep_4gram_pct": 34.0,
+          "line_repetition_pct": 25.0,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 2,
+            "numeric_recall_pct": 0.0,
+            "numeric_precision_pct": 0.0,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 100.0,
+            "hallucinated_numbers_pct": 0.0
+          }
+        },
+        "category_breakdown": {
+          "Algorithms & Numerical": {
+            "count": 1,
+            "pass_at_1_pct": 0.0,
+            "ast_valid_pct": 100.0,
+            "outcomes": {
+              "RUNTIME_EXCEPTION": 1
+            },
+            "extended_metrics": {
+              "count": 1,
+              "avg_token_length": 11.0,
+              "early_exit_pct": 0.0,
+              "rep_2gram_pct": 10.0,
+              "rep_3gram_pct": 0.0,
+              "rep_4gram_pct": 0.0,
+              "line_repetition_pct": 0.0,
+              "consecutive_dup_line_pct": 0.0,
+              "degenerate_loop_pct": 0.0,
+              "numerical": {
+                "tasks_with_prompt_numbers": 1,
+                "numeric_recall_pct": 0.0,
+                "numeric_precision_pct": 0.0,
+                "exact_number_match_pct": 0.0,
+                "zero_numbers_emitted_pct": 100.0,
+                "hallucinated_numbers_pct": 0.0
+              }
+            }
+          },
+          "Data Structures & Collections": {
+            "count": 1,
+            "pass_at_1_pct": 0.0,
+            "ast_valid_pct": 100.0,
+            "outcomes": {
+              "RUNTIME_EXCEPTION": 1
+            },
+            "extended_metrics": {
+              "count": 1,
+              "avg_token_length": 128.0,
+              "early_exit_pct": 0.0,
+              "rep_2gram_pct": 74.0,
+              "rep_3gram_pct": 69.8,
+              "rep_4gram_pct": 68.0,
+              "line_repetition_pct": 50.0,
+              "consecutive_dup_line_pct": 0.0,
+              "degenerate_loop_pct": 0.0,
+              "numerical": {
+                "tasks_with_prompt_numbers": 1,
+                "numeric_recall_pct": 0.0,
+                "numeric_precision_pct": 0.0,
+                "exact_number_match_pct": 0.0,
+                "zero_numbers_emitted_pct": 100.0,
+                "hallucinated_numbers_pct": 0.0
+              }
+            }
+          }
+        },
+        "tasks": [
+          {
+            "id": "task_0000",
+            "category": "Algorithms & Numerical",
+            "outcome": "RUNTIME_EXCEPTION",
+            "ast_valid": true,
+            "ast_error": null,
+            "details": "TypeError: object of type 'int' has no len()",
+            "extended_metrics": {
+              "token_count": 11,
+              "is_early_exit": false,
+              "rep_2gram": 0.09999999999999998,
+              "rep_3gram": 0.0,
+              "rep_4gram": 0.0,
+              "line_rep": 0.0,
+              "has_consecutive_dup_lines": false,
+              "is_degenerate_loop": false,
+              "numerical": {
+                "has_prompt_numbers": true,
+                "prompt_numbers": [
+                  "6",
+                  "0",
+                  "8",
+                  "1"
+                ],
+                "completion_numbers": [],
+                "overlap_numbers": [],
+                "hallucinated_numbers": [],
+                "numeric_recall": 0.0,
+                "numeric_precision": 0.0,
+                "exact_number_match": false,
+                "zero_numbers_emitted": true
+              }
+            }
+          },
+          {
+            "id": "task_0064",
+            "category": "Data Structures & Collections",
+            "outcome": "RUNTIME_EXCEPTION",
+            "ast_valid": true,
+            "ast_error": null,
+            "details": "RecursionError: maximum recursion depth exceeded",
+            "extended_metrics": {
+              "token_count": 128,
+              "is_early_exit": false,
+              "rep_2gram": 0.7401574803149606,
+              "rep_3gram": 0.6984126984126984,
+              "rep_4gram": 0.6799999999999999,
+              "line_rep": 0.5,
+              "has_consecutive_dup_lines": false,
+              "is_degenerate_loop": false,
+              "numerical": {
+                "has_prompt_numbers": true,
+                "prompt_numbers": [
+                  "3",
+                  "1",
+                  "2"
+                ],
+                "completion_numbers": [],
+                "overlap_numbers": [],
+                "hallucinated_numbers": [],
+                "numeric_recall": 0.0,
+                "numeric_precision": 0.0,
+                "exact_number_match": false,
+                "zero_numbers_emitted": true
+              }
+            }
+          }
+        ]
+      },
+      "hint": {
+        "suite": "private_unseen",
+        "total_tasks": 2,
+        "pass_at_1_pct": 0.0,
+        "pass_at_1_95ci": [
+          0.0,
+          0.0
+        ],
+        "ast_validity_pct": 100.0,
+        "execution_outcomes": {
+          "PASSED": 0,
+          "FAILED_ASSERTION": 1,
+          "SYNTAX_ERROR": 0,
+          "TIMEOUT": 0,
+          "RUNTIME_EXCEPTION": 1,
+          "MEMORY_EXCEEDED": 0
+        },
+        "repetition": {
+          "avg_token_length": 81.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 40.0,
+          "rep_3gram_pct": 34.9,
+          "rep_4gram_pct": 34.0,
+          "line_repetition_pct": 25.0,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0
+        },
+        "numerical_accuracy": {
+          "tasks_with_prompt_numbers": 2,
+          "numeric_recall_pct": 8.3,
+          "numeric_precision_pct": 50.0,
+          "exact_number_match_pct": 0.0,
+          "zero_numbers_emitted_pct": 50.0,
+          "hallucinated_numbers_pct": 0.0
+        },
+        "extended_metrics": {
+          "count": 2,
+          "avg_token_length": 81.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 40.0,
+          "rep_3gram_pct": 34.9,
+          "rep_4gram_pct": 34.0,
+          "line_repetition_pct": 25.0,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 2,
+            "numeric_recall_pct": 8.3,
+            "numeric_precision_pct": 50.0,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 50.0,
+            "hallucinated_numbers_pct": 0.0
+          }
+        },
+        "category_breakdown": {
+          "Algorithms & Numerical": {
+            "count": 1,
+            "pass_at_1_pct": 0.0,
+            "ast_valid_pct": 100.0,
+            "outcomes": {
+              "FAILED_ASSERTION": 1
+            },
+            "extended_metrics": {
+              "count": 1,
+              "avg_token_length": 34.0,
+              "early_exit_pct": 0.0,
+              "rep_2gram_pct": 6.1,
+              "rep_3gram_pct": 0.0,
+              "rep_4gram_pct": 0.0,
+              "line_repetition_pct": 0.0,
+              "consecutive_dup_line_pct": 0.0,
+              "degenerate_loop_pct": 0.0,
+              "numerical": {
+                "tasks_with_prompt_numbers": 1,
+                "numeric_recall_pct": 16.7,
+                "numeric_precision_pct": 100.0,
+                "exact_number_match_pct": 0.0,
+                "zero_numbers_emitted_pct": 0.0,
+                "hallucinated_numbers_pct": 0.0
+              }
+            }
+          },
+          "Data Structures & Collections": {
+            "count": 1,
+            "pass_at_1_pct": 0.0,
+            "ast_valid_pct": 100.0,
+            "outcomes": {
+              "RUNTIME_EXCEPTION": 1
+            },
+            "extended_metrics": {
+              "count": 1,
+              "avg_token_length": 128.0,
+              "early_exit_pct": 0.0,
+              "rep_2gram_pct": 74.0,
+              "rep_3gram_pct": 69.8,
+              "rep_4gram_pct": 68.0,
+              "line_repetition_pct": 50.0,
+              "consecutive_dup_line_pct": 0.0,
+              "degenerate_loop_pct": 0.0,
+              "numerical": {
+                "tasks_with_prompt_numbers": 1,
+                "numeric_recall_pct": 0.0,
+                "numeric_precision_pct": 0.0,
+                "exact_number_match_pct": 0.0,
+                "zero_numbers_emitted_pct": 100.0,
+                "hallucinated_numbers_pct": 0.0
+              }
+            }
+          }
+        },
+        "tasks": [
+          {
+            "id": "task_0000",
+            "category": "Algorithms & Numerical",
+            "outcome": "FAILED_ASSERTION",
+            "ast_valid": true,
+            "ast_error": null,
+            "details": "Assertion failed",
+            "extended_metrics": {
+              "token_count": 34,
+              "is_early_exit": false,
+              "rep_2gram": 0.06060606060606055,
+              "rep_3gram": 0.0,
+              "rep_4gram": 0.0,
+              "line_rep": 0.0,
+              "has_consecutive_dup_lines": false,
+              "is_degenerate_loop": false,
+              "numerical": {
+                "has_prompt_numbers": true,
+                "prompt_numbers": [
+                  "3",
+                  "0",
+                  "6",
+                  "8",
+                  "1",
+                  "2"
+                ],
+                "completion_numbers": [
+                  "1"
+                ],
+                "overlap_numbers": [
+                  "1"
+                ],
+                "hallucinated_numbers": [],
+                "numeric_recall": 0.16666666666666666,
+                "numeric_precision": 1.0,
+                "exact_number_match": false,
+                "zero_numbers_emitted": false
+              }
+            }
+          },
+          {
+            "id": "task_0064",
+            "category": "Data Structures & Collections",
+            "outcome": "RUNTIME_EXCEPTION",
+            "ast_valid": true,
+            "ast_error": null,
+            "details": "RecursionError: maximum recursion depth exceeded",
+            "extended_metrics": {
+              "token_count": 128,
+              "is_early_exit": false,
+              "rep_2gram": 0.7401574803149606,
+              "rep_3gram": 0.6984126984126984,
+              "rep_4gram": 0.6799999999999999,
+              "line_rep": 0.5,
+              "has_consecutive_dup_lines": false,
+              "is_degenerate_loop": false,
+              "numerical": {
+                "has_prompt_numbers": true,
+                "prompt_numbers": [
+                  "3",
+                  "1",
+                  "2"
+                ],
+                "completion_numbers": [],
+                "overlap_numbers": [],
+                "hallucinated_numbers": [],
+                "numeric_recall": 0.0,
+                "numeric_precision": 0.0,
+                "exact_number_match": false,
+                "zero_numbers_emitted": true
+              }
+            }
+          }
+        ]
+      },
+      "execution_outcomes": {
+        "PASSED": 0,
+        "FAILED_ASSERTION": 1,
+        "SYNTAX_ERROR": 0,
+        "TIMEOUT": 0,
+        "RUNTIME_EXCEPTION": 1,
+        "MEMORY_EXCEEDED": 0
+      },
+      "extended_metrics": {
+        "count": 2,
+        "avg_token_length": 81.0,
+        "early_exit_pct": 0.0,
+        "rep_2gram_pct": 40.0,
+        "rep_3gram_pct": 34.9,
+        "rep_4gram_pct": 34.0,
+        "line_repetition_pct": 25.0,
+        "consecutive_dup_line_pct": 0.0,
+        "degenerate_loop_pct": 0.0,
+        "numerical": {
+          "tasks_with_prompt_numbers": 2,
+          "numeric_recall_pct": 8.3,
+          "numeric_precision_pct": 50.0,
+          "exact_number_match_pct": 0.0,
+          "zero_numbers_emitted_pct": 50.0,
+          "hallucinated_numbers_pct": 0.0
+        }
+      },
+      "category_breakdown": {
+        "Algorithms & Numerical": {
+          "count": 1,
+          "pass_at_1_pct": 0.0,
+          "ast_valid_pct": 100.0,
+          "outcomes": {
+            "FAILED_ASSERTION": 1
+          },
+          "extended_metrics": {
+            "count": 1,
+            "avg_token_length": 34.0,
+            "early_exit_pct": 0.0,
+            "rep_2gram_pct": 6.1,
+            "rep_3gram_pct": 0.0,
+            "rep_4gram_pct": 0.0,
+            "line_repetition_pct": 0.0,
+            "consecutive_dup_line_pct": 0.0,
+            "degenerate_loop_pct": 0.0,
+            "numerical": {
+              "tasks_with_prompt_numbers": 1,
+              "numeric_recall_pct": 16.7,
+              "numeric_precision_pct": 100.0,
+              "exact_number_match_pct": 0.0,
+              "zero_numbers_emitted_pct": 0.0,
+              "hallucinated_numbers_pct": 0.0
+            }
+          }
+        },
+        "Data Structures & Collections": {
+          "count": 1,
+          "pass_at_1_pct": 0.0,
+          "ast_valid_pct": 100.0,
+          "outcomes": {
+            "RUNTIME_EXCEPTION": 1
+          },
+          "extended_metrics": {
+            "count": 1,
+            "avg_token_length": 128.0,
+            "early_exit_pct": 0.0,
+            "rep_2gram_pct": 74.0,
+            "rep_3gram_pct": 69.8,
+            "rep_4gram_pct": 68.0,
+            "line_repetition_pct": 50.0,
+            "consecutive_dup_line_pct": 0.0,
+            "degenerate_loop_pct": 0.0,
+            "numerical": {
+              "tasks_with_prompt_numbers": 1,
+              "numeric_recall_pct": 0.0,
+              "numeric_precision_pct": 0.0,
+              "exact_number_match_pct": 0.0,
+              "zero_numbers_emitted_pct": 100.0,
+              "hallucinated_numbers_pct": 0.0
+            }
+          }
+        }
+      }
+    }
+  },
+  "functional": {
+    "suite": "private_unseen",
+    "prompt_mode": "both",
+    "total_tasks": 2,
+    "pass_at_1_pct": 0.0,
+    "pass_at_1_hint_pct": 0.0,
+    "pass_at_1_nohint_pct": 0.0,
+    "ast_validity_pct": 100.0,
+    "no_hint": {
+      "suite": "private_unseen",
+      "total_tasks": 2,
+      "pass_at_1_pct": 0.0,
+      "pass_at_1_95ci": [
+        0.0,
+        0.0
+      ],
+      "ast_validity_pct": 100.0,
+      "execution_outcomes": {
+        "PASSED": 0,
+        "FAILED_ASSERTION": 0,
+        "SYNTAX_ERROR": 0,
+        "TIMEOUT": 0,
+        "RUNTIME_EXCEPTION": 2,
+        "MEMORY_EXCEEDED": 0
+      },
+      "repetition": {
+        "avg_token_length": 69.5,
+        "early_exit_pct": 0.0,
+        "rep_2gram_pct": 42.0,
+        "rep_3gram_pct": 34.9,
+        "rep_4gram_pct": 34.0,
+        "line_repetition_pct": 25.0,
+        "consecutive_dup_line_pct": 0.0,
+        "degenerate_loop_pct": 0.0
+      },
+      "numerical_accuracy": {
+        "tasks_with_prompt_numbers": 2,
+        "numeric_recall_pct": 0.0,
+        "numeric_precision_pct": 0.0,
+        "exact_number_match_pct": 0.0,
+        "zero_numbers_emitted_pct": 100.0,
+        "hallucinated_numbers_pct": 0.0
+      },
+      "extended_metrics": {
+        "count": 2,
+        "avg_token_length": 69.5,
+        "early_exit_pct": 0.0,
+        "rep_2gram_pct": 42.0,
+        "rep_3gram_pct": 34.9,
+        "rep_4gram_pct": 34.0,
+        "line_repetition_pct": 25.0,
+        "consecutive_dup_line_pct": 0.0,
+        "degenerate_loop_pct": 0.0,
+        "numerical": {
+          "tasks_with_prompt_numbers": 2,
+          "numeric_recall_pct": 0.0,
+          "numeric_precision_pct": 0.0,
+          "exact_number_match_pct": 0.0,
+          "zero_numbers_emitted_pct": 100.0,
+          "hallucinated_numbers_pct": 0.0
+        }
+      },
+      "category_breakdown": {
+        "Algorithms & Numerical": {
+          "count": 1,
+          "pass_at_1_pct": 0.0,
+          "ast_valid_pct": 100.0,
+          "outcomes": {
+            "RUNTIME_EXCEPTION": 1
+          },
+          "extended_metrics": {
+            "count": 1,
+            "avg_token_length": 11.0,
+            "early_exit_pct": 0.0,
+            "rep_2gram_pct": 10.0,
+            "rep_3gram_pct": 0.0,
+            "rep_4gram_pct": 0.0,
+            "line_repetition_pct": 0.0,
+            "consecutive_dup_line_pct": 0.0,
+            "degenerate_loop_pct": 0.0,
+            "numerical": {
+              "tasks_with_prompt_numbers": 1,
+              "numeric_recall_pct": 0.0,
+              "numeric_precision_pct": 0.0,
+              "exact_number_match_pct": 0.0,
+              "zero_numbers_emitted_pct": 100.0,
+              "hallucinated_numbers_pct": 0.0
+            }
+          }
+        },
+        "Data Structures & Collections": {
+          "count": 1,
+          "pass_at_1_pct": 0.0,
+          "ast_valid_pct": 100.0,
+          "outcomes": {
+            "RUNTIME_EXCEPTION": 1
+          },
+          "extended_metrics": {
+            "count": 1,
+            "avg_token_length": 128.0,
+            "early_exit_pct": 0.0,
+            "rep_2gram_pct": 74.0,
+            "rep_3gram_pct": 69.8,
+            "rep_4gram_pct": 68.0,
+            "line_repetition_pct": 50.0,
+            "consecutive_dup_line_pct": 0.0,
+            "degenerate_loop_pct": 0.0,
+            "numerical": {
+              "tasks_with_prompt_numbers": 1,
+              "numeric_recall_pct": 0.0,
+              "numeric_precision_pct": 0.0,
+              "exact_number_match_pct": 0.0,
+              "zero_numbers_emitted_pct": 100.0,
+              "hallucinated_numbers_pct": 0.0
+            }
+          }
+        }
+      },
+      "tasks": [
+        {
+          "id": "task_0000",
+          "category": "Algorithms & Numerical",
+          "outcome": "RUNTIME_EXCEPTION",
+          "ast_valid": true,
+          "ast_error": null,
+          "details": "TypeError: object of type 'int' has no len()",
+          "extended_metrics": {
+            "token_count": 11,
+            "is_early_exit": false,
+            "rep_2gram": 0.09999999999999998,
+            "rep_3gram": 0.0,
+            "rep_4gram": 0.0,
+            "line_rep": 0.0,
+            "has_consecutive_dup_lines": false,
+            "is_degenerate_loop": false,
+            "numerical": {
+              "has_prompt_numbers": true,
+              "prompt_numbers": [
+                "6",
+                "0",
+                "8",
+                "1"
+              ],
+              "completion_numbers": [],
+              "overlap_numbers": [],
+              "hallucinated_numbers": [],
+              "numeric_recall": 0.0,
+              "numeric_precision": 0.0,
+              "exact_number_match": false,
+              "zero_numbers_emitted": true
+            }
+          }
+        },
+        {
+          "id": "task_0064",
+          "category": "Data Structures & Collections",
+          "outcome": "RUNTIME_EXCEPTION",
+          "ast_valid": true,
+          "ast_error": null,
+          "details": "RecursionError: maximum recursion depth exceeded",
+          "extended_metrics": {
+            "token_count": 128,
+            "is_early_exit": false,
+            "rep_2gram": 0.7401574803149606,
+            "rep_3gram": 0.6984126984126984,
+            "rep_4gram": 0.6799999999999999,
+            "line_rep": 0.5,
+            "has_consecutive_dup_lines": false,
+            "is_degenerate_loop": false,
+            "numerical": {
+              "has_prompt_numbers": true,
+              "prompt_numbers": [
+                "3",
+                "1",
+                "2"
+              ],
+              "completion_numbers": [],
+              "overlap_numbers": [],
+              "hallucinated_numbers": [],
+              "numeric_recall": 0.0,
+              "numeric_precision": 0.0,
+              "exact_number_match": false,
+              "zero_numbers_emitted": true
+            }
+          }
+        }
+      ]
+    },
+    "hint": {
+      "suite": "private_unseen",
+      "total_tasks": 2,
+      "pass_at_1_pct": 0.0,
+      "pass_at_1_95ci": [
+        0.0,
+        0.0
+      ],
+      "ast_validity_pct": 100.0,
+      "execution_outcomes": {
+        "PASSED": 0,
+        "FAILED_ASSERTION": 1,
+        "SYNTAX_ERROR": 0,
+        "TIMEOUT": 0,
+        "RUNTIME_EXCEPTION": 1,
+        "MEMORY_EXCEEDED": 0
+      },
+      "repetition": {
+        "avg_token_length": 81.0,
+        "early_exit_pct": 0.0,
+        "rep_2gram_pct": 40.0,
+        "rep_3gram_pct": 34.9,
+        "rep_4gram_pct": 34.0,
+        "line_repetition_pct": 25.0,
+        "consecutive_dup_line_pct": 0.0,
+        "degenerate_loop_pct": 0.0
+      },
+      "numerical_accuracy": {
+        "tasks_with_prompt_numbers": 2,
+        "numeric_recall_pct": 8.3,
+        "numeric_precision_pct": 50.0,
+        "exact_number_match_pct": 0.0,
+        "zero_numbers_emitted_pct": 50.0,
+        "hallucinated_numbers_pct": 0.0
+      },
+      "extended_metrics": {
+        "count": 2,
+        "avg_token_length": 81.0,
+        "early_exit_pct": 0.0,
+        "rep_2gram_pct": 40.0,
+        "rep_3gram_pct": 34.9,
+        "rep_4gram_pct": 34.0,
+        "line_repetition_pct": 25.0,
+        "consecutive_dup_line_pct": 0.0,
+        "degenerate_loop_pct": 0.0,
+        "numerical": {
+          "tasks_with_prompt_numbers": 2,
+          "numeric_recall_pct": 8.3,
+          "numeric_precision_pct": 50.0,
+          "exact_number_match_pct": 0.0,
+          "zero_numbers_emitted_pct": 50.0,
+          "hallucinated_numbers_pct": 0.0
+        }
+      },
+      "category_breakdown": {
+        "Algorithms & Numerical": {
+          "count": 1,
+          "pass_at_1_pct": 0.0,
+          "ast_valid_pct": 100.0,
+          "outcomes": {
+            "FAILED_ASSERTION": 1
+          },
+          "extended_metrics": {
+            "count": 1,
+            "avg_token_length": 34.0,
+            "early_exit_pct": 0.0,
+            "rep_2gram_pct": 6.1,
+            "rep_3gram_pct": 0.0,
+            "rep_4gram_pct": 0.0,
+            "line_repetition_pct": 0.0,
+            "consecutive_dup_line_pct": 0.0,
+            "degenerate_loop_pct": 0.0,
+            "numerical": {
+              "tasks_with_prompt_numbers": 1,
+              "numeric_recall_pct": 16.7,
+              "numeric_precision_pct": 100.0,
+              "exact_number_match_pct": 0.0,
+              "zero_numbers_emitted_pct": 0.0,
+              "hallucinated_numbers_pct": 0.0
+            }
+          }
+        },
+        "Data Structures & Collections": {
+          "count": 1,
+          "pass_at_1_pct": 0.0,
+          "ast_valid_pct": 100.0,
+          "outcomes": {
+            "RUNTIME_EXCEPTION": 1
+          },
+          "extended_metrics": {
+            "count": 1,
+            "avg_token_length": 128.0,
+            "early_exit_pct": 0.0,
+            "rep_2gram_pct": 74.0,
+            "rep_3gram_pct": 69.8,
+            "rep_4gram_pct": 68.0,
+            "line_repetition_pct": 50.0,
+            "consecutive_dup_line_pct": 0.0,
+            "degenerate_loop_pct": 0.0,
+            "numerical": {
+              "tasks_with_prompt_numbers": 1,
+              "numeric_recall_pct": 0.0,
+              "numeric_precision_pct": 0.0,
+              "exact_number_match_pct": 0.0,
+              "zero_numbers_emitted_pct": 100.0,
+              "hallucinated_numbers_pct": 0.0
+            }
+          }
+        }
+      },
+      "tasks": [
+        {
+          "id": "task_0000",
+          "category": "Algorithms & Numerical",
+          "outcome": "FAILED_ASSERTION",
+          "ast_valid": true,
+          "ast_error": null,
+          "details": "Assertion failed",
+          "extended_metrics": {
+            "token_count": 34,
+            "is_early_exit": false,
+            "rep_2gram": 0.06060606060606055,
+            "rep_3gram": 0.0,
+            "rep_4gram": 0.0,
+            "line_rep": 0.0,
+            "has_consecutive_dup_lines": false,
+            "is_degenerate_loop": false,
+            "numerical": {
+              "has_prompt_numbers": true,
+              "prompt_numbers": [
+                "3",
+                "0",
+                "6",
+                "8",
+                "1",
+                "2"
+              ],
+              "completion_numbers": [
+                "1"
+              ],
+              "overlap_numbers": [
+                "1"
+              ],
+              "hallucinated_numbers": [],
+              "numeric_recall": 0.16666666666666666,
+              "numeric_precision": 1.0,
+              "exact_number_match": false,
+              "zero_numbers_emitted": false
+            }
+          }
+        },
+        {
+          "id": "task_0064",
+          "category": "Data Structures & Collections",
+          "outcome": "RUNTIME_EXCEPTION",
+          "ast_valid": true,
+          "ast_error": null,
+          "details": "RecursionError: maximum recursion depth exceeded",
+          "extended_metrics": {
+            "token_count": 128,
+            "is_early_exit": false,
+            "rep_2gram": 0.7401574803149606,
+            "rep_3gram": 0.6984126984126984,
+            "rep_4gram": 0.6799999999999999,
+            "line_rep": 0.5,
+            "has_consecutive_dup_lines": false,
+            "is_degenerate_loop": false,
+            "numerical": {
+              "has_prompt_numbers": true,
+              "prompt_numbers": [
+                "3",
+                "1",
+                "2"
+              ],
+              "completion_numbers": [],
+              "overlap_numbers": [],
+              "hallucinated_numbers": [],
+              "numeric_recall": 0.0,
+              "numeric_precision": 0.0,
+              "exact_number_match": false,
+              "zero_numbers_emitted": true
+            }
+          }
+        }
+      ]
+    },
+    "execution_outcomes": {
+      "PASSED": 0,
+      "FAILED_ASSERTION": 1,
+      "SYNTAX_ERROR": 0,
+      "TIMEOUT": 0,
+      "RUNTIME_EXCEPTION": 1,
+      "MEMORY_EXCEEDED": 0
+    },
+    "extended_metrics": {
+      "count": 2,
+      "avg_token_length": 81.0,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 40.0,
+      "rep_3gram_pct": 34.9,
+      "rep_4gram_pct": 34.0,
+      "line_repetition_pct": 25.0,
+      "consecutive_dup_line_pct": 0.0,
+      "degenerate_loop_pct": 0.0,
+      "numerical": {
+        "tasks_with_prompt_numbers": 2,
+        "numeric_recall_pct": 8.3,
+        "numeric_precision_pct": 50.0,
+        "exact_number_match_pct": 0.0,
+        "zero_numbers_emitted_pct": 50.0,
+        "hallucinated_numbers_pct": 0.0
+      }
+    },
+    "category_breakdown": {
+      "Algorithms & Numerical": {
+        "count": 1,
+        "pass_at_1_pct": 0.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "FAILED_ASSERTION": 1
+        },
+        "extended_metrics": {
+          "count": 1,
+          "avg_token_length": 34.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 6.1,
+          "rep_3gram_pct": 0.0,
+          "rep_4gram_pct": 0.0,
+          "line_repetition_pct": 0.0,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 1,
+            "numeric_recall_pct": 16.7,
+            "numeric_precision_pct": 100.0,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 0.0
+          }
+        }
+      },
+      "Data Structures & Collections": {
+        "count": 1,
+        "pass_at_1_pct": 0.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "RUNTIME_EXCEPTION": 1
+        },
+        "extended_metrics": {
+          "count": 1,
+          "avg_token_length": 128.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 74.0,
+          "rep_3gram_pct": 69.8,
+          "rep_4gram_pct": 68.0,
+          "line_repetition_pct": 50.0,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 1,
+            "numeric_recall_pct": 0.0,
+            "numeric_precision_pct": 0.0,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 100.0,
+            "hallucinated_numbers_pct": 0.0
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,1305 @@
+{
+  "model_checkpoint": "afm-3-core-advanced",
+  "backend": "swift_afm",
+  "paradigm": "corosred",
+  "vocab_size": 32000,
+  "timestamp": 1789833821,
+  "mode": "functional",
+  "benchmark_type": "all",
+  "language": "auto",
+  "suites_evaluated": [
+    "code",
+    "math",
+    "science",
+    "cyber",
+    "tooluse",
+    "linguistic"
+  ],
+  "code": {
+    "functional": {
+      "suite": "private_unseen",
+      "total_tasks": 3,
+      "pass_at_1_pct": 66.67,
+      "pass_at_1_95ci": [
+        0.0,
+        100.0
+      ],
+      "ast_validity_pct": 100.0,
+      "execution_outcomes": {
+        "PASSED": 2,
+        "FAILED_ASSERTION": 1,
+        "SYNTAX_ERROR": 0,
+        "TIMEOUT": 0,
+        "RUNTIME_EXCEPTION": 0,
+        "MEMORY_EXCEEDED": 0
+      },
+      "repetition": {
+        "avg_token_length": 117.3,
+        "early_exit_pct": 0.0,
+        "rep_2gram_pct": 31.5,
+        "rep_3gram_pct": 18.5,
+        "rep_4gram_pct": 13.4,
+        "line_repetition_pct": 5.4,
+        "consecutive_dup_line_pct": 0.0,
+        "degenerate_loop_pct": 0.0
+      },
+      "numerical_accuracy": {
+        "tasks_with_prompt_numbers": 2,
+        "numeric_recall_pct": 50.0,
+        "numeric_precision_pct": 33.3,
+        "exact_number_match_pct": 50.0,
+        "zero_numbers_emitted_pct": 50.0,
+        "hallucinated_numbers_pct": 50.0
+      },
+      "extended_metrics": {
+        "count": 3,
+        "avg_token_length": 117.3,
+        "early_exit_pct": 0.0,
+        "rep_2gram_pct": 31.5,
+        "rep_3gram_pct": 18.5,
+        "rep_4gram_pct": 13.4,
+        "line_repetition_pct": 5.4,
+        "consecutive_dup_line_pct": 0.0,
+        "degenerate_loop_pct": 0.0,
+        "numerical": {
+          "tasks_with_prompt_numbers": 2,
+          "numeric_recall_pct": 50.0,
+          "numeric_precision_pct": 33.3,
+          "exact_number_match_pct": 50.0,
+          "zero_numbers_emitted_pct": 50.0,
+          "hallucinated_numbers_pct": 50.0
+        }
+      },
+      "category_breakdown": {
+        "Algorithms & Numerical": {
+          "count": 1,
+          "pass_at_1_pct": 0.0,
+          "ast_valid_pct": 100.0,
+          "outcomes": {
+            "FAILED_ASSERTION": 1
+          },
+          "extended_metrics": {
+            "count": 1,
+            "avg_token_length": 132.0,
+            "early_exit_pct": 0.0,
+            "rep_2gram_pct": 29.0,
+            "rep_3gram_pct": 19.2,
+            "rep_4gram_pct": 14.7,
+            "line_repetition_pct": 7.1,
+            "consecutive_dup_line_pct": 0.0,
+            "degenerate_loop_pct": 0.0,
+            "numerical": {
+              "tasks_with_prompt_numbers": 1,
+              "numeric_recall_pct": 100.0,
+              "numeric_precision_pct": 66.7,
+              "exact_number_match_pct": 100.0,
+              "zero_numbers_emitted_pct": 0.0,
+              "hallucinated_numbers_pct": 100.0
+            }
+          }
+        },
+        "Data Structures & Collections": {
+          "count": 1,
+          "pass_at_1_pct": 100.0,
+          "ast_valid_pct": 100.0,
+          "outcomes": {
+            "PASSED": 1
+          },
+          "extended_metrics": {
+            "count": 1,
+            "avg_token_length": 109.0,
+            "early_exit_pct": 0.0,
+            "rep_2gram_pct": 46.3,
+            "rep_3gram_pct": 32.7,
+            "rep_4gram_pct": 25.5,
+            "line_repetition_pct": 0.0,
+            "consecutive_dup_line_pct": 0.0,
+            "degenerate_loop_pct": 0.0,
+            "numerical": {
+              "tasks_with_prompt_numbers": 1,
+              "numeric_recall_pct": 0.0,
+              "numeric_precision_pct": 0.0,
+              "exact_number_match_pct": 0.0,
+              "zero_numbers_emitted_pct": 100.0,
+              "hallucinated_numbers_pct": 0.0
+            }
+          }
+        },
+        "String & Text Processing": {
+          "count": 1,
+          "pass_at_1_pct": 100.0,
+          "ast_valid_pct": 100.0,
+          "outcomes": {
+            "PASSED": 1
+          },
+          "extended_metrics": {
+            "count": 1,
+            "avg_token_length": 111.0,
+            "early_exit_pct": 0.0,
+            "rep_2gram_pct": 19.1,
+            "rep_3gram_pct": 3.7,
+            "rep_4gram_pct": 0.0,
+            "line_repetition_pct": 9.1,
+            "consecutive_dup_line_pct": 0.0,
+            "degenerate_loop_pct": 0.0,
+            "numerical": {
+              "tasks_with_prompt_numbers": 0,
+              "numeric_recall_pct": 0.0,
+              "numeric_precision_pct": 0.0,
+              "exact_number_match_pct": 0.0,
+              "zero_numbers_emitted_pct": 0.0,
+              "hallucinated_numbers_pct": 0.0
+            }
+          }
+        }
+      },
+      "tasks": [
+        {
+          "id": "task_0000",
+          "category": "Algorithms & Numerical",
+          "outcome": "FAILED_ASSERTION",
+          "ast_valid": true,
+          "ast_error": null,
+          "details": "Assertion failed",
+          "extended_metrics": {
+            "token_count": 132,
+            "is_early_exit": false,
+            "rep_2gram": 0.29007633587786263,
+            "rep_3gram": 0.1923076923076923,
+            "rep_4gram": 0.1472868217054264,
+            "line_rep": 0.0714285714285714,
+            "has_consecutive_dup_lines": false,
+            "is_degenerate_loop": false,
+            "numerical": {
+              "has_prompt_numbers": true,
+              "prompt_numbers": [
+                "0",
+                "6",
+                "8",
+                "1"
+              ],
+              "completion_numbers": [
+                "0",
+                "2",
+                "3",
+                "6",
+                "8",
+                "1"
+              ],
+              "overlap_numbers": [
+                "0",
+                "6",
+                "1",
+                "8"
+              ],
+              "hallucinated_numbers": [
+                "3",
+                "2"
+              ],
+              "numeric_recall": 1.0,
+              "numeric_precision": 0.6666666666666666,
+              "exact_number_match": true,
+              "zero_numbers_emitted": false
+            }
+          }
+        },
+        {
+          "id": "task_0064",
+          "category": "Data Structures & Collections",
+          "outcome": "PASSED",
+          "ast_valid": true,
+          "ast_error": null,
+          "details": "All assertions and statements passed",
+          "extended_metrics": {
+            "token_count": 109,
+            "is_early_exit": false,
+            "rep_2gram": 0.4629629629629629,
+            "rep_3gram": 0.3271028037383178,
+            "rep_4gram": 0.2547169811320755,
+            "line_rep": 0.0,
+            "has_consecutive_dup_lines": false,
+            "is_degenerate_loop": false,
+            "numerical": {
+              "has_prompt_numbers": true,
+              "prompt_numbers": [
+                "3",
+                "2",
+                "1"
+              ],
+              "completion_numbers": [],
+              "overlap_numbers": [],
+              "hallucinated_numbers": [],
+              "numeric_recall": 0.0,
+              "numeric_precision": 0.0,
+              "exact_number_match": false,
+              "zero_numbers_emitted": true
+            }
+          }
+        },
+        {
+          "id": "task_0128",
+          "category": "String & Text Processing",
+          "outcome": "PASSED",
+          "ast_valid": true,
+          "ast_error": null,
+          "details": "All assertions and statements passed",
+          "extended_metrics": {
+            "token_count": 111,
+            "is_early_exit": false,
+            "rep_2gram": 0.19090909090909092,
+            "rep_3gram": 0.03669724770642202,
+            "rep_4gram": 0.0,
+            "line_rep": 0.09090909090909094,
+            "has_consecutive_dup_lines": false,
+            "is_degenerate_loop": false,
+            "numerical": {
+              "has_prompt_numbers": false,
+              "prompt_numbers": [],
+              "completion_numbers": [
+                "0",
+                "1"
+              ],
+              "overlap_numbers": [],
+              "hallucinated_numbers": [
+                "0",
+                "1"
+              ],
+              "numeric_recall": null,
+              "numeric_precision": null,
+              "exact_number_match": null,
+              "zero_numbers_emitted": null
+            }
+          }
+        }
+      ]
+    }
+  },
+  "functional": {
+    "suite": "private_unseen",
+    "total_tasks": 3,
+    "pass_at_1_pct": 66.67,
+    "pass_at_1_95ci": [
+      0.0,
+      100.0
+    ],
+    "ast_validity_pct": 100.0,
+    "execution_outcomes": {
+      "PASSED": 2,
+      "FAILED_ASSERTION": 1,
+      "SYNTAX_ERROR": 0,
+      "TIMEOUT": 0,
+      "RUNTIME_EXCEPTION": 0,
+      "MEMORY_EXCEEDED": 0
+    },
+    "repetition": {
+      "avg_token_length": 117.3,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 31.5,
+      "rep_3gram_pct": 18.5,
+      "rep_4gram_pct": 13.4,
+      "line_repetition_pct": 5.4,
+      "consecutive_dup_line_pct": 0.0,
+      "degenerate_loop_pct": 0.0
+    },
+    "numerical_accuracy": {
+      "tasks_with_prompt_numbers": 2,
+      "numeric_recall_pct": 50.0,
+      "numeric_precision_pct": 33.3,
+      "exact_number_match_pct": 50.0,
+      "zero_numbers_emitted_pct": 50.0,
+      "hallucinated_numbers_pct": 50.0
+    },
+    "extended_metrics": {
+      "count": 3,
+      "avg_token_length": 117.3,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 31.5,
+      "rep_3gram_pct": 18.5,
+      "rep_4gram_pct": 13.4,
+      "line_repetition_pct": 5.4,
+      "consecutive_dup_line_pct": 0.0,
+      "degenerate_loop_pct": 0.0,
+      "numerical": {
+        "tasks_with_prompt_numbers": 2,
+        "numeric_recall_pct": 50.0,
+        "numeric_precision_pct": 33.3,
+        "exact_number_match_pct": 50.0,
+        "zero_numbers_emitted_pct": 50.0,
+        "hallucinated_numbers_pct": 50.0
+      }
+    },
+    "category_breakdown": {
+      "Algorithms & Numerical": {
+        "count": 1,
+        "pass_at_1_pct": 0.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "FAILED_ASSERTION": 1
+        },
+        "extended_metrics": {
+          "count": 1,
+          "avg_token_length": 132.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 29.0,
+          "rep_3gram_pct": 19.2,
+          "rep_4gram_pct": 14.7,
+          "line_repetition_pct": 7.1,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 1,
+            "numeric_recall_pct": 100.0,
+            "numeric_precision_pct": 66.7,
+            "exact_number_match_pct": 100.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 100.0
+          }
+        }
+      },
+      "Data Structures & Collections": {
+        "count": 1,
+        "pass_at_1_pct": 100.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "PASSED": 1
+        },
+        "extended_metrics": {
+          "count": 1,
+          "avg_token_length": 109.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 46.3,
+          "rep_3gram_pct": 32.7,
+          "rep_4gram_pct": 25.5,
+          "line_repetition_pct": 0.0,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 1,
+            "numeric_recall_pct": 0.0,
+            "numeric_precision_pct": 0.0,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 100.0,
+            "hallucinated_numbers_pct": 0.0
+          }
+        }
+      },
+      "String & Text Processing": {
+        "count": 1,
+        "pass_at_1_pct": 100.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "PASSED": 1
+        },
+        "extended_metrics": {
+          "count": 1,
+          "avg_token_length": 111.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 19.1,
+          "rep_3gram_pct": 3.7,
+          "rep_4gram_pct": 0.0,
+          "line_repetition_pct": 9.1,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 0,
+            "numeric_recall_pct": 0.0,
+            "numeric_precision_pct": 0.0,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 0.0
+          }
+        }
+      }
+    },
+    "tasks": [
+      {
+        "id": "task_0000",
+        "category": "Algorithms & Numerical",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 132,
+          "is_early_exit": false,
+          "rep_2gram": 0.29007633587786263,
+          "rep_3gram": 0.1923076923076923,
+          "rep_4gram": 0.1472868217054264,
+          "line_rep": 0.0714285714285714,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "0",
+              "6",
+              "8",
+              "1"
+            ],
+            "completion_numbers": [
+              "0",
+              "2",
+              "3",
+              "6",
+              "8",
+              "1"
+            ],
+            "overlap_numbers": [
+              "0",
+              "6",
+              "1",
+              "8"
+            ],
+            "hallucinated_numbers": [
+              "3",
+              "2"
+            ],
+            "numeric_recall": 1.0,
+            "numeric_precision": 0.6666666666666666,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "task_0064",
+        "category": "Data Structures & Collections",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "All assertions and statements passed",
+        "extended_metrics": {
+          "token_count": 109,
+          "is_early_exit": false,
+          "rep_2gram": 0.4629629629629629,
+          "rep_3gram": 0.3271028037383178,
+          "rep_4gram": 0.2547169811320755,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "task_0128",
+        "category": "String & Text Processing",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "All assertions and statements passed",
+        "extended_metrics": {
+          "token_count": 111,
+          "is_early_exit": false,
+          "rep_2gram": 0.19090909090909092,
+          "rep_3gram": 0.03669724770642202,
+          "rep_4gram": 0.0,
+          "line_rep": 0.09090909090909094,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [
+              "0",
+              "1"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "0",
+              "1"
+            ],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      }
+    ]
+  },
+  "math": {
+    "suite": "gsm8k",
+    "total_tasks": 3,
+    "pass_at_1_pct": 66.67,
+    "pass_at_1_95ci": [
+      0.0,
+      100.0
+    ],
+    "ast_validity_pct": 100.0,
+    "execution_outcomes": {
+      "PASSED": 2,
+      "FAILED_ASSERTION": 1,
+      "SYNTAX_ERROR": 0,
+      "TIMEOUT": 0,
+      "RUNTIME_EXCEPTION": 0,
+      "MEMORY_EXCEEDED": 0
+    },
+    "repetition": {
+      "avg_token_length": 148.7,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 29.6,
+      "rep_3gram_pct": 17.9,
+      "rep_4gram_pct": 9.8,
+      "line_repetition_pct": 0.0,
+      "consecutive_dup_line_pct": 0.0,
+      "degenerate_loop_pct": 0.0
+    },
+    "numerical_accuracy": {
+      "tasks_with_prompt_numbers": 3,
+      "numeric_recall_pct": 100.0,
+      "numeric_precision_pct": 36.1,
+      "exact_number_match_pct": 100.0,
+      "zero_numbers_emitted_pct": 0.0,
+      "hallucinated_numbers_pct": 100.0
+    },
+    "extended_metrics": {
+      "count": 3,
+      "avg_token_length": 148.7,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 29.6,
+      "rep_3gram_pct": 17.9,
+      "rep_4gram_pct": 9.8,
+      "line_repetition_pct": 0.0,
+      "consecutive_dup_line_pct": 0.0,
+      "degenerate_loop_pct": 0.0,
+      "numerical": {
+        "tasks_with_prompt_numbers": 3,
+        "numeric_recall_pct": 100.0,
+        "numeric_precision_pct": 36.1,
+        "exact_number_match_pct": 100.0,
+        "zero_numbers_emitted_pct": 0.0,
+        "hallucinated_numbers_pct": 100.0
+      }
+    },
+    "category_breakdown": {
+      "math": {
+        "count": 3,
+        "pass_at_1_pct": 66.7,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "PASSED": 2,
+          "FAILED_ASSERTION": 1
+        },
+        "extended_metrics": {
+          "count": 3,
+          "avg_token_length": 148.7,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 29.6,
+          "rep_3gram_pct": 17.9,
+          "rep_4gram_pct": 9.8,
+          "line_repetition_pct": 0.0,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 3,
+            "numeric_recall_pct": 100.0,
+            "numeric_precision_pct": 36.1,
+            "exact_number_match_pct": 100.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 100.0
+          }
+        }
+      }
+    },
+    "tasks": [
+      {
+        "id": "gsm8k/0001",
+        "category": "math",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "Cand=18.0, Gold=18.0",
+        "extended_metrics": {
+          "token_count": 151,
+          "is_early_exit": false,
+          "rep_2gram": 0.23333333333333328,
+          "rep_3gram": 0.09395973154362414,
+          "rep_4gram": 0.027027027027026973,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "16"
+            ],
+            "completion_numbers": [
+              "2",
+              "4",
+              "3",
+              "18",
+              "9",
+              "13",
+              "16",
+              "1"
+            ],
+            "overlap_numbers": [
+              "2",
+              "16"
+            ],
+            "hallucinated_numbers": [
+              "4",
+              "3",
+              "18",
+              "9",
+              "13",
+              "1"
+            ],
+            "numeric_recall": 1.0,
+            "numeric_precision": 0.25,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "gsm8k/0002",
+        "category": "math",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "Cand=3.0, Gold=3.0",
+        "extended_metrics": {
+          "token_count": 130,
+          "is_early_exit": false,
+          "rep_2gram": 0.2713178294573644,
+          "rep_3gram": 0.171875,
+          "rep_4gram": 0.08661417322834641,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2"
+            ],
+            "completion_numbers": [
+              "3",
+              "2",
+              "1"
+            ],
+            "overlap_numbers": [
+              "2"
+            ],
+            "hallucinated_numbers": [
+              "3",
+              "1"
+            ],
+            "numeric_recall": 1.0,
+            "numeric_precision": 0.3333333333333333,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "gsm8k/0003",
+        "category": "math",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "Cand=80000.0, Gold=70000.0",
+        "extended_metrics": {
+          "token_count": 165,
+          "is_early_exit": false,
+          "rep_2gram": 0.38414634146341464,
+          "rep_3gram": 0.26993865030674846,
+          "rep_4gram": 0.17901234567901236,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "000",
+              "150",
+              "80",
+              "50"
+            ],
+            "completion_numbers": [
+              "150",
+              "80",
+              "50",
+              "1.5",
+              "2",
+              "000",
+              "130",
+              "1"
+            ],
+            "overlap_numbers": [
+              "150",
+              "000",
+              "50",
+              "80"
+            ],
+            "hallucinated_numbers": [
+              "130",
+              "1.5",
+              "2",
+              "1"
+            ],
+            "numeric_recall": 1.0,
+            "numeric_precision": 0.5,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      }
+    ]
+  },
+  "science": {
+    "suite": "arc",
+    "total_tasks": 3,
+    "pass_at_1_pct": 0.0,
+    "pass_at_1_95ci": [
+      0.0,
+      0.0
+    ],
+    "ast_validity_pct": 100.0,
+    "execution_outcomes": {
+      "PASSED": 0,
+      "FAILED_ASSERTION": 3,
+      "SYNTAX_ERROR": 0,
+      "TIMEOUT": 0,
+      "RUNTIME_EXCEPTION": 0,
+      "MEMORY_EXCEEDED": 0
+    },
+    "repetition": {
+      "avg_token_length": 238.3,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 27.7,
+      "rep_3gram_pct": 18.0,
+      "rep_4gram_pct": 11.2,
+      "line_repetition_pct": 0.0,
+      "consecutive_dup_line_pct": 0.0,
+      "degenerate_loop_pct": 0.0
+    },
+    "numerical_accuracy": {
+      "tasks_with_prompt_numbers": 0,
+      "numeric_recall_pct": 0.0,
+      "numeric_precision_pct": 0.0,
+      "exact_number_match_pct": 0.0,
+      "zero_numbers_emitted_pct": 0.0,
+      "hallucinated_numbers_pct": 0.0
+    },
+    "extended_metrics": {
+      "count": 3,
+      "avg_token_length": 238.3,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 27.7,
+      "rep_3gram_pct": 18.0,
+      "rep_4gram_pct": 11.2,
+      "line_repetition_pct": 0.0,
+      "consecutive_dup_line_pct": 0.0,
+      "degenerate_loop_pct": 0.0,
+      "numerical": {
+        "tasks_with_prompt_numbers": 0,
+        "numeric_recall_pct": 0.0,
+        "numeric_precision_pct": 0.0,
+        "exact_number_match_pct": 0.0,
+        "zero_numbers_emitted_pct": 0.0,
+        "hallucinated_numbers_pct": 0.0
+      }
+    },
+    "category_breakdown": {
+      "science": {
+        "count": 3,
+        "pass_at_1_pct": 0.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "FAILED_ASSERTION": 3
+        },
+        "extended_metrics": {
+          "count": 3,
+          "avg_token_length": 238.3,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 27.7,
+          "rep_3gram_pct": 18.0,
+          "rep_4gram_pct": 11.2,
+          "line_repetition_pct": 0.0,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 0,
+            "numeric_recall_pct": 0.0,
+            "numeric_precision_pct": 0.0,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 0.0
+          }
+        }
+      }
+    },
+    "tasks": [
+      {
+        "id": "arc_challenge/Mercury_7175875",
+        "category": "science",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "Extracted='B', Gold='C'",
+        "extended_metrics": {
+          "token_count": 223,
+          "is_early_exit": false,
+          "rep_2gram": 0.27477477477477474,
+          "rep_3gram": 0.16289592760180993,
+          "rep_4gram": 0.08636363636363631,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [
+              "3",
+              "2",
+              "1"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "3",
+              "2",
+              "1"
+            ],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "arc_challenge/Mercury_SC_409171",
+        "category": "science",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "No multiple choice option extracted",
+        "extended_metrics": {
+          "token_count": 246,
+          "is_early_exit": false,
+          "rep_2gram": 0.23673469387755097,
+          "rep_3gram": 0.15573770491803274,
+          "rep_4gram": 0.09465020576131689,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [
+              "2",
+              "1"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "2",
+              "1"
+            ],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "arc_challenge/Mercury_SC_408547",
+        "category": "science",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "Extracted='D', Gold='C'",
+        "extended_metrics": {
+          "token_count": 246,
+          "is_early_exit": false,
+          "rep_2gram": 0.31836734693877555,
+          "rep_3gram": 0.2213114754098361,
+          "rep_4gram": 0.15637860082304522,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [
+              "2",
+              "1"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "2",
+              "1"
+            ],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      }
+    ]
+  },
+  "cyber": {
+    "suite": "cyber",
+    "total_tasks": 3,
+    "pass_at_1_pct": 33.33,
+    "pass_at_1_95ci": [
+      0.0,
+      100.0
+    ],
+    "ast_validity_pct": 100.0,
+    "execution_outcomes": {
+      "PASSED": 1,
+      "FAILED_ASSERTION": 2,
+      "SYNTAX_ERROR": 0,
+      "TIMEOUT": 0,
+      "RUNTIME_EXCEPTION": 0,
+      "MEMORY_EXCEEDED": 0
+    },
+    "repetition": {
+      "avg_token_length": 203.7,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 8.0,
+      "rep_3gram_pct": 2.3,
+      "rep_4gram_pct": 0.9,
+      "line_repetition_pct": 0.0,
+      "consecutive_dup_line_pct": 0.0,
+      "degenerate_loop_pct": 0.0
+    },
+    "numerical_accuracy": {
+      "tasks_with_prompt_numbers": 3,
+      "numeric_recall_pct": 78.3,
+      "numeric_precision_pct": 83.3,
+      "exact_number_match_pct": 33.3,
+      "zero_numbers_emitted_pct": 0.0,
+      "hallucinated_numbers_pct": 66.7
+    },
+    "extended_metrics": {
+      "count": 3,
+      "avg_token_length": 203.7,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 8.0,
+      "rep_3gram_pct": 2.3,
+      "rep_4gram_pct": 0.9,
+      "line_repetition_pct": 0.0,
+      "consecutive_dup_line_pct": 0.0,
+      "degenerate_loop_pct": 0.0,
+      "numerical": {
+        "tasks_with_prompt_numbers": 3,
+        "numeric_recall_pct": 78.3,
+        "numeric_precision_pct": 83.3,
+        "exact_number_match_pct": 33.3,
+        "zero_numbers_emitted_pct": 0.0,
+        "hallucinated_numbers_pct": 66.7
+      }
+    },
+    "category_breakdown": {
+      "SQL Injection": {
+        "count": 1,
+        "pass_at_1_pct": 100.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "PASSED": 1
+        },
+        "extended_metrics": {
+          "count": 1,
+          "avg_token_length": 209.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 7.2,
+          "rep_3gram_pct": 1.4,
+          "rep_4gram_pct": 0.5,
+          "line_repetition_pct": 0.0,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 1,
+            "numeric_recall_pct": 100.0,
+            "numeric_precision_pct": 100.0,
+            "exact_number_match_pct": 100.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 0.0
+          }
+        }
+      },
+      "Command Injection": {
+        "count": 1,
+        "pass_at_1_pct": 0.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "FAILED_ASSERTION": 1
+        },
+        "extended_metrics": {
+          "count": 1,
+          "avg_token_length": 191.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 7.4,
+          "rep_3gram_pct": 2.6,
+          "rep_4gram_pct": 1.6,
+          "line_repetition_pct": 0.0,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 1,
+            "numeric_recall_pct": 60.0,
+            "numeric_precision_pct": 75.0,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 100.0
+          }
+        }
+      },
+      "Cross-Site Scripting": {
+        "count": 1,
+        "pass_at_1_pct": 0.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "FAILED_ASSERTION": 1
+        },
+        "extended_metrics": {
+          "count": 1,
+          "avg_token_length": 211.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 9.5,
+          "rep_3gram_pct": 2.9,
+          "rep_4gram_pct": 0.5,
+          "line_repetition_pct": 0.0,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 1,
+            "numeric_recall_pct": 75.0,
+            "numeric_precision_pct": 75.0,
+            "exact_number_match_pct": 0.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 100.0
+          }
+        }
+      }
+    },
+    "tasks": [
+      {
+        "id": "cyber/sqli_login_bypass",
+        "category": "SQL Injection",
+        "outcome": "PASSED",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.50",
+        "extended_metrics": {
+          "token_count": 209,
+          "is_early_exit": false,
+          "rep_2gram": 0.07211538461538458,
+          "rep_3gram": 0.01449275362318836,
+          "rep_4gram": 0.004854368932038833,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "89",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "3",
+              "89",
+              "2",
+              "1"
+            ],
+            "overlap_numbers": [
+              "3",
+              "89",
+              "2",
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 1.0,
+            "numeric_precision": 1.0,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/cmd_ping_utility",
+        "category": "Command Injection",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=False, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 191,
+          "is_early_exit": false,
+          "rep_2gram": 0.0736842105263158,
+          "rep_3gram": 0.02645502645502651,
+          "rep_4gram": 0.015957446808510634,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "89",
+              "2",
+              "4",
+              "3",
+              "1"
+            ],
+            "completion_numbers": [
+              "3",
+              "787",
+              "2",
+              "1"
+            ],
+            "overlap_numbers": [
+              "3",
+              "2",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "787"
+            ],
+            "numeric_recall": 0.6,
+            "numeric_precision": 0.75,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "cyber/xss_reflected_flask",
+        "category": "Cross-Site Scripting",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=False, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 211,
+          "is_early_exit": false,
+          "rep_2gram": 0.09523809523809523,
+          "rep_3gram": 0.028708133971291905,
+          "rep_4gram": 0.004807692307692291,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "89",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "3",
+              "2",
+              "782",
+              "1"
+            ],
+            "overlap_numbers": [
+              "3",
+              "2",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "782"
+            ],
+            "numeric_recall": 0.75,
+            "numeric_precision": 0.75,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      }
+    ]
+  },
+  "tooluse": {
+    "benchmark_type": "tooluse",
+    "total_tasks": 3,
+    "tool_accuracy_pct": 100.0,
+    "syntax_validity_pct": 100.0,
+    "pass_rate_pct": 100.0,
+    "pass_rate_95ci": [
+      100.0,
+      100.0
+    ],
+    "categories": {
+      "Math & Calculation": {
+        "count": 3,
+        "tool_accuracy_pct": 100.0,
+        "syntax_validity_pct": 100.0,
+        "pass_rate_pct": 100.0
+      }
+    },
+    "tasks": [
+      {
+        "id": "tool_001",
+        "category": "Math & Calculation",
+        "prompt": "What is 458 multiplied by 32?",
+        "expected_tool": "calculator",
+        "expected_args": {
+          "expression": "458 * 32"
+        },
+        "parsed_tool": "calculator",
+        "parsed_args": {
+          "expression": "458 * 32"
+        },
+        "completion": "{\"tool\": \"calculator\", \"arguments\": {\"expression\": \"458 * 32\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_002",
+        "category": "Math & Calculation",
+        "prompt": "Compute 15% tip on a bill of $84.50.",
+        "expected_tool": "calculator",
+        "expected_args": {
+          "expression": "84.50 * 0.15"
+        },
+        "parsed_tool": "calculator",
+        "parsed_args": {
+          "expression": "84.50 * 0.15"
+        },
+        "completion": "{\"tool\": \"calculator\", \"arguments\": {\"expression\": \"84.50 * 0.15\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_003",
+        "category": "Math & Calculation",
+        "prompt": "Calculate 2 to the power of 16.",
+        "expected_tool": "calculator",
+        "expected_args": {
+          "expression": "2 ** 16"
+        },
+        "parsed_tool": "calculator",
+        "parsed_args": {
+          "expression": "2**16"
+        },
+        "completion": "{\"tool\": \"calculator\", \"arguments\": {\"expression\": \"2**16\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      }
+    ]
+  }
+}

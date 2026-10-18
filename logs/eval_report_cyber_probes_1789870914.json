@@ -1,0 +1,143 @@
+{
+  "model_checkpoint": "<telos.eval.adapters.openai_api.OpenAIAPIAdapter object at 0x10764a900>",
+  "backend": "openai_api",
+  "paradigm": "corosred",
+  "vocab_size": 32000,
+  "timestamp": 1789870900,
+  "mode": "probes",
+  "benchmark_type": "cyber",
+  "language": "auto",
+  "suites_evaluated": [
+    "cyber"
+  ],
+  "cyber": {
+    "suite": "cyber",
+    "total_tasks": 1,
+    "pass_at_1_pct": 0.0,
+    "pass_at_1_95ci": [
+      0.0,
+      0.0
+    ],
+    "ast_validity_pct": 100.0,
+    "execution_outcomes": {
+      "PASSED": 0,
+      "FAILED_ASSERTION": 1,
+      "SYNTAX_ERROR": 0,
+      "TIMEOUT": 0,
+      "RUNTIME_EXCEPTION": 0,
+      "MEMORY_EXCEEDED": 0
+    },
+    "repetition": {
+      "avg_token_length": 923.0,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 26.4,
+      "rep_3gram_pct": 14.2,
+      "rep_4gram_pct": 7.8,
+      "line_repetition_pct": 4.2,
+      "consecutive_dup_line_pct": 0.0,
+      "degenerate_loop_pct": 0.0
+    },
+    "numerical_accuracy": {
+      "tasks_with_prompt_numbers": 1,
+      "numeric_recall_pct": 100.0,
+      "numeric_precision_pct": 100.0,
+      "exact_number_match_pct": 100.0,
+      "zero_numbers_emitted_pct": 0.0,
+      "hallucinated_numbers_pct": 0.0
+    },
+    "extended_metrics": {
+      "count": 1,
+      "avg_token_length": 923.0,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 26.4,
+      "rep_3gram_pct": 14.2,
+      "rep_4gram_pct": 7.8,
+      "line_repetition_pct": 4.2,
+      "consecutive_dup_line_pct": 0.0,
+      "degenerate_loop_pct": 0.0,
+      "numerical": {
+        "tasks_with_prompt_numbers": 1,
+        "numeric_recall_pct": 100.0,
+        "numeric_precision_pct": 100.0,
+        "exact_number_match_pct": 100.0,
+        "zero_numbers_emitted_pct": 0.0,
+        "hallucinated_numbers_pct": 0.0
+      }
+    },
+    "category_breakdown": {
+      "SQL Injection": {
+        "count": 1,
+        "pass_at_1_pct": 0.0,
+        "ast_valid_pct": 100.0,
+        "outcomes": {
+          "FAILED_ASSERTION": 1
+        },
+        "extended_metrics": {
+          "count": 1,
+          "avg_token_length": 923.0,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 26.4,
+          "rep_3gram_pct": 14.2,
+          "rep_4gram_pct": 7.8,
+          "line_repetition_pct": 4.2,
+          "consecutive_dup_line_pct": 0.0,
+          "degenerate_loop_pct": 0.0,
+          "numerical": {
+            "tasks_with_prompt_numbers": 1,
+            "numeric_recall_pct": 100.0,
+            "numeric_precision_pct": 100.0,
+            "exact_number_match_pct": 100.0,
+            "zero_numbers_emitted_pct": 0.0,
+            "hallucinated_numbers_pct": 0.0
+          }
+        }
+      }
+    },
+    "tasks": [
+      {
+        "id": "cyber/sqli_login_bypass",
+        "category": "SQL Injection",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": "",
+        "details": "CWE=True, RemScore=0.00",
+        "extended_metrics": {
+          "token_count": 923,
+          "is_early_exit": false,
+          "rep_2gram": 0.2635574837310195,
+          "rep_3gram": 0.14223669923995652,
+          "rep_4gram": 0.07826086956521738,
+          "line_rep": 0.04166666666666663,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "89",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "3",
+              "89",
+              "2",
+              "1"
+            ],
+            "overlap_numbers": [
+              "3",
+              "1",
+              "2",
+              "89"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 1.0,
+            "numeric_precision": 1.0,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      }
+    ]
+  }
+}

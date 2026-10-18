@@ -1,0 +1,2625 @@
+{
+  "hf_repo": "Kazenowoko/telos",
+  "hf_revision": "d728840aada52094748903ddc56256807a0bfd61",
+  "fixture": "/Users/ivansamuel/Documents/Projects/telos/logs/saved_50m_gradient_comparison_20261018.fixture.pt",
+  "fixture_sha256": "03d264b09f452304161145bc1808ff0f79d30b122b5cbc0eca1c38e17dd8a7fa",
+  "device": "cpu",
+  "compute_dtype": "float32",
+  "threads": 2,
+  "note": "Same common evaluator as endpoint audit; nearby steps are not identical and this does not identify backend causality. No historical objective or optimizer replay.",
+  "models": {
+    "cuda_1271": {
+      "metadata": {
+        "checkpoint": "/Users/ivansamuel/Documents/Projects/telos/checkpoints/corosred/50m_lightning/checkpoint_step_1271.pt",
+        "checkpoint_sha256": "d71aa19d36c6373f1296cac02d8f3a61ed0b9f9dfd3e6d1b272224cd4e610552",
+        "step": 1271,
+        "config": {
+          "model": {
+            "vocab_size": 8192,
+            "seq_len": 512,
+            "max_seq_len": 512,
+            "d_model": 512,
+            "n_layers": 14,
+            "n_heads": 8,
+            "n_kv_heads": 8,
+            "tied_embeddings": true,
+            "use_reliability_head": true,
+            "mask_token_id": 1,
+            "paradigm": "corosred",
+            "is_causal": true
+          },
+          "training": {
+            "compile": false,
+            "batch_size": 192,
+            "gradient_accumulation": 2,
+            "max_steps": 12716,
+            "max_lr": 0.0004242640687119285,
+            "min_lr": 4.2426406871192855e-05,
+            "warmup_steps": 254,
+            "weight_decay": 0.1,
+            "grad_clip": 1.0,
+            "precision": "bf16"
+          },
+          "checkpoint": {
+            "checkpoint_dir": "checkpoints/corosred/50m_lightning",
+            "save_every_steps": 1271
+          },
+          "data": {
+            "train_path": "data/python_corpus_2.5b.bin"
+          },
+          "_resolved_params": 49166848,
+          "_backend": "pytorch",
+          "_device": "cuda",
+          "_device_count": 1,
+          "corosred": {
+            "unified": true,
+            "phase": "unified",
+            "alpha_max": 0.85,
+            "alpha_min": 0.5,
+            "beta_min": 0.15,
+            "beta_max": 0.35,
+            "gamma_max": 0.1,
+            "hold_fraction": 0.2,
+            "decay_power": 2.5,
+            "gamma_gate_auc": 0.55,
+            "acc_gate_threshold": 0.65,
+            "causal_ratio": 0.65,
+            "routing_cache_steps": 50,
+            "adaptive_rebalance": false,
+            "mask_prob": 0.2,
+            "k_amb": 5
+          },
+          "paradigm": "corosred"
+        },
+        "parameter_count": 49430017,
+        "saved_tensor_dtypes": [
+          "torch.float32"
+        ]
+      },
+      "causal": {
+        "ce": 2.2018101164039567,
+        "top1_pct": 58.7573385518591,
+        "tokens": 8176,
+        "batches": [
+          {
+            "batch": 0,
+            "tokens": 2044,
+            "ce": 2.6403132548770794,
+            "top1_pct": 52.98434442270059
+          },
+          {
+            "batch": 1,
+            "tokens": 2044,
+            "ce": 2.0980754934411694,
+            "top1_pct": 62.13307240704501
+          },
+          {
+            "batch": 2,
+            "tokens": 2044,
+            "ce": 2.015199784430039,
+            "top1_pct": 61.64383561643836
+          },
+          {
+            "batch": 3,
+            "tokens": 2044,
+            "ce": 2.053651932867539,
+            "top1_pct": 58.268101761252446
+          }
+        ]
+      },
+      "infill": {
+        "ce": 2.409550637191867,
+        "top1_pct": 57.01863354037267,
+        "tokens": 1610,
+        "batches": [
+          {
+            "batch": 0,
+            "tokens": 408,
+            "ce": 2.826215856215533,
+            "top1_pct": 51.96078431372549
+          },
+          {
+            "batch": 1,
+            "tokens": 406,
+            "ce": 2.4391509558766935,
+            "top1_pct": 57.881773399014776
+          },
+          {
+            "batch": 2,
+            "tokens": 405,
+            "ce": 2.2417958200713732,
+            "top1_pct": 61.23456790123457
+          },
+          {
+            "batch": 3,
+            "tokens": 391,
+            "ce": 2.1177950417599103,
+            "top1_pct": 57.033248081841435
+          }
+        ]
+      },
+      "gradient_geometry": {
+        "all_backbone": {
+          "causal_gradient_norm": 0.8637223519004213,
+          "infill_gradient_norm": 2.9453224581895876,
+          "causal_infill_cosine": 0.15712454392557743,
+          "weighted_causal_norm": 0.5080719717061303,
+          "weighted_infill_norm": 1.2127798357251243,
+          "weighted_causal_to_infill_ratio": 0.4189317440311437,
+          "combined_gradient_norm": 1.386580645363293,
+          "causal_loss_directional_derivative": -0.6034218718997837,
+          "infill_loss_directional_derivative": -3.807154477805088
+        },
+        "tok_embeddings": {
+          "causal_gradient_norm": 0.41862832047045084,
+          "infill_gradient_norm": 0.9934197765753929,
+          "causal_infill_cosine": 0.2982091025725217,
+          "weighted_causal_norm": 0.24625195321791227,
+          "weighted_infill_norm": 0.4090552021192794,
+          "weighted_causal_to_infill_ratio": 0.6020017639235543,
+          "combined_gradient_norm": 0.5366970950591643,
+          "causal_loss_directional_derivative": -0.1541539922385773,
+          "infill_loss_directional_derivative": -0.4793148855683291
+        },
+        "layers.0": {
+          "causal_gradient_norm": 0.49053556674514304,
+          "infill_gradient_norm": 1.6306602907260475,
+          "causal_infill_cosine": 0.17864328523623574,
+          "weighted_causal_norm": 0.2885503333794959,
+          "weighted_infill_norm": 0.671448355004843,
+          "weighted_causal_to_infill_ratio": 0.42974315333219437,
+          "combined_gradient_norm": 0.77674143913294,
+          "causal_loss_directional_derivative": -0.2003838150128664,
+          "infill_loss_directional_derivative": -1.1789607607712314
+        },
+        "layers.1": {
+          "causal_gradient_norm": 0.2118035448634754,
+          "infill_gradient_norm": 1.0915647388976977,
+          "causal_infill_cosine": 0.06279182195190633,
+          "weighted_causal_norm": 0.12459032050792672,
+          "weighted_infill_norm": 0.44946783366375787,
+          "weighted_causal_to_infill_ratio": 0.2771951876786169,
+          "combined_gradient_norm": 0.4738952234605114,
+          "causal_loss_directional_derivative": -0.032366382691879775,
+          "infill_loss_directional_derivative": -0.49916282585698557
+        },
+        "layers.2": {
+          "causal_gradient_norm": 0.20557304413063102,
+          "infill_gradient_norm": 0.9700957454284745,
+          "causal_infill_cosine": 0.08121646002919616,
+          "weighted_causal_norm": 0.12092532007684177,
+          "weighted_infill_norm": 0.39945118929407775,
+          "weighted_causal_to_infill_ratio": 0.302728652005129,
+          "combined_gradient_norm": 0.4266500989395392,
+          "causal_loss_directional_derivative": -0.031528189232499296,
+          "infill_loss_directional_derivative": -0.3970333322002891
+        },
+        "layers.3": {
+          "causal_gradient_norm": 0.21637599571561164,
+          "infill_gradient_norm": 0.8412813969827224,
+          "causal_infill_cosine": 0.10957916522925179,
+          "weighted_causal_norm": 0.12727999747977156,
+          "weighted_infill_norm": 0.34640998699288567,
+          "weighted_causal_to_infill_ratio": 0.36742588914558505,
+          "combined_gradient_norm": 0.38192014930140655,
+          "causal_loss_directional_derivative": -0.035753821245580894,
+          "infill_loss_directional_derivative": -0.3031618278664484
+        },
+        "layers.4": {
+          "causal_gradient_norm": 0.2289012883955367,
+          "infill_gradient_norm": 0.8472790562769478,
+          "causal_infill_cosine": 0.11232436784591429,
+          "weighted_causal_norm": 0.13464781670325687,
+          "weighted_infill_norm": 0.34887961140815493,
+          "weighted_causal_to_infill_ratio": 0.385943495407452,
+          "combined_gradient_norm": 0.3878145038454225,
+          "causal_loss_directional_derivative": -0.0397911695775919,
+          "infill_loss_directional_derivative": -0.30841283198612746
+        },
+        "layers.5": {
+          "causal_gradient_norm": 0.1461624438386881,
+          "infill_gradient_norm": 0.5418854376102448,
+          "causal_infill_cosine": 0.102639611027275,
+          "weighted_causal_norm": 0.08597790814040476,
+          "weighted_infill_norm": 0.22312929783951255,
+          "weighted_causal_to_infill_ratio": 0.3853277403411408,
+          "combined_gradient_norm": 0.24721852660663968,
+          "causal_loss_directional_derivative": -0.01591413947669323,
+          "infill_loss_directional_derivative": -0.12569251478450721
+        },
+        "layers.6": {
+          "causal_gradient_norm": 0.14900761239191485,
+          "infill_gradient_norm": 0.5154787835867536,
+          "causal_infill_cosine": 0.09659891182163445,
+          "weighted_causal_norm": 0.08765153670112638,
+          "weighted_infill_norm": 0.21225596971219265,
+          "weighted_causal_to_infill_ratio": 0.4129520447409654,
+          "combined_gradient_norm": 0.23733889153943963,
+          "causal_loss_directional_derivative": -0.016115952948059224,
+          "infill_loss_directional_derivative": -0.1137780301358994
+        },
+        "layers.7": {
+          "causal_gradient_norm": 0.1271127515716651,
+          "infill_gradient_norm": 0.42888720220813925,
+          "causal_infill_cosine": 0.10021496544875368,
+          "weighted_causal_norm": 0.07477220680686182,
+          "weighted_infill_norm": 0.17660061267393967,
+          "weighted_causal_to_infill_ratio": 0.4233972106592566,
+          "combined_gradient_norm": 0.19855805189729087,
+          "causal_loss_directional_derivative": -0.011754145514123831,
+          "infill_loss_directional_derivative": -0.07895552062913788
+        },
+        "layers.8": {
+          "causal_gradient_norm": 0.1450665447031102,
+          "infill_gradient_norm": 0.5054957314845555,
+          "causal_infill_cosine": 0.1144262793618618,
+          "weighted_causal_norm": 0.08533326159006482,
+          "weighted_infill_norm": 0.20814530119952285,
+          "weighted_causal_to_infill_ratio": 0.409969675502146,
+          "combined_gradient_norm": 0.2338184048093633,
+          "causal_loss_directional_derivative": -0.01583409371729059,
+          "infill_loss_directional_derivative": -0.1101524074423163
+        },
+        "layers.9": {
+          "causal_gradient_norm": 0.12501341594555362,
+          "infill_gradient_norm": 0.379555548768459,
+          "causal_infill_cosine": 0.1378798890516287,
+          "weighted_causal_norm": 0.07353730349738449,
+          "weighted_infill_norm": 0.15628757890465958,
+          "weighted_causal_to_infill_ratio": 0.47052557863376077,
+          "combined_gradient_norm": 0.18166683899125183,
+          "causal_loss_directional_derivative": -0.0118870528636307,
+          "infill_loss_directional_derivative": -0.06316825113970585
+        },
+        "layers.10": {
+          "causal_gradient_norm": 0.11156545038869867,
+          "infill_gradient_norm": 0.3121329072198447,
+          "causal_infill_cosine": 0.16900989806492142,
+          "weighted_causal_norm": 0.06562673552276392,
+          "weighted_infill_norm": 0.1285253147375831,
+          "weighted_causal_to_infill_ratio": 0.5106133033539538,
+          "combined_gradient_norm": 0.15387241289281328,
+          "causal_loss_directional_derivative": -0.009745106635970956,
+          "infill_loss_directional_derivative": -0.04357902346872135
+        },
+        "layers.11": {
+          "causal_gradient_norm": 0.11085643046747237,
+          "infill_gradient_norm": 0.3039232436747689,
+          "causal_infill_cosine": 0.19088885322378307,
+          "weighted_causal_norm": 0.0652096649808661,
+          "weighted_infill_norm": 0.1251448650425519,
+          "weighted_causal_to_infill_ratio": 0.5210734372416593,
+          "combined_gradient_norm": 0.15175339764527135,
+          "causal_loss_directional_derivative": -0.009877133328689796,
+          "infill_loss_directional_derivative": -0.04181760850858964
+        },
+        "layers.12": {
+          "causal_gradient_norm": 0.10389730605451823,
+          "infill_gradient_norm": 0.2673475626942223,
+          "causal_infill_cosine": 0.1989991204785811,
+          "weighted_causal_norm": 0.06111606238501072,
+          "weighted_infill_norm": 0.11008429052115035,
+          "weighted_causal_to_infill_ratio": 0.5551751489307057,
+          "combined_gradient_norm": 0.1361301721750283,
+          "causal_loss_directional_derivative": -0.008625838962560386,
+          "infill_loss_directional_derivative": -0.03268225922474922
+        },
+        "layers.13": {
+          "causal_gradient_norm": 0.10870722806485231,
+          "infill_gradient_norm": 0.2574953971625867,
+          "causal_infill_cosine": 0.23265425894881758,
+          "weighted_causal_norm": 0.06394542827344253,
+          "weighted_infill_norm": 0.10602751647871216,
+          "weighted_causal_to_infill_ratio": 0.603102198345665,
+          "combined_gradient_norm": 0.13596187753589423,
+          "causal_loss_directional_derivative": -0.009632893336088518,
+          "infill_loss_directional_derivative": -0.0311324018673669
+        },
+        "final_norm": {
+          "causal_gradient_norm": 0.007820009206771129,
+          "infill_gradient_norm": 0.016951401483666632,
+          "causal_infill_cosine": 0.40622169122811874,
+          "weighted_causal_norm": 0.0046000054157477235,
+          "weighted_infill_norm": 0.006979988846215672,
+          "weighted_causal_to_infill_ratio": 0.6590276169626976,
+          "combined_gradient_norm": 0.009796234749617546,
+          "causal_loss_directional_derivative": -5.8145117681043424e-05,
+          "infill_loss_directional_derivative": -0.00014999635468185854
+        }
+      },
+      "saved_keys": [
+        "global_step",
+        "model_state_dict",
+        "optimizer_state_dict",
+        "scheduler_state_dict",
+        "config"
+      ],
+      "scheduler_state": {
+        "warmup_steps": 254,
+        "max_steps": 12716,
+        "min_lr": 4.2426406871192855e-05,
+        "update_cadence": 1,
+        "base_lrs": [
+          0.0004242640687119285,
+          0.0004242640687119285
+        ],
+        "last_epoch": 1271,
+        "_step_count": 1272,
+        "_is_initial": false,
+        "_get_lr_called_within_step": false,
+        "_last_lr": [
+          0.0004180237788693835,
+          0.0004180237788693835
+        ]
+      },
+      "lrh_acc_ema": null,
+      "lrh_auc_ema": null,
+      "optimizer_present": true,
+      "optimizer_param_groups": [
+        {
+          "weight_decay": 0.1,
+          "lr": 0.0004180237788693835,
+          "betas": [
+            0.9,
+            0.95
+          ],
+          "eps": 1e-08,
+          "amsgrad": false,
+          "maximize": false,
+          "foreach": null,
+          "capturable": false,
+          "differentiable": false,
+          "fused": true,
+          "decoupled_weight_decay": true,
+          "initial_lr": 0.0004242640687119285
+        },
+        {
+          "weight_decay": 0.0,
+          "lr": 0.0004180237788693835,
+          "betas": [
+            0.9,
+            0.95
+          ],
+          "eps": 1e-08,
+          "amsgrad": false,
+          "maximize": false,
+          "foreach": null,
+          "capturable": false,
+          "differentiable": false,
+          "fused": true,
+          "decoupled_weight_decay": true,
+          "initial_lr": 0.0004242640687119285
+        }
+      ],
+      "optimizer_steps": [
+        1271.0
+      ],
+      "seconds": 35.6466657089768
+    },
+    "cuda_3813": {
+      "metadata": {
+        "checkpoint": "/Users/ivansamuel/Documents/Projects/telos/checkpoints/corosred/50m_lightning/checkpoint_step_3813.pt",
+        "checkpoint_sha256": "18484bf2aebade9c34853940c56e607e2ec53125fb3a3b4c30649603384c5f8c",
+        "step": 3813,
+        "config": {
+          "model": {
+            "vocab_size": 8192,
+            "seq_len": 512,
+            "max_seq_len": 512,
+            "d_model": 512,
+            "n_layers": 14,
+            "n_heads": 8,
+            "n_kv_heads": 8,
+            "tied_embeddings": true,
+            "use_reliability_head": true,
+            "mask_token_id": 1,
+            "paradigm": "corosred",
+            "is_causal": true
+          },
+          "training": {
+            "compile": false,
+            "batch_size": 192,
+            "gradient_accumulation": 2,
+            "max_steps": 12716,
+            "max_lr": 0.0004242640687119285,
+            "min_lr": 4.2426406871192855e-05,
+            "warmup_steps": 254,
+            "weight_decay": 0.1,
+            "grad_clip": 1.0,
+            "precision": "bf16"
+          },
+          "checkpoint": {
+            "checkpoint_dir": "checkpoints/corosred/50m_lightning",
+            "save_every_steps": 1271
+          },
+          "data": {
+            "train_path": "data/python_corpus_2.5b.bin"
+          },
+          "_resolved_params": 49166848,
+          "_backend": "pytorch",
+          "_device": "cuda",
+          "_device_count": 1,
+          "corosred": {
+            "unified": true,
+            "phase": "unified",
+            "alpha_max": 0.85,
+            "alpha_min": 0.5,
+            "beta_min": 0.15,
+            "beta_max": 0.35,
+            "gamma_max": 0.1,
+            "hold_fraction": 0.2,
+            "decay_power": 2.5,
+            "gamma_gate_auc": 0.55,
+            "acc_gate_threshold": 0.65,
+            "causal_ratio": 0.65,
+            "routing_cache_steps": 50,
+            "adaptive_rebalance": false,
+            "mask_prob": 0.2,
+            "k_amb": 5
+          },
+          "paradigm": "corosred"
+        },
+        "parameter_count": 49430017,
+        "saved_tensor_dtypes": [
+          "torch.float32"
+        ]
+      },
+      "causal": {
+        "ce": 1.7466748679920652,
+        "top1_pct": 63.62524461839531,
+        "tokens": 8176,
+        "batches": [
+          {
+            "batch": 0,
+            "tokens": 2044,
+            "ce": 2.015829485689824,
+            "top1_pct": 58.365949119373774
+          },
+          {
+            "batch": 1,
+            "tokens": 2044,
+            "ce": 1.7664995585402397,
+            "top1_pct": 65.21526418786692
+          },
+          {
+            "batch": 2,
+            "tokens": 2044,
+            "ce": 1.5678353804198264,
+            "top1_pct": 66.73189823874755
+          },
+          {
+            "batch": 3,
+            "tokens": 2044,
+            "ce": 1.6365350473183709,
+            "top1_pct": 64.18786692759295
+          }
+        ]
+      },
+      "infill": {
+        "ce": 1.654918864943226,
+        "top1_pct": 67.01863354037268,
+        "tokens": 1610,
+        "batches": [
+          {
+            "batch": 0,
+            "tokens": 408,
+            "ce": 2.00561897427428,
+            "top1_pct": 59.31372549019608
+          },
+          {
+            "batch": 1,
+            "tokens": 406,
+            "ce": 1.5966881061422413,
+            "top1_pct": 69.95073891625616
+          },
+          {
+            "batch": 2,
+            "tokens": 405,
+            "ce": 1.6188051576967593,
+            "top1_pct": 70.12345679012346
+          },
+          {
+            "batch": 3,
+            "tokens": 391,
+            "ce": 1.3868423813139386,
+            "top1_pct": 68.79795396419438
+          }
+        ]
+      },
+      "gradient_geometry": {
+        "all_backbone": {
+          "causal_gradient_norm": 0.8684980043923416,
+          "infill_gradient_norm": 2.836501076408881,
+          "causal_infill_cosine": 0.12520767200817054,
+          "weighted_causal_norm": 0.5108811790543186,
+          "weighted_infill_norm": 1.1679710314624805,
+          "weighted_causal_to_infill_ratio": 0.4374091182849084,
+          "combined_gradient_norm": 1.3321326312785557,
+          "causal_loss_directional_derivative": -0.5707075066794994,
+          "infill_loss_directional_derivative": -3.4943914053708847
+        },
+        "tok_embeddings": {
+          "causal_gradient_norm": 0.4806151028005296,
+          "infill_gradient_norm": 0.9918147290568298,
+          "causal_infill_cosine": 0.2598037673182163,
+          "weighted_causal_norm": 0.2827147663532527,
+          "weighted_infill_norm": 0.40839430019987105,
+          "weighted_causal_to_infill_ratio": 0.6922593342142388,
+          "combined_gradient_norm": 0.5538113048830899,
+          "causal_loss_directional_derivative": -0.18687139168053124,
+          "infill_loss_directional_derivative": -0.4779006324674244
+        },
+        "layers.0": {
+          "causal_gradient_norm": 0.423965373152492,
+          "infill_gradient_norm": 1.3798046630042022,
+          "causal_infill_cosine": 0.12749852763240122,
+          "weighted_causal_norm": 0.24939139597205412,
+          "weighted_infill_norm": 0.5681548612370244,
+          "weighted_causal_to_infill_ratio": 0.4389496825373678,
+          "combined_gradient_norm": 0.6489432145010039,
+          "causal_loss_directional_derivative": -0.13644490503184495,
+          "infill_loss_directional_derivative": -0.827816425096969
+        },
+        "layers.1": {
+          "causal_gradient_norm": 0.16786022022501465,
+          "infill_gradient_norm": 1.072694232705317,
+          "causal_infill_cosine": 0.032615146828478596,
+          "weighted_causal_norm": 0.09874130601471451,
+          "weighted_infill_norm": 0.4416976252316011,
+          "weighted_causal_to_infill_ratio": 0.22354955148998182,
+          "combined_gradient_norm": 0.45573191533503915,
+          "causal_loss_directional_derivative": -0.018992937228219035,
+          "infill_loss_directional_derivative": -0.4772610664074065
+        },
+        "layers.2": {
+          "causal_gradient_norm": 0.18147149130892148,
+          "infill_gradient_norm": 0.8649362455751941,
+          "causal_infill_cosine": 0.05266324101539818,
+          "weighted_causal_norm": 0.10674793606407146,
+          "weighted_infill_norm": 0.35615021876625635,
+          "weighted_causal_to_infill_ratio": 0.29972727921902753,
+          "combined_gradient_norm": 0.3771504130388233,
+          "causal_loss_directional_derivative": -0.02277539094473553,
+          "infill_loss_directional_derivative": -0.3129096384990971
+        },
+        "layers.3": {
+          "causal_gradient_norm": 0.18858314342212032,
+          "infill_gradient_norm": 0.7925458448321437,
+          "causal_infill_cosine": 0.07324373001886655,
+          "weighted_causal_norm": 0.11093126083654137,
+          "weighted_infill_norm": 0.32634240669558856,
+          "weighted_causal_to_infill_ratio": 0.3399229109075542,
+          "combined_gradient_norm": 0.35228992003307813,
+          "causal_loss_directional_derivative": -0.025427381082854153,
+          "infill_loss_directional_derivative": -0.2650807687198532
+        },
+        "layers.4": {
+          "causal_gradient_norm": 0.20289395952963357,
+          "infill_gradient_norm": 0.8520190791474894,
+          "causal_infill_cosine": 0.0774762433745224,
+          "weighted_causal_norm": 0.11934938795860799,
+          "weighted_infill_norm": 0.35083138553131915,
+          "weighted_causal_to_infill_ratio": 0.3401901679288426,
+          "combined_gradient_norm": 0.3792295245032709,
+          "causal_loss_directional_derivative": -0.029730150449159234,
+          "infill_loss_directional_derivative": -0.3067934348347165
+        },
+        "layers.5": {
+          "causal_gradient_norm": 0.16325953495713844,
+          "infill_gradient_norm": 0.6568528589789034,
+          "causal_infill_cosine": 0.05996231290314721,
+          "weighted_causal_norm": 0.09603502056302261,
+          "weighted_infill_norm": 0.27046882428543084,
+          "weighted_causal_to_infill_ratio": 0.35506872489553565,
+          "combined_gradient_norm": 0.29238859377837084,
+          "causal_loss_directional_derivative": -0.01832636553050656,
+          "infill_loss_directional_derivative": -0.18144069583053113
+        },
+        "layers.6": {
+          "causal_gradient_norm": 0.16065848078003003,
+          "infill_gradient_norm": 0.5523375693079607,
+          "causal_infill_cosine": 0.07236325564821336,
+          "weighted_causal_norm": 0.09450498869413532,
+          "weighted_infill_norm": 0.22743311677386618,
+          "weighted_causal_to_infill_ratio": 0.41552870591005625,
+          "combined_gradient_norm": 0.25252268025927055,
+          "causal_loss_directional_derivative": -0.017827113178739962,
+          "infill_loss_directional_derivative": -0.1293971195690198
+        },
+        "layers.7": {
+          "causal_gradient_norm": 0.14932361209398165,
+          "infill_gradient_norm": 0.5136158485161798,
+          "causal_infill_cosine": 0.07930490171667323,
+          "weighted_causal_norm": 0.08783741887881275,
+          "weighted_infill_norm": 0.2114888788007799,
+          "weighted_causal_to_infill_ratio": 0.4153287840802002,
+          "combined_gradient_norm": 0.23534951623504102,
+          "causal_loss_directional_derivative": -0.015620671927306547,
+          "infill_loss_directional_derivative": -0.11220185602744111
+        },
+        "layers.8": {
+          "causal_gradient_norm": 0.16837213896258024,
+          "infill_gradient_norm": 0.5208085362382826,
+          "causal_infill_cosine": 0.11804032728472334,
+          "weighted_causal_norm": 0.09904243468387074,
+          "weighted_infill_norm": 0.21445057374517518,
+          "weighted_causal_to_infill_ratio": 0.46184271253832,
+          "combined_gradient_norm": 0.24660238515823,
+          "causal_loss_directional_derivative": -0.020938127906071694,
+          "infill_loss_directional_derivative": -0.1177764627366656
+        },
+        "layers.9": {
+          "causal_gradient_norm": 0.1564940715608462,
+          "infill_gradient_norm": 0.4342328393878517,
+          "causal_infill_cosine": 0.13103292004714215,
+          "weighted_causal_norm": 0.09205533621226247,
+          "weighted_infill_norm": 0.17880175739499773,
+          "weighted_causal_to_infill_ratio": 0.5148458133378384,
+          "combined_gradient_norm": 0.21156031509189335,
+          "causal_loss_directional_derivative": -0.01807260088948512,
+          "infill_loss_directional_derivative": -0.08287943268220418
+        },
+        "layers.10": {
+          "causal_gradient_norm": 0.13570801627596468,
+          "infill_gradient_norm": 0.3606741211648715,
+          "causal_infill_cosine": 0.1348029546996589,
+          "weighted_causal_norm": 0.07982824486821452,
+          "weighted_infill_norm": 0.14851287342082944,
+          "weighted_causal_to_infill_ratio": 0.5375173412880606,
+          "combined_gradient_norm": 0.17783402668652848,
+          "causal_loss_directional_derivative": -0.013550203731387246,
+          "infill_loss_directional_derivative": -0.05744599435634161
+        },
+        "layers.11": {
+          "causal_gradient_norm": 0.14178405881850864,
+          "infill_gradient_norm": 0.3559940569865476,
+          "causal_infill_cosine": 0.16753568060600024,
+          "weighted_causal_norm": 0.0834023875402992,
+          "weighted_infill_norm": 0.14658578817093137,
+          "weighted_causal_to_infill_ratio": 0.568966395589762,
+          "combined_gradient_norm": 0.18038791964518433,
+          "causal_loss_directional_derivative": -0.015307111531499577,
+          "infill_loss_directional_derivative": -0.057157930157371604
+        },
+        "layers.12": {
+          "causal_gradient_norm": 0.1377920769703109,
+          "infill_gradient_norm": 0.31603638373740184,
+          "causal_infill_cosine": 0.19917592712405296,
+          "weighted_causal_norm": 0.0810541629237123,
+          "weighted_infill_norm": 0.13013262859775368,
+          "weighted_causal_to_infill_ratio": 0.6228581086627758,
+          "combined_gradient_norm": 0.16645122579198937,
+          "causal_loss_directional_derivative": -0.014740093838784826,
+          "infill_loss_directional_derivative": -0.046228748751757254
+        },
+        "layers.13": {
+          "causal_gradient_norm": 0.14321989381170608,
+          "infill_gradient_norm": 0.29708119943883154,
+          "causal_infill_cosine": 0.22502916379460358,
+          "weighted_causal_norm": 0.0842469963598271,
+          "weighted_infill_norm": 0.1223275527101071,
+          "weighted_causal_to_infill_ratio": 0.6887000883560253,
+          "combined_gradient_norm": 0.1634006292997721,
+          "causal_loss_directional_derivative": -0.016008298114294692,
+          "infill_loss_directional_derivative": -0.041973290714514166
+        },
+        "final_norm": {
+          "causal_gradient_norm": 0.00963519873201704,
+          "infill_gradient_norm": 0.015514972949976705,
+          "causal_infill_cosine": 0.3274096139783838,
+          "weighted_causal_norm": 0.005667763960010024,
+          "weighted_infill_norm": 0.00638851827351982,
+          "weighted_causal_to_infill_ratio": 0.8871797367321783,
+          "combined_gradient_norm": 0.009830910967916363,
+          "causal_loss_directional_derivative": -7.476361407923159e-05,
+          "infill_loss_directional_derivative": -0.00012790851957319348
+        }
+      },
+      "saved_keys": [
+        "global_step",
+        "model_state_dict",
+        "optimizer_state_dict",
+        "scheduler_state_dict",
+        "config"
+      ],
+      "scheduler_state": {
+        "warmup_steps": 254,
+        "max_steps": 12716,
+        "min_lr": 4.2426406871192855e-05,
+        "update_cadence": 1,
+        "base_lrs": [
+          0.0004242640687119285,
+          0.0004242640687119285
+        ],
+        "last_epoch": 3813,
+        "_step_count": 3814,
+        "_is_initial": false,
+        "_get_lr_called_within_step": false,
+        "_last_lr": [
+          0.000352440303983523,
+          0.000352440303983523
+        ]
+      },
+      "lrh_acc_ema": null,
+      "lrh_auc_ema": null,
+      "optimizer_present": true,
+      "optimizer_param_groups": [
+        {
+          "weight_decay": 0.1,
+          "lr": 0.000352440303983523,
+          "betas": [
+            0.9,
+            0.95
+          ],
+          "eps": 1e-08,
+          "amsgrad": false,
+          "maximize": false,
+          "foreach": null,
+          "capturable": false,
+          "differentiable": false,
+          "fused": true,
+          "decoupled_weight_decay": true,
+          "initial_lr": 0.0004242640687119285
+        },
+        {
+          "weight_decay": 0.0,
+          "lr": 0.000352440303983523,
+          "betas": [
+            0.9,
+            0.95
+          ],
+          "eps": 1e-08,
+          "amsgrad": false,
+          "maximize": false,
+          "foreach": null,
+          "capturable": false,
+          "differentiable": false,
+          "fused": true,
+          "decoupled_weight_decay": true,
+          "initial_lr": 0.0004242640687119285
+        }
+      ],
+      "optimizer_steps": [
+        3813.0
+      ],
+      "seconds": 36.85082541703014
+    },
+    "cuda_7626": {
+      "metadata": {
+        "checkpoint": "/Users/ivansamuel/Documents/Projects/telos/checkpoints/corosred/50m_lightning/checkpoint_step_7626.pt",
+        "checkpoint_sha256": "3504d99d0e4b7efd18c85d95c33e0b9688dc3d83cc0e882e4e947584ea581582",
+        "step": 7626,
+        "config": {
+          "model": {
+            "vocab_size": 8192,
+            "seq_len": 512,
+            "max_seq_len": 512,
+            "d_model": 512,
+            "n_layers": 14,
+            "n_heads": 8,
+            "n_kv_heads": 8,
+            "tied_embeddings": true,
+            "use_reliability_head": true,
+            "mask_token_id": 1,
+            "paradigm": "corosred",
+            "is_causal": true
+          },
+          "training": {
+            "compile": false,
+            "batch_size": 192,
+            "gradient_accumulation": 2,
+            "max_steps": 12716,
+            "max_lr": 0.0004242640687119285,
+            "min_lr": 4.2426406871192855e-05,
+            "warmup_steps": 254,
+            "weight_decay": 0.1,
+            "grad_clip": 1.0,
+            "precision": "bf16"
+          },
+          "checkpoint": {
+            "checkpoint_dir": "checkpoints/corosred/50m_lightning",
+            "save_every_steps": 1271
+          },
+          "data": {
+            "train_path": "data/python_corpus_2.5b.bin"
+          },
+          "_resolved_params": 49166848,
+          "_backend": "pytorch",
+          "_device": "cuda",
+          "_device_count": 1,
+          "corosred": {
+            "unified": true,
+            "phase": "unified",
+            "alpha_max": 0.85,
+            "alpha_min": 0.5,
+            "beta_min": 0.15,
+            "beta_max": 0.35,
+            "gamma_max": 0.1,
+            "hold_fraction": 0.2,
+            "decay_power": 2.5,
+            "gamma_gate_auc": 0.55,
+            "acc_gate_threshold": 0.65,
+            "causal_ratio": 0.65,
+            "routing_cache_steps": 50,
+            "adaptive_rebalance": false,
+            "mask_prob": 0.2,
+            "k_amb": 5
+          },
+          "paradigm": "corosred"
+        },
+        "parameter_count": 49430017,
+        "saved_tensor_dtypes": [
+          "torch.float32"
+        ]
+      },
+      "causal": {
+        "ce": 1.5580894335841946,
+        "top1_pct": 67.4779843444227,
+        "tokens": 8176,
+        "batches": [
+          {
+            "batch": 0,
+            "tokens": 2044,
+            "ce": 1.7783775254938234,
+            "top1_pct": 63.013698630136986
+          },
+          {
+            "batch": 1,
+            "tokens": 2044,
+            "ce": 1.591765700487708,
+            "top1_pct": 68.54207436399217
+          },
+          {
+            "batch": 2,
+            "tokens": 2044,
+            "ce": 1.4064747909277153,
+            "top1_pct": 70.15655577299412
+          },
+          {
+            "batch": 3,
+            "tokens": 2044,
+            "ce": 1.4557397174275317,
+            "top1_pct": 68.19960861056751
+          }
+        ]
+      },
+      "infill": {
+        "ce": 1.2301199018585016,
+        "top1_pct": 74.40993788819875,
+        "tokens": 1610,
+        "batches": [
+          {
+            "batch": 0,
+            "tokens": 408,
+            "ce": 1.5078786214192708,
+            "top1_pct": 65.93137254901961
+          },
+          {
+            "batch": 1,
+            "tokens": 406,
+            "ce": 1.193903279421952,
+            "top1_pct": 77.0935960591133
+          },
+          {
+            "batch": 2,
+            "tokens": 405,
+            "ce": 1.2266181098090279,
+            "top1_pct": 77.28395061728395
+          },
+          {
+            "batch": 3,
+            "tokens": 391,
+            "ce": 0.9815178990668958,
+            "top1_pct": 77.49360613810742
+          }
+        ]
+      },
+      "gradient_geometry": {
+        "all_backbone": {
+          "causal_gradient_norm": 0.7788113794330954,
+          "infill_gradient_norm": 2.7833007594327754,
+          "causal_infill_cosine": 0.08740204253154674,
+          "weighted_causal_norm": 0.4581243408429973,
+          "weighted_infill_norm": 1.1460650185899663,
+          "weighted_causal_to_infill_ratio": 0.3997367805594831,
+          "combined_gradient_norm": 1.2708745510418074,
+          "causal_loss_directional_derivative": -0.43480475792448753,
+          "infill_loss_directional_derivative": -3.3012897910017553
+        },
+        "tok_embeddings": {
+          "causal_gradient_norm": 0.4231548764272064,
+          "infill_gradient_norm": 0.9469322858959113,
+          "causal_infill_cosine": 0.20430247555654713,
+          "weighted_causal_norm": 0.24891463319247437,
+          "weighted_infill_norm": 0.38991329419243403,
+          "weighted_causal_to_infill_ratio": 0.6383845765197927,
+          "combined_gradient_norm": 0.5036348638131759,
+          "causal_loss_directional_derivative": -0.139038064625845,
+          "infill_loss_directional_derivative": -0.4173766637942181
+        },
+        "layers.0": {
+          "causal_gradient_norm": 0.32259689267505604,
+          "infill_gradient_norm": 1.2405417480055507,
+          "causal_infill_cosine": 0.09903767618016632,
+          "weighted_causal_norm": 0.18976287804415062,
+          "weighted_infill_norm": 0.5108113080022856,
+          "weighted_causal_to_infill_ratio": 0.3714931033658745,
+          "combined_gradient_norm": 0.5622616696340481,
+          "causal_loss_directional_derivative": -0.07753695124422172,
+          "infill_loss_directional_derivative": -0.6569970907045901
+        },
+        "layers.1": {
+          "causal_gradient_norm": 0.17291814662855076,
+          "infill_gradient_norm": 1.0475679740649708,
+          "causal_infill_cosine": 0.021340458352542065,
+          "weighted_causal_norm": 0.10171655684032398,
+          "weighted_infill_norm": 0.431351518732635,
+          "weighted_causal_to_infill_ratio": 0.2358089688409583,
+          "combined_gradient_norm": 0.4452898394359845,
+          "causal_loss_directional_derivative": -0.01918039137831121,
+          "infill_loss_directional_derivative": -0.45414396928580153
+        },
+        "layers.2": {
+          "causal_gradient_norm": 0.18055553434980245,
+          "infill_gradient_norm": 0.908245026452596,
+          "causal_infill_cosine": 0.04130815068477236,
+          "weighted_causal_norm": 0.10620913785282497,
+          "weighted_infill_norm": 0.373983246186363,
+          "weighted_causal_to_infill_ratio": 0.28399437390812665,
+          "combined_gradient_norm": 0.3929699798714481,
+          "causal_loss_directional_derivative": -0.021965969973189347,
+          "infill_loss_directional_derivative": -0.3436531695187049
+        },
+        "layers.3": {
+          "causal_gradient_norm": 0.17690579767528208,
+          "infill_gradient_norm": 0.8189858743979811,
+          "causal_infill_cosine": 0.040094330005893575,
+          "weighted_causal_norm": 0.10406223392663652,
+          "weighted_infill_norm": 0.3372294776932863,
+          "weighted_causal_to_infill_ratio": 0.30857988642761,
+          "combined_gradient_norm": 0.35688474049290014,
+          "causal_loss_directional_derivative": -0.020801154016020028,
+          "infill_loss_directional_derivative": -0.27960323796906283
+        },
+        "layers.4": {
+          "causal_gradient_norm": 0.1871375297241869,
+          "infill_gradient_norm": 0.8806062196407066,
+          "causal_infill_cosine": 0.04698207763923545,
+          "weighted_causal_norm": 0.110080899837757,
+          "weighted_infill_norm": 0.3626025610285262,
+          "weighted_causal_to_infill_ratio": 0.30358555528541026,
+          "combined_gradient_norm": 0.3838607285622346,
+          "causal_loss_directional_derivative": -0.02378830925042768,
+          "infill_loss_directional_derivative": -0.3238644156207608
+        },
+        "layers.5": {
+          "causal_gradient_norm": 0.16105748020509744,
+          "infill_gradient_norm": 0.6791577213969493,
+          "causal_infill_cosine": 0.033879375195167545,
+          "weighted_causal_norm": 0.09473969423829262,
+          "weighted_infill_norm": 0.2796531793987438,
+          "weighted_causal_to_infill_ratio": 0.3387756736468493,
+          "combined_gradient_norm": 0.29828967152637714,
+          "causal_loss_directional_derivative": -0.016784471497475195,
+          "infill_loss_directional_derivative": -0.19210852334194084
+        },
+        "layers.6": {
+          "causal_gradient_norm": 0.15812033495824138,
+          "infill_gradient_norm": 0.5515436135223851,
+          "causal_infill_cosine": 0.04616137339623627,
+          "weighted_causal_norm": 0.093011961740142,
+          "weighted_infill_norm": 0.22710619380333505,
+          "weighted_causal_to_infill_ratio": 0.40955273029975864,
+          "combined_gradient_norm": 0.2493564444372238,
+          "causal_loss_directional_derivative": -0.016364742423493055,
+          "infill_loss_directional_derivative": -0.1276270563236332
+        },
+        "layers.7": {
+          "causal_gradient_norm": 0.1538615229414612,
+          "infill_gradient_norm": 0.5467924337295255,
+          "causal_infill_cosine": 0.05233604123076962,
+          "weighted_causal_norm": 0.09050677820085952,
+          "weighted_infill_norm": 0.225149825653334,
+          "weighted_causal_to_infill_ratio": 0.40198466926736126,
+          "combined_gradient_norm": 0.24701596139582357,
+          "causal_loss_directional_derivative": -0.01573853037894451,
+          "infill_loss_directional_derivative": -0.125700249191958
+        },
+        "layers.8": {
+          "causal_gradient_norm": 0.15500667728231995,
+          "infill_gradient_norm": 0.5074401887568359,
+          "causal_infill_cosine": 0.0622880454890572,
+          "weighted_causal_norm": 0.09118039840136469,
+          "weighted_infill_norm": 0.2089459600763442,
+          "weighted_causal_to_infill_ratio": 0.43638268176158757,
+          "combined_gradient_norm": 0.23312158855561016,
+          "causal_loss_directional_derivative": -0.016150956990432914,
+          "infill_loss_directional_derivative": -0.10890955799391727
+        },
+        "layers.9": {
+          "causal_gradient_norm": 0.14675579519717552,
+          "infill_gradient_norm": 0.42681507613683745,
+          "causal_infill_cosine": 0.08060865924959458,
+          "weighted_causal_norm": 0.08632693835127972,
+          "weighted_infill_norm": 0.17574738429163894,
+          "weighted_causal_to_infill_ratio": 0.49119899393795224,
+          "combined_gradient_norm": 0.20195402838247303,
+          "causal_loss_directional_derivative": -0.014748032762712152,
+          "infill_loss_directional_derivative": -0.0779817107473324
+        },
+        "layers.10": {
+          "causal_gradient_norm": 0.13390130767216993,
+          "infill_gradient_norm": 0.3606904915494934,
+          "causal_infill_cosine": 0.09487174684666158,
+          "weighted_causal_norm": 0.07876547510127643,
+          "weighted_infill_norm": 0.14851961416743845,
+          "weighted_causal_to_infill_ratio": 0.5303371917764181,
+          "combined_gradient_norm": 0.17459019619761498,
+          "causal_loss_directional_derivative": -0.012433511751235698,
+          "infill_loss_directional_derivative": -0.05626491497558739
+        },
+        "layers.11": {
+          "causal_gradient_norm": 0.13716128039403563,
+          "infill_gradient_norm": 0.34975563028119133,
+          "causal_infill_cosine": 0.11053234337718336,
+          "weighted_causal_norm": 0.0806831061141386,
+          "weighted_infill_norm": 0.1440170242334317,
+          "weighted_causal_to_infill_ratio": 0.5602331151028536,
+          "combined_gradient_norm": 0.1726828921813386,
+          "causal_loss_directional_derivative": -0.013250005355991652,
+          "infill_loss_directional_derivative": -0.05348991824656917
+        },
+        "layers.12": {
+          "causal_gradient_norm": 0.13267895870583876,
+          "infill_gradient_norm": 0.310407472363881,
+          "causal_infill_cosine": 0.12497416478401491,
+          "weighted_causal_norm": 0.07804644629755221,
+          "weighted_infill_norm": 0.12781484156159806,
+          "weighted_causal_to_infill_ratio": 0.6106211559159124,
+          "combined_gradient_norm": 0.15786462430510578,
+          "causal_loss_directional_derivative": -0.01247447561376461,
+          "infill_loss_directional_derivative": -0.042702331025888746
+        },
+        "layers.13": {
+          "causal_gradient_norm": 0.14142893989530708,
+          "infill_gradient_norm": 0.2992246792403718,
+          "causal_infill_cosine": 0.15634937769738455,
+          "weighted_causal_norm": 0.083193494056063,
+          "weighted_infill_norm": 0.1232101620401531,
+          "weighted_causal_to_infill_ratio": 0.6752161727451585,
+          "combined_gradient_norm": 0.15908221929549068,
+          "causal_loss_directional_derivative": -0.01449043103138289,
+          "infill_loss_directional_derivative": -0.040759611731115294
+        },
+        "final_norm": {
+          "causal_gradient_norm": 0.008565940840788093,
+          "infill_gradient_norm": 0.014375070627979535,
+          "causal_infill_cosine": 0.30762767872591323,
+          "weighted_causal_norm": 0.005038788729875349,
+          "weighted_infill_norm": 0.005919146729168044,
+          "weighted_causal_to_infill_ratio": 0.8512694414290297,
+          "combined_gradient_norm": 0.008875577943494842,
+          "causal_loss_directional_derivative": -5.8759631039857695e-05,
+          "infill_loss_directional_derivative": -0.00010737053067561564
+        }
+      },
+      "saved_keys": [
+        "global_step",
+        "model_state_dict",
+        "optimizer_state_dict",
+        "scheduler_state_dict",
+        "config"
+      ],
+      "scheduler_state": {
+        "warmup_steps": 254,
+        "max_steps": 12716,
+        "min_lr": 4.2426406871192855e-05,
+        "update_cadence": 1,
+        "base_lrs": [
+          0.0004242640687119285,
+          0.0004242640687119285
+        ],
+        "last_epoch": 7626,
+        "_step_count": 7627,
+        "_is_initial": false,
+        "_get_lr_called_within_step": false,
+        "_last_lr": [
+          0.00017918366243500276,
+          0.00017918366243500276
+        ]
+      },
+      "lrh_acc_ema": null,
+      "lrh_auc_ema": null,
+      "optimizer_present": true,
+      "optimizer_param_groups": [
+        {
+          "weight_decay": 0.1,
+          "lr": 0.00017918366243500276,
+          "betas": [
+            0.9,
+            0.95
+          ],
+          "eps": 1e-08,
+          "amsgrad": false,
+          "maximize": false,
+          "foreach": null,
+          "capturable": false,
+          "differentiable": false,
+          "fused": true,
+          "decoupled_weight_decay": true,
+          "initial_lr": 0.0004242640687119285
+        },
+        {
+          "weight_decay": 0.0,
+          "lr": 0.00017918366243500276,
+          "betas": [
+            0.9,
+            0.95
+          ],
+          "eps": 1e-08,
+          "amsgrad": false,
+          "maximize": false,
+          "foreach": null,
+          "capturable": false,
+          "differentiable": false,
+          "fused": true,
+          "decoupled_weight_decay": true,
+          "initial_lr": 0.0004242640687119285
+        }
+      ],
+      "optimizer_steps": [
+        7626.0
+      ],
+      "seconds": 40.052302124968264
+    },
+    "cuda_11439": {
+      "metadata": {
+        "checkpoint": "/Users/ivansamuel/Documents/Projects/telos/checkpoints/corosred/50m_lightning/checkpoint_step_11439.pt",
+        "checkpoint_sha256": "4882ca2c8a89c43ab7737479b94b8bcdad054a650f09ea487e8f2cb14e638c13",
+        "step": 11439,
+        "config": {
+          "model": {
+            "vocab_size": 8192,
+            "seq_len": 512,
+            "max_seq_len": 512,
+            "d_model": 512,
+            "n_layers": 14,
+            "n_heads": 8,
+            "n_kv_heads": 8,
+            "tied_embeddings": true,
+            "use_reliability_head": true,
+            "mask_token_id": 1,
+            "paradigm": "corosred",
+            "is_causal": true
+          },
+          "training": {
+            "compile": false,
+            "batch_size": 192,
+            "gradient_accumulation": 2,
+            "max_steps": 12716,
+            "max_lr": 0.0004242640687119285,
+            "min_lr": 4.2426406871192855e-05,
+            "warmup_steps": 254,
+            "weight_decay": 0.1,
+            "grad_clip": 1.0,
+            "precision": "bf16"
+          },
+          "checkpoint": {
+            "checkpoint_dir": "checkpoints/corosred/50m_lightning",
+            "save_every_steps": 1271
+          },
+          "data": {
+            "train_path": "data/python_corpus_2.5b.bin"
+          },
+          "_resolved_params": 49166848,
+          "_backend": "pytorch",
+          "_device": "cuda",
+          "_device_count": 1,
+          "corosred": {
+            "unified": true,
+            "phase": "unified",
+            "alpha_max": 0.85,
+            "alpha_min": 0.5,
+            "beta_min": 0.15,
+            "beta_max": 0.35,
+            "gamma_max": 0.1,
+            "hold_fraction": 0.2,
+            "decay_power": 2.5,
+            "gamma_gate_auc": 0.55,
+            "acc_gate_threshold": 0.65,
+            "causal_ratio": 0.65,
+            "routing_cache_steps": 50,
+            "adaptive_rebalance": false,
+            "mask_prob": 0.2,
+            "k_amb": 5
+          },
+          "paradigm": "corosred"
+        },
+        "parameter_count": 49430017,
+        "saved_tensor_dtypes": [
+          "torch.float32"
+        ]
+      },
+      "causal": {
+        "ce": 1.4890785590543205,
+        "top1_pct": 68.50538160469668,
+        "tokens": 8176,
+        "batches": [
+          {
+            "batch": 0,
+            "tokens": 2044,
+            "ce": 1.6990397055788282,
+            "top1_pct": 63.64970645792564
+          },
+          {
+            "batch": 1,
+            "tokens": 2044,
+            "ce": 1.4813669581702544,
+            "top1_pct": 70.64579256360078
+          },
+          {
+            "batch": 2,
+            "tokens": 2044,
+            "ce": 1.3407328805344911,
+            "top1_pct": 71.1839530332681
+          },
+          {
+            "batch": 3,
+            "tokens": 2044,
+            "ce": 1.4351746919337085,
+            "top1_pct": 68.54207436399217
+          }
+        ]
+      },
+      "infill": {
+        "ce": 1.0983665513696137,
+        "top1_pct": 76.8944099378882,
+        "tokens": 1610,
+        "batches": [
+          {
+            "batch": 0,
+            "tokens": 408,
+            "ce": 1.3795037363089768,
+            "top1_pct": 71.07843137254902
+          },
+          {
+            "batch": 1,
+            "tokens": 406,
+            "ce": 1.0490895539081742,
+            "top1_pct": 79.80295566502463
+          },
+          {
+            "batch": 2,
+            "tokens": 405,
+            "ce": 1.0572339470003858,
+            "top1_pct": 79.01234567901234
+          },
+          {
+            "batch": 3,
+            "tokens": 391,
+            "ce": 0.898778812964554,
+            "top1_pct": 77.74936061381074
+          }
+        ]
+      },
+      "gradient_geometry": {
+        "all_backbone": {
+          "causal_gradient_norm": 0.877480365597298,
+          "infill_gradient_norm": 2.9828784059893176,
+          "causal_infill_cosine": 0.09677061047418488,
+          "weighted_causal_norm": 0.5161649209395871,
+          "weighted_infill_norm": 1.228244049525013,
+          "weighted_causal_to_infill_ratio": 0.42024622153813695,
+          "combined_gradient_norm": 1.3775740471042932,
+          "causal_loss_directional_derivative": -0.5572200803197288,
+          "infill_loss_directional_derivative": -3.812696219448977
+        },
+        "tok_embeddings": {
+          "causal_gradient_norm": 0.4456834718513087,
+          "infill_gradient_norm": 0.9787817300202143,
+          "causal_infill_cosine": 0.2030186996094146,
+          "weighted_causal_norm": 0.26216674814782864,
+          "weighted_infill_norm": 0.4030277711847941,
+          "weighted_causal_to_infill_ratio": 0.6504930103876673,
+          "combined_gradient_norm": 0.5235120769906195,
+          "causal_loss_directional_derivative": -0.15331017710676811,
+          "infill_loss_directional_derivative": -0.44657163425255275
+        },
+        "layers.0": {
+          "causal_gradient_norm": 0.3613080500175624,
+          "infill_gradient_norm": 1.3517860149843246,
+          "causal_infill_cosine": 0.11813283266516401,
+          "weighted_causal_norm": 0.21253414706915436,
+          "weighted_infill_norm": 0.5566177708758984,
+          "weighted_causal_to_infill_ratio": 0.38183140781637076,
+          "combined_gradient_norm": 0.6188250169787601,
+          "causal_loss_directional_derivative": -0.1005480490861734,
+          "infill_loss_directional_derivative": -0.7863677624281762
+        },
+        "layers.1": {
+          "causal_gradient_norm": 0.20313670815167287,
+          "infill_gradient_norm": 1.103777835123589,
+          "causal_infill_cosine": 0.02835154002445357,
+          "weighted_causal_norm": 0.11949218126568993,
+          "weighted_infill_norm": 0.45449675563912484,
+          "weighted_causal_to_infill_ratio": 0.26291096643287803,
+          "combined_gradient_norm": 0.47320731080335,
+          "causal_loss_directional_derivative": -0.02689080357064839,
+          "infill_loss_directional_derivative": -0.5054028096078668
+        },
+        "layers.2": {
+          "causal_gradient_norm": 0.21177624531400327,
+          "infill_gradient_norm": 0.94057439297662,
+          "causal_infill_cosine": 0.03819220010637163,
+          "weighted_causal_norm": 0.12457426194941369,
+          "weighted_infill_norm": 0.3872953382844906,
+          "weighted_causal_to_infill_ratio": 0.3216518497258719,
+          "combined_gradient_norm": 0.4113413987386346,
+          "causal_loss_directional_derivative": -0.029514391899659626,
+          "infill_loss_directional_derivative": -0.3687551097685376
+        },
+        "layers.3": {
+          "causal_gradient_norm": 0.2145159193445041,
+          "infill_gradient_norm": 0.8651078505882599,
+          "causal_infill_cosine": 0.05918187970919129,
+          "weighted_causal_norm": 0.12618583490853183,
+          "weighted_infill_norm": 0.35622087965398935,
+          "weighted_causal_to_infill_ratio": 0.35423480799637813,
+          "combined_gradient_norm": 0.38488522245543255,
+          "causal_loss_directional_derivative": -0.031591256650468684,
+          "infill_loss_directional_derivative": -0.3146300313418522
+        },
+        "layers.4": {
+          "causal_gradient_norm": 0.2233251950525391,
+          "infill_gradient_norm": 0.9302114859114,
+          "causal_infill_cosine": 0.0510295775504866,
+          "weighted_causal_norm": 0.13136776179561124,
+          "weighted_infill_norm": 0.3830282589046941,
+          "weighted_causal_to_infill_ratio": 0.3429714616129627,
+          "combined_gradient_norm": 0.4112219645607761,
+          "causal_loss_directional_derivative": -0.03370279397832357,
+          "infill_loss_directional_derivative": -0.3625330900785108
+        },
+        "layers.5": {
+          "causal_gradient_norm": 0.18957958851780982,
+          "infill_gradient_norm": 0.7509163811849252,
+          "causal_infill_cosine": 0.056172924461518996,
+          "weighted_causal_norm": 0.11151740501047637,
+          "weighted_infill_norm": 0.3092008628408515,
+          "weighted_causal_to_infill_ratio": 0.3606633047071262,
+          "combined_gradient_norm": 0.33453719319968117,
+          "causal_loss_directional_derivative": -0.024434177921764676,
+          "infill_loss_directional_derivative": -0.23688792750842957
+        },
+        "layers.6": {
+          "causal_gradient_norm": 0.1830107949065098,
+          "infill_gradient_norm": 0.6155228272924002,
+          "causal_infill_cosine": 0.055933434610837336,
+          "weighted_causal_norm": 0.10765340876853517,
+          "weighted_infill_norm": 0.25345057594392945,
+          "weighted_causal_to_infill_ratio": 0.4247510914804597,
+          "combined_gradient_norm": 0.2808535527345263,
+          "causal_loss_directional_derivative": -0.022296163048263946,
+          "infill_loss_directional_derivative": -0.15971093956266447
+        },
+        "layers.7": {
+          "causal_gradient_norm": 0.17760882948920922,
+          "infill_gradient_norm": 0.6144973819402527,
+          "causal_infill_cosine": 0.06546996151997923,
+          "weighted_causal_norm": 0.10447578205247601,
+          "weighted_infill_norm": 0.25302833374010403,
+          "weighted_causal_to_infill_ratio": 0.41290151386677293,
+          "combined_gradient_norm": 0.27999994140308815,
+          "causal_loss_directional_derivative": -0.02149804576402843,
+          "infill_loss_directional_derivative": -0.1596884263595962
+        },
+        "layers.8": {
+          "causal_gradient_norm": 0.17822755148654626,
+          "infill_gradient_norm": 0.553009155251212,
+          "causal_infill_cosine": 0.08914512177316529,
+          "weighted_causal_norm": 0.10483973616855663,
+          "weighted_infill_norm": 0.22770965216226374,
+          "weighted_causal_to_infill_ratio": 0.46040971549966986,
+          "combined_gradient_norm": 0.25903548500546286,
+          "causal_loss_directional_derivative": -0.022303207021441493,
+          "infill_loss_directional_derivative": -0.13109391887854954
+        },
+        "layers.9": {
+          "causal_gradient_norm": 0.17069924613996468,
+          "infill_gradient_norm": 0.48115567200272913,
+          "causal_infill_cosine": 0.11835990544260853,
+          "weighted_causal_norm": 0.10041132125880275,
+          "weighted_infill_norm": 0.19812292376582963,
+          "weighted_causal_to_infill_ratio": 0.5068132417502752,
+          "combined_gradient_norm": 0.2324744701557841,
+          "causal_loss_directional_derivative": -0.021143001821185753,
+          "infill_loss_directional_derivative": -0.10104634706425084
+        },
+        "layers.10": {
+          "causal_gradient_norm": 0.15214957027991333,
+          "infill_gradient_norm": 0.3987646052644081,
+          "causal_infill_cosine": 0.11301260594032808,
+          "weighted_causal_norm": 0.08949974722347843,
+          "weighted_infill_norm": 0.16419719040299155,
+          "weighted_causal_to_infill_ratio": 0.5450747787085632,
+          "combined_gradient_norm": 0.19568469481106815,
+          "causal_loss_directional_derivative": -0.016440689120111474,
+          "infill_loss_directional_derivative": -0.06950937215928574
+        },
+        "layers.11": {
+          "causal_gradient_norm": 0.1552449429874409,
+          "infill_gradient_norm": 0.38313878782239136,
+          "causal_infill_cosine": 0.1259022435475304,
+          "weighted_causal_norm": 0.09132055469849465,
+          "weighted_infill_norm": 0.1577630302798082,
+          "weighted_causal_to_infill_ratio": 0.5788463528909701,
+          "combined_gradient_norm": 0.1919801201987386,
+          "causal_loss_directional_derivative": -0.017260641058060928,
+          "infill_loss_directional_derivative": -0.06485026011360956
+        },
+        "layers.12": {
+          "causal_gradient_norm": 0.15337676479707313,
+          "infill_gradient_norm": 0.3469344283251666,
+          "causal_infill_cosine": 0.15125865391759713,
+          "weighted_causal_norm": 0.0902216263512195,
+          "weighted_infill_norm": 0.14285535283977446,
+          "weighted_causal_to_infill_ratio": 0.6315592979733243,
+          "combined_gradient_norm": 0.180129484139748,
+          "causal_loss_directional_derivative": -0.017152082920494176,
+          "infill_loss_directional_derivative": -0.054295985536391075
+        },
+        "layers.13": {
+          "causal_gradient_norm": 0.1614140375317183,
+          "infill_gradient_norm": 0.3338735628640775,
+          "causal_infill_cosine": 0.168895473278653,
+          "weighted_causal_norm": 0.09494943384218724,
+          "weighted_infill_norm": 0.13747734941462014,
+          "weighted_causal_to_infill_ratio": 0.6906551097070377,
+          "combined_gradient_norm": 0.17979081107274134,
+          "causal_loss_directional_derivative": -0.019074092761415026,
+          "infill_loss_directional_derivative": -0.05125422572445009
+        },
+        "final_norm": {
+          "causal_gradient_norm": 0.008867762054968803,
+          "infill_gradient_norm": 0.013765313236405103,
+          "causal_infill_cosine": 0.28349649939998117,
+          "weighted_causal_norm": 0.0052163306205698845,
+          "weighted_infill_norm": 0.005668070156166807,
+          "weighted_causal_to_infill_ratio": 0.9203009978439604,
+          "combined_gradient_norm": 0.008723596664509323,
+          "causal_loss_directional_derivative": -6.0506590920968726e-05,
+          "infill_loss_directional_derivative": -9.837906425656603e-05
+        }
+      },
+      "saved_keys": [
+        "global_step",
+        "model_state_dict",
+        "optimizer_state_dict",
+        "scheduler_state_dict",
+        "config"
+      ],
+      "scheduler_state": {
+        "warmup_steps": 254,
+        "max_steps": 12716,
+        "min_lr": 4.2426406871192855e-05,
+        "update_cadence": 1,
+        "base_lrs": [
+          0.0004242640687119285,
+          0.0004242640687119285
+        ],
+        "last_epoch": 11439,
+        "_step_count": 11440,
+        "_is_initial": false,
+        "_get_lr_called_within_step": false,
+        "_last_lr": [
+          5.223419103701787e-05,
+          5.223419103701787e-05
+        ]
+      },
+      "lrh_acc_ema": null,
+      "lrh_auc_ema": null,
+      "optimizer_present": true,
+      "optimizer_param_groups": [
+        {
+          "weight_decay": 0.1,
+          "lr": 5.223419103701787e-05,
+          "betas": [
+            0.9,
+            0.95
+          ],
+          "eps": 1e-08,
+          "amsgrad": false,
+          "maximize": false,
+          "foreach": null,
+          "capturable": false,
+          "differentiable": false,
+          "fused": true,
+          "decoupled_weight_decay": true,
+          "initial_lr": 0.0004242640687119285
+        },
+        {
+          "weight_decay": 0.0,
+          "lr": 5.223419103701787e-05,
+          "betas": [
+            0.9,
+            0.95
+          ],
+          "eps": 1e-08,
+          "amsgrad": false,
+          "maximize": false,
+          "foreach": null,
+          "capturable": false,
+          "differentiable": false,
+          "fused": true,
+          "decoupled_weight_decay": true,
+          "initial_lr": 0.0004242640687119285
+        }
+      ],
+      "optimizer_steps": [
+        11439.0
+      ],
+      "seconds": 38.174168166005984
+    },
+    "tpu_4000": {
+      "metadata": {
+        "checkpoint": "/Users/ivansamuel/Documents/Projects/telos/checkpoints/corosred/unified/50m_python/checkpoint_step_4000.pt",
+        "checkpoint_sha256": "41591e31fd7a37c01bcfc0de48032ea9e052899f1162120239c428a0978b3054",
+        "step": 4000,
+        "config": {
+          "model": {
+            "vocab_size": 8192,
+            "seq_len": 512,
+            "max_seq_len": 512,
+            "d_model": 512,
+            "n_layers": 14,
+            "n_heads": 8,
+            "n_kv_heads": 8,
+            "tied_embeddings": true,
+            "use_reliability_head": true,
+            "mask_token_id": 1,
+            "paradigm": "corosred",
+            "is_causal": true
+          },
+          "training": {
+            "batch_size": 48,
+            "gradient_accumulation": 1,
+            "max_steps": 12716,
+            "max_lr": 0.0004242640687119285,
+            "min_lr": 4.2426406871192855e-05,
+            "warmup_steps": 254,
+            "weight_decay": 0.1,
+            "grad_clip": 1.0,
+            "precision": "bf16",
+            "lr_cadence": 1,
+            "sched_cadence": 1
+          },
+          "checkpoint": {
+            "checkpoint_dir": "checkpoints/corosred/unified/50m_python",
+            "save_every_steps": 4000
+          },
+          "data": {
+            "train_path": "data/python_corpus_5b.bin"
+          },
+          "_resolved_params": 49166848,
+          "_backend": "pytorch",
+          "_device": "xla",
+          "_device_count": 8,
+          "corosred": {
+            "unified": true,
+            "phase": "unified",
+            "alpha_max": 0.85,
+            "alpha_min": 0.5,
+            "beta_min": 0.15,
+            "beta_max": 0.35,
+            "gamma_max": 0.1,
+            "hold_fraction": 0.2,
+            "decay_power": 2.5,
+            "gamma_gate_auc": 0.55,
+            "acc_gate_threshold": 0.65,
+            "causal_ratio": 0.65,
+            "routing_cache_steps": 50,
+            "adaptive_rebalance": false,
+            "mask_prob": 0.2,
+            "k_amb": 5,
+            "sched_cadence": 1
+          },
+          "paradigm": "corosred"
+        },
+        "parameter_count": 49430017,
+        "saved_tensor_dtypes": [
+          "torch.float32"
+        ]
+      },
+      "causal": {
+        "ce": 2.437014406207956,
+        "top1_pct": 56.37230919765166,
+        "tokens": 8176,
+        "batches": [
+          {
+            "batch": 0,
+            "tokens": 2044,
+            "ce": 2.817714385090509,
+            "top1_pct": 51.85909980430528
+          },
+          {
+            "batch": 1,
+            "tokens": 2044,
+            "ce": 2.3873940783237524,
+            "top1_pct": 58.414872798434445
+          },
+          {
+            "batch": 2,
+            "tokens": 2044,
+            "ce": 2.253015686154599,
+            "top1_pct": 58.95303326810176
+          },
+          {
+            "batch": 3,
+            "tokens": 2044,
+            "ce": 2.289933475262965,
+            "top1_pct": 56.262230919765166
+          }
+        ]
+      },
+      "infill": {
+        "ce": 2.823928131672166,
+        "top1_pct": 50.993788819875775,
+        "tokens": 1610,
+        "batches": [
+          {
+            "batch": 0,
+            "tokens": 408,
+            "ce": 3.194792803596048,
+            "top1_pct": 46.568627450980394
+          },
+          {
+            "batch": 1,
+            "tokens": 406,
+            "ce": 2.8863832069735222,
+            "top1_pct": 51.724137931034484
+          },
+          {
+            "batch": 2,
+            "tokens": 405,
+            "ce": 2.6894272038966047,
+            "top1_pct": 53.82716049382716
+          },
+          {
+            "batch": 3,
+            "tokens": 391,
+            "ce": 2.51140467651055,
+            "top1_pct": 51.91815856777494
+          }
+        ]
+      },
+      "gradient_geometry": {
+        "all_backbone": {
+          "causal_gradient_norm": 0.9995564483002508,
+          "infill_gradient_norm": 3.2538072021912905,
+          "causal_infill_cosine": 0.2688249047488322,
+          "weighted_causal_norm": 0.5879743813530888,
+          "weighted_infill_norm": 1.3398029656081785,
+          "weighted_causal_to_infill_ratio": 0.43885138072238017,
+          "combined_gradient_norm": 1.6013526011919414,
+          "causal_loss_directional_derivative": -0.9477262338463838,
+          "infill_loss_directional_derivative": -4.873764324055359
+        },
+        "tok_embeddings": {
+          "causal_gradient_norm": 0.5898749743983586,
+          "infill_gradient_norm": 1.3786160135086267,
+          "causal_infill_cosine": 0.32815107476262056,
+          "weighted_causal_norm": 0.346985279057858,
+          "weighted_infill_norm": 0.5676654173270815,
+          "weighted_causal_to_infill_ratio": 0.611249634849483,
+          "combined_gradient_norm": 0.7562510543050495,
+          "causal_loss_directional_derivative": -0.3145598527425444,
+          "infill_loss_directional_derivative": -0.9395668062731478
+        },
+        "layers.0": {
+          "causal_gradient_norm": 0.6200399783144567,
+          "infill_gradient_norm": 2.070521406752492,
+          "causal_infill_cosine": 0.3535902612104079,
+          "weighted_causal_norm": 0.36472939900850393,
+          "weighted_infill_norm": 0.8525676380745555,
+          "weighted_causal_to_infill_ratio": 0.42780113004548387,
+          "combined_gradient_norm": 1.0391349669605678,
+          "causal_loss_directional_derivative": -0.41306382108383594,
+          "infill_loss_directional_derivative": -2.032283848812004
+        },
+        "layers.1": {
+          "causal_gradient_norm": 0.11994121003636926,
+          "infill_gradient_norm": 0.6794612014653422,
+          "causal_infill_cosine": 0.10687875632394216,
+          "weighted_causal_norm": 0.07055365296257016,
+          "weighted_infill_norm": 0.2797781417798468,
+          "weighted_causal_to_infill_ratio": 0.2521771447681133,
+          "combined_gradient_norm": 0.2957584574950221,
+          "causal_loss_directional_derivative": -0.012048813332151492,
+          "infill_loss_directional_derivative": -0.19522199639081092
+        },
+        "layers.2": {
+          "causal_gradient_norm": 0.10524169150598099,
+          "infill_gradient_norm": 0.4931209525824422,
+          "causal_infill_cosine": 0.10368373929101886,
+          "weighted_causal_norm": 0.06190687735645941,
+          "weighted_infill_norm": 0.203049804004535,
+          "weighted_causal_to_infill_ratio": 0.30488518646921103,
+          "combined_gradient_norm": 0.21833078289587723,
+          "causal_loss_directional_derivative": -0.008730833920023157,
+          "infill_loss_directional_derivative": -0.10329332624550314
+        },
+        "layers.3": {
+          "causal_gradient_norm": 0.10119251989075402,
+          "infill_gradient_norm": 0.45073934171752295,
+          "causal_infill_cosine": 0.12505173086884377,
+          "weighted_causal_norm": 0.059525011700443546,
+          "weighted_infill_norm": 0.1855985524719212,
+          "weighted_causal_to_infill_ratio": 0.3207191592156892,
+          "combined_gradient_norm": 0.20187404914825885,
+          "causal_loss_directional_derivative": -0.008372105649112224,
+          "infill_loss_directional_derivative": -0.08701174039151566
+        },
+        "layers.4": {
+          "causal_gradient_norm": 0.11776066485645106,
+          "infill_gradient_norm": 0.47226202277319934,
+          "causal_infill_cosine": 0.16781614448323107,
+          "weighted_causal_norm": 0.06927097932732416,
+          "weighted_infill_norm": 0.19446083290661148,
+          "weighted_causal_to_infill_ratio": 0.35622072728954673,
+          "combined_gradient_norm": 0.2171050812118864,
+          "causal_loss_directional_derivative": -0.01200035893071529,
+          "infill_loss_directional_derivative": -0.0973264125127405
+        },
+        "layers.5": {
+          "causal_gradient_norm": 0.10615241802501713,
+          "infill_gradient_norm": 0.4887018862204069,
+          "causal_infill_cosine": 0.13079719862576344,
+          "weighted_causal_norm": 0.06244259883824537,
+          "weighted_infill_norm": 0.20123018844369694,
+          "weighted_causal_to_infill_ratio": 0.31030433018610654,
+          "combined_gradient_norm": 0.21835679144447936,
+          "causal_loss_directional_derivative": -0.009422401111738695,
+          "infill_loss_directional_derivative": -0.10233295588162666
+        },
+        "layers.6": {
+          "causal_gradient_norm": 0.11894529008961768,
+          "infill_gradient_norm": 0.5974540871100332,
+          "causal_infill_cosine": 0.12187659899110591,
+          "weighted_causal_norm": 0.06996781769977511,
+          "weighted_infill_norm": 0.24601050645707248,
+          "weighted_causal_to_infill_ratio": 0.2844098762586147,
+          "combined_gradient_norm": 0.263841513602485,
+          "causal_loss_directional_derivative": -0.011888669947485817,
+          "infill_loss_directional_derivative": -0.15207473623228518
+        },
+        "layers.7": {
+          "causal_gradient_norm": 0.12163503425408081,
+          "infill_gradient_norm": 0.521739731438297,
+          "causal_infill_cosine": 0.1140238232462225,
+          "weighted_causal_norm": 0.07155002014945931,
+          "weighted_infill_norm": 0.21483400706282815,
+          "weighted_causal_to_infill_ratio": 0.3330479244309516,
+          "combined_gradient_norm": 0.23404799175396812,
+          "causal_loss_directional_derivative": -0.011682584651264927,
+          "infill_loss_directional_derivative": -0.1163440021480664
+        },
+        "layers.8": {
+          "causal_gradient_norm": 0.14749643758341693,
+          "infill_gradient_norm": 0.6849108419176063,
+          "causal_infill_cosine": 0.09677668149619273,
+          "weighted_causal_norm": 0.08676261034318644,
+          "weighted_infill_norm": 0.2820221113778379,
+          "weighted_causal_to_infill_ratio": 0.3076447088467706,
+          "combined_gradient_norm": 0.3029856006053475,
+          "causal_loss_directional_derivative": -0.016822820408473195,
+          "infill_loss_directional_derivative": -0.19891092241091168
+        },
+        "layers.9": {
+          "causal_gradient_norm": 0.15745981321182997,
+          "infill_gradient_norm": 0.7708150147510837,
+          "causal_infill_cosine": 0.10053149501836997,
+          "weighted_causal_norm": 0.09262341953637057,
+          "weighted_infill_norm": 0.3173944178386815,
+          "weighted_causal_to_infill_ratio": 0.2918243495493586,
+          "combined_gradient_norm": 0.33945426132754575,
+          "causal_loss_directional_derivative": -0.01960871536915197,
+          "infill_loss_directional_derivative": -0.25182988148239793
+        },
+        "layers.10": {
+          "causal_gradient_norm": 0.14789230117816907,
+          "infill_gradient_norm": 0.6821739092846751,
+          "causal_infill_cosine": 0.12184928647242273,
+          "weighted_causal_norm": 0.08699547128127592,
+          "weighted_infill_norm": 0.28089513911721914,
+          "weighted_causal_to_infill_ratio": 0.30970799834657237,
+          "combined_gradient_norm": 0.3040155538310983,
+          "causal_loss_directional_derivative": -0.01792785134274899,
+          "infill_loss_directional_derivative": -0.19885060786905862
+        },
+        "layers.11": {
+          "causal_gradient_norm": 0.24305637370925998,
+          "infill_gradient_norm": 0.748024673137132,
+          "causal_infill_cosine": 0.19500297983623613,
+          "weighted_causal_norm": 0.14297433747603527,
+          "weighted_infill_norm": 0.3080101595270543,
+          "weighted_causal_to_infill_ratio": 0.4641870829701545,
+          "combined_gradient_norm": 0.3639873980108692,
+          "causal_loss_directional_derivative": -0.049349494408219785,
+          "infill_loss_directional_derivative": -0.25125444234287025
+        },
+        "layers.12": {
+          "causal_gradient_norm": 0.14513496318152694,
+          "infill_gradient_norm": 0.39017381800736284,
+          "causal_infill_cosine": 0.24951663008301114,
+          "weighted_causal_norm": 0.08537350775383938,
+          "weighted_infill_norm": 0.16065980741479646,
+          "weighted_causal_to_infill_ratio": 0.5313930666767166,
+          "combined_gradient_norm": 0.19986244096864053,
+          "causal_loss_directional_derivative": -0.018208748804941898,
+          "infill_loss_directional_derivative": -0.07099677603137391
+        },
+        "layers.13": {
+          "causal_gradient_norm": 0.16769557879030328,
+          "infill_gradient_norm": 0.3996994438023573,
+          "causal_infill_cosine": 0.2646227551745556,
+          "weighted_causal_norm": 0.09864445811194311,
+          "weighted_infill_norm": 0.1645821239186177,
+          "weighted_causal_to_infill_ratio": 0.5993631371577186,
+          "combined_gradient_norm": 0.2130970812827873,
+          "causal_loss_directional_derivative": -0.023845746705796745,
+          "infill_loss_directional_derivative": -0.07621696511616587
+        },
+        "final_norm": {
+          "causal_gradient_norm": 0.015720556291372974,
+          "infill_gradient_norm": 0.02092383193117902,
+          "causal_infill_cosine": 0.35469679911605073,
+          "weighted_causal_norm": 0.009247386053748809,
+          "weighted_infill_norm": 0.008615695501073713,
+          "weighted_causal_to_infill_ratio": 1.0733185791670994,
+          "combined_gradient_norm": 0.014705904748403878,
+          "causal_loss_directional_derivative": -0.00019341543817962779,
+          "infill_loss_directional_derivative": -0.00024890391488269903
+        }
+      },
+      "saved_keys": [
+        "global_step",
+        "model_state_dict",
+        "scheduler_state_dict",
+        "config",
+        "lrh_acc_ema",
+        "lrh_auc_ema"
+      ],
+      "scheduler_state": {
+        "warmup_steps": 254,
+        "max_steps": 12716,
+        "min_lr": 4.2426406871192855e-05,
+        "update_cadence": 1,
+        "base_lrs": [
+          0.0004242640687119285,
+          0.0004242640687119285
+        ],
+        "last_epoch": 4000,
+        "_step_count": 4001,
+        "_is_initial": false,
+        "_get_lr_called_within_step": false,
+        "_last_lr": [
+          0.0003452761780797113,
+          0.0003452761780797113
+        ]
+      },
+      "lrh_acc_ema": 0.5279628646544104,
+      "lrh_auc_ema": 0.4872594623964844,
+      "optimizer_present": false,
+      "seconds": 46.15244133298984
+    },
+    "tpu_8000": {
+      "metadata": {
+        "checkpoint": "/Users/ivansamuel/Documents/Projects/telos/checkpoints/corosred/unified/50m_python/checkpoint_step_8000.pt",
+        "checkpoint_sha256": "b760b4446d2e98470662bd4001a6a9d8b6b501186f890b30826404d6b7548751",
+        "step": 8000,
+        "config": {
+          "model": {
+            "vocab_size": 8192,
+            "seq_len": 512,
+            "max_seq_len": 512,
+            "d_model": 512,
+            "n_layers": 14,
+            "n_heads": 8,
+            "n_kv_heads": 8,
+            "tied_embeddings": true,
+            "use_reliability_head": true,
+            "mask_token_id": 1,
+            "paradigm": "corosred",
+            "is_causal": true
+          },
+          "training": {
+            "batch_size": 48,
+            "gradient_accumulation": 1,
+            "max_steps": 12716,
+            "max_lr": 0.0004242640687119285,
+            "min_lr": 4.2426406871192855e-05,
+            "warmup_steps": 254,
+            "weight_decay": 0.1,
+            "grad_clip": 1.0,
+            "precision": "bf16",
+            "lr_cadence": 1,
+            "sched_cadence": 1
+          },
+          "checkpoint": {
+            "checkpoint_dir": "checkpoints/corosred/unified/50m_python",
+            "save_every_steps": 4000
+          },
+          "data": {
+            "train_path": "data/python_corpus_5b.bin"
+          },
+          "_resolved_params": 49166848,
+          "_backend": "pytorch",
+          "_device": "xla",
+          "_device_count": 8,
+          "corosred": {
+            "unified": true,
+            "phase": "unified",
+            "alpha_max": 0.85,
+            "alpha_min": 0.5,
+            "beta_min": 0.15,
+            "beta_max": 0.35,
+            "gamma_max": 0.1,
+            "hold_fraction": 0.2,
+            "decay_power": 2.5,
+            "gamma_gate_auc": 0.55,
+            "acc_gate_threshold": 0.65,
+            "causal_ratio": 0.65,
+            "routing_cache_steps": 50,
+            "adaptive_rebalance": false,
+            "mask_prob": 0.2,
+            "k_amb": 5,
+            "sched_cadence": 1
+          },
+          "paradigm": "corosred"
+        },
+        "parameter_count": 49430017,
+        "saved_tensor_dtypes": [
+          "torch.float32"
+        ]
+      },
+      "causal": {
+        "ce": 2.1161538738093966,
+        "top1_pct": 60.31066536203522,
+        "tokens": 8176,
+        "batches": [
+          {
+            "batch": 0,
+            "tokens": 2044,
+            "ce": 2.480411178678449,
+            "top1_pct": 55.72407045009785
+          },
+          {
+            "batch": 1,
+            "tokens": 2044,
+            "ce": 2.075158524186644,
+            "top1_pct": 63.160469667318985
+          },
+          {
+            "batch": 2,
+            "tokens": 2044,
+            "ce": 1.9232405869694837,
+            "top1_pct": 62.62230919765166
+          },
+          {
+            "batch": 3,
+            "tokens": 2044,
+            "ce": 1.9858052054030089,
+            "top1_pct": 59.73581213307241
+          }
+        ]
+      },
+      "infill": {
+        "ce": 2.115556799847147,
+        "top1_pct": 62.2360248447205,
+        "tokens": 1610,
+        "batches": [
+          {
+            "batch": 0,
+            "tokens": 408,
+            "ce": 2.5907939836090685,
+            "top1_pct": 55.3921568627451
+          },
+          {
+            "batch": 1,
+            "tokens": 406,
+            "ce": 2.0074737999826815,
+            "top1_pct": 64.77832512315271
+          },
+          {
+            "batch": 2,
+            "tokens": 405,
+            "ce": 1.977672134211034,
+            "top1_pct": 65.4320987654321
+          },
+          {
+            "batch": 3,
+            "tokens": 391,
+            "ce": 1.8747082488311222,
+            "top1_pct": 63.42710997442455
+          }
+        ]
+      },
+      "gradient_geometry": {
+        "all_backbone": {
+          "causal_gradient_norm": 1.0004161425950213,
+          "infill_gradient_norm": 3.1510922398733485,
+          "causal_infill_cosine": 0.2155035187957699,
+          "weighted_causal_norm": 0.5884800838794243,
+          "weighted_infill_norm": 1.297508569359614,
+          "weighted_causal_to_infill_ratio": 0.4535462021417469,
+          "combined_gradient_norm": 1.5358828560438509,
+          "causal_loss_directional_derivative": -0.8684589986929406,
+          "infill_loss_directional_derivative": -4.488189217198666
+        },
+        "tok_embeddings": {
+          "causal_gradient_norm": 0.6410181594885954,
+          "infill_gradient_norm": 1.349112222746726,
+          "causal_infill_cosine": 0.3019195596049251,
+          "weighted_causal_norm": 0.37706950558152674,
+          "weighted_infill_norm": 0.555516797601593,
+          "weighted_causal_to_infill_ratio": 0.6787724641441976,
+          "combined_gradient_norm": 0.7597799453219233,
+          "causal_loss_directional_derivative": -0.34922085519504953,
+          "infill_loss_directional_derivative": -0.9030437226252921
+        },
+        "layers.0": {
+          "causal_gradient_norm": 0.5468543767756513,
+          "infill_gradient_norm": 1.9387855316150384,
+          "causal_infill_cosine": 0.2867992073517857,
+          "weighted_causal_norm": 0.32167904516214785,
+          "weighted_infill_norm": 0.7983234541944275,
+          "weighted_causal_to_infill_ratio": 0.4029432474669654,
+          "combined_gradient_norm": 0.9423906147291213,
+          "causal_loss_directional_derivative": -0.30111857011268406,
+          "infill_loss_directional_derivative": -1.7266450716107413
+        },
+        "layers.1": {
+          "causal_gradient_norm": 0.11729726630615314,
+          "infill_gradient_norm": 0.6561295921556201,
+          "causal_infill_cosine": 0.04818845844968933,
+          "weighted_causal_norm": 0.06899839194479597,
+          "weighted_infill_norm": 0.2701710085346671,
+          "weighted_causal_to_infill_ratio": 0.2553878460869069,
+          "combined_gradient_norm": 0.2820456509902232,
+          "causal_loss_directional_derivative": -0.00962043045870324,
+          "infill_loss_directional_derivative": -0.17944877607649248
+        },
+        "layers.2": {
+          "causal_gradient_norm": 0.10665708510095098,
+          "infill_gradient_norm": 0.4759987264847285,
+          "causal_infill_cosine": 0.06155262399983863,
+          "weighted_causal_norm": 0.06273946182408882,
+          "weighted_infill_norm": 0.1959994756113588,
+          "weighted_causal_to_infill_ratio": 0.32010015143353204,
+          "combined_gradient_norm": 0.2094417523636909,
+          "causal_loss_directional_derivative": -0.00797834927373895,
+          "infill_loss_directional_derivative": -0.09513370243236602
+        },
+        "layers.3": {
+          "causal_gradient_norm": 0.10438921441679107,
+          "infill_gradient_norm": 0.4484340528122343,
+          "causal_infill_cosine": 0.07154456270829282,
+          "weighted_causal_norm": 0.06140542024517122,
+          "weighted_infill_norm": 0.18464931586386119,
+          "weighted_causal_to_infill_ratio": 0.3325515719237454,
+          "combined_gradient_norm": 0.1987169018331281,
+          "causal_loss_directional_derivative": -0.007789113431553509,
+          "infill_loss_directional_derivative": -0.08477311227787647
+        },
+        "layers.4": {
+          "causal_gradient_norm": 0.1219868014669172,
+          "infill_gradient_norm": 0.4831004478123857,
+          "causal_infill_cosine": 0.07433826622646444,
+          "weighted_causal_norm": 0.07175694203936306,
+          "weighted_infill_norm": 0.1989237138051,
+          "weighted_causal_to_infill_ratio": 0.3607259319000476,
+          "combined_gradient_norm": 0.21642997683092777,
+          "causal_loss_directional_derivative": -0.01055729723468364,
+          "infill_loss_directional_derivative": -0.09867713149439633
+        },
+        "layers.5": {
+          "causal_gradient_norm": 0.11861625716013197,
+          "infill_gradient_norm": 0.4800280614927069,
+          "causal_infill_cosine": 0.07633623640902641,
+          "weighted_causal_norm": 0.06977426891772469,
+          "weighted_infill_norm": 0.19765861355582048,
+          "weighted_causal_to_infill_ratio": 0.35300393776170974,
+          "combined_gradient_norm": 0.21457622485658107,
+          "causal_loss_directional_derivative": -0.01006610575931145,
+          "infill_loss_directional_derivative": -0.09743845700854574
+        },
+        "layers.6": {
+          "causal_gradient_norm": 0.12469305249499735,
+          "infill_gradient_norm": 0.6146704296042718,
+          "causal_infill_cosine": 0.059525153314294345,
+          "weighted_causal_norm": 0.07334885440882197,
+          "weighted_infill_norm": 0.25309958866058246,
+          "weighted_causal_to_infill_ratio": 0.28980234538107436,
+          "combined_gradient_norm": 0.2676743793578031,
+          "causal_loss_directional_derivative": -0.011024692123388233,
+          "infill_loss_directional_derivative": -0.15825654656629481
+        },
+        "layers.7": {
+          "causal_gradient_norm": 0.1326526549286998,
+          "infill_gradient_norm": 0.5472453754616279,
+          "causal_infill_cosine": 0.06749896636020268,
+          "weighted_causal_norm": 0.07803097348747047,
+          "weighted_infill_norm": 0.225336331072435,
+          "weighted_causal_to_infill_ratio": 0.346286695607852,
+          "combined_gradient_norm": 0.2433906168433507,
+          "causal_loss_directional_derivative": -0.01236865862616257,
+          "infill_loss_directional_derivative": -0.12619661199770701
+        },
+        "layers.8": {
+          "causal_gradient_norm": 0.15228173178436094,
+          "infill_gradient_norm": 0.6473014080015486,
+          "causal_infill_cosine": 0.0680558003930757,
+          "weighted_causal_norm": 0.08957748928491821,
+          "weighted_infill_norm": 0.26653587388299055,
+          "weighted_causal_to_infill_ratio": 0.33608042317126435,
+          "combined_gradient_norm": 0.2869063379346983,
+          "causal_loss_directional_derivative": -0.016403301077051548,
+          "infill_loss_directional_derivative": -0.17647516913288178
+        },
+        "layers.9": {
+          "causal_gradient_norm": 0.16636036623611905,
+          "infill_gradient_norm": 0.7288922558883201,
+          "causal_infill_cosine": 0.07120056670929065,
+          "weighted_causal_norm": 0.09785903896242297,
+          "weighted_infill_norm": 0.30013210536577883,
+          "weighted_causal_to_infill_ratio": 0.32605321860905084,
+          "combined_gradient_norm": 0.32223917284637543,
+          "causal_loss_directional_derivative": -0.019834916049259733,
+          "infill_loss_directional_derivative": -0.22384261089879695
+        },
+        "layers.10": {
+          "causal_gradient_norm": 0.14823049422382542,
+          "infill_gradient_norm": 0.6743749042158921,
+          "causal_infill_cosine": 0.07555181531048706,
+          "weighted_causal_norm": 0.08719440836695613,
+          "weighted_infill_norm": 0.2776837840888967,
+          "weighted_causal_to_infill_ratio": 0.31400612265872185,
+          "combined_gradient_norm": 0.2972704852710887,
+          "causal_loss_directional_derivative": -0.016034673970166582,
+          "infill_loss_directional_derivative": -0.19170555204636852
+        },
+        "layers.11": {
+          "causal_gradient_norm": 0.23259329422639224,
+          "infill_gradient_norm": 0.7218696813344394,
+          "causal_infill_cosine": 0.14809757556345265,
+          "weighted_causal_norm": 0.13681958483905426,
+          "weighted_infill_norm": 0.2972404570200633,
+          "weighted_causal_to_infill_ratio": 0.4602993354630024,
+          "combined_gradient_norm": 0.3451336640593888,
+          "causal_loss_directional_derivative": -0.042062212237130005,
+          "infill_loss_directional_derivative": -0.22919586582410048
+        },
+        "layers.12": {
+          "causal_gradient_norm": 0.16087346668929922,
+          "infill_gradient_norm": 0.4539165229283734,
+          "causal_infill_cosine": 0.21803943823681618,
+          "weighted_causal_norm": 0.09463145099370543,
+          "weighted_infill_norm": 0.18690680355874198,
+          "weighted_causal_to_infill_ratio": 0.5063028696222083,
+          "combined_gradient_norm": 0.22716140975942484,
+          "causal_loss_directional_derivative": -0.02177977472683964,
+          "infill_loss_directional_derivative": -0.094205922308246
+        },
+        "layers.13": {
+          "causal_gradient_norm": 0.19926118108165247,
+          "infill_gradient_norm": 0.4674437042184705,
+          "causal_infill_cosine": 0.23668993406993247,
+          "weighted_causal_norm": 0.11721245945979558,
+          "weighted_infill_norm": 0.19247681938407607,
+          "weighted_causal_to_infill_ratio": 0.6089692246311753,
+          "combined_gradient_norm": 0.24792309096552065,
+          "causal_loss_directional_derivative": -0.03243369963335653,
+          "infill_loss_directional_derivative": -0.10294037246324254
+        },
+        "final_norm": {
+          "causal_gradient_norm": 0.01511917352749098,
+          "infill_gradient_norm": 0.02002047286935571,
+          "causal_infill_cosine": 0.2558156463069998,
+          "weighted_causal_norm": 0.0088936314867594,
+          "weighted_infill_norm": 0.00824372412267588,
+          "weighted_causal_to_infill_ratio": 1.0788366221882448,
+          "combined_gradient_norm": 0.013585534880550382,
+          "causal_loss_directional_derivative": -0.00016634878386181994,
+          "infill_loss_directional_derivative": -0.00021059243531755276
+        }
+      },
+      "saved_keys": [
+        "global_step",
+        "model_state_dict",
+        "scheduler_state_dict",
+        "config",
+        "lrh_acc_ema",
+        "lrh_auc_ema"
+      ],
+      "scheduler_state": {
+        "warmup_steps": 254,
+        "max_steps": 12716,
+        "min_lr": 4.2426406871192855e-05,
+        "update_cadence": 1,
+        "base_lrs": [
+          0.0004242640687119285,
+          0.0004242640687119285
+        ],
+        "last_epoch": 8000,
+        "_step_count": 8001,
+        "_is_initial": false,
+        "_get_lr_called_within_step": false,
+        "_last_lr": [
+          0.00016218888376663026,
+          0.00016218888376663026
+        ]
+      },
+      "lrh_acc_ema": 0.5208321310835856,
+      "lrh_auc_ema": 0.5097788692438723,
+      "optimizer_present": false,
+      "seconds": 47.55576995899901
+    },
+    "tpu_12000": {
+      "metadata": {
+        "checkpoint": "/Users/ivansamuel/Documents/Projects/telos/checkpoints/corosred/unified/50m_python/checkpoint_step_12000.pt",
+        "checkpoint_sha256": "69765017879a9125f39352f0a906edae32dd4c8bfb764e0698640464678bd14e",
+        "step": 12000,
+        "config": {
+          "model": {
+            "vocab_size": 8192,
+            "seq_len": 512,
+            "max_seq_len": 512,
+            "d_model": 512,
+            "n_layers": 14,
+            "n_heads": 8,
+            "n_kv_heads": 8,
+            "tied_embeddings": true,
+            "use_reliability_head": true,
+            "mask_token_id": 1,
+            "paradigm": "corosred",
+            "is_causal": true
+          },
+          "training": {
+            "batch_size": 48,
+            "gradient_accumulation": 1,
+            "max_steps": 12716,
+            "max_lr": 0.0004242640687119285,
+            "min_lr": 4.2426406871192855e-05,
+            "warmup_steps": 254,
+            "weight_decay": 0.1,
+            "grad_clip": 1.0,
+            "precision": "bf16",
+            "lr_cadence": 1,
+            "sched_cadence": 1
+          },
+          "checkpoint": {
+            "checkpoint_dir": "checkpoints/corosred/unified/50m_python",
+            "save_every_steps": 4000
+          },
+          "data": {
+            "train_path": "data/python_corpus_5b.bin"
+          },
+          "_resolved_params": 49166848,
+          "_backend": "pytorch",
+          "_device": "xla",
+          "_device_count": 8,
+          "corosred": {
+            "unified": true,
+            "phase": "unified",
+            "alpha_max": 0.85,
+            "alpha_min": 0.5,
+            "beta_min": 0.15,
+            "beta_max": 0.35,
+            "gamma_max": 0.1,
+            "hold_fraction": 0.2,
+            "decay_power": 2.5,
+            "gamma_gate_auc": 0.55,
+            "acc_gate_threshold": 0.65,
+            "causal_ratio": 0.65,
+            "routing_cache_steps": 50,
+            "adaptive_rebalance": false,
+            "mask_prob": 0.2,
+            "k_amb": 5,
+            "sched_cadence": 1
+          },
+          "paradigm": "corosred"
+        },
+        "parameter_count": 49430017,
+        "saved_tensor_dtypes": [
+          "torch.float32"
+        ]
+      },
+      "causal": {
+        "ce": 1.9939997424818066,
+        "top1_pct": 62.30430528375734,
+        "tokens": 8176,
+        "batches": [
+          {
+            "batch": 0,
+            "tokens": 2044,
+            "ce": 2.3388557210127203,
+            "top1_pct": 57.92563600782779
+          },
+          {
+            "batch": 1,
+            "tokens": 2044,
+            "ce": 1.9728803242722603,
+            "top1_pct": 64.38356164383562
+          },
+          {
+            "batch": 2,
+            "tokens": 2044,
+            "ce": 1.7953708596425513,
+            "top1_pct": 64.87279843444227
+          },
+          {
+            "batch": 3,
+            "tokens": 2044,
+            "ce": 1.8688920649996943,
+            "top1_pct": 62.03522504892368
+          }
+        ]
+      },
+      "infill": {
+        "ce": 1.8024140731148097,
+        "top1_pct": 67.01863354037268,
+        "tokens": 1610,
+        "batches": [
+          {
+            "batch": 0,
+            "tokens": 408,
+            "ce": 2.2785669962565103,
+            "top1_pct": 58.8235294117647
+          },
+          {
+            "batch": 1,
+            "tokens": 406,
+            "ce": 1.6792214680187807,
+            "top1_pct": 69.70443349753694
+          },
+          {
+            "batch": 2,
+            "tokens": 405,
+            "ce": 1.7057080680941359,
+            "top1_pct": 69.87654320987654
+          },
+          {
+            "batch": 3,
+            "tokens": 391,
+            "ce": 1.5336461372082801,
+            "top1_pct": 69.82097186700767
+          }
+        ]
+      },
+      "gradient_geometry": {
+        "all_backbone": {
+          "causal_gradient_norm": 1.0096267840328983,
+          "infill_gradient_norm": 3.4333860844882227,
+          "causal_infill_cosine": 0.16780533837601694,
+          "weighted_causal_norm": 0.5938981082546461,
+          "weighted_infill_norm": 1.4137472112598564,
+          "weighted_causal_to_infill_ratio": 0.420087907883755,
+          "combined_gradient_norm": 1.6227082852256978,
+          "causal_loss_directional_derivative": -0.8391335698960183,
+          "infill_loss_directional_derivative": -5.196108763288849
+        },
+        "tok_embeddings": {
+          "causal_gradient_norm": 0.6150355872857753,
+          "infill_gradient_norm": 1.3941707423404321,
+          "causal_infill_cosine": 0.2663514628044488,
+          "weighted_causal_norm": 0.36178563957986787,
+          "weighted_infill_norm": 0.5740703056695897,
+          "weighted_causal_to_infill_ratio": 0.6302113800467084,
+          "combined_gradient_norm": 0.7557002346633208,
+          "causal_loss_directional_derivative": -0.31655273115111066,
+          "infill_loss_directional_derivative": -0.9346972925546089
+        },
+        "layers.0": {
+          "causal_gradient_norm": 0.5408546989344294,
+          "infill_gradient_norm": 2.0862355572142266,
+          "causal_infill_cosine": 0.20521950586553447,
+          "weighted_causal_norm": 0.3181498229026055,
+          "weighted_infill_norm": 0.8590381706176227,
+          "weighted_causal_to_infill_ratio": 0.3703558628528292,
+          "combined_gradient_norm": 0.9753666165615125,
+          "causal_loss_directional_derivative": -0.2674208527469092,
+          "infill_loss_directional_derivative": -1.928367442353715
+        },
+        "layers.1": {
+          "causal_gradient_norm": 0.13154967721482014,
+          "infill_gradient_norm": 0.7465290620226123,
+          "causal_infill_cosine": 0.047887176199768476,
+          "weighted_causal_norm": 0.07738216306754125,
+          "weighted_infill_norm": 0.30739431965636976,
+          "weighted_causal_to_infill_ratio": 0.2517358263290138,
+          "combined_gradient_norm": 0.3205580070170275,
+          "causal_loss_directional_derivative": -0.01211604217672712,
+          "infill_loss_directional_derivative": -0.23224514112844516
+        },
+        "layers.2": {
+          "causal_gradient_norm": 0.12057860755529122,
+          "infill_gradient_norm": 0.5536047415955362,
+          "causal_infill_cosine": 0.058358076253566454,
+          "weighted_causal_norm": 0.07092859267958307,
+          "weighted_infill_norm": 0.22795489359816196,
+          "weighted_causal_to_infill_ratio": 0.3111518755311993,
+          "combined_gradient_norm": 0.24265495296271347,
+          "causal_loss_directional_derivative": -0.010156529250269513,
+          "infill_loss_directional_derivative": -0.12848842183600406
+        },
+        "layers.3": {
+          "causal_gradient_norm": 0.11990929749058776,
+          "infill_gradient_norm": 0.5318526343427307,
+          "causal_infill_cosine": 0.06712531645794488,
+          "weighted_causal_norm": 0.07053488087681634,
+          "weighted_infill_norm": 0.2189981435528891,
+          "weighted_causal_to_infill_ratio": 0.32207981187649576,
+          "combined_gradient_norm": 0.2345402457921568,
+          "causal_loss_directional_derivative": -0.010220493021399137,
+          "infill_loss_directional_derivative": -0.118992889574597
+        },
+        "layers.4": {
+          "causal_gradient_norm": 0.1413186120562696,
+          "infill_gradient_norm": 0.5933697108640623,
+          "causal_infill_cosine": 0.10829393197833204,
+          "weighted_causal_norm": 0.08312859532721742,
+          "weighted_infill_norm": 0.2443287044734374,
+          "weighted_causal_to_infill_ratio": 0.340232620257907,
+          "combined_gradient_norm": 0.26646938051603714,
+          "causal_loss_directional_derivative": -0.01548681154140726,
+          "infill_loss_directional_derivative": -0.1503189581971625
+        },
+        "layers.5": {
+          "causal_gradient_norm": 0.13462882942042115,
+          "infill_gradient_norm": 0.5824524689782686,
+          "causal_infill_cosine": 0.05599671305235112,
+          "weighted_causal_norm": 0.07919342907083597,
+          "weighted_infill_norm": 0.23983336957928708,
+          "weighted_causal_to_infill_ratio": 0.3302018781196135,
+          "combined_gradient_norm": 0.2567464915628605,
+          "causal_loss_directional_derivative": -0.012469767727968525,
+          "infill_loss_directional_derivative": -0.14227446550393721
+        },
+        "layers.6": {
+          "causal_gradient_norm": 0.13875767952698667,
+          "infill_gradient_norm": 0.6946708107006272,
+          "causal_infill_cosine": 0.042936602262169214,
+          "weighted_causal_norm": 0.08162216442763923,
+          "weighted_infill_norm": 0.2860409220531994,
+          "weighted_causal_to_infill_ratio": 0.28535135407114476,
+          "combined_gradient_norm": 0.30080972805811135,
+          "causal_loss_directional_derivative": -0.013029871961522518,
+          "infill_loss_directional_derivative": -0.2011388075413554
+        },
+        "layers.7": {
+          "causal_gradient_norm": 0.1476247298590596,
+          "infill_gradient_norm": 0.6332414745170112,
+          "causal_infill_cosine": 0.0482074219207972,
+          "weighted_causal_norm": 0.08683807638768212,
+          "weighted_infill_norm": 0.2607464895070046,
+          "weighted_causal_to_infill_ratio": 0.3330364161445378,
+          "combined_gradient_norm": 0.2787699373290442,
+          "causal_loss_directional_derivative": -0.01467507802708683,
+          "infill_loss_directional_derivative": -0.1677663921460855
+        },
+        "layers.8": {
+          "causal_gradient_norm": 0.16686746247708217,
+          "infill_gradient_norm": 0.7192478633229263,
+          "causal_infill_cosine": 0.05633120221496173,
+          "weighted_causal_norm": 0.09815733086887186,
+          "weighted_infill_norm": 0.29616088489767556,
+          "weighted_causal_to_infill_ratio": 0.33143246078152927,
+          "combined_gradient_norm": 0.3172085563533668,
+          "causal_loss_directional_derivative": -0.01916313107115695,
+          "infill_loss_directional_derivative": -0.2169900355846873
+        },
+        "layers.9": {
+          "causal_gradient_norm": 0.18468634559544725,
+          "infill_gradient_norm": 0.7962306957575164,
+          "causal_infill_cosine": 0.07385765121118258,
+          "weighted_causal_norm": 0.10863902682085133,
+          "weighted_infill_norm": 0.32785969825309497,
+          "weighted_causal_to_infill_ratio": 0.3313582834355756,
+          "combined_gradient_norm": 0.352924632878591,
+          "causal_loss_directional_derivative": -0.024536314967090463,
+          "infill_loss_directional_derivative": -0.2674407701001993
+        },
+        "layers.10": {
+          "causal_gradient_norm": 0.16193683067772535,
+          "infill_gradient_norm": 0.7402502270704074,
+          "causal_infill_cosine": 0.07118356295321933,
+          "weighted_causal_norm": 0.09525695922219139,
+          "weighted_infill_norm": 0.30480891702899127,
+          "weighted_causal_to_infill_ratio": 0.3125136893981721,
+          "combined_gradient_norm": 0.3257545363710554,
+          "causal_loss_directional_derivative": -0.018939215794264014,
+          "infill_loss_directional_derivative": -0.23065430678354584
+        },
+        "layers.11": {
+          "causal_gradient_norm": 0.24158781696976003,
+          "infill_gradient_norm": 0.7586654791515277,
+          "causal_infill_cosine": 0.12322819375946288,
+          "weighted_causal_norm": 0.1421104805704471,
+          "weighted_infill_norm": 0.31239166788592315,
+          "weighted_causal_to_infill_ratio": 0.45491123861325883,
+          "combined_gradient_norm": 0.35878288667598207,
+          "causal_loss_directional_derivative": -0.04363219515072034,
+          "infill_loss_directional_derivative": -0.2502865378013081
+        },
+        "layers.12": {
+          "causal_gradient_norm": 0.17458134075642984,
+          "infill_gradient_norm": 0.49193763257295436,
+          "causal_infill_cosine": 0.18813080047207392,
+          "weighted_causal_norm": 0.10269490632731167,
+          "weighted_infill_norm": 0.20256255458886355,
+          "weighted_causal_to_infill_ratio": 0.5069787283032103,
+          "combined_gradient_norm": 0.24373116290945135,
+          "causal_loss_directional_derivative": -0.02458160478162212,
+          "infill_loss_directional_derivative": -0.10915241547543836
+        },
+        "layers.13": {
+          "causal_gradient_norm": 0.21416470556247,
+          "infill_gradient_norm": 0.5032932886600071,
+          "causal_infill_cosine": 0.2014691466601974,
+          "weighted_causal_norm": 0.12597923856615884,
+          "weighted_infill_norm": 0.20723841297764997,
+          "weighted_causal_to_infill_ratio": 0.6078952099471313,
+          "combined_gradient_norm": 0.26332173389458785,
+          "causal_loss_directional_derivative": -0.03592214263584634,
+          "infill_loss_directional_derivative": -0.11707575397754613
+        },
+        "final_norm": {
+          "causal_gradient_norm": 0.01735245114812059,
+          "infill_gradient_norm": 0.018600861031339795,
+          "causal_infill_cosine": 0.4037890901507544,
+          "weighted_causal_norm": 0.010207324204776817,
+          "weighted_infill_norm": 0.00765917807172815,
+          "weighted_causal_to_infill_ratio": 1.3326918514213009,
+          "combined_gradient_norm": 0.015032920777365712,
+          "causal_loss_directional_derivative": -0.0002307878909177048,
+          "infill_loss_directional_derivative": -0.00021913273021405212
+        }
+      },
+      "saved_keys": [
+        "global_step",
+        "model_state_dict",
+        "scheduler_state_dict",
+        "config",
+        "lrh_acc_ema",
+        "lrh_auc_ema"
+      ],
+      "scheduler_state": {
+        "warmup_steps": 254,
+        "max_steps": 12716,
+        "min_lr": 4.2426406871192855e-05,
+        "update_cadence": 1,
+        "base_lrs": [
+          0.0004242640687119285,
+          0.0004242640687119285
+        ],
+        "last_epoch": 12000,
+        "_step_count": 12001,
+        "_is_initial": false,
+        "_get_lr_called_within_step": false,
+        "_last_lr": [
+          4.55280343750454e-05,
+          4.55280343750454e-05
+        ]
+      },
+      "lrh_acc_ema": 0.5168264424727654,
+      "lrh_auc_ema": 0.5096296930652147,
+      "optimizer_present": false,
+      "seconds": 35.433618667011615
+    }
+  },
+  "lineage_status": "Cadence-1 TPU intermediates; do not connect them to the cadence-10 python final. Matching final is a candidate supported by weight proximity and matching settings, not a recorded training lineage.",
+  "excluded_runs": {
+    "50m_2.5b": "Different task settings and unequal embedding/output weights. Not used for backend conclusions.",
+    "legacy_separate_phases": "Excluded per user instruction."
+  }
+}

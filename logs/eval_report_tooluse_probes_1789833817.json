@@ -1,0 +1,86 @@
+{
+  "model_checkpoint": "afm-3-core-advanced",
+  "backend": "swift_afm",
+  "paradigm": "corosred",
+  "vocab_size": 32000,
+  "timestamp": 1789833814,
+  "mode": "probes",
+  "benchmark_type": "tooluse",
+  "language": "auto",
+  "suites_evaluated": [
+    "tooluse"
+  ],
+  "code": {},
+  "tooluse": {
+    "benchmark_type": "tooluse",
+    "total_tasks": 3,
+    "tool_accuracy_pct": 100.0,
+    "syntax_validity_pct": 100.0,
+    "pass_rate_pct": 100.0,
+    "pass_rate_95ci": [
+      100.0,
+      100.0
+    ],
+    "categories": {
+      "Math & Calculation": {
+        "count": 3,
+        "tool_accuracy_pct": 100.0,
+        "syntax_validity_pct": 100.0,
+        "pass_rate_pct": 100.0
+      }
+    },
+    "tasks": [
+      {
+        "id": "tool_001",
+        "category": "Math & Calculation",
+        "prompt": "What is 458 multiplied by 32?",
+        "expected_tool": "calculator",
+        "expected_args": {
+          "expression": "458 * 32"
+        },
+        "parsed_tool": "calculator",
+        "parsed_args": {
+          "expression": "458 * 32"
+        },
+        "completion": "{\"tool\": \"calculator\", \"arguments\": {\"expression\": \"458 * 32\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_002",
+        "category": "Math & Calculation",
+        "prompt": "Compute 15% tip on a bill of $84.50.",
+        "expected_tool": "calculator",
+        "expected_args": {
+          "expression": "84.50 * 0.15"
+        },
+        "parsed_tool": "calculator",
+        "parsed_args": {
+          "expression": "84.50 * 0.15"
+        },
+        "completion": "{\"tool\": \"calculator\", \"arguments\": {\"expression\": \"84.50 * 0.15\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_003",
+        "category": "Math & Calculation",
+        "prompt": "Calculate 2 to the power of 16.",
+        "expected_tool": "calculator",
+        "expected_args": {
+          "expression": "2 ** 16"
+        },
+        "parsed_tool": "calculator",
+        "parsed_args": {
+          "expression": "2**16"
+        },
+        "completion": "{\"tool\": \"calculator\", \"arguments\": {\"expression\": \"2**16\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      }
+    ]
+  }
+}

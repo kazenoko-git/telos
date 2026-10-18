@@ -1,0 +1,629 @@
+{
+  "model_checkpoint": "<__main__.GraniteLMStudioAdapter object at 0x108e3e900>",
+  "backend": "openai_api",
+  "paradigm": "corosred",
+  "vocab_size": 32000,
+  "timestamp": 1789875062,
+  "mode": "functional",
+  "benchmark_type": "tooluse",
+  "language": "auto",
+  "suites_evaluated": [
+    "tooluse"
+  ],
+  "tooluse": {
+    "benchmark_type": "tooluse",
+    "total_tasks": 30,
+    "tool_accuracy_pct": 90.0,
+    "syntax_validity_pct": 90.0,
+    "pass_rate_pct": 70.0,
+    "pass_rate_95ci": [
+      53.33,
+      86.67
+    ],
+    "categories": {
+      "Math & Calculation": {
+        "total": 5,
+        "tool_selection_pct": 100.0,
+        "syntax_validity_pct": 100.0,
+        "pass_rate_pct": 100.0
+      },
+      "Weather & Environment": {
+        "total": 5,
+        "tool_selection_pct": 100.0,
+        "syntax_validity_pct": 100.0,
+        "pass_rate_pct": 60.0
+      },
+      "Information Retrieval": {
+        "total": 5,
+        "tool_selection_pct": 100.0,
+        "syntax_validity_pct": 100.0,
+        "pass_rate_pct": 80.0
+      },
+      "Filesystem Operations": {
+        "total": 5,
+        "tool_selection_pct": 60.0,
+        "syntax_validity_pct": 60.0,
+        "pass_rate_pct": 60.0
+      },
+      "Communication": {
+        "total": 3,
+        "tool_selection_pct": 100.0,
+        "syntax_validity_pct": 100.0,
+        "pass_rate_pct": 100.0
+      },
+      "Database Operations": {
+        "total": 3,
+        "tool_selection_pct": 100.0,
+        "syntax_validity_pct": 100.0,
+        "pass_rate_pct": 66.7
+      },
+      "System Execution": {
+        "total": 4,
+        "tool_selection_pct": 75.0,
+        "syntax_validity_pct": 75.0,
+        "pass_rate_pct": 25.0
+      }
+    },
+    "tasks": [
+      {
+        "id": "tool_001",
+        "category": "Math & Calculation",
+        "prompt": "What is 458 multiplied by 32?",
+        "expected_tool": "calculator",
+        "expected_args": {
+          "expression": "458 * 32"
+        },
+        "parsed_tool": "calculator",
+        "parsed_args": {
+          "expression": "458 * 32"
+        },
+        "completion": "{\"tool\": \"calculator\", \"arguments\": {\"expression\": \"458 * 32\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_002",
+        "category": "Math & Calculation",
+        "prompt": "Compute 15% tip on a bill of $84.50.",
+        "expected_tool": "calculator",
+        "expected_args": {
+          "expression": "84.50 * 0.15"
+        },
+        "parsed_tool": "calculator",
+        "parsed_args": {
+          "expression": "84.5 * 0.15"
+        },
+        "completion": "{\"tool\": \"calculator\", \"arguments\": {\"expression\": \"84.5 * 0.15\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_003",
+        "category": "Math & Calculation",
+        "prompt": "Calculate 2 to the power of 16.",
+        "expected_tool": "calculator",
+        "expected_args": {
+          "expression": "2 ** 16"
+        },
+        "parsed_tool": "calculator",
+        "parsed_args": {
+          "expression": "2^16"
+        },
+        "completion": "{\"tool\": \"calculator\", \"arguments\": {\"expression\": \"2^16\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_004",
+        "category": "Math & Calculation",
+        "prompt": "Find the square root of 144 plus 25.",
+        "expected_tool": "calculator",
+        "expected_args": {
+          "expression": "144 ** 0.5 + 25"
+        },
+        "parsed_tool": "calculator",
+        "parsed_args": {
+          "expression": "sqrt(144)+25"
+        },
+        "completion": "{\"tool\": \"calculator\", \"arguments\": {\"expression\": \"sqrt(144)+25\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_005",
+        "category": "Math & Calculation",
+        "prompt": "Calculate (120 - 45) / 5.",
+        "expected_tool": "calculator",
+        "expected_args": {
+          "expression": "(120 - 45) / 5"
+        },
+        "parsed_tool": "calculator",
+        "parsed_args": {
+          "expression": "(120 - 45) / 5"
+        },
+        "completion": "{\"tool\": \"calculator\", \"arguments\": {\"expression\": \"(120 - 45) / 5\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_006",
+        "category": "Weather & Environment",
+        "prompt": "What is the weather like in Tokyo right now?",
+        "expected_tool": "get_weather",
+        "expected_args": {
+          "location": "Tokyo",
+          "unit": "celsius"
+        },
+        "parsed_tool": "get_weather",
+        "parsed_args": {
+          "location": "Tokyo",
+          "unit": "metric"
+        },
+        "completion": "{\"tool\": \"get_weather\", \"arguments\": {\"location\": \"Tokyo\", \"unit\": \"metric\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": false
+      },
+      {
+        "id": "tool_007",
+        "category": "Weather & Environment",
+        "prompt": "Give me the current temperature in New York in fahrenheit.",
+        "expected_tool": "get_weather",
+        "expected_args": {
+          "location": "New York",
+          "unit": "fahrenheit"
+        },
+        "parsed_tool": "get_weather",
+        "parsed_args": {
+          "location": "New York",
+          "unit": "F"
+        },
+        "completion": "{\"tool\": \"get_weather\", \"arguments\": {\"location\": \"New York\", \"unit\": \"F\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_008",
+        "category": "Weather & Environment",
+        "prompt": "Is it raining in London today?",
+        "expected_tool": "get_weather",
+        "expected_args": {
+          "location": "London",
+          "unit": "celsius"
+        },
+        "parsed_tool": "get_weather",
+        "parsed_args": {
+          "location": "London",
+          "unit": "metric"
+        },
+        "completion": "{\"tool\": \"get_weather\", \"arguments\": {\"location\": \"London\", \"unit\": \"metric\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": false
+      },
+      {
+        "id": "tool_009",
+        "category": "Weather & Environment",
+        "prompt": "Check the temperature in Paris, France.",
+        "expected_tool": "get_weather",
+        "expected_args": {
+          "location": "Paris, France",
+          "unit": "celsius"
+        },
+        "parsed_tool": "get_weather",
+        "parsed_args": {
+          "location": "Paris, France",
+          "unit": "C"
+        },
+        "completion": "{\"tool\": \"get_weather\", \"arguments\": {\"location\": \"Paris, France\", \"unit\": \"C\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_010",
+        "category": "Weather & Environment",
+        "prompt": "Check the weather forecast for Sydney, Australia in celsius.",
+        "expected_tool": "get_weather",
+        "expected_args": {
+          "location": "Sydney, Australia",
+          "unit": "celsius"
+        },
+        "parsed_tool": "get_weather",
+        "parsed_args": {
+          "location": "Sydney, Australia",
+          "unit": "celsius"
+        },
+        "completion": "{\"tool\": \"get_weather\", \"arguments\": {\"location\": \"Sydney, Australia\", \"unit\": \"celsius\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_011",
+        "category": "Information Retrieval",
+        "prompt": "Search the web for the latest Nobel Prize winners in physics.",
+        "expected_tool": "web_search",
+        "expected_args": {
+          "query": "latest Nobel Prize winners in physics"
+        },
+        "parsed_tool": "web_search",
+        "parsed_args": {
+          "query": "latest Nobel Prize winners in physics",
+          "max_results": 5
+        },
+        "completion": "{\"tool\": \"web_search\", \"arguments\": {\"query\": \"latest Nobel Prize winners in physics\", \"max_results\": 5}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_012",
+        "category": "Information Retrieval",
+        "prompt": "Find recent research papers on discrete diffusion models for code generation.",
+        "expected_tool": "web_search",
+        "expected_args": {
+          "query": "discrete diffusion models code generation"
+        },
+        "parsed_tool": "web_search",
+        "parsed_args": {
+          "query": "recent research papers discrete diffusion models code generation",
+          "max_results": 10
+        },
+        "completion": "{\"tool\": \"web_search\", \"arguments\": {\"query\": \"recent research papers discrete diffusion models code generation\", \"max_results\": 10}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_013",
+        "category": "Information Retrieval",
+        "prompt": "Who won the most recent FIFA World Cup?",
+        "expected_tool": "web_search",
+        "expected_args": {
+          "query": "most recent FIFA World Cup winner"
+        },
+        "parsed_tool": "web_search",
+        "parsed_args": {
+          "query": "most recent FIFA World Cup winner",
+          "max_results": 1
+        },
+        "completion": "{\n  \"tool\": \"web_search\",\n  \"arguments\": {\n    \"query\": \"most recent FIFA World Cup winner\",\n    \"max_results\": 1\n  }\n}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_014",
+        "category": "Information Retrieval",
+        "prompt": "Search for Python 3.12 release highlights and breaking changes.",
+        "expected_tool": "web_search",
+        "expected_args": {
+          "query": "Python 3.12 release highlights breaking changes"
+        },
+        "parsed_tool": "web_search",
+        "parsed_args": {
+          "query": "Python 3.12 release highlights breaking changes",
+          "max_results": 5
+        },
+        "completion": "{\"tool\": \"web_search\", \"arguments\": {\"query\": \"Python 3.12 release highlights breaking changes\", \"max_results\": 5}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_015",
+        "category": "Information Retrieval",
+        "prompt": "Look up the distance from Earth to Mars in kilometers.",
+        "expected_tool": "web_search",
+        "expected_args": {
+          "query": "distance from Earth to Mars kilometers"
+        },
+        "parsed_tool": "web_search",
+        "parsed_args": {
+          "query": "distance from Earth to Mars in kilometers",
+          "max_results": 1
+        },
+        "completion": "{\"tool\": \"web_search\", \"arguments\": {\"query\": \"distance from Earth to Mars in kilometers\", \"max_results\": 1}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": false
+      },
+      {
+        "id": "tool_016",
+        "category": "Filesystem Operations",
+        "prompt": "Find all Python test files in the project.",
+        "expected_tool": "file_search",
+        "expected_args": {
+          "pattern": "test_*.py",
+          "path": "."
+        },
+        "parsed_tool": null,
+        "parsed_args": null,
+        "completion": "",
+        "syntax_valid": false,
+        "tool_correct": false,
+        "passed": false
+      },
+      {
+        "id": "tool_017",
+        "category": "Filesystem Operations",
+        "prompt": "Search for any saved safetensors checkpoint files in the checkpoints directory.",
+        "expected_tool": "file_search",
+        "expected_args": {
+          "pattern": "*.safetensors",
+          "path": "checkpoints"
+        },
+        "parsed_tool": "file_search",
+        "parsed_args": {
+          "pattern": "*.safetensors",
+          "path": "checkpoints"
+        },
+        "completion": "{\"tool\": \"file_search\", \"arguments\": {\"pattern\": \"*.safetensors\", \"path\": \"checkpoints\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_018",
+        "category": "Filesystem Operations",
+        "prompt": "Locate tokenizer.json in the configs folder.",
+        "expected_tool": "file_search",
+        "expected_args": {
+          "pattern": "tokenizer.json",
+          "path": "configs"
+        },
+        "parsed_tool": "file_search",
+        "parsed_args": {
+          "pattern": "tokenizer.json",
+          "path": "configs"
+        },
+        "completion": "{\"tool\": \"file_search\", \"arguments\": {\"pattern\": \"tokenizer.json\", \"path\": \"configs\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_019",
+        "category": "Filesystem Operations",
+        "prompt": "Find all YAML configuration files across the repository.",
+        "expected_tool": "file_search",
+        "expected_args": {
+          "pattern": "*.yaml",
+          "path": "."
+        },
+        "parsed_tool": null,
+        "parsed_args": null,
+        "completion": "",
+        "syntax_valid": false,
+        "tool_correct": false,
+        "passed": false
+      },
+      {
+        "id": "tool_020",
+        "category": "Filesystem Operations",
+        "prompt": "Find markdown files in the docs directory.",
+        "expected_tool": "file_search",
+        "expected_args": {
+          "pattern": "*.md",
+          "path": "docs"
+        },
+        "parsed_tool": "file_search",
+        "parsed_args": {
+          "pattern": "*.md",
+          "path": "docs"
+        },
+        "completion": "{\"tool\": \"file_search\", \"arguments\": {\"pattern\": \"*.md\", \"path\": \"docs\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_021",
+        "category": "Communication",
+        "prompt": "Send an email to alice@example.com with subject 'Meeting Rescheduled' saying 'The team meeting is moved to 3pm.'",
+        "expected_tool": "send_email",
+        "expected_args": {
+          "recipient": "alice@example.com",
+          "subject": "Meeting Rescheduled",
+          "body": "The team meeting is moved to 3pm."
+        },
+        "parsed_tool": "send_email",
+        "parsed_args": {
+          "recipient": "alice@example.com",
+          "subject": "Meeting Rescheduled",
+          "body": "The team meeting is moved to 3pm."
+        },
+        "completion": "{\"tool\": \"send_email\", \"arguments\": {\"recipient\": \"alice@example.com\", \"subject\": \"Meeting Rescheduled\", \"body\": \"The team meeting is moved to 3pm.\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_022",
+        "category": "Communication",
+        "prompt": "Email bob@telos.ai saying 'Code review requested' with body 'Please review pull request 42.'",
+        "expected_tool": "send_email",
+        "expected_args": {
+          "recipient": "bob@telos.ai",
+          "subject": "Code review requested",
+          "body": "Please review pull request 42."
+        },
+        "parsed_tool": "send_email",
+        "parsed_args": {
+          "recipient": "bob@telos.ai",
+          "subject": "Code review requested",
+          "body": "Please review pull request 42."
+        },
+        "completion": "{\"tool\": \"send_email\", \"arguments\": {\"recipient\": \"bob@telos.ai\", \"subject\": \"Code review requested\", \"body\": \"Please review pull request 42.\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_023",
+        "category": "Communication",
+        "prompt": "Send a status update email to dev-team@company.org subject 'Sprint 10 Complete' body 'All tasks are deployed.'",
+        "expected_tool": "send_email",
+        "expected_args": {
+          "recipient": "dev-team@company.org",
+          "subject": "Sprint 10 Complete",
+          "body": "All tasks are deployed."
+        },
+        "parsed_tool": "send_email",
+        "parsed_args": {
+          "recipient": "dev-team@company.org",
+          "subject": "Sprint 10 Complete",
+          "body": "All tasks are deployed."
+        },
+        "completion": "{\"tool\": \"send_email\", \"arguments\": {\"recipient\": \"dev-team@company.org\", \"subject\": \"Sprint 10 Complete\", \"body\": \"All tasks are deployed.\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_024",
+        "category": "Database Operations",
+        "prompt": "Query the 'users' table for all active accounts with role 'admin'.",
+        "expected_tool": "database_query",
+        "expected_args": {
+          "table": "users",
+          "filters": {
+            "status": "active",
+            "role": "admin"
+          }
+        },
+        "parsed_tool": "database_query",
+        "parsed_args": {
+          "table": "users",
+          "filters": {
+            "active": true,
+            "role": "admin"
+          }
+        },
+        "completion": "{\"tool\": \"database_query\", \"arguments\": {\"table\": \"users\", \"filters\": {\"active\": true, \"role\": \"admin\"}}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": false
+      },
+      {
+        "id": "tool_025",
+        "category": "Database Operations",
+        "prompt": "Look up orders in table 'orders' where customer_id is 1042.",
+        "expected_tool": "database_query",
+        "expected_args": {
+          "table": "orders",
+          "filters": {
+            "customer_id": 1042
+          }
+        },
+        "parsed_tool": "database_query",
+        "parsed_args": {
+          "table": "orders",
+          "filters": {
+            "customer_id": 1042
+          }
+        },
+        "completion": "{\"tool\": \"database_query\", \"arguments\": {\"table\": \"orders\", \"filters\": {\"customer_id\": 1042}}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_026",
+        "category": "Database Operations",
+        "prompt": "Get all records from table 'products' with category 'hardware'.",
+        "expected_tool": "database_query",
+        "expected_args": {
+          "table": "products",
+          "filters": {
+            "category": "hardware"
+          }
+        },
+        "parsed_tool": "database_query",
+        "parsed_args": {
+          "table": "products",
+          "filters": {
+            "category": "hardware"
+          }
+        },
+        "completion": "{\"tool\": \"database_query\", \"arguments\": {\"table\": \"products\", \"filters\": {\"category\": \"hardware\"}}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_027",
+        "category": "System Execution",
+        "prompt": "Run pytest on the test_eval_suite.py file.",
+        "expected_tool": "run_command",
+        "expected_args": {
+          "command": "pytest tests/test_eval_suite.py"
+        },
+        "parsed_tool": "run_command",
+        "parsed_args": {
+          "command": "pytest test_eval_suite.py"
+        },
+        "completion": "{\"tool\": \"run_command\", \"arguments\": {\"command\": \"pytest test_eval_suite.py\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": false
+      },
+      {
+        "id": "tool_028",
+        "category": "System Execution",
+        "prompt": "Check git status in the current repository.",
+        "expected_tool": "run_command",
+        "expected_args": {
+          "command": "git status"
+        },
+        "parsed_tool": "run_command",
+        "parsed_args": {
+          "command": "git status"
+        },
+        "completion": "{\"tool\": \"run_command\", \"arguments\": {\"command\": \"git status\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": true
+      },
+      {
+        "id": "tool_029",
+        "category": "System Execution",
+        "prompt": "List files with human readable sizes in the data directory.",
+        "expected_tool": "run_command",
+        "expected_args": {
+          "command": "ls -lh data"
+        },
+        "parsed_tool": null,
+        "parsed_args": null,
+        "completion": "",
+        "syntax_valid": false,
+        "tool_correct": false,
+        "passed": false
+      },
+      {
+        "id": "tool_030",
+        "category": "System Execution",
+        "prompt": "Show the disk usage of the current workspace.",
+        "expected_tool": "run_command",
+        "expected_args": {
+          "command": "df -h ."
+        },
+        "parsed_tool": "run_command",
+        "parsed_args": {
+          "command": "du -sh ."
+        },
+        "completion": "{\"tool\": \"run_command\", \"arguments\": {\"command\": \"du -sh .\"}}",
+        "syntax_valid": true,
+        "tool_correct": true,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "purpose": "Synthetic CPU replay and source reachability; does not identify cause of saved CUDA/TPU deficit",
+  "historical_revision": "a2f09a06eefa836c91efe8f937646127f754ece5",
+  "historical_source_sha256": {
+    "schedule.py": "0fd7d967e975115f0420dbca3e46bce7108ed66907c3c061b93246b6c2cf45f7",
+    "corosred_unified.py": "94acb4e53ee3b85e04761535285d2ccacb9897ee483f9b84d3831a723f565e64"
+  },
+  "current_source_sha256": {
+    "telos/training/schedule.py": "7864ee13bbcdf622039c14a55dcd47ddf21159bf273a0025beb69c216a18b465",
+    "telos/training/lr_schedule.py": "b873a6da8edb11b8c388f732be1797061d0c9500fb62867bd71c826b5de21269",
+    "telos/training/trainer_pytorch.py": "f2435e74dc0462172c5f3f86da0cf7e077f2986dbf50e1fa330d21be2f757d4a",
+    "telos/diffusion/corosred_unified.py": "d51b77df038b69eebb0d420fecaa6e243f356a8c12fb522dd0d653501834df9e",
+    "telos/models/transformer.py": "7bb232b4f5d95dd22f8d5ba903672eccd4cc4e6c2985ef20e9a4a751f79b4524"
+  },
+  "metric_input": "Synthetic identical per-step .50 until step 999, .60 thereafter; not recovered training observations",
+  "metric_replays": {
+    "historical_every1": {
+      "first_gamma_step": 1069,
+      "gamma_active_steps": 11648,
+      "final_auc_ema": 0.5999999999999945,
+      "max_difference_vs_current_every1": {
+        "alpha": 0.0,
+        "beta": 0.0,
+        "gamma": 0.0,
+        "mask_blend": 0.0
+      }
+    },
+    "historical_every25": {
+      "first_gamma_step": 2701,
+      "gamma_active_steps": 10016,
+      "final_auc_ema": 0.599102764876595,
+      "max_difference_vs_current_every1": {
+        "alpha": 0.0,
+        "beta": 0.0,
+        "gamma": 0.1,
+        "mask_blend": 0.3357503872425167
+      }
+    },
+    "current_every1": {
+      "first_gamma_step": 1069,
+      "gamma_active_steps": 11648,
+      "final_auc_ema": 0.5999999999999945,
+      "max_difference_vs_current_every1": {
+        "alpha": 0.0,
+        "beta": 0.0,
+        "gamma": 0.0,
+        "mask_blend": 0.0
+      }
+    },
+    "current_every25": {
+      "first_gamma_step": 1051,
+      "gamma_active_steps": 11666,
+      "final_auc_ema": 0.5999999999999999,
+      "max_difference_vs_current_every1": {
+        "alpha": 0.0,
+        "beta": 0.0,
+        "gamma": 0.1,
+        "mask_blend": 0.09600000000000009
+      }
+    }
+  },
+  "lr_quantization": {
+    "1": {
+      "integrated_lr": 2.9618086768814087,
+      "max_absolute_difference_vs_1": 0.0,
+      "integrated_relative_difference_vs_1": 0.0
+    },
+    "10": {
+      "integrated_lr": 2.963526944903716,
+      "max_absolute_difference_vs_1": 4.3316494697200254e-07,
+      "integrated_relative_difference_vs_1": 0.0005801414641395386
+    },
+    "25": {
+      "integrated_lr": 2.966390712383119,
+      "max_absolute_difference_vs_1": 1.155104873568351e-06,
+      "integrated_relative_difference_vs_1": 0.001547039664471006
+    }
+  },
+  "objective_step_quantization": {
+    "10": {
+      "alpha": 0.0007728336790072676,
+      "beta": 0.0004416062071980753
+    },
+    "25": {
+      "alpha": 0.0020586088883263187,
+      "beta": 0.0011745758662078387
+    }
+  },
+  "gradient_paths_current": {
+    "max_backbone_gradient_difference_before_clip": 0.0,
+    "max_backbone_gradient_difference_after_clip": 0.0,
+    "max_backbone_gradient_difference_with_forced_active_clip_point25": 9.583309292793274e-05,
+    "global_norm_gamma0": 0.7178520560264587,
+    "global_norm_gamma_point1": 0.7191993594169617,
+    "head_gradient_norm_gamma0": 0.0,
+    "head_gradient_norm_gamma_point1": 0.044002377050307837
+  },
+  "gradient_paths_historical_loss": {
+    "max_backbone_gradient_difference_before_clip": 0.0,
+    "max_backbone_gradient_difference_after_clip": 0.0,
+    "max_backbone_gradient_difference_with_forced_active_clip_point25": 0.0001206323504447937,
+    "global_norm_gamma0": 0.6765214800834656,
+    "global_norm_gamma_point1": 0.6779509782791138,
+    "head_gradient_norm_gamma0": 0.0,
+    "head_gradient_norm_gamma_point1": 0.044002377050307837
+  },
+  "routing_refresh_gate": {
+    "without_metrics": 0.0,
+    "with_auc_point8": 1.0
+  }
+}
