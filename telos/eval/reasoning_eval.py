@@ -88,12 +88,12 @@ def extract_arc_choice(completion_text: str) -> Optional[str]:
         return boxed_match.group(1).upper()
 
     # 2. Markdown or standard key format: 'Answer: A', '**Answer:** (B)', 'Choice is C'
-    key_match = re.search(r"(?:\*{0,2}(?:answer|choice|option)\*{0,2}(?:\s*:|\s+is|\s+is:)?)\s*\(?([A-E1-4])\)?", text, re.IGNORECASE)
+    key_match = re.search(r"(?:\*{0,2}(?:answer|choice|option)\*{0,2}(?:\s*:|\s+is|\s+is:)?)\s*\(?([A-E1-4])\b\)?", text, re.IGNORECASE)
     if key_match:
         return key_match.group(1).upper()
 
     # 3. Explicit conclusion sentence e.g. 'The correct option is (D)'
-    conclusion_match = re.search(r"(?:correct\s+(?:choice|option|answer)\s+(?:is|would be))\s*\(?([A-E1-4])\)?", text, re.IGNORECASE)
+    conclusion_match = re.search(r"(?:correct\s+(?:choice|option|answer)\s+(?:is|would be))\s*\(?([A-E1-4])\b\)?", text, re.IGNORECASE)
     if conclusion_match:
         return conclusion_match.group(1).upper()
 
