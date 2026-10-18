@@ -1,0 +1,1387 @@
+[L3538 S3537 USER_INPUT 2026-08-09T14:31:17Z ]
+Report files made by you specifically viewable by you and user only, I meant. They're not specifically within project.
+
+[L3539 S3538 PLANNER_RESPONSE 2026-08-09T14:31:17Z ]
+Ah — you mean artifacts from previous conversations in the `.gemini/antigravity-ide/brain/` directory. Let me check.
+
+[L3541 S3540 PLANNER_RESPONSE 2026-08-09T14:31:27Z ]
+Yes! There are quite a few. The goldmine is conversation **`50790714`** — it has dedicated research/evaluation report artifacts. Let me pull up the interesting ones:
+
+[L3555 S3554 USER_INPUT 2026-08-09T14:32:14Z ]
+Well, give me all and add ALL things you have into one single report.
+
+[L3556 S3555 PLANNER_RESPONSE 2026-08-09T14:32:16Z ]
+Let me first check if there are any other telos-related reports in the remaining conversation directories, then I'll merge everything into one document.
+
+[L3560 S3559 PLANNER_RESPONSE 2026-08-09T14:32:32Z ]
+That one's algoRhythm, not telos. Now let me also read the walkthroughs from the relevant conversations to capture any extra context:
+
+[L3565 S3569 USER_INPUT 2026-08-09T14:33:00Z ]
+Continue.
+
+[L3573 S3577 PLANNER_RESPONSE 2026-08-09T14:33:36Z ]
+I found a goldmine of historical reports from one of your previous telos sessions (specifically, the TPU evaluation and token category breakdowns)!
+
+I've taken all 6 of those historical markdown reports and appended them as an "Appendix" to the master report I just wrote.
+
+Here is the fully merged, comprehensive document containing absolutely everything we know about the project to date: 
+[telos_full_project_report.md](file:///Users/ivansamuel/.gemini/antigravity-ide/brain/41b584d5-6756-4262-977b-2d3c9b81f8a1/telos_full_project_report.md)
+
+It now includes:
+1. The new full project architectural/fault/findings synthesis I just wrote.
+2. The historical **Research Paper Corpus** (detailing the TPU gradient explosion math).
+3. The **TPU Models Evaluation Report** (showing the mode collapse on the early 125M/250M TPU runs).
+4. The **Contextual Probe Benchmark Report** (proving that identifiers catch up late in training while structural tokens plateau early).
+5. The **Cross-Entropy by Token Category Report** (proving that newlines/indentation are easiest, identifiers are hardest).
+6. The **Mask Reconstruction Benchmark**.
+7. The **Top Predicted Tokens Analysis**.
+
+[L3574 S3578 USER_INPUT 2026-08-09T14:43:43Z ]
+You know what...
+
+Gemini (browser) is being useless - so...
+YOU make the PDF.
+
+You are preparing a complete FIRST DRAFT of an academic ML research paper about my project:
+
+télos (τέλος)
+
+A Masked Diffusion Language Model for Python Code Autocomplete.
+
+I need a serious, publication-style preliminary paper that I can personally revise.
+
+I do NOT want a generic AI-generated research paper.
+
+You have access to:
+1. A repo-grounded technical project report prepared from the actual télos repository.
+2. Experimental artifacts / probe reports / scorecards that I may attach.
+3. Additional research notes if provided.
+
+The repo-grounded project report is currently the strongest source for architecture, implementation, engineering history, and the distinction between current experiments and historical experiments.
+
+However, raw experimental artifacts should take precedence over summary prose when they clearly contain the underlying measurements.
+
+DO NOT silently reconcile contradictions.
+
+If two sources disagree:
+- identify the disagreement;
+- determine whether one is a historical/invalid experiment;
+- determine whether one is the newer corrected experiment;
+- use the corrected/current experiment;
+- if the conflict cannot be resolved, explicitly mark it as unresolved.
+
+Never invent a number to make a table or graph look complete.
+
+============================================================
+                    MOST IMPORTANT RULE
+============================================================
+
+This is an empirical ML paper.
+
+You must distinguish between:
+
+A. Directly observed experimental results
+B. Engineering observations
+C. Interpretations
+D. Hypotheses
+E. Prior-literature findings
+F. Invalidated experiments
+G. Historical experiments that are no longer part of the primary study
+
+Never convert B/C/D/E into A.
+
+Never use F as scientific evidence.
+
+Never silently mix G into the primary results.
+
+============================================================
+                  CURRENT PROJECT SCOPE
+============================================================
+
+The CURRENT primary scientific project is:
+
+télos — a narrow-domain Python code autocomplete
+    Masked Diffusion Language Model.
+
+Primary current model scales:
+
+12.5M
+    25M
+    50M
+
+The primary scaling-law investigation asks:
+
+Does the token-to-parameter ratio associated with
+    best observed MDLM probe performance increase
+    with model size?
+
+The current corrected experiments are based on the corrected
+Beta(1.5, 1.5) timestep distribution.
+
+The most important current evidence is:
+
+12.5M:
+        best observed performance around 1:15
+        ~187.5M tokens
+
+25M:
+        continues improving through 1:25
+        ~625M tokens
+        no observed saturation yet
+
+The current repo-grounded report gives:
+
+12.5M:
+        1:15
+        Mean probe CE = 7.5604
+        1:1 Mean probe CE = 8.1754
+
+25M:
+        1:25
+        Mean probe CE = 7.4361
+        1:1 Mean probe CE = 7.8068
+
+DO NOT describe 25M 1:25 as the proven optimum.
+
+It is the best tested point so far and is still improving.
+
+DO NOT claim the scaling law is proven.
+
+The appropriate language is:
+
+"preliminary evidence"
+
+"observed scaling trend"
+
+"empirical hypothesis"
+
+"the results motivate..."
+
+============================================================
+              REPOSITORY-GROUNDED ARCHITECTURE
+============================================================
+
+Use the repo-grounded report as the authoritative description
+of the current implementation.
+
+The current model is a bidirectional Transformer with:
+
+- RMSNorm
+- RoPE
+- SwiGLU
+- bidirectional self-attention
+- GQA support
+- tied input/output embeddings
+- no timestep embedding
+
+The current configurations are approximately:
+
+12.5M:
+        d_model = 256
+        layers = 13
+        heads = 4
+        KV heads = 4
+        sequence length = 512
+
+25M:
+        d_model = 512
+        layers = 8
+        heads = 8
+        KV heads = 8
+        sequence length = 512
+
+50M:
+        d_model = 768
+        layers = 8
+        heads = 12
+        KV heads = 12
+        sequence length = 512
+
+The parameter-count configurations were selected using a
+parameter-count search/grid.
+
+Do not describe these architectures as directly comparable
+"pure parameter scaling" without acknowledging that width/depth
+configuration also changes.
+
+This is an important limitation.
+
+============================================================
+                       DATA
+============================================================
+
+Primary dataset:
+
+CodeParrot-Clean
+
+Domain:
+
+Python source code
+
+Two preparation modes exist:
+
+raw streaming
+    AST-filtered/docstring-oriented extraction
+
+Tokenizer:
+
+custom BPE tokenizer
+
+ByteLevel pre-tokenization
+
+Vocabulary configurations include:
+
+4096
+    8192
+
+Primary current configuration:
+
+8192-token vocabulary
+
+Special tokens include:
+
+PAD
+    MASK
+    BOS
+    EOS
+    UNK
+
+Pre-tokenized data is stored as memory-mapped arrays using
+int32 token IDs.
+
+============================================================
+                 TRAINING OBJECTIVE
+============================================================
+
+The forward process masks tokens independently with probability t.
+
+Special tokens are not masked.
+
+The model predicts original tokens at masked positions.
+
+The training objective uses cross-entropy on masked positions
+with inverse-timestep weighting:
+
+1/t
+
+The timestep is clamped for numerical stability.
+
+Explain the connection to the MDLM ELBO carefully.
+
+Do NOT present "1/t" as an arbitrary heuristic.
+
+Do not derive mathematical claims beyond what the supplied
+implementation and cited literature support.
+
+============================================================
+                 CRITICAL TIMESTEP BUG
+============================================================
+
+One of the most important experimental corrections was the
+timestep distribution.
+
+The old implementation used:
+
+u ~ Uniform(0,1)
+
+t = 0.5 - 0.5*cos(pi*u)
+
+This produces a Beta(0.5, 0.5) / arcsine distribution,
+NOT Beta(1.5, 1.5).
+
+Do not call this a Beta(1.5,1.5) sampler.
+
+The corrected implementation uses:
+
+np.random.beta(1.5, 1.5, ...)
+
+for the MLX path, with the corresponding Beta distribution
+implementation in the PyTorch path.
+
+The project then fully retrained the 12.5M and 25M models under
+the corrected distribution.
+
+Therefore:
+
+OLD COSINE/ARCSINE RESULTS:
+    historical / contaminated
+
+NEW BETA(1.5,1.5) RESULTS:
+    primary current evidence
+
+Do not merge them into a single scaling curve.
+
+The old results may be discussed in a "Research Corrections"
+or "Experimental Validity" section to show why retraining was
+necessary.
+
+============================================================
+                INT32 / DTYPE CORRECTIONS
+============================================================
+
+The project encountered multiple dtype-related issues.
+
+The current data pipeline uses int32 token IDs.
+
+The historical experiments contained dtype inconsistencies
+across data preparation and backend paths.
+
+Do NOT make a stronger claim than the evidence supports.
+
+If the raw artifact specifically establishes that a particular
+INT16 experiment was corrupted, identify that experiment as
+invalid.
+
+Do not claim that every historical result was invalid unless
+the supplied evidence establishes that.
+
+The scientific paper should describe this as a major
+reproducibility/validity correction.
+
+============================================================
+             OTHER IMPLEMENTATION CORRECTIONS
+============================================================
+
+The project also identified and fixed:
+
+- timestep sampling implementation
+- XLA graph compilation issues
+- dynamic masking graph behavior
+- special-token masking determinism
+- torch.where versus in-place indexing
+- unnecessary .item() synchronization
+- MLX graph compilation behavior
+- dummy compilation/warmup behavior
+- microbatch graph accumulation
+- checkpoint discovery/versioning
+
+Describe these primarily as engineering and reproducibility
+contributions.
+
+Do not inflate ordinary bug fixes into novel ML discoveries.
+
+============================================================
+                TPU / XLA ENGINEERING
+============================================================
+
+The TPU v6e-1 backend uses PyTorch-XLA.
+
+An XLA compiler failure occurred around dynamic masking and
+windowing lowering.
+
+The project found that strategically placing:
+
+xm.mark_step()
+
+after masking operations allowed the graph to compile and
+avoid the observed failure.
+
+This is an empirical engineering result.
+
+Phrase it as:
+
+"In the tested PyTorch-XLA/TPU configuration..."
+
+NOT:
+
+"XLA always..."
+
+or:
+
+"TPUs require..."
+
+============================================================
+                 MLX ENGINEERING
+============================================================
+
+The Apple Silicon MLX implementation is a major part of the
+engineering contribution.
+
+The report documents:
+
+- native MLX training
+- mx.compile()
+- microbatch gradient accumulation
+- memory-aware evaluation
+- checkpointing
+- optimized attention/RMSNorm
+- contiguous data loading
+- Metal graph optimization
+
+A fused SwiGLU experiment using concatenation/splitting caused
+an observed throughput regression of approximately 8.7–11.5%
+in the tested configuration because split outputs became
+non-contiguous.
+
+Do NOT universalize this.
+
+"In the tested MLX/Metal implementation..."
+
+The engineering section should explain the observation,
+measurement, and practical consequence.
+
+============================================================
+                     NET2NET
+============================================================
+
+The project implemented Net2Net-style upscaling:
+
+12.5M → 25M → 50M
+
+by transferring/padding weights and mapping layers.
+
+This is an engineering mechanism for initializing larger
+models from smaller models.
+
+Do not imply that this makes the models equivalent to
+independently trained models.
+
+Explicitly discuss this as a possible confound in cross-scale
+comparisons.
+
+============================================================
+              PRIMARY PROBE BENCHMARK
+============================================================
+
+The current evaluation uses approximately 100 contextual
+Python probes.
+
+Each probe contains:
+
+- a Python context/prompt
+- one target token
+- a semantic category
+
+Examples include:
+
+return a + [MASK] → b
+    x = 10\nprint([MASK]) → x
+    def __init__(self, [MASK] → name
+    import [MASK] → os
+
+Categories include:
+
+- identifiers
+- attributes
+- class names
+- function names
+- imports
+- keywords
+- literals
+- operators
+
+Measure:
+
+- target token probability
+- target token cross-entropy
+- target vocabulary rank
+- top-1 accuracy
+- top-5 accuracy
+- category-level aggregates
+
+The benchmark is intended to reveal contextual capability
+formation that aggregate training loss may obscure.
+
+============================================================
+          MOST IMPORTANT BEHAVIORAL FINDING
+============================================================
+
+A key observation is that aggregate CE can change relatively
+gradually while individual contextual probes undergo dramatic
+changes.
+
+One documented example:
+
+"return a +" → "b"
+
+changed substantially in target rank during training.
+
+The repo-grounded report also contains earlier contextual
+probe trajectories such as:
+
+#2815 → #283 → #177 → #135 → #77
+
+for the same identifier-recovery task in a historical model
+sequence.
+
+Use these only with the correct model/configuration labels.
+
+Do NOT merge old 85M/legacy experiments with the current
+12.5M/25M Beta scaling study.
+
+The paper's methodological argument should be:
+
+aggregate CE alone may conceal localized capability
+    transitions.
+
+Target rank and target probability can expose those transitions.
+
+Do NOT claim this proves that rank/probability is universally
+superior to CE.
+
+============================================================
+               STRUCTURAL VS SEMANTIC TOKENS
+============================================================
+
+The experiments indicate that code token categories behave
+differently.
+
+Structural categories such as:
+
+- operators
+- keywords
+- punctuation
+- indentation/newline patterns
+
+tend to be easier to predict.
+
+Identifiers and class/semantic names tend to be harder.
+
+The current interpretation is that structural code regularities
+can be learned relatively early, while semantic identifier
+recovery requires more contextual modeling.
+
+Use cautious language.
+
+Do not claim that this is universally true for all programming
+languages or all code models.
+
+============================================================
+                 PRIMARY SCALING RESULT
+============================================================
+
+The current corrected Beta(1.5,1.5) evidence is:
+
+12.5M:
+        best observed around 1:15
+        187.5M tokens
+        mean probe CE ≈ 7.5604
+
+25M:
+        continues improving through 1:25
+        625M tokens
+        mean probe CE ≈ 7.4361
+
+This is consistent with:
+
+larger MDLMs potentially benefiting from
+    proportionally larger token budgets.
+
+However:
+
+50M Beta(1.5,1.5) experiments have not yet established
+    the continuation of the trend.
+
+Therefore the paper must NOT claim:
+
+"We discovered the scaling law."
+
+Instead say:
+
+"We observe preliminary evidence that the token budget
+    associated with best observed probe performance shifts
+    toward higher parameter-to-token ratios as model size
+    increases."
+
+============================================================
+              12.5M SATURATION / REVERSAL
+============================================================
+
+The corrected 12.5M experiment provides an especially
+interesting result.
+
+Observed:
+
+1:15 → CE 7.5604
+    1:20 → CE 7.7388
+    1:25 → CE 7.8470
+
+Thus the model worsened after the 1:15 point.
+
+Do NOT automatically call this "overfitting."
+
+Possible interpretations include:
+
+- representational limitation
+- optimization dynamics
+- distributional effects
+- probe-specific behavior
+- overtraining
+- memorization/generalization tradeoff
+
+The strongest defensible statement is:
+
+"performance reversed after the 1:15 point under the
+    tested training configuration."
+
+Then discuss possible explanations as hypotheses.
+
+============================================================
+             25M HAS NOT SATURATED
+============================================================
+
+The corrected 25M model continued improving through the
+highest tested ratio:
+
+1:25
+
+1:25 is the best observed point,
+    NOT necessarily the optimum.
+
+This distinction is essential.
+
+If the data is monotonically improving through the last
+measurement, say:
+
+"no saturation was observed within the tested range."
+
+Do NOT say:
+
+"the optimal ratio is 1:25."
+
+============================================================
+               CROSS-SCALE CONFUND
+============================================================
+
+The 12.5M and 25M architectures differ in more than parameter
+count:
+
+12.5M:
+        13 layers × 256 width
+
+25M:
+        8 layers × 512 width
+
+Therefore cross-scale comparisons cannot isolate parameter
+count perfectly.
+
+Explicitly list:
+
+depth
+    width
+    attention configuration
+    initialization / Net2Net history
+    training duration
+
+as potential confounds.
+
+============================================================
+                HISTORICAL APPENDIX
+============================================================
+
+The repo-grounded report contains historical material involving:
+
+85M
+    125M
+    250M
+    500M-ish configurations
+
+and earlier TPU experiments.
+
+These are NOT automatically part of the current primary
+12.5M/25M/50M scaling-law study.
+
+They may be useful for:
+
+- engineering history
+- early feasibility experiments
+- failure analysis
+- historical probe development
+- TPU engineering
+
+But they must be clearly labeled as historical.
+
+DO NOT create one graph containing:
+
+12.5M
+    25M
+    50M
+    85M
+    125M
+    250M
+    500M
+
+unless the experimental conditions are actually comparable.
+
+If they are not comparable, separate the figures.
+
+============================================================
+              VERY IMPORTANT: GRAPHING RULES
+============================================================
+
+The paper MUST include proposed figures, graphs, and diagrams.
+
+Do NOT simply make generic "Figure 1: Results" placeholders.
+
+For every proposed figure, provide:
+
+1. Figure number
+2. Figure title
+3. What it communicates
+4. Exact data source
+5. X-axis
+6. Y-axis
+7. Recommended plot type
+8. Whether x/y should use linear or logarithmic scale
+9. Caption
+10. What conclusion the reader should take from it
+11. Any caveats
+
+CRITICAL GRAPH RULE:
+
+DO NOT force data onto linear axes.
+
+Use the scale that is mathematically and scientifically appropriate.
+
+For token/parameter scaling:
+
+parameter count spans orders of magnitude
+    token budgets span large multiplicative ranges
+
+Therefore consider:
+
+log-scaled x-axis
+    log-scaled y-axis
+
+when appropriate.
+
+For ratios such as:
+
+1:1
+    1:3
+    1:5
+    1:10
+    1:15
+    1:20
+    1:25
+
+DO NOT pretend the x-axis spacing is uniform.
+
+A categorical axis is acceptable if the ratio itself is the
+experimental condition.
+
+If plotting ratio as a continuous numerical quantity, use
+appropriate spacing or log scaling.
+
+DO NOT use a linear trend line simply because it looks academic.
+
+Only use linear regression if there is an actual reason to
+hypothesize a linear relationship.
+
+For the scaling-law hypothesis, compare plausible functional
+forms where the data supports doing so:
+
+- power law
+- logarithmic
+- square-root
+- other justified forms
+
+But with only a few model scales, emphasize that these fits
+are exploratory and underdetermined.
+
+Do not fit a beautiful curve to three points and call it a law.
+
+============================================================
+                REQUIRED FIGURES
+============================================================
+
+At minimum, design the paper around these figures:
+
+FIGURE 1:
+    télos architecture diagram
+
+Show:
+
+input code
+       ↓
+    tokenization
+       ↓
+    random masking
+       ↓
+    bidirectional Transformer
+       ↓
+    token prediction
+       ↓
+    iterative denoising sampler
+
+Indicate that there is no causal attention mask.
+
+Also show the difference between training and inference.
+
+------------------------------------------------------------
+
+FIGURE 2:
+    MDLM forward/noising and reverse/denoising process
+
+clean code
+       ↓
+    partial masking at t
+       ↓
+    model prediction
+       ↓
+    confidence-based unmasking
+       ↓
+    repeated denoising
+       ↓
+    completed code
+
+Make this visually intuitive.
+
+FIGURE 3:
+    Training timestep distributions
+
+Plot:
+
+Beta(1.5,1.5)
+
+against:
+
+old Beta(0.5,0.5)/arcsine distribution
+
+This figure is particularly useful because it explains the
+importance of the experimental correction.
+
+Label the old distribution clearly as:
+
+INVALIDATED / HISTORICAL
+
+and the corrected one as:
+
+CURRENT TRAINING DISTRIBUTION
+
+Do not imply the old curve was a separate valid experiment.
+
+FIGURE 4:
+    12.5M probe CE versus token/parameter ratio
+
+1:1
+    1:5
+    1:10
+    1:15
+    1:20
+    1:25
+
+Use actual measured values.
+
+The minimum at 1:15 should be visually obvious.
+
+Do NOT connect categorical ratios with misleading equal spacing.
+
+FIGURE 5:
+    25M probe CE versus token/parameter ratio
+
+Show that performance continues improving through 1:25.
+
+Make it visually clear that:
+
+"best tested point"
+
+is not synonymous with:
+
+"proven optimum."
+
+FIGURE 6:
+    Cross-scale token-budget behavior
+
+Compare 12.5M and 25M using a representation that does not
+mislead about the sparse number of model scales.
+
+A log-scaled axis may be appropriate.
+
+Do NOT fit a definitive scaling law.
+
+If a trend line is shown, label it:
+
+exploratory fit
+
+FIGURE 7:
+    Capability transition plot
+
+For selected contextual probes, plot target rank or
+-log probability against training tokens / ratio.
+
+Use a logarithmic x-axis if appropriate.
+
+Show examples such as:
+
+return a + → b
+
+This should demonstrate how an aggregate metric can remain
+relatively smooth while individual capabilities change sharply.
+
+FIGURE 8:
+    Category-level probe difficulty
+
+A bar chart or dot plot of category-level CE/rank.
+
+Do not imply ordinal categories are continuous measurements.
+
+Prefer sorted categories by measured difficulty.
+
+FIGURE 9:
+    MLX/Metal throughput optimization
+
+If reliable benchmark data is available, show throughput
+against microbatch size or implementation variant.
+
+Use the actual measurements.
+
+If the relationship is non-monotonic, preserve the non-monotonic
+shape.
+
+Do NOT fit a straight line.
+
+FIGURE 10:
+    Experimental validity timeline
+
+Create a chronological diagram:
+
+initial implementation
+          ↓
+    bug discovered
+          ↓
+    correction
+          ↓
+    retraining
+          ↓
+    current validated experiments
+
+Clearly separate:
+
+INVALIDATED
+    HISTORICAL
+    CURRENT
+
+This is valuable for reproducibility.
+
+============================================================
+              DIAGRAM / VISUAL REQUIREMENTS
+============================================================
+
+Where possible, actually generate or provide diagrams.
+
+If your environment can generate images:
+
+create clean publication-style diagrams.
+
+If it cannot:
+
+provide Mermaid diagrams and/or detailed figure specifications.
+
+For plots:
+
+provide reproducible Python/matplotlib code where useful.
+
+Use publication-friendly formatting.
+
+Do NOT use decorative AI-generated imagery.
+
+The visuals should explain scientific concepts.
+
+Recommended visual style:
+
+clean
+    minimal
+    academic
+    white background
+    readable labels
+    restrained colors
+    no unnecessary gradients
+    no giant decorative icons
+
+For architecture diagrams, show tensor/data flow.
+
+For experiment diagrams, show causality and chronology.
+
+For results, show actual data.
+
+============================================================
+                  GRAPH INTEGRITY RULE
+============================================================
+
+NEVER ALTER THE VISUAL REPRESENTATION TO MAKE A RESULT LOOK
+MORE IMPRESSIVE.
+
+Examples:
+
+If performance decreases after 1:15:
+
+show the decrease.
+
+If the 25M curve does not have a minimum:
+
+do not invent one.
+
+If there are only two model scales:
+
+do not draw a confident scaling curve.
+
+If confidence intervals are unavailable:
+
+do not fabricate them.
+
+If multiple runs are unavailable:
+
+do not draw fake error bars.
+
+If a measurement is categorical:
+
+don't force it onto a continuous axis.
+
+If data is logarithmic:
+
+use a log scale.
+
+If data is genuinely linear:
+
+a linear scale is fine.
+
+The rule is:
+
+REPRESENT THE DATA, NOT THE DESIRED NARRATIVE.
+
+============================================================
+                 PAPER STRUCTURE
+============================================================
+
+Produce a full paper with:
+
+1. Title
+2. Abstract
+3. Introduction
+4. Research Questions
+5. Background / Related Work
+6. Model Architecture
+7. Diffusion Objective
+8. Data and Tokenization
+9. Experimental Setup
+10. Contextual Probe Benchmark
+11. Systems and Hardware Implementation
+12. Experimental Corrections / Reproducibility
+13. Results
+    13.1 Training dynamics
+    13.2 Probe behavior
+    13.3 Structural vs semantic prediction
+    13.4 Capability transitions
+    13.5 Token/parameter scaling
+    13.6 Systems performance
+14. Discussion
+15. Limitations
+16. Scaling Hypothesis
+17. Conclusion
+18. Future Work
+19. References
+20. Appendix
+
+============================================================
+                       ABSTRACT
+============================================================
+
+The abstract should emphasize:
+
+- MDLM for Python code autocomplete
+- contextual probe methodology
+- corrected experimental pipeline
+- token/parameter scaling investigation
+- 12.5M and 25M results
+- capability transitions
+- preliminary nature of the scaling hypothesis
+
+Do not claim a definitive scaling law.
+
+============================================================
+                    INTRODUCTION
+============================================================
+
+The introduction should establish:
+
+1. Autoregressive LMs dominate code generation.
+2. Masked diffusion offers bidirectional context and
+   non-monotonic generation.
+3. Scaling behavior of MDLMs remains less well characterized
+   than autoregressive LMs.
+4. Standard aggregate loss may obscure localized capabilities.
+5. télos investigates these questions in a controlled,
+   narrow-domain Python setting.
+
+Research questions:
+
+RQ1:
+    How does contextual code prediction evolve with additional
+    training tokens?
+
+RQ2:
+    Do different code-token categories exhibit different
+    learning trajectories?
+
+RQ3:
+    Can target rank/probability reveal capability transitions
+    hidden by aggregate CE?
+
+RQ4:
+    Does the token/parameter ratio associated with best observed
+    MDLM performance increase with model size?
+
+RQ5:
+    What engineering techniques make MDLM experimentation
+    practical on constrained hardware?
+
+============================================================
+                   RELATED WORK
+============================================================
+
+Discuss relevant work including:
+
+- Sahoo et al. / MDLM
+- RADD
+- MaskGIT where relevant
+- LLaDA
+- Dream
+- DiffusionGemma
+- Chinchilla / autoregressive scaling
+- relevant code-generation literature
+
+But do NOT invent claims about what these papers did.
+
+For every comparison, distinguish:
+
+reported fact
+    interpretation
+    télos observation
+
+Do not say that prior work "failed to investigate X"
+unless the literature actually supports that statement.
+
+Use conservative language such as:
+
+"has received comparatively less systematic study"
+
+where appropriate.
+
+============================================================
+               CHINCHILLA COMPARISON
+============================================================
+
+The paper should NOT attack Chinchilla.
+
+Instead explain:
+
+Classical Chinchilla-style scaling describes compute-efficient
+training of autoregressive language models.
+
+télos asks whether MDLMs exhibit a different empirical
+relationship under:
+
+- different training objective
+- bidirectional architecture
+- masked diffusion process
+- contextual probe evaluation
+
+The current evidence motivates further study.
+
+Do not claim compute optimality.
+
+"Best observed probe performance" is not the same thing as
+"compute-optimal model."
+
+============================================================
+                  LIMITATIONS
+============================================================
+
+Be unusually honest here.
+
+Include:
+
+- only ~100 contextual probes
+- probe-set dependence
+- no large number of independent random seeds
+- sparse model scales
+- architecture changes across parameter counts
+- possible Net2Net initialization confound
+- narrow Python-only domain
+- 50M corrected Beta experiment incomplete
+- probe performance is not equivalent to generation quality
+- single-pass probe ≠ iterative sampling
+- compute-optimality has not been established
+- absolute CE depends on tokenizer/vocabulary/probe design
+- hardware-specific engineering observations
+- limited compute budget
+
+These limitations make the paper more credible.
+
+============================================================
+                  HISTORICAL EXPERIMENTS
+============================================================
+
+If discussing old 85M/125M/250M/500M experiments, put them
+in a clearly separated historical section or appendix.
+
+Do not let them contaminate the main 12.5M/25M/50M scaling
+analysis.
+
+If an old experiment was under a different timestep distribution,
+dtype pipeline, optimizer behavior, or training regime:
+
+label it explicitly.
+
+============================================================
+                  INVALIDATED FINDINGS
+============================================================
+
+There was an early line of reasoning around:
+
+"1:17 numeric hyper-focus"
+
+Do NOT use this as a current scientific finding.
+
+If it is mentioned at all:
+
+explain that earlier category-level observations were
+    superseded by subsequent experimental corrections.
+
+Do not build a theory around it.
+
+============================================================
+              WHAT THE PAPER SHOULD CLAIM
+============================================================
+
+Strongest defensible claims:
+
+1. télos demonstrates a functioning MDLM code-completion
+   architecture with custom MLX and TPU implementations.
+
+2. Experimental corrections materially changed the reliability
+   of the scientific results.
+
+3. Corrected Beta(1.5,1.5) experiments show substantial
+   improvement from additional training beyond a 1:1 regime.
+
+4. At 12.5M parameters, probe performance peaked around 1:15
+   in the tested range and then degraded.
+
+5. At 25M parameters, probe performance continued improving
+   through the highest tested ratio of 1:25.
+
+6. Individual contextual probes can exhibit large capability
+   transitions that are not obvious from aggregate CE alone.
+
+7. Different Python token categories exhibit different
+   prediction difficulty and learning trajectories.
+
+8. These observations motivate the hypothesis that the
+   useful training-token budget of MDLMs may scale with
+   parameter count.
+
+Do NOT claim:
+
+- a universal MDLM scaling law
+- compute-optimal training
+- that Chinchilla is wrong
+- that the observed relationship generalizes to all MDLMs
+- that probe metrics are universally superior to CE
+- that larger models necessarily require a particular exact ratio
+
+============================================================
+                  REFERENCES
+============================================================
+
+Use proper academic citations.
+
+Do not fabricate bibliographic information.
+
+If a paper's exact metadata is uncertain, mark it for verification
+rather than hallucinating authors, venue, year, DOI, or page numbers.
+
+============================================================
+                FINAL OUTPUT FORMAT
+============================================================
+
+Return the following:
+
+PART I:
+    Full paper draft.
+
+PART II:
+    Complete figure/diagram plan.
+
+For every figure:
+    - title
+    - purpose
+    - source data
+    - axis choices
+    - scale choice
+    - caption
+    - interpretation
+    - caveats
+
+PART III:
+    Reproducible plotting code for the key quantitative
+    figures where possible.
+
+Use Python + matplotlib.
+
+Do not fabricate missing values.
+
+PART IV:
+    "Claims audit"
+
+Create a table:
+
+Claim | Evidence | Status | Confidence | Caveat
+
+where Status is one of:
+
+Observed
+    Supported
+    Hypothesis
+    Historical
+    Invalidated
+    Needs verification
+
+PART V:
+    "Data gaps before publication"
+
+List exactly what I still need to provide or verify before
+turning the draft into a serious final paper.
+
+Do NOT ask me endless clarification questions before writing.
+
+Produce the best complete draft possible with clearly marked
+placeholders where necessary.
+
+[L3584 S3588 PLANNER_RESPONSE 2026-08-09T14:46:08Z ]
+I have completed the full first draft of the academic ML research paper based strictly on your empirical constraints and instructions.
+
+I've compiled all 5 parts you requested into a single artifact document here:
+[telos_academic_paper_draft.md](file:///Users/ivansamuel/.gemini/antigravity-ide/brain/41b584d5-6756-4262-977b-2d3c9b81f8a1/telos_academic_paper_draft.md)
+
+Here is a summary of what's inside:
+1. **PART I: Full Paper Draft**: A complete, publication-style paper structure (Abstract through Appendix). It carefully distinguishes between the invalidated historical (arcsine) experiments and the current Beta(1.5,1.5) scaling results. It avoids making definitive "scaling law" claims, presenting the 12.5M saturation and 25M improvement as empirical observations motivating a hypothesis.
+2. **PART II: Figure/Diagram Plan**: A detailed specification for 10 figures, explicitly detailing the purpose, data source, axis choices, and caveats for each so they don't force a false narrative.
+3. **PART III: Plotting Code**: A reproducible Python script using `matplotlib` to generate the core quantitative figures (the Timestep Distributions, the 12.5M/25M Scaling Plots, and the Category Difficulty).
+4. **PART IV: Claims Audit**: A table verifying the status and confidence of the paper's main claims, separating solid observations from hypotheses.
+5. **PART V: Data Gaps**: A checklist of the missing exact empirical measurements (like the intermediate CE values and the 50M suite results) needed to finalize the draft for publication.
+
+Take a look and let me know if you want to revise any specific sections or if you're ready to start filling in the data gaps!
+
+[L3585 S3589 USER_INPUT 2026-08-09T14:47:11Z ]
+I didn't tell you to STATE THE DIAGRAMS OR GIVE THE PLOTTING CODE.
+YOU'RE SUPP[OSED TO MAKE THEM.
+IN A PDF.
+
+[L3614 S3618 PLANNER_RESPONSE 2026-08-09T14:49:24Z ]
+I am generating the plots using matplotlib and compiling the markdown into a beautiful PDF using `md-to-pdf`. This will take just a moment as it installs the PDF rendering dependencies in the background. I'll hand over the final PDF as soon as the rendering finishes!
+
+[L3615 S3619 USER_INPUT 2026-08-09T14:51:19Z ]
+Done?
+
+[L3637 S3641 PLANNER_RESPONSE 2026-08-09T14:52:15Z ]
+Apologies! I misunderstood and thought you wanted the text/code isolated in the editor draft first.
+
+I have just run the plotting script, generated all the figures, compiled the full text and diagrams together, and exported it natively to a PDF on your machine!
+
+I've automatically opened the PDF for you on your screen. You can find the raw file and all the generated figure images in this new directory:
+[paper/](file:///Users/ivansamuel/Documents/Projects/telos/paper)
+
+Let me know how the rendered formatting looks and if you want to make any layout adjustments to the PDF!
+
