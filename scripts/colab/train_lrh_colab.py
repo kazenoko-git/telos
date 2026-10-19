@@ -85,7 +85,7 @@ class MemmapTokenDataset:
         self.seq_len = seq_len
         self.total_tokens = len(self.data)
         self.total_sequences = self.total_tokens // seq_len
-        print(f"Loaded memory-mapped binary: {self.total_tokens:,} tokens ({self.total_sequences:,} sequences of len {seq_len}).")
+        print(f"Loaded memory-mapped binary: {self.total_tokens:,} tokens ({self.total_sequences:,} sequences of len {seq_len}).", flush=True)
 
     def get_batch(self, batch_idx: int, batch_size: int, device: Any) -> torch.Tensor:
         start_seq = (batch_idx * batch_size) % max(1, self.total_sequences - batch_size)
@@ -103,18 +103,18 @@ def detect_colab_hardware() -> Tuple[Any, str, torch.dtype, bool]:
     try:
         import torch_xla.core.xla_model as xm
         device = xm.xla_device()
-        print("Hardware Accelerator: Google Cloud TPU detected via PyTorch-XLA.")
+        print("Hardware Accelerator: Google Cloud TPU detected via PyTorch-XLA.", flush=True)
         return device, "tpu", torch.bfloat16, False
     except ImportError:
         pass
     except Exception as e:
-        print(f"Notice: torch_xla import check passed but device init failed ({e}), checking CUDA...")
+        print(f"Notice: torch_xla import check passed but device init failed ({e}), checking CUDA...", flush=True)
 
     # 2. Check for CUDA GPU
     if torch.cuda.is_available():
         gpu_name = torch.cuda.get_device_name(0)
         num_gpus = torch.cuda.device_count()
-        print(f"Hardware Accelerator: CUDA detected ({num_gpus}x {gpu_name}).")
+        print(f"Hardware Accelerator: CUDA detected ({num_gpus}x {gpu_name}).", flush=True)
 
         # BF16 for Ampere / Hopper / Ada (A100, L4, V100/A10G)
         if torch.cuda.is_bf16_supported():
@@ -123,7 +123,7 @@ def detect_colab_hardware() -> Tuple[Any, str, torch.dtype, bool]:
         return torch.device("cuda"), "cuda", torch.float16, True
 
     # 3. Fallback
-    print("Hardware Accelerator: None (CPU mode).")
+    print("Hardware Accelerator: None (CPU mode).", flush=True)
     return torch.device("cpu"), "cpu", torch.float32, False
 
 
@@ -134,17 +134,17 @@ def ensure_binary_dataset(repo_id: str, target_tokens: int, cache_dir: str = "/c
     local_path = Path(cache_dir) / bin_name
 
     if local_path.exists():
-        print(f"Found local binary dataset: {local_path} ({os.path.getsize(local_path) / (1024*1024):.1f} MB)")
+        print(f"Found local binary dataset: {local_path} ({os.path.getsize(local_path) / (1024*1024):.1f} MB)", flush=True)
         return local_path
 
-    print(f"Downloading {bin_name} from Hugging Face repo '{repo_id}'...")
+    print(f"Downloading {bin_name} from Hugging Face repo '{repo_id}'...", flush=True)
     downloaded_path = hf_hub_download(
         repo_id=repo_id,
         filename=f"data/{bin_name}",
         repo_type="model",
         local_dir=cache_dir,
     )
-    print(f"Downloaded {bin_name} successfully: {downloaded_path}")
+    print(f"Downloaded {bin_name} successfully: {downloaded_path}", flush=True)
     return Path(downloaded_path)
 
 
@@ -191,14 +191,14 @@ def main():
     total_opt_steps = math.ceil(args.target_tokens / tokens_per_opt_step)
     total_micro_steps = total_opt_steps * grad_accum
 
-    print("=" * 80)
-    print("COLAB LRH TRAINING PIPELINE FOR QWEN2.5-CODER")
-    print("=" * 80)
-    print(f"Target Tokens:    {args.target_tokens:,} across {total_opt_steps:,} optimizer steps")
-    print(f"Micro-Batch Size: {batch_size} | Grad Accum: {grad_accum} -> Effective Batch: {batch_size * grad_accum} ({tokens_per_opt_step:,} tok/step)")
-    print(f"Sequence Length:  {args.seq_len}")
-    print(f"Precision:        {precision} (AMP: {use_amp})")
-    print(f"Hardware:         {hw_type.upper()}")
+    print("=" * 80, flush=True)
+    print("COLAB LRH TRAINING PIPELINE FOR QWEN2.5-CODER", flush=True)
+    print("=" * 80, flush=True)
+    print(f"Target Tokens:    {args.target_tokens:,} across {total_opt_steps:,} optimizer steps", flush=True)
+    print(f"Micro-Batch Size: {batch_size} | Grad Accum: {grad_accum} -> Effective Batch: {batch_size * grad_accum} ({tokens_per_opt_step:,} tok/step)", flush=True)
+    print(f"Sequence Length:  {args.seq_len}", flush=True)
+    print(f"Precision:        {precision} (AMP: {use_amp})", flush=True)
+    print(f"Hardware:         {hw_type.upper()}", flush=True)
 
     # 1. Ensure Dataset
     bin_file = ensure_binary_dataset(args.repo_id, args.target_tokens)
@@ -207,7 +207,7 @@ def main():
     # 2. Frozen Backbone
     from transformers import AutoModelForCausalLM
 
-    print(f"\nLoading frozen backbone: {args.model_id}...")
+    print(f"\nLoading frozen backbone: {args.model_id}...", flush=True)
     backbone = AutoModelForCausalLM.from_pretrained(
         args.model_id,
         torch_dtype=precision if hw_type != "cpu" else torch.float32,
@@ -217,7 +217,7 @@ def main():
     backbone.eval()
     for p in backbone.parameters():
         p.requires_grad = False
-    print("Backbone frozen successfully.")
+    print("Backbone frozen successfully.", flush=True)
 
     # 3. LRH Head
     d_model = backbone.config.hidden_size
@@ -252,8 +252,10 @@ def main():
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda, last_epoch=start_step - 1)
 
     # 4. Training Loop
-    print("\nStarting Colab training loop...")
-    print("-" * 80)
+    print("\nStarting Colab training loop...", flush=True)
+    print("-" * 80, flush=True)
+    if hw_type == "tpu":
+        print("Note: PyTorch-XLA compiles TPU computation graphs on step 1 (~1-2 minutes). Subsequent steps run at full speed.", flush=True)
 
     micro_step = start_step * grad_accum
     opt_step = start_step
@@ -266,6 +268,9 @@ def main():
     while opt_step < total_opt_steps:
         micro_step += 1
         tokens_seen += tokens_per_micro_step
+
+        if micro_step == 1:
+            print("Executing micro-step 1/4 (initiating first XLA compilation)...", flush=True)
 
         batch = dataset.get_batch(micro_step, batch_size, device=device)
 
@@ -339,8 +344,13 @@ def main():
                 optimizer.zero_grad()
                 scheduler.step()
 
-        # Step D: Telemetry (Sync only on log intervals to eliminate XLA device stalls)
-        is_log_step = (micro_step % (25 * grad_accum) == 0 or micro_step == total_micro_steps)
+        # Step D: Telemetry (Log on step 1, 2, 5, 10, then every 25 steps)
+        is_opt_boundary = (micro_step % grad_accum == 0 or micro_step == total_micro_steps)
+        is_log_step = is_opt_boundary and (
+            opt_step in [1, 2, 5, 10] or 
+            opt_step % 25 == 0 or 
+            opt_step == total_opt_steps
+        )
         if is_log_step:
             with torch.no_grad():
                 preds_binary = (r_scores > 0.0)
