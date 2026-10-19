@@ -265,187 +265,209 @@ def main():
     decay_ema = 0.95
     label_suffix = "100m" if args.target_tokens >= 100_000_000 else "10m"
 
-    while opt_step < total_opt_steps:
-        micro_step += 1
-        tokens_seen += tokens_per_micro_step
+    # Checkpoint saving helper
+    def save_checkpoint(suffix: str, is_final: bool = False):
+        pt_path = out_dir / f"lrh_qwen25_{suffix}.pt"
+        st_path = out_dir / f"lrh_qwen25_{suffix}.safetensors"
+        torch.save({
+            "step": opt_step,
+            "tokens_seen": tokens_seen,
+            "lrh_state_dict": lrh_head.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "auc_ema": auc_ema,
+        }, pt_path)
+        save_file({k: v.contiguous().cpu() for k, v in lrh_head.state_dict().items()}, str(st_path))
+        print(f"\n[CHECKPOINT] Saved weights to {st_path.name} ({tokens_seen:,} tokens, AUC EMA: {auc_ema:.4f})", flush=True)
 
-        if micro_step == 1:
-            print("Executing micro-step 1/4 (initiating first XLA compilation)...", flush=True)
+        config_dict = {
+            "model_id": args.model_id,
+            "d_model": d_model,
+            "target_tokens": args.target_tokens,
+            "actual_tokens_seen": tokens_seen,
+            "total_steps": opt_step,
+            "final_auc_ema": float(auc_ema) if auc_ema else 0.50,
+            "gamma_gate_auc": args.gamma_gate_auc,
+            "gamma_ready": bool(auc_ema >= args.gamma_gate_auc) if auc_ema else False,
+            "precision": str(precision),
+            "hardware": hw_type,
+            "training_minutes": (time.perf_counter() - t_start) / 60,
+        }
+        with open(out_dir / f"lrh_config_{suffix}.json", "w") as f:
+            json.dump(config_dict, f, indent=2)
 
-        batch = dataset.get_batch(micro_step, batch_size, device=device)
+    saved_10m = (tokens_seen >= 10_000_000)
 
-        # Step A: Causal Backbone Forward Pass (Zero Grad)
-        with torch.no_grad():
-            outputs = backbone(batch, output_hidden_states=True)
-            h = outputs.hidden_states[-1]
-            logits = outputs.logits
+    try:
+        while opt_step < total_opt_steps:
+            micro_step += 1
+            tokens_seen += tokens_per_micro_step
 
-            shift_logits = logits[:, :-1, :]
-            shift_targets = batch[:, 1:]
-            shift_h = h[:, :-1, :]
+            if micro_step == 1:
+                print("Executing micro-step 1/4 (initiating first XLA compilation)...", flush=True)
 
-            pred_tokens = shift_logits.argmax(dim=-1)
-            is_exact_match = (pred_tokens == shift_targets)
-            labels = is_exact_match.float()
+            batch = dataset.get_batch(micro_step, batch_size, device=device)
 
-            # Fused rank comparison: target is in top-k if fewer than k tokens have strictly higher logit.
-            # Eliminates XLA Bitonic Sort buffer (saving 18.54 GB HBM and 20+ GB host compiler RAM).
-            target_logits = torch.gather(shift_logits, -1, shift_targets.unsqueeze(-1))
-            higher_count = (shift_logits > target_logits).sum(dim=-1)
-            is_target_in_topk = (higher_count < args.k_amb)
-            is_ambiguous = is_target_in_topk & (~is_exact_match)
-            valid_mask = ~is_ambiguous
+            # Step A: Causal Backbone Forward Pass (Zero Grad)
+            with torch.no_grad():
+                outputs = backbone(batch, output_hidden_states=True)
+                h = outputs.hidden_states[-1]
+                logits = outputs.logits
 
-        # Step B: LRH Forward Pass & Loss
-        if hw_type == "cuda":
-            with torch.amp.autocast("cuda", enabled=use_amp, dtype=precision):
+                shift_logits = logits[:, :-1, :]
+                shift_targets = batch[:, 1:]
+                shift_h = h[:, :-1, :]
+
+                pred_tokens = shift_logits.argmax(dim=-1)
+                is_exact_match = (pred_tokens == shift_targets)
+                labels = is_exact_match.float()
+
+                # Fused rank comparison: target is in top-k if fewer than k tokens have strictly higher logit.
+                # Eliminates XLA Bitonic Sort buffer (saving 18.54 GB HBM and 20+ GB host compiler RAM).
+                target_logits = torch.gather(shift_logits, -1, shift_targets.unsqueeze(-1))
+                higher_count = (shift_logits > target_logits).sum(dim=-1)
+                is_target_in_topk = (higher_count < args.k_amb)
+                is_ambiguous = is_target_in_topk & (~is_exact_match)
+                valid_mask = ~is_ambiguous
+
+            # Step B: LRH Forward Pass & Loss
+            if hw_type == "cuda":
+                with torch.amp.autocast("cuda", enabled=use_amp, dtype=precision):
+                    r_scores = lrh_head(shift_h)
+                    bce_raw = F.binary_cross_entropy_with_logits(r_scores, labels, reduction="none")
+                    masked_bce = bce_raw * valid_mask.float()
+                    valid_count = valid_mask.float().sum().clamp(min=1.0)
+                    loss = masked_bce.sum() / valid_count
+            else:
                 r_scores = lrh_head(shift_h)
                 bce_raw = F.binary_cross_entropy_with_logits(r_scores, labels, reduction="none")
                 masked_bce = bce_raw * valid_mask.float()
                 valid_count = valid_mask.float().sum().clamp(min=1.0)
                 loss = masked_bce.sum() / valid_count
-        else:
-            r_scores = lrh_head(shift_h)
-            bce_raw = F.binary_cross_entropy_with_logits(r_scores, labels, reduction="none")
-            masked_bce = bce_raw * valid_mask.float()
-            valid_count = valid_mask.float().sum().clamp(min=1.0)
-            loss = masked_bce.sum() / valid_count
 
-        loss_scaled = loss / grad_accum
+            loss_scaled = loss / grad_accum
 
-        # Step C: Backward & Optimizer Step
-        if hw_type == "tpu":
-            loss_scaled.backward()
-            import torch_xla.core.xla_model as xm
-            if micro_step % grad_accum == 0 or micro_step == total_micro_steps:
-                opt_step += 1
-                nn.utils.clip_grad_norm_(lrh_head.parameters(), max_norm=1.0)
-                xm.optimizer_step(optimizer)
-                optimizer.zero_grad()
-                scheduler.step()
-            else:
-                xm.mark_step()
-        elif scaler.is_enabled():
-            scaler.scale(loss_scaled).backward()
-            if micro_step % grad_accum == 0 or micro_step == total_micro_steps:
-                opt_step += 1
-                scaler.unscale_(optimizer)
-                nn.utils.clip_grad_norm_(lrh_head.parameters(), max_norm=1.0)
-                scaler.step(optimizer)
-                scaler.update()
-                optimizer.zero_grad()
-                scheduler.step()
-        else:
-            loss_scaled.backward()
-            if micro_step % grad_accum == 0 or micro_step == total_micro_steps:
-                opt_step += 1
-                nn.utils.clip_grad_norm_(lrh_head.parameters(), max_norm=1.0)
-                optimizer.step()
-                optimizer.zero_grad()
-                scheduler.step()
-
-        # Step D: Telemetry (Log on step 1, 2, 5, 10, then every 25 steps)
-        is_opt_boundary = (micro_step % grad_accum == 0 or micro_step == total_micro_steps)
-        is_log_step = is_opt_boundary and (
-            opt_step in [1, 2, 5, 10] or 
-            opt_step % 25 == 0 or 
-            opt_step == total_opt_steps
-        )
-        if is_log_step:
-            with torch.no_grad():
-                preds_binary = (r_scores > 0.0)
-                correct = (preds_binary == (labels > 0.5)) & valid_mask
-                acc = float((correct.float().sum() / valid_count).item())
-
-                pos_mask = (labels > 0.5) & valid_mask
-                neg_mask = (labels <= 0.5) & valid_mask
-                tpr = float((preds_binary & pos_mask).float().sum() / pos_mask.float().sum().clamp(min=1.0))
-                tnr = float(((~preds_binary) & neg_mask).float().sum() / neg_mask.float().sum().clamp(min=1.0))
-                bal_acc = 0.5 * (tpr + tnr)
-
-                flat_scores = r_scores[valid_mask].cpu()
-                flat_labels = labels[valid_mask].cpu()
-                batch_auc = compute_vectorized_roc_auc(flat_scores, flat_labels)
-
-                if auc_ema is None:
-                    auc_ema = batch_auc
-                else:
-                    auc_ema = decay_ema * auc_ema + (1.0 - decay_ema) * batch_auc
-
-                gamma_ready = (auc_ema >= args.gamma_gate_auc)
-
-            elapsed = time.perf_counter() - t_start
-            tok_per_sec = (tokens_seen - (start_step * tokens_per_opt_step)) / max(1e-6, elapsed)
-
-            print(
-                f"Step [{opt_step:>5d}/{total_opt_steps}] | "
-                f"Tokens: {tokens_seen:>10,d} ({tokens_seen / args.target_tokens * 100:>5.1f}%) | "
-                f"Loss: {loss.item():.4f} | "
-                f"BalAcc: {bal_acc * 100:.1f}% | "
-                f"AUC: {batch_auc:.3f} (EMA: {auc_ema:.3f}) | "
-                f"γ-Gate: {'READY' if gamma_ready else 'WAIT'} | "
-                f"Speed: {tok_per_sec:,.0f} tok/s",
-                flush=True
-            )
-            sys.stdout.flush()
-
+            # Step C: Backward & Optimizer Step
             if hw_type == "tpu":
+                loss_scaled.backward()
                 import torch_xla.core.xla_model as xm
-                xm.mark_step()
+                if micro_step % grad_accum == 0 or micro_step == total_micro_steps:
+                    opt_step += 1
+                    nn.utils.clip_grad_norm_(lrh_head.parameters(), max_norm=1.0)
+                    xm.optimizer_step(optimizer)
+                    optimizer.zero_grad()
+                    scheduler.step()
+                else:
+                    xm.mark_step()
+            elif scaler.is_enabled():
+                scaler.scale(loss_scaled).backward()
+                if micro_step % grad_accum == 0 or micro_step == total_micro_steps:
+                    opt_step += 1
+                    scaler.unscale_(optimizer)
+                    nn.utils.clip_grad_norm_(lrh_head.parameters(), max_norm=1.0)
+                    scaler.step(optimizer)
+                    scaler.update()
+                    optimizer.zero_grad()
+                    scheduler.step()
+            else:
+                loss_scaled.backward()
+                if micro_step % grad_accum == 0 or micro_step == total_micro_steps:
+                    opt_step += 1
+                    nn.utils.clip_grad_norm_(lrh_head.parameters(), max_norm=1.0)
+                    optimizer.step()
+                    optimizer.zero_grad()
+                    scheduler.step()
 
-            metrics_history.append({
-                "step": opt_step,
-                "micro_step": micro_step,
-                "tokens_seen": tokens_seen,
-                "loss": float(loss.item()),
-                "accuracy": acc,
-                "balanced_accuracy": bal_acc,
-                "auc": batch_auc,
-                "auc_ema": float(auc_ema),
-                "gamma_ready": gamma_ready,
-            })
+            # Step D: Telemetry (Log on step 1, 2, 5, 10, then every 25 steps)
+            is_opt_boundary = (micro_step % grad_accum == 0 or micro_step == total_micro_steps)
+            is_log_step = is_opt_boundary and (
+                opt_step in [1, 2, 5, 10] or 
+                opt_step % 25 == 0 or 
+                opt_step == total_opt_steps
+            )
+            if is_log_step:
+                with torch.no_grad():
+                    preds_binary = (r_scores > 0.0)
+                    correct = (preds_binary == (labels > 0.5)) & valid_mask
+                    acc = float((correct.float().sum() / valid_count).item())
+
+                    pos_mask = (labels > 0.5) & valid_mask
+                    neg_mask = (labels <= 0.5) & valid_mask
+                    tpr = float((preds_binary & pos_mask).float().sum() / pos_mask.float().sum().clamp(min=1.0))
+                    tnr = float(((~preds_binary) & neg_mask).float().sum() / neg_mask.float().sum().clamp(min=1.0))
+                    bal_acc = 0.5 * (tpr + tnr)
+
+                    flat_scores = r_scores[valid_mask].cpu()
+                    flat_labels = labels[valid_mask].cpu()
+                    batch_auc = compute_vectorized_roc_auc(flat_scores, flat_labels)
+
+                    if auc_ema is None:
+                        auc_ema = batch_auc
+                    else:
+                        auc_ema = decay_ema * auc_ema + (1.0 - decay_ema) * batch_auc
+
+                    gamma_ready = (auc_ema >= args.gamma_gate_auc)
+
+                elapsed = time.perf_counter() - t_start
+                tok_per_sec = (tokens_seen - (start_step * tokens_per_opt_step)) / max(1e-6, elapsed)
+
+                print(
+                    f"Step [{opt_step:>5d}/{total_opt_steps}] | "
+                    f"Tokens: {tokens_seen:>10,d} ({tokens_seen / args.target_tokens * 100:>5.1f}%) | "
+                    f"Loss: {loss.item():.4f} | "
+                    f"BalAcc: {bal_acc * 100:.1f}% | "
+                    f"AUC: {batch_auc:.3f} (EMA: {auc_ema:.3f}) | "
+                    f"γ-Gate: {'READY' if gamma_ready else 'WAIT'} | "
+                    f"Speed: {tok_per_sec:,.0f} tok/s",
+                    flush=True
+                )
+                sys.stdout.flush()
+
+                if hw_type == "tpu":
+                    import torch_xla.core.xla_model as xm
+                    xm.mark_step()
+
+                metrics_history.append({
+                    "step": opt_step,
+                    "micro_step": micro_step,
+                    "tokens_seen": tokens_seen,
+                    "loss": float(loss.item()),
+                    "accuracy": acc,
+                    "balanced_accuracy": bal_acc,
+                    "auc": batch_auc,
+                    "auc_ema": float(auc_ema),
+                    "gamma_ready": gamma_ready,
+                })
+
+                # Milestone 10M automatic save
+                if not saved_10m and tokens_seen >= 10_000_000:
+                    save_checkpoint("10m")
+                    saved_10m = True
+
+                # Periodic auto-save every 200 optimizer steps (~3.3M tokens)
+                if opt_step % 200 == 0:
+                    save_checkpoint("latest")
+
+    except KeyboardInterrupt:
+        print("\n[INTERRUPT] Training halted by user. Saving emergency checkpoint...", flush=True)
+        save_checkpoint("interrupted")
+        return
 
     total_time = time.perf_counter() - t_start
-    print("-" * 80)
-    print(f"Colab training completed in {total_time / 60:.2f} minutes!")
-    print(f"Average Speed: {tokens_seen / total_time:,.0f} tokens/second.")
-    print(f"Final LRH ROC-AUC EMA: {auc_ema:.4f}")
+    print("-" * 80, flush=True)
+    print(f"Colab training completed in {total_time / 60:.2f} minutes!", flush=True)
+    print(f"Average Speed: {tokens_seen / total_time:,.0f} tokens/second.", flush=True)
+    print(f"Final LRH ROC-AUC EMA: {auc_ema:.4f}", flush=True)
 
     # 5. Save Final Artifacts
-    final_pt = out_dir / f"lrh_qwen25_{label_suffix}.pt"
-    final_st = out_dir / f"lrh_qwen25_{label_suffix}.safetensors"
-    torch.save({
-        "step": opt_step,
-        "tokens_seen": tokens_seen,
-        "lrh_state_dict": lrh_head.state_dict(),
-        "optimizer_state_dict": optimizer.state_dict(),
-        "auc_ema": auc_ema,
-    }, final_pt)
-    save_file({k: v.contiguous().cpu() for k, v in lrh_head.state_dict().items()}, str(final_st))
-
-    config_dict = {
-        "model_id": args.model_id,
-        "d_model": d_model,
-        "target_tokens": args.target_tokens,
-        "actual_tokens_seen": tokens_seen,
-        "total_steps": opt_step,
-        "final_auc_ema": float(auc_ema) if auc_ema else 0.50,
-        "gamma_gate_auc": args.gamma_gate_auc,
-        "gamma_ready": bool(auc_ema >= args.gamma_gate_auc) if auc_ema else False,
-        "precision": str(precision),
-        "hardware": hw_type,
-        "total_training_minutes": total_time / 60,
-    }
-    with open(out_dir / f"lrh_config_{label_suffix}.json", "w") as f:
-        json.dump(config_dict, f, indent=2)
+    save_checkpoint(label_suffix, is_final=True)
 
     with open(out_dir / f"metrics_{label_suffix}.json", "w") as f:
         json.dump(metrics_history, f, indent=2)
 
-    print(f"\nArtifacts successfully written to {out_dir}:")
-    print(f"  - Model weights: {final_st.name}")
-    print(f"  - Checkpoint:    {final_pt.name}")
-    print(f"  - Metadata:      lrh_config_{label_suffix}.json")
+    print(f"\nAll artifacts successfully saved to {out_dir}:", flush=True)
+    print(f"  - lrh_qwen25_{label_suffix}.safetensors", flush=True)
+    print(f"  - lrh_qwen25_{label_suffix}.pt", flush=True)
+    print(f"  - lrh_config_{label_suffix}.json", flush=True)
 
 
 if __name__ == "__main__":
