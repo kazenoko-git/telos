@@ -153,7 +153,8 @@ def main():
     parser.add_argument("--repo-id", type=str, default="Kazenowoko/telos", help="Hugging Face repo holding pre-tokenized data")
     parser.add_argument("--model-id", type=str, default="Qwen/Qwen2.5-Coder-0.5B-Instruct")
     parser.add_argument("--target-tokens", type=int, default=10_000_000, help="Target token count: 10,000,000 or 100,000,000")
-    parser.add_argument("--batch-size", type=int, default=32, help="Batch size per forward pass (default: 32)")
+    parser.add_argument("--batch-size", type=int, default=8, help="Batch size per forward pass (default: 8)")
+    parser.add_argument("--grad-accum", type=int, default=4, help="Gradient accumulation steps (default: 4)")
     parser.add_argument("--seq-len", type=int, default=512, help="Sequence length (default: 512)")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate (default: 1e-3)")
     parser.add_argument("--k-amb", type=int, default=5, help="Top-k ambiguity exclusion (default: 5)")
@@ -167,21 +168,29 @@ def main():
 
     device, hw_type, precision, use_amp = detect_colab_hardware()
 
-    # Adjust batch size for T4 if needed
     batch_size = args.batch_size
-    if hw_type == "cuda" and not torch.cuda.is_bf16_supported() and batch_size > 16:
-        # T4 GPU (16GB VRAM) performs best with batch_size=16
-        batch_size = 16
-        print(f"Adjusted batch size to {batch_size} for optimal T4 VRAM utilization.")
+    grad_accum = args.grad_accum
 
-    tokens_per_step = batch_size * args.seq_len
-    total_steps = math.ceil(args.target_tokens / tokens_per_step)
+    if hw_type == "tpu" and batch_size > 8:
+        print(f"Notice: Clamping TPU batch size from {batch_size} to 8 to avoid XLA 152k-vocabulary sort buffer OOM.")
+        grad_accum = max(1, (batch_size * grad_accum) // 8)
+        batch_size = 8
+    elif hw_type == "cuda" and not torch.cuda.is_bf16_supported() and batch_size > 16:
+        # T4 GPU (16GB VRAM) performs best with batch_size=16
+        grad_accum = max(1, (batch_size * grad_accum) // 16)
+        batch_size = 16
+        print(f"Adjusted batch size to {batch_size} (grad_accum={grad_accum}) for optimal T4 VRAM utilization.")
+
+    tokens_per_micro_step = batch_size * args.seq_len
+    tokens_per_opt_step = tokens_per_micro_step * grad_accum
+    total_opt_steps = math.ceil(args.target_tokens / tokens_per_opt_step)
+    total_micro_steps = total_opt_steps * grad_accum
 
     print("=" * 80)
     print("COLAB LRH TRAINING PIPELINE FOR QWEN2.5-CODER")
     print("=" * 80)
-    print(f"Target Tokens:    {args.target_tokens:,} across {total_steps:,} steps")
-    print(f"Batch Size:       {batch_size} ({tokens_per_step:,} tok/step)")
+    print(f"Target Tokens:    {args.target_tokens:,} across {total_opt_steps:,} optimizer steps")
+    print(f"Micro-Batch Size: {batch_size} | Grad Accum: {grad_accum} -> Effective Batch: {batch_size * grad_accum} ({tokens_per_opt_step:,} tok/step)")
     print(f"Sequence Length:  {args.seq_len}")
     print(f"Precision:        {precision} (AMP: {use_amp})")
     print(f"Hardware:         {hw_type.upper()}")
@@ -227,12 +236,12 @@ def main():
         auc_ema = ckpt.get("auc_ema", None)
         print(f"Resumed from step {start_step} ({tokens_seen:,} tokens).")
 
-    warmup_steps = max(10, int(total_steps * 0.05))
+    warmup_steps = max(10, int(total_opt_steps * 0.05))
 
     def lr_lambda(current_step: int) -> float:
         if current_step < warmup_steps:
             return float(current_step + 1) / float(max(1, warmup_steps))
-        progress = float(current_step - warmup_steps) / float(max(1, total_steps - warmup_steps))
+        progress = float(current_step - warmup_steps) / float(max(1, total_opt_steps - warmup_steps))
         return max(0.1, 0.5 * (1.0 + math.cos(math.pi * progress)))
 
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda, last_epoch=start_step - 1)
@@ -241,17 +250,19 @@ def main():
     print("\nStarting Colab training loop...")
     print("-" * 80)
 
-    step = start_step
+    micro_step = start_step * grad_accum
+    opt_step = start_step
+    optimizer.zero_grad()
     t_start = time.perf_counter()
     metrics_history: List[Dict[str, Any]] = []
     decay_ema = 0.95
     label_suffix = "100m" if args.target_tokens >= 100_000_000 else "10m"
 
-    while step < total_steps:
-        step += 1
-        tokens_seen += tokens_per_step
+    while opt_step < total_opt_steps:
+        micro_step += 1
+        tokens_seen += tokens_per_micro_step
 
-        batch = dataset.get_batch(step, batch_size, device=device)
+        batch = dataset.get_batch(micro_step, batch_size, device=device)
 
         # Step A: Causal Backbone Forward Pass (Zero Grad)
         with torch.no_grad():
@@ -273,8 +284,6 @@ def main():
             valid_mask = ~is_ambiguous
 
         # Step B: LRH Forward Pass & Loss
-        optimizer.zero_grad()
-
         if hw_type == "cuda":
             with torch.amp.autocast("cuda", enabled=use_amp, dtype=precision):
                 r_scores = lrh_head(shift_h)
@@ -289,54 +298,67 @@ def main():
             valid_count = valid_mask.float().sum().clamp(min=1.0)
             loss = masked_bce.sum() / valid_count
 
-        # Step C: Optimizer Step
+        loss_scaled = loss / grad_accum
+
+        # Step C: Backward & Optimizer Step
         if hw_type == "tpu":
-            loss.backward()
-            nn.utils.clip_grad_norm_(lrh_head.parameters(), max_norm=1.0)
-            import torch_xla.core.xla_model as xm
-            xm.optimizer_step(optimizer)
+            loss_scaled.backward()
+            if micro_step % grad_accum == 0 or micro_step == total_micro_steps:
+                opt_step += 1
+                nn.utils.clip_grad_norm_(lrh_head.parameters(), max_norm=1.0)
+                import torch_xla.core.xla_model as xm
+                xm.optimizer_step(optimizer)
+                optimizer.zero_grad()
+                scheduler.step()
         elif scaler.is_enabled():
-            scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
-            nn.utils.clip_grad_norm_(lrh_head.parameters(), max_norm=1.0)
-            scaler.step(optimizer)
-            scaler.update()
+            scaler.scale(loss_scaled).backward()
+            if micro_step % grad_accum == 0 or micro_step == total_micro_steps:
+                opt_step += 1
+                scaler.unscale_(optimizer)
+                nn.utils.clip_grad_norm_(lrh_head.parameters(), max_norm=1.0)
+                scaler.step(optimizer)
+                scaler.update()
+                optimizer.zero_grad()
+                scheduler.step()
         else:
-            loss.backward()
-            nn.utils.clip_grad_norm_(lrh_head.parameters(), max_norm=1.0)
-            optimizer.step()
+            loss_scaled.backward()
+            if micro_step % grad_accum == 0 or micro_step == total_micro_steps:
+                opt_step += 1
+                nn.utils.clip_grad_norm_(lrh_head.parameters(), max_norm=1.0)
+                optimizer.step()
+                optimizer.zero_grad()
+                scheduler.step()
 
-        scheduler.step()
+        # Step D: Telemetry (Sync only on log intervals to eliminate XLA device stalls)
+        is_log_step = (micro_step % (25 * grad_accum) == 0 or micro_step == total_micro_steps)
+        if is_log_step:
+            with torch.no_grad():
+                preds_binary = (r_scores > 0.0)
+                correct = (preds_binary == (labels > 0.5)) & valid_mask
+                acc = float((correct.float().sum() / valid_count).item())
 
-        # Step D: Telemetry
-        with torch.no_grad():
-            preds_binary = (r_scores > 0.0)
-            correct = (preds_binary == (labels > 0.5)) & valid_mask
-            acc = float((correct.float().sum() / valid_count).item())
+                pos_mask = (labels > 0.5) & valid_mask
+                neg_mask = (labels <= 0.5) & valid_mask
+                tpr = float((preds_binary & pos_mask).float().sum() / pos_mask.float().sum().clamp(min=1.0))
+                tnr = float(((~preds_binary) & neg_mask).float().sum() / neg_mask.float().sum().clamp(min=1.0))
+                bal_acc = 0.5 * (tpr + tnr)
 
-            pos_mask = (labels > 0.5) & valid_mask
-            neg_mask = (labels <= 0.5) & valid_mask
-            tpr = float((preds_binary & pos_mask).float().sum() / pos_mask.float().sum().clamp(min=1.0))
-            tnr = float(((~preds_binary) & neg_mask).float().sum() / neg_mask.float().sum().clamp(min=1.0))
-            bal_acc = 0.5 * (tpr + tnr)
+                flat_scores = r_scores[valid_mask].cpu()
+                flat_labels = labels[valid_mask].cpu()
+                batch_auc = compute_vectorized_roc_auc(flat_scores, flat_labels)
 
-            flat_scores = r_scores[valid_mask].cpu()
-            flat_labels = labels[valid_mask].cpu()
-            batch_auc = compute_vectorized_roc_auc(flat_scores, flat_labels)
+                if auc_ema is None:
+                    auc_ema = batch_auc
+                else:
+                    auc_ema = decay_ema * auc_ema + (1.0 - decay_ema) * batch_auc
 
-            if auc_ema is None:
-                auc_ema = batch_auc
-            else:
-                auc_ema = decay_ema * auc_ema + (1.0 - decay_ema) * batch_auc
+                gamma_ready = (auc_ema >= args.gamma_gate_auc)
 
-            gamma_ready = (auc_ema >= args.gamma_gate_auc)
+            elapsed = time.perf_counter() - t_start
+            tok_per_sec = (tokens_seen - (start_step * tokens_per_opt_step)) / max(1e-6, elapsed)
 
-        elapsed = time.perf_counter() - t_start
-        tok_per_sec = (tokens_seen - (start_step * tokens_per_step)) / max(1e-6, elapsed)
-
-        if step % 25 == 0 or step == total_steps:
             print(
-                f"Step [{step:>5d}/{total_steps}] | "
+                f"Step [{opt_step:>5d}/{total_opt_steps}] | "
                 f"Tokens: {tokens_seen:>10,d} ({tokens_seen / args.target_tokens * 100:>5.1f}%) | "
                 f"Loss: {loss.item():.4f} | "
                 f"BalAcc: {bal_acc * 100:.1f}% | "
@@ -345,16 +367,17 @@ def main():
                 f"Speed: {tok_per_sec:,.0f} tok/s"
             )
 
-        metrics_history.append({
-            "step": step,
-            "tokens_seen": tokens_seen,
-            "loss": float(loss.item()),
-            "accuracy": acc,
-            "balanced_accuracy": bal_acc,
-            "auc": batch_auc,
-            "auc_ema": float(auc_ema),
-            "gamma_ready": gamma_ready,
-        })
+            metrics_history.append({
+                "step": opt_step,
+                "micro_step": micro_step,
+                "tokens_seen": tokens_seen,
+                "loss": float(loss.item()),
+                "accuracy": acc,
+                "balanced_accuracy": bal_acc,
+                "auc": batch_auc,
+                "auc_ema": float(auc_ema),
+                "gamma_ready": gamma_ready,
+            })
 
     total_time = time.perf_counter() - t_start
     print("-" * 80)
@@ -366,7 +389,7 @@ def main():
     final_pt = out_dir / f"lrh_qwen25_{label_suffix}.pt"
     final_st = out_dir / f"lrh_qwen25_{label_suffix}.safetensors"
     torch.save({
-        "step": step,
+        "step": opt_step,
         "tokens_seen": tokens_seen,
         "lrh_state_dict": lrh_head.state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
@@ -379,7 +402,7 @@ def main():
         "d_model": d_model,
         "target_tokens": args.target_tokens,
         "actual_tokens_seen": tokens_seen,
-        "total_steps": step,
+        "total_steps": opt_step,
         "final_auc_ema": float(auc_ema) if auc_ema else 0.50,
         "gamma_gate_auc": args.gamma_gate_auc,
         "gamma_ready": bool(auc_ema >= args.gamma_gate_auc) if auc_ema else False,
