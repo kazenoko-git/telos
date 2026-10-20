@@ -1,0 +1,6600 @@
+{
+  "protocol": {
+    "suite": "HumanEval",
+    "tasks": 164,
+    "samples_per_task": 1,
+    "decoding": "greedy",
+    "device": "mps",
+    "dtype": "float32",
+    "torch": "2.13.0",
+    "seed": 42,
+    "max_new_tokens": 256,
+    "context_length": 512,
+    "timeout_seconds": 5.0,
+    "context_policy": "Native generator: total context<=512; completion ceiling reduced to512-prompt_tokens; prompts>=496 left-truncated. None of this164-task fixture exceeds496.",
+    "stop_policy": "Native generator: token0/PAD or3/EOS; new top-level def/class/__main__ boundary",
+    "postprocessing": "Native clean_functional_completion, including AST back-trimming; raw outputs preserved in generation traces",
+    "tokenizer": "/Users/ivansamuel/Documents/Projects/telos/configs/tokenizer_mac.json",
+    "tokenizer_sha256": "92fb116fae73e552ac38f407a2b9e5089b2eee1decfd7c6defc838b6199d55c3",
+    "official_dataset_sha256": "b796127e635a67f93fb35c04f4cb03cf06f38c8072ee7cee8833d7bee06979ef",
+    "local_dataset_sha256": "a8caa9728c3b608023c40216f515c7f3e1112e8f1b41d99e27441935ea7c6e77",
+    "official_local_match": "All164 prompts/entrypoints identical; test-harness ASTs identical",
+    "executor_sanity": {
+      "canonical": "PASSED",
+      "deliberately_incorrect": "FAILED_ASSERTION"
+    },
+    "source_sha256": {
+      "research/100m_checkpoint_comparison_2026-10-18/humaneval/run_full.py": "b69fd9ece780ba100ac127be868482f194b345a19f9f9456633af3339eb08d58",
+      "telos/eval/runner.py": "f3f5b7f6d0bcff03d14b7d9211f3931d2d8627667f3f278778819dbfcca46bfd",
+      "telos/eval/executor.py": "871f9cb56344dd17e62d42af40cb256426c8cfd999dcbc32367affc8042ac831",
+      "telos/models/transformer.py": "7bb232b4f5d95dd22f8d5ba903672eccd4cc4e6c2985ef20e9a4a751f79b4524",
+      "telos/models/components.py": "ed3f82e902a2d94d2e9df3179516c794d0035a3fee51417d2555fa437458f0b6"
+    }
+  },
+  "metadata": {
+    "checkpoint": "/Users/ivansamuel/Documents/Projects/telos/checkpoints/corosred/unified/100m_5b_alpha075/checkpoint_final.pt",
+    "sha256": "bba465fa2d524fbf154e7793b1414c39e508da7eaf116b4025db6f1a42aecb59",
+    "step": 25432,
+    "embedded_config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 768,
+        "n_layers": 14,
+        "n_heads": 12,
+        "n_kv_heads": 12,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 25432,
+        "max_lr": 0.0003464101615137754,
+        "min_lr": 3.464101615137754e-05,
+        "warmup_steps": 508,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16"
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/100m_5b",
+        "save_every_steps": 3500
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 105404160,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.75,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.65,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5
+      },
+      "paradigm": "corosred"
+    },
+    "unique_parameters": 105995521,
+    "saved_dtypes": [
+      "torch.float32"
+    ],
+    "declared_backend": "pytorch",
+    "declared_device": "xla",
+    "saved_lrh_acc_ema": 0.5184596173603395,
+    "saved_lrh_auc_ema": 0.5098725190357267
+  },
+  "report": {
+    "suite": "humaneval",
+    "total_tasks": 164,
+    "pass_at_1_pct": 0.0,
+    "pass_at_1_95ci": [
+      0.0,
+      0.0
+    ],
+    "ast_validity_pct": 97.56,
+    "execution_outcomes": {
+      "PASSED": 0,
+      "FAILED_ASSERTION": 103,
+      "SYNTAX_ERROR": 4,
+      "TIMEOUT": 0,
+      "RUNTIME_EXCEPTION": 57,
+      "MEMORY_EXCEEDED": 0
+    },
+    "repetition": {
+      "avg_token_length": 109.2,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 43.3,
+      "rep_3gram_pct": 38.5,
+      "rep_4gram_pct": 37.2,
+      "line_repetition_pct": 31.8,
+      "consecutive_dup_line_pct": 6.7,
+      "degenerate_loop_pct": 75.6
+    },
+    "numerical_accuracy": {
+      "tasks_with_prompt_numbers": 137,
+      "numeric_recall_pct": 14.3,
+      "numeric_precision_pct": 29.9,
+      "exact_number_match_pct": 4.4,
+      "zero_numbers_emitted_pct": 48.9,
+      "hallucinated_numbers_pct": 27.0
+    },
+    "extended_metrics": {
+      "count": 164,
+      "avg_token_length": 109.2,
+      "early_exit_pct": 0.0,
+      "rep_2gram_pct": 43.3,
+      "rep_3gram_pct": 38.5,
+      "rep_4gram_pct": 37.2,
+      "line_repetition_pct": 31.8,
+      "consecutive_dup_line_pct": 6.7,
+      "degenerate_loop_pct": 75.6,
+      "numerical": {
+        "tasks_with_prompt_numbers": 137,
+        "numeric_recall_pct": 14.3,
+        "numeric_precision_pct": 29.9,
+        "exact_number_match_pct": 4.4,
+        "zero_numbers_emitted_pct": 48.9,
+        "hallucinated_numbers_pct": 27.0
+      }
+    },
+    "category_breakdown": {
+      "HumanEval": {
+        "count": 164,
+        "pass_at_1_pct": 0.0,
+        "ast_valid_pct": 97.6,
+        "outcomes": {
+          "FAILED_ASSERTION": 103,
+          "RUNTIME_EXCEPTION": 57,
+          "SYNTAX_ERROR": 4
+        },
+        "extended_metrics": {
+          "count": 164,
+          "avg_token_length": 109.2,
+          "early_exit_pct": 0.0,
+          "rep_2gram_pct": 43.3,
+          "rep_3gram_pct": 38.5,
+          "rep_4gram_pct": 37.2,
+          "line_repetition_pct": 31.8,
+          "consecutive_dup_line_pct": 6.7,
+          "degenerate_loop_pct": 75.6,
+          "numerical": {
+            "tasks_with_prompt_numbers": 137,
+            "numeric_recall_pct": 14.3,
+            "numeric_precision_pct": 29.9,
+            "exact_number_match_pct": 4.4,
+            "zero_numbers_emitted_pct": 48.9,
+            "hallucinated_numbers_pct": 27.0
+          }
+        }
+      }
+    },
+    "tasks": [
+      {
+        "id": "HumanEval/0",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 14,
+          "is_early_exit": false,
+          "rep_2gram": 0.07692307692307687,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1.0",
+              "2.8",
+              "2.0",
+              "0.5",
+              "3.0",
+              "4.0",
+              "0.3",
+              "5.0"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "1"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/1",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 13,
+          "is_early_exit": false,
+          "rep_2gram": 0.08333333333333337,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/2",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 11,
+          "is_early_exit": false,
+          "rep_2gram": 0.09999999999999998,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3.5",
+              "0.5",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/3",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "AttributeError: 'int' object has no attribute 'is_zero'",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9333333333333333,
+          "rep_3gram": 0.9291338582677166,
+          "rep_4gram": 0.924901185770751,
+          "line_rep": 0.90625,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/4",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "TypeError: 'list' object cannot be interpreted as an integer",
+        "extended_metrics": {
+          "token_count": 18,
+          "is_early_exit": false,
+          "rep_2gram": 0.05882352941176472,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1.0",
+              "2.0",
+              "3.0",
+              "4.0"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "1"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/5",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 17,
+          "is_early_exit": false,
+          "rep_2gram": 0.0625,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "2",
+              "4",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/6",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "NameError: name 'basestring' is not defined",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.8352941176470589,
+          "rep_3gram": 0.8110236220472441,
+          "rep_4gram": 0.7905138339920948,
+          "line_rep": 0.6666666666666667,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "8"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "8"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/7",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 21,
+          "is_early_exit": false,
+          "rep_2gram": 0.050000000000000044,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/8",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "TypeError: sum_product() takes 1 positional argument but 2 were given",
+        "extended_metrics": {
+          "token_count": 18,
+          "is_early_exit": false,
+          "rep_2gram": 0.05882352941176472,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1",
+              "3",
+              "4",
+              "10",
+              "2",
+              "0",
+              "24"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/9",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 17,
+          "is_early_exit": false,
+          "rep_2gram": 0.0625,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "2",
+              "4",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/10",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 19,
+          "is_early_exit": false,
+          "rep_2gram": 0.05555555555555558,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 1.0,
+            "numeric_precision": 1.0,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/11",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9176470588235294,
+          "rep_3gram": 0.905511811023622,
+          "rep_4gram": 0.8932806324110671,
+          "line_rep": 0.84375,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "100",
+              "110",
+              "010"
+            ],
+            "completion_numbers": [
+              "010"
+            ],
+            "overlap_numbers": [
+              "010"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.3333333333333333,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/12",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 17,
+          "is_early_exit": false,
+          "rep_2gram": 0.0625,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/13",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9450980392156862,
+          "rep_3gram": 0.9448818897637795,
+          "rep_4gram": 0.9446640316205533,
+          "line_rep": 0.9347826086956522,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "15",
+              "3",
+              "5",
+              "25",
+              "1"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.2,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/14",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 10,
+          "is_early_exit": false,
+          "rep_2gram": 0.11111111111111116,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/15",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "AttributeError: 'int' object has no attribute 'strip'",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9137254901960784,
+          "rep_3gram": 0.905511811023622,
+          "rep_4gram": 0.9051383399209486,
+          "line_rep": 0.8648648648648649,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1",
+              "3",
+              "5",
+              "4",
+              "2",
+              "0"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [
+              "0"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.16666666666666666,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/16",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "ValueError: invalid literal for int() with base 10: ''",
+        "extended_metrics": {
+          "token_count": 11,
+          "is_early_exit": false,
+          "rep_2gram": 0.09999999999999998,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "4"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/17",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 47,
+          "is_early_exit": false,
+          "rep_2gram": 0.4782608695652174,
+          "rep_3gram": 0.4,
+          "rep_4gram": 0.34090909090909094,
+          "line_rep": 0.25,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "4",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/18",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "ValueError: Invalid string: ",
+        "extended_metrics": {
+          "token_count": 35,
+          "is_early_exit": false,
+          "rep_2gram": 0.02941176470588236,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "0"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "1"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/19",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 8,
+          "is_early_exit": false,
+          "rep_2gram": 0.1428571428571429,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/20",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 18,
+          "is_early_exit": false,
+          "rep_2gram": 0.05882352941176472,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1.0",
+              "2.0",
+              "3.0",
+              "4.0",
+              "5.0",
+              "2.2"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/21",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 17,
+          "is_early_exit": false,
+          "rep_2gram": 0.0625,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1",
+              "1.0",
+              "2.0",
+              "3.0",
+              "4.0",
+              "0.5",
+              "0.75",
+              "0.25",
+              "5.0",
+              "0",
+              "0.0"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/22",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 16,
+          "is_early_exit": false,
+          "rep_2gram": 0.06666666666666665,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "3.14",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/23",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 13,
+          "is_early_exit": false,
+          "rep_2gram": 0.08333333333333337,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "0"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/24",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 24,
+          "is_early_exit": false,
+          "rep_2gram": 0.04347826086956519,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "15",
+              "5"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "1"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/25",
+        "category": "HumanEval",
+        "outcome": "SYNTAX_ERROR",
+        "ast_valid": false,
+        "ast_error": "SyntaxError: '(' was never closed (line 16)",
+        "details": "SyntaxError: '(' was never closed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9568627450980393,
+          "rep_3gram": 0.9566929133858267,
+          "rep_4gram": 0.9565217391304348,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "7",
+              "8",
+              "5",
+              "25",
+              "70",
+              "2"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/26",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 17,
+          "is_early_exit": false,
+          "rep_2gram": 0.0625,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "2",
+              "4",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/27",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9333333333333333,
+          "rep_3gram": 0.9330708661417323,
+          "rep_4gram": 0.9328063241106719,
+          "line_rep": 0.9333333333333333,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "1"
+            ],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/28",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 19,
+          "is_early_exit": false,
+          "rep_2gram": 0.05555555555555558,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/29",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "TypeError: filter_by_prefix() missing 1 required positional argument: 'prefix'",
+        "extended_metrics": {
+          "token_count": 21,
+          "is_early_exit": false,
+          "rep_2gram": 0.050000000000000044,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/30",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "TypeError: 'int' object is not subscriptable",
+        "extended_metrics": {
+          "token_count": 17,
+          "is_early_exit": false,
+          "rep_2gram": 0.0625,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "0",
+              "3",
+              "5",
+              "4",
+              "9",
+              "10",
+              "2",
+              "123",
+              "1"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [
+              "0"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.1,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/31",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 14,
+          "is_early_exit": false,
+          "rep_2gram": 0.07692307692307687,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "101",
+              "61",
+              "4",
+              "11",
+              "13441",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/32",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "NameError: name 'x' is not defined",
+        "extended_metrics": {
+          "token_count": 29,
+          "is_early_exit": false,
+          "rep_2gram": 0.0357142857142857,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "1",
+              "11",
+              "3",
+              "1.0",
+              "0.5",
+              "2",
+              "0"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/33",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "TypeError: 'int' object is not subscriptable",
+        "extended_metrics": {
+          "token_count": 17,
+          "is_early_exit": false,
+          "rep_2gram": 0.0625,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "8",
+              "3",
+              "5",
+              "4",
+              "9",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/34",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 11,
+          "is_early_exit": false,
+          "rep_2gram": 0.09999999999999998,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "9",
+              "2",
+              "123",
+              "0"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/35",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "TypeError: '>' not supported between instances of 'int' and 'list'",
+        "extended_metrics": {
+          "token_count": 13,
+          "is_early_exit": false,
+          "rep_2gram": 0.08333333333333337,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "0",
+              "3",
+              "5",
+              "9",
+              "10",
+              "2",
+              "123",
+              "1"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [
+              "0"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.125,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/36",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 15,
+          "is_early_exit": false,
+          "rep_2gram": 0.0714285714285714,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "79",
+              "7",
+              "3",
+              "13",
+              "2",
+              "78",
+              "11",
+              "50",
+              "0"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "1"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/37",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "TypeError: 'int' object is not subscriptable",
+        "extended_metrics": {
+          "token_count": 17,
+          "is_early_exit": false,
+          "rep_2gram": 0.0625,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "3",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/38",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 104,
+          "is_early_exit": false,
+          "rep_2gram": 0.11650485436893199,
+          "rep_3gram": 0.0490196078431373,
+          "rep_4gram": 0.02970297029702973,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "0",
+              "1",
+              "2"
+            ],
+            "completion_numbers": [
+              "3",
+              "0",
+              "1",
+              "2"
+            ],
+            "overlap_numbers": [
+              "3",
+              "0",
+              "2",
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 1.0,
+            "numeric_precision": 1.0,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/39",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 15,
+          "is_early_exit": false,
+          "rep_2gram": 0.0714285714285714,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "13",
+              "89",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.14285714285714285,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/40",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 8,
+          "is_early_exit": false,
+          "rep_2gram": 0.1428571428571429,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1",
+              "7",
+              "3",
+              "5",
+              "4",
+              "9",
+              "2",
+              "0"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/41",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "TypeError: 'int' object is not iterable",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9058823529411765,
+          "rep_3gram": 0.9015748031496063,
+          "rep_4gram": 0.8972332015810277,
+          "line_rep": 0.8125,
+          "has_consecutive_dup_lines": true,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "1"
+            ],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/42",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "TypeError: 'int' object is not subscriptable",
+        "extended_metrics": {
+          "token_count": 17,
+          "is_early_exit": false,
+          "rep_2gram": 0.0625,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "0",
+              "3",
+              "5",
+              "124",
+              "4",
+              "9",
+              "10",
+              "2",
+              "123",
+              "1"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [
+              "0"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.09090909090909091,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/43",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 15,
+          "is_early_exit": false,
+          "rep_2gram": 0.0714285714285714,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1",
+              "7",
+              "3",
+              "5",
+              "4",
+              "2",
+              "0"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [
+              "0"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.14285714285714285,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/44",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9607843137254902,
+          "rep_3gram": 0.9606299212598425,
+          "rep_4gram": 0.9604743083003953,
+          "line_rep": 0.96,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "111",
+              "7",
+              "8",
+              "3",
+              "1000",
+              "22",
+              "10",
+              "2"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/45",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "NameError: name 'np' is not defined",
+        "extended_metrics": {
+          "token_count": 34,
+          "is_early_exit": false,
+          "rep_2gram": 0.2727272727272727,
+          "rep_3gram": 0.125,
+          "rep_4gram": 0.06451612903225812,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "7.5",
+              "5"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/46",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 40,
+          "is_early_exit": false,
+          "rep_2gram": 0.3076923076923077,
+          "rep_3gram": 0.23684210526315785,
+          "rep_4gram": 0.21621621621621623,
+          "line_rep": 0.19999999999999996,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "1",
+              "8",
+              "3",
+              "7",
+              "5",
+              "4",
+              "2",
+              "14",
+              "0"
+            ],
+            "completion_numbers": [
+              "0",
+              "1"
+            ],
+            "overlap_numbers": [
+              "0",
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.2,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/47",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 14,
+          "is_early_exit": false,
+          "rep_2gram": 0.15384615384615385,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "20",
+              "3",
+              "1000",
+              "5",
+              "4",
+              "10",
+              "2",
+              "15.0",
+              "1"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/48",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 16,
+          "is_early_exit": false,
+          "rep_2gram": 0.06666666666666665,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/49",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 26,
+          "is_early_exit": false,
+          "rep_2gram": 0.07999999999999996,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "101",
+              "1",
+              "11",
+              "3",
+              "1101",
+              "8",
+              "5",
+              "100",
+              "2",
+              "0"
+            ],
+            "completion_numbers": [
+              "0",
+              "1"
+            ],
+            "overlap_numbers": [
+              "0",
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.2,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/50",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "TypeError: can only concatenate str (not \"int\") to str",
+        "extended_metrics": {
+          "token_count": 39,
+          "is_early_exit": false,
+          "rep_2gram": 0.10526315789473684,
+          "rep_3gram": 0.027027027027026973,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "5",
+              "26"
+            ],
+            "completion_numbers": [
+              "5",
+              "26"
+            ],
+            "overlap_numbers": [
+              "5",
+              "26"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 1.0,
+            "numeric_precision": 1.0,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/51",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 8,
+          "is_early_exit": false,
+          "rep_2gram": 0.1428571428571429,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/52",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 15,
+          "is_early_exit": false,
+          "rep_2gram": 0.0714285714285714,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "20",
+              "100",
+              "5",
+              "4",
+              "10",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/53",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9529411764705882,
+          "rep_3gram": 0.9488188976377953,
+          "rep_4gram": 0.9486166007905138,
+          "line_rep": 0.94,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "12",
+              "7",
+              "3",
+              "5",
+              "2"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/54",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 55,
+          "is_early_exit": false,
+          "rep_2gram": 0.6111111111111112,
+          "rep_3gram": 0.5283018867924528,
+          "rep_4gram": 0.5,
+          "line_rep": 0.5,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/55",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 15,
+          "is_early_exit": false,
+          "rep_2gram": 0.0714285714285714,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "8",
+              "55",
+              "21",
+              "10",
+              "1"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.2,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/56",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.8588235294117648,
+          "rep_3gram": 0.8188976377952756,
+          "rep_4gram": 0.7786561264822134,
+          "line_rep": 0.625,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [
+              "6",
+              "1",
+              "7",
+              "3",
+              "8",
+              "5",
+              "4",
+              "9",
+              "2",
+              "0"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "6",
+              "1",
+              "7",
+              "3",
+              "8",
+              "5",
+              "4",
+              "9",
+              "2",
+              "0"
+            ],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/57",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 13,
+          "is_early_exit": false,
+          "rep_2gram": 0.08333333333333337,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "0",
+              "20",
+              "4",
+              "10",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.16666666666666666,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/58",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9137254901960784,
+          "rep_3gram": 0.8937007874015748,
+          "rep_4gram": 0.8814229249011858,
+          "line_rep": 0.8571428571428572,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "653",
+              "121",
+              "7",
+              "8",
+              "3",
+              "34",
+              "5",
+              "4",
+              "9",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/59",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 15,
+          "is_early_exit": false,
+          "rep_2gram": 0.0714285714285714,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "29",
+              "2048",
+              "2",
+              "13195",
+              "1"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.2,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/60",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "AttributeError: 'int' object has no attribute 'strip'",
+        "extended_metrics": {
+          "token_count": 38,
+          "is_early_exit": false,
+          "rep_2gram": 0.08108108108108103,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "15",
+              "100",
+              "5",
+              "465",
+              "55",
+              "10",
+              "30",
+              "5050",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/61",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9098039215686274,
+          "rep_3gram": 0.905511811023622,
+          "rep_4gram": 0.9011857707509882,
+          "line_rep": 0.9,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/62",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 11,
+          "is_early_exit": false,
+          "rep_2gram": 0.09999999999999998,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "12",
+              "20",
+              "1",
+              "3",
+              "5",
+              "4",
+              "2",
+              "0"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/63",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 42,
+          "is_early_exit": false,
+          "rep_2gram": 0.31707317073170727,
+          "rep_3gram": 0.25,
+          "rep_4gram": 0.23076923076923073,
+          "line_rep": 0.19999999999999996,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1",
+              "8",
+              "3",
+              "5",
+              "4",
+              "2",
+              "0",
+              "24"
+            ],
+            "completion_numbers": [
+              "0",
+              "1"
+            ],
+            "overlap_numbers": [
+              "0",
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.25,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/64",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 14,
+          "is_early_exit": false,
+          "rep_2gram": 0.0,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "2"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/65",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9490196078431372,
+          "rep_3gram": 0.9488188976377953,
+          "rep_4gram": 0.9486166007905138,
+          "line_rep": 0.925,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "21",
+              "2",
+              "12",
+              "1"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/66",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Error",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9450980392156862,
+          "rep_3gram": 0.9409448818897638,
+          "rep_4gram": 0.9407114624505929,
+          "line_rep": 0.9411764705882353,
+          "has_consecutive_dup_lines": true,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "153",
+              "67",
+              "0",
+              "131",
+              "69"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/67",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.8784313725490196,
+          "rep_3gram": 0.8425196850393701,
+          "rep_4gram": 0.8063241106719368,
+          "line_rep": 0.7,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "19",
+              "1",
+              "8",
+              "3",
+              "100",
+              "5",
+              "2",
+              "95",
+              "6",
+              "120",
+              "0"
+            ],
+            "completion_numbers": [
+              "6",
+              "1",
+              "7",
+              "3",
+              "8",
+              "5",
+              "4",
+              "9",
+              "2",
+              "0"
+            ],
+            "overlap_numbers": [
+              "0",
+              "8",
+              "3",
+              "5",
+              "2",
+              "6",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "9",
+              "4",
+              "7"
+            ],
+            "numeric_recall": 0.6363636363636364,
+            "numeric_precision": 0.7,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/68",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Error",
+        "extended_metrics": {
+          "token_count": 145,
+          "is_early_exit": false,
+          "rep_2gram": 0.7777777777777778,
+          "rep_3gram": 0.7272727272727273,
+          "rep_4gram": 0.676056338028169,
+          "line_rep": 0.4375,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "0",
+              "3",
+              "5",
+              "10000",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "6",
+              "1",
+              "3",
+              "5",
+              "4",
+              "2",
+              "0"
+            ],
+            "overlap_numbers": [
+              "0",
+              "3",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "6"
+            ],
+            "numeric_recall": 0.8571428571428571,
+            "numeric_precision": 0.8571428571428571,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/69",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.8470588235294118,
+          "rep_3gram": 0.7992125984251969,
+          "rep_4gram": 0.7509881422924901,
+          "line_rep": 0.5882352941176471,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "6",
+              "12",
+              "1",
+              "7",
+              "3",
+              "8",
+              "11",
+              "5",
+              "4",
+              "9",
+              "10",
+              "2",
+              "0"
+            ],
+            "overlap_numbers": [
+              "3",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "12",
+              "7",
+              "8",
+              "11",
+              "9",
+              "10",
+              "6",
+              "0"
+            ],
+            "numeric_recall": 1.0,
+            "numeric_precision": 0.38461538461538464,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/70",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 17,
+          "is_early_exit": false,
+          "rep_2gram": 0.0625,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/71",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "This prints if this assert fails 1 (good for debugging!)",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.8666666666666667,
+          "rep_3gram": 0.8228346456692913,
+          "rep_4gram": 0.782608695652174,
+          "line_rep": 0.6904761904761905,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "4",
+              "10",
+              "2",
+              "6.00",
+              "1"
+            ],
+            "completion_numbers": [
+              "6",
+              "1",
+              "7",
+              "3",
+              "8",
+              "5",
+              "4",
+              "9",
+              "2",
+              "0"
+            ],
+            "overlap_numbers": [
+              "3",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "7",
+              "8",
+              "9",
+              "6",
+              "0"
+            ],
+            "numeric_recall": 0.7142857142857143,
+            "numeric_precision": 0.5,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/72",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "AttributeError: 'list' object has no attribute 'is_fly'",
+        "extended_metrics": {
+          "token_count": 25,
+          "is_early_exit": false,
+          "rep_2gram": 0.08333333333333337,
+          "rep_3gram": 0.04347826086956519,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "9",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/73",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "TypeError: 'int' object is not subscriptable",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.8862745098039215,
+          "rep_3gram": 0.8740157480314961,
+          "rep_4gram": 0.8656126482213439,
+          "line_rep": 0.7777777777777778,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "0",
+              "7",
+              "3",
+              "5",
+              "4",
+              "9",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "0",
+              "1"
+            ],
+            "overlap_numbers": [
+              "0",
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.2222222222222222,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/74",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9098039215686274,
+          "rep_3gram": 0.8976377952755905,
+          "rep_4gram": 0.8893280632411067,
+          "line_rep": 0.8333333333333334,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/75",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.8784313725490196,
+          "rep_3gram": 0.8385826771653544,
+          "rep_4gram": 0.7984189723320159,
+          "line_rep": 0.7391304347826086,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "100",
+              "5",
+              "30",
+              "2"
+            ],
+            "completion_numbers": [
+              "6",
+              "1",
+              "7",
+              "3",
+              "8",
+              "5",
+              "4",
+              "9",
+              "2",
+              "0"
+            ],
+            "overlap_numbers": [
+              "3",
+              "5",
+              "2"
+            ],
+            "hallucinated_numbers": [
+              "0",
+              "7",
+              "8",
+              "4",
+              "9",
+              "6",
+              "1"
+            ],
+            "numeric_recall": 0.6,
+            "numeric_precision": 0.3,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/76",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "AttributeError: 'int' object has no attribute 'is_simple_power'",
+        "extended_metrics": {
+          "token_count": 29,
+          "is_early_exit": false,
+          "rep_2gram": 0.1071428571428571,
+          "rep_3gram": 0.03703703703703709,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "8",
+              "3",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/77",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "First test error: False",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.8862745098039215,
+          "rep_3gram": 0.8503937007874016,
+          "rep_4gram": 0.8142292490118577,
+          "line_rep": 0.7608695652173914,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1",
+              "180",
+              "64",
+              "2",
+              "0"
+            ],
+            "completion_numbers": [
+              "6",
+              "1",
+              "7",
+              "3",
+              "8",
+              "5",
+              "4",
+              "9",
+              "2",
+              "0"
+            ],
+            "overlap_numbers": [
+              "2",
+              "0",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "7",
+              "8",
+              "3",
+              "5",
+              "4",
+              "9",
+              "6"
+            ],
+            "numeric_recall": 0.6,
+            "numeric_precision": 0.3,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/78",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "First test error: AB",
+        "extended_metrics": {
+          "token_count": 202,
+          "is_early_exit": false,
+          "rep_2gram": 0.9353233830845771,
+          "rep_3gram": 0.9299999999999999,
+          "rep_4gram": 0.9296482412060302,
+          "line_rep": 0.9285714285714286,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "1",
+              "7",
+              "3",
+              "8",
+              "11",
+              "5",
+              "13",
+              "2020",
+              "17",
+              "4",
+              "9",
+              "2",
+              "0"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/79",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9019607843137255,
+          "rep_3gram": 0.8976377952755905,
+          "rep_4gram": 0.8932806324110671,
+          "line_rep": 0.8333333333333334,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "15",
+              "32",
+              "0",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/80",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "a",
+        "extended_metrics": {
+          "token_count": 24,
+          "is_early_exit": false,
+          "rep_2gram": 0.08695652173913049,
+          "rep_3gram": 0.045454545454545414,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/81",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 35,
+          "is_early_exit": false,
+          "rep_2gram": 0.11764705882352944,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3.3",
+              "1.0",
+              "3",
+              "2.7",
+              "2.0",
+              "3.0",
+              "3.7",
+              "4.0",
+              "2.3",
+              "1.3",
+              "3.5",
+              "0.7",
+              "2",
+              "0.0",
+              "1.7"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/82",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9607843137254902,
+          "rep_3gram": 0.9606299212598425,
+          "rep_4gram": 0.9604743083003953,
+          "line_rep": 0.96,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/83",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 28,
+          "is_early_exit": false,
+          "rep_2gram": 0.2222222222222222,
+          "rep_3gram": 0.1923076923076923,
+          "rep_4gram": 0.16000000000000003,
+          "line_rep": 0.25,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 1.0,
+            "numeric_precision": 1.0,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/84",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Error",
+        "extended_metrics": {
+          "token_count": 33,
+          "is_early_exit": false,
+          "rep_2gram": 0.3125,
+          "rep_3gram": 0.22580645161290325,
+          "rep_4gram": 0.16666666666666663,
+          "line_rep": 0.16666666666666663,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "150",
+              "0",
+              "147",
+              "12",
+              "1",
+              "1000",
+              "10000",
+              "1100",
+              "6",
+              "110"
+            ],
+            "completion_numbers": [
+              "0",
+              "1"
+            ],
+            "overlap_numbers": [
+              "0",
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.2,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/85",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 56,
+          "is_early_exit": false,
+          "rep_2gram": 0.2727272727272727,
+          "rep_3gram": 0.18518518518518523,
+          "rep_4gram": 0.15094339622641506,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "6",
+              "4",
+              "7"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/86",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9294117647058824,
+          "rep_3gram": 0.9291338582677166,
+          "rep_4gram": 0.9288537549407114,
+          "line_rep": 0.92,
+          "has_consecutive_dup_lines": true,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/87",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 34,
+          "is_early_exit": false,
+          "rep_2gram": 0.09090909090909094,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "1",
+              "3",
+              "5",
+              "4",
+              "2",
+              "0"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/88",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Error",
+        "extended_metrics": {
+          "token_count": 44,
+          "is_early_exit": false,
+          "rep_2gram": 0.4418604651162791,
+          "rep_3gram": 0.38095238095238093,
+          "rep_4gram": 0.3414634146341463,
+          "line_rep": 0.33333333333333337,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "1",
+              "3",
+              "5",
+              "4",
+              "2",
+              "0"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/89",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "This prints if this assert fails 1 (good for debugging!)",
+        "extended_metrics": {
+          "token_count": 30,
+          "is_early_exit": false,
+          "rep_2gram": 0.24137931034482762,
+          "rep_3gram": 0.2142857142857143,
+          "rep_4gram": 0.18518518518518523,
+          "line_rep": 0.25,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "1"
+            ],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/90",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 25,
+          "is_early_exit": false,
+          "rep_2gram": 0.20833333333333337,
+          "rep_3gram": 0.17391304347826086,
+          "rep_4gram": 0.13636363636363635,
+          "line_rep": 0.25,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.2,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/91",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 14,
+          "is_early_exit": false,
+          "rep_2gram": 0.07692307692307687,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "0",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/92",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "This prints if this assert fails 2 (good for debugging!)",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.8784313725490196,
+          "rep_3gram": 0.8385826771653544,
+          "rep_4gram": 0.7984189723320159,
+          "line_rep": 0.7391304347826086,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "7",
+              "3",
+              "5",
+              "3.6",
+              "2",
+              "1",
+              "2.2"
+            ],
+            "completion_numbers": [
+              "6",
+              "1",
+              "7",
+              "3",
+              "8",
+              "5",
+              "4",
+              "9",
+              "2",
+              "0"
+            ],
+            "overlap_numbers": [
+              "7",
+              "3",
+              "5",
+              "2",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "8",
+              "9",
+              "4",
+              "6",
+              "0"
+            ],
+            "numeric_recall": 0.7142857142857143,
+            "numeric_precision": 0.5,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/93",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "NameError: name 'unicode' is not defined",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.8588235294117648,
+          "rep_3gram": 0.8503937007874016,
+          "rep_4gram": 0.841897233201581,
+          "line_rep": 0.7916666666666666,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2"
+            ],
+            "completion_numbers": [
+              "8"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "8"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/94",
+        "category": "HumanEval",
+        "outcome": "SYNTAX_ERROR",
+        "ast_valid": false,
+        "ast_error": "SyntaxError: '[' was never closed (line 15)",
+        "details": "SyntaxError: '[' was never closed",
+        "extended_metrics": {
+          "token_count": 209,
+          "is_early_exit": false,
+          "rep_2gram": 0.9759615384615384,
+          "rep_3gram": 0.9758454106280193,
+          "rep_4gram": 0.9757281553398058,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "8",
+              "5107",
+              "5",
+              "21",
+              "71",
+              "2",
+              "4597",
+              "163",
+              "99",
+              "83",
+              "324",
+              "7",
+              "724",
+              "13",
+              "83278",
+              "32",
+              "81",
+              "30",
+              "91",
+              "1",
+              "0",
+              "34",
+              "4",
+              "9",
+              "11",
+              "181",
+              "40",
+              "109",
+              "12",
+              "3",
+              "25",
+              "10",
+              "23",
+              "6",
+              "2323"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [
+              "0"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.02857142857142857,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/95",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Second test error: True",
+        "extended_metrics": {
+          "token_count": 7,
+          "is_early_exit": false,
+          "rep_2gram": 0.0,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "8",
+              "36",
+              "12345"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/96",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "AttributeError: 'int' object has no attribute 'count'",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.8274509803921568,
+          "rep_3gram": 0.7795275590551181,
+          "rep_4gram": 0.7312252964426877,
+          "line_rep": 0.6666666666666667,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "19",
+              "20",
+              "18",
+              "7",
+              "11",
+              "3",
+              "1",
+              "5",
+              "13",
+              "17",
+              "2",
+              "0"
+            ],
+            "completion_numbers": [
+              "6",
+              "12",
+              "1",
+              "7",
+              "3",
+              "8",
+              "11",
+              "5",
+              "4",
+              "9",
+              "10",
+              "2",
+              "0"
+            ],
+            "overlap_numbers": [
+              "0",
+              "7",
+              "3",
+              "5",
+              "2",
+              "11",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "12",
+              "8",
+              "4",
+              "9",
+              "10",
+              "6"
+            ],
+            "numeric_recall": 0.5833333333333334,
+            "numeric_precision": 0.5384615384615384,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/97",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "AttributeError: 'int' object has no attribute 'astype'",
+        "extended_metrics": {
+          "token_count": 29,
+          "is_early_exit": false,
+          "rep_2gram": 0.2142857142857143,
+          "rep_3gram": 0.18518518518518523,
+          "rep_4gram": 0.15384615384615385,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "19",
+              "20",
+              "15",
+              "28",
+              "16",
+              "2020",
+              "1851",
+              "148",
+              "72",
+              "412",
+              "14",
+              "0"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/98",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9098039215686274,
+          "rep_3gram": 0.905511811023622,
+          "rep_4gram": 0.9051383399209486,
+          "line_rep": 0.8857142857142857,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "0",
+              "1"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [
+              "0"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.5,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/99",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 14,
+          "is_early_exit": false,
+          "rep_2gram": 0.07692307692307687,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "15",
+              "14.5",
+              "15.3",
+              "10"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/100",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "AttributeError: 'int' object has no attribute 'n'",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9333333333333333,
+          "rep_3gram": 0.9251968503937008,
+          "rep_4gram": 0.9169960474308301,
+          "line_rep": 0.9090909090909091,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "1",
+              "7"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/101",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 7,
+          "is_early_exit": false,
+          "rep_2gram": 0.0,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/102",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9450980392156862,
+          "rep_3gram": 0.9409448818897638,
+          "rep_4gram": 0.9407114624505929,
+          "line_rep": 0.9285714285714286,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "12",
+              "15",
+              "13",
+              "14",
+              "1"
+            ],
+            "completion_numbers": [
+              "0",
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 0.2,
+            "numeric_precision": 0.5,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/103",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 24,
+          "is_early_exit": false,
+          "rep_2gram": 0.26086956521739135,
+          "rep_3gram": 0.2272727272727273,
+          "rep_4gram": 0.19047619047619047,
+          "line_rep": 0.25,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "20",
+              "7",
+              "5",
+              "33",
+              "10",
+              "1"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.16666666666666666,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/104",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "TypeError: 'int' object is not subscriptable",
+        "extended_metrics": {
+          "token_count": 23,
+          "is_early_exit": false,
+          "rep_2gram": 0.0,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1422",
+              "15",
+              "33",
+              "152",
+              "323",
+              "10",
+              "1"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/105",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Error",
+        "extended_metrics": {
+          "token_count": 25,
+          "is_early_exit": false,
+          "rep_2gram": 0.20833333333333337,
+          "rep_3gram": 0.17391304347826086,
+          "rep_4gram": 0.13636363636363635,
+          "line_rep": 0.25,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "8",
+              "3",
+              "5",
+              "55",
+              "4",
+              "9",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.125,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/106",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 23,
+          "is_early_exit": false,
+          "rep_2gram": 0.045454545454545414,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "15",
+              "5",
+              "2",
+              "1",
+              "24"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.16666666666666666,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/107",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 35,
+          "is_early_exit": false,
+          "rep_2gram": 0.3529411764705882,
+          "rep_3gram": 0.21212121212121215,
+          "rep_4gram": 0.125,
+          "line_rep": 0.16666666666666663,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "12",
+              "7",
+              "8",
+              "3",
+              "11",
+              "5",
+              "4",
+              "9",
+              "10",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "0",
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 0.08333333333333333,
+            "numeric_precision": 0.5,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/108",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "AttributeError: 'list' object has no attribute 'values'",
+        "extended_metrics": {
+          "token_count": 13,
+          "is_early_exit": false,
+          "rep_2gram": 0.08333333333333337,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1",
+              "11",
+              "3",
+              "2",
+              "123",
+              "0"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/109",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "NameError: name 'np' is not defined",
+        "extended_metrics": {
+          "token_count": 170,
+          "is_early_exit": false,
+          "rep_2gram": 0.9053254437869822,
+          "rep_3gram": 0.9047619047619048,
+          "rep_4gram": 0.9041916167664671,
+          "line_rep": 0.9,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/110",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 10,
+          "is_early_exit": false,
+          "rep_2gram": 0.11111111111111116,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/111",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "This prints if this assert fails 1 (good for debugging!)",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9725490196078431,
+          "rep_3gram": 0.9724409448818898,
+          "rep_4gram": 0.9723320158102767,
+          "line_rep": 0.9459459459459459,
+          "has_consecutive_dup_lines": true,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/112",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9294117647058824,
+          "rep_3gram": 0.9212598425196851,
+          "rep_4gram": 0.9130434782608696,
+          "line_rep": 0.9047619047619048,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/113",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Test 1",
+        "extended_metrics": {
+          "token_count": 11,
+          "is_early_exit": false,
+          "rep_2gram": 0.09999999999999998,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "8",
+              "3",
+              "11111111",
+              "1234567",
+              "4",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/114",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "ValueError: [2, 3, 4, 1, 2, 4] is not in list",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.7568627450980392,
+          "rep_3gram": 0.6574803149606299,
+          "rep_4gram": 0.5612648221343873,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "3",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "8",
+              "5",
+              "21",
+              "2",
+              "14",
+              "7",
+              "13",
+              "22",
+              "17",
+              "1",
+              "0",
+              "19",
+              "18",
+              "15",
+              "4",
+              "9",
+              "11",
+              "12",
+              "20",
+              "3",
+              "16",
+              "10",
+              "23",
+              "6"
+            ],
+            "overlap_numbers": [
+              "3",
+              "2",
+              "4",
+              "6",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "19",
+              "18",
+              "8",
+              "15",
+              "5",
+              "21",
+              "9",
+              "14",
+              "11",
+              "0",
+              "12",
+              "20",
+              "7",
+              "16",
+              "13",
+              "22",
+              "17",
+              "10",
+              "23"
+            ],
+            "numeric_recall": 1.0,
+            "numeric_precision": 0.20833333333333334,
+            "exact_number_match": true,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/115",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "UnboundLocalError: cannot access local variable 'water' where it is not associated with a value",
+        "extended_metrics": {
+          "token_count": 163,
+          "is_early_exit": false,
+          "rep_2gram": 0.8333333333333334,
+          "rep_3gram": 0.8012422360248448,
+          "rep_4gram": 0.78125,
+          "line_rep": 0.6923076923076923,
+          "has_consecutive_dup_lines": true,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1",
+              "3",
+              "5",
+              "2",
+              "10",
+              "6",
+              "0"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/116",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.8980392156862745,
+          "rep_3gram": 0.8976377952755905,
+          "rep_4gram": 0.8972332015810277,
+          "line_rep": 0.8888888888888888,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "0",
+              "3",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/117",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "First test error: None",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9607843137254902,
+          "rep_3gram": 0.9606299212598425,
+          "rep_4gram": 0.9604743083003953,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "4",
+              "2"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/118",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 7,
+          "is_early_exit": false,
+          "rep_2gram": 0.0,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/119",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 29,
+          "is_early_exit": false,
+          "rep_2gram": 0.25,
+          "rep_3gram": 0.2222222222222222,
+          "rep_4gram": 0.1923076923076923,
+          "line_rep": 0.25,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/120",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 22,
+          "is_early_exit": false,
+          "rep_2gram": 0.23809523809523814,
+          "rep_3gram": 0.050000000000000044,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "0",
+              "3",
+              "1000",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/121",
+        "category": "HumanEval",
+        "outcome": "SYNTAX_ERROR",
+        "ast_valid": false,
+        "ast_error": "SyntaxError: '[' was never closed (line 11)",
+        "details": "SyntaxError: '[' was never closed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9215686274509804,
+          "rep_3gram": 0.9212598425196851,
+          "rep_4gram": 0.9209486166007905,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "0",
+              "12",
+              "321",
+              "7",
+              "8",
+              "3",
+              "5",
+              "13",
+              "9",
+              "30",
+              "1",
+              "24"
+            ],
+            "completion_numbers": [
+              "6",
+              "7",
+              "8",
+              "3",
+              "5",
+              "4",
+              "9",
+              "2",
+              "1"
+            ],
+            "overlap_numbers": [
+              "7",
+              "8",
+              "3",
+              "5",
+              "9",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "6",
+              "4",
+              "2"
+            ],
+            "numeric_recall": 0.5,
+            "numeric_precision": 0.6666666666666666,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/122",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9490196078431372,
+          "rep_3gram": 0.9488188976377953,
+          "rep_4gram": 0.9486166007905138,
+          "line_rep": 0.9473684210526316,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "111",
+              "7",
+              "8",
+              "3",
+              "100",
+              "5",
+              "4000",
+              "2",
+              "21",
+              "9",
+              "4",
+              "6",
+              "1",
+              "24"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/123",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 30,
+          "is_early_exit": false,
+          "rep_2gram": 0.31034482758620685,
+          "rep_3gram": 0.2857142857142857,
+          "rep_4gram": 0.2592592592592593,
+          "line_rep": 0.25,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "8",
+              "3",
+              "16",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "5",
+              "1"
+            ],
+            "overlap_numbers": [
+              "5",
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.2857142857142857,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/124",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "AttributeError: 'str' object has no attribute 'is_valid'",
+        "extended_metrics": {
+          "token_count": 232,
+          "is_early_exit": false,
+          "rep_2gram": 0.9307359307359307,
+          "rep_3gram": 0.9260869565217391,
+          "rep_4gram": 0.9213973799126638,
+          "line_rep": 0.8823529411764706,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "8",
+              "2000",
+              "5",
+              "03",
+              "2",
+              "7",
+              "31",
+              "01",
+              "2012",
+              "29",
+              "30",
+              "1",
+              "0",
+              "2040",
+              "04",
+              "15",
+              "2020",
+              "4",
+              "9",
+              "11",
+              "12",
+              "3",
+              "06",
+              "10",
+              "6"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/125",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "NameError: name 't' is not defined",
+        "extended_metrics": {
+          "token_count": 25,
+          "is_early_exit": false,
+          "rep_2gram": 0.04166666666666663,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "25",
+              "0",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/126",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 10,
+          "is_early_exit": false,
+          "rep_2gram": 0.0,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "7",
+              "3",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/127",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 226,
+          "is_early_exit": false,
+          "rep_2gram": 0.84,
+          "rep_3gram": 0.8169642857142857,
+          "rep_4gram": 0.8071748878923767,
+          "line_rep": 0.7058823529411764,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1",
+              "3",
+              "5",
+              "4",
+              "2",
+              "0"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/128",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "NameError: name 'np' is not defined",
+        "extended_metrics": {
+          "token_count": 20,
+          "is_early_exit": false,
+          "rep_2gram": 0.052631578947368474,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1",
+              "4",
+              "9",
+              "2",
+              "0"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.2,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/129",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 56,
+          "is_early_exit": false,
+          "rep_2gram": 0.7090909090909091,
+          "rep_3gram": 0.7037037037037037,
+          "rep_4gram": 0.6981132075471699,
+          "line_rep": 0.5,
+          "has_consecutive_dup_lines": true,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "7",
+              "8",
+              "3",
+              "5",
+              "4",
+              "9",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/130",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 246,
+          "is_early_exit": false,
+          "rep_2gram": 0.9673469387755103,
+          "rep_3gram": 0.9631147540983607,
+          "rep_4gram": 0.9588477366255144,
+          "line_rep": 0.9428571428571428,
+          "has_consecutive_dup_lines": true,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "8",
+              "3",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.2,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/131",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 14,
+          "is_early_exit": false,
+          "rep_2gram": 0.0,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1",
+              "15",
+              "235",
+              "4",
+              "0"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.2,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/132",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 12,
+          "is_early_exit": false,
+          "rep_2gram": 0.0,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/133",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "This prints if this assert fails 1 (good for debugging!)",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9215686274509804,
+          "rep_3gram": 0.9173228346456693,
+          "rep_4gram": 0.9169960474308301,
+          "line_rep": 0.8461538461538461,
+          "has_consecutive_dup_lines": true,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "0",
+              "1.4",
+              "7",
+              "2.4",
+              "3",
+              "5",
+              "4.2",
+              "29",
+              "4",
+              "9",
+              "98",
+              "2",
+              "14",
+              "84",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/134",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9098039215686274,
+          "rep_3gram": 0.8976377952755905,
+          "rep_4gram": 0.8893280632411067,
+          "line_rep": 0.8666666666666667,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/135",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9294117647058824,
+          "rep_3gram": 0.9291338582677166,
+          "rep_4gram": 0.9288537549407114,
+          "line_rep": 0.9285714285714286,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.2,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/136",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 40,
+          "is_early_exit": false,
+          "rep_2gram": 0.20512820512820518,
+          "rep_3gram": 0.1842105263157895,
+          "rep_4gram": 0.16216216216216217,
+          "line_rep": 0.25,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "0",
+              "7",
+              "3",
+              "5",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/137",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 23,
+          "is_early_exit": false,
+          "rep_2gram": 0.18181818181818177,
+          "rep_3gram": 0.09523809523809523,
+          "rep_4gram": 0.050000000000000044,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "3",
+              "5",
+              "2.5",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/138",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "AttributeError: 'int' object has no attribute 'astype'",
+        "extended_metrics": {
+          "token_count": 37,
+          "is_early_exit": false,
+          "rep_2gram": 0.16666666666666663,
+          "rep_3gram": 0.05714285714285716,
+          "rep_4gram": 0.02941176470588236,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "8",
+              "6",
+              "4"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/139",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Test 4",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.8627450980392157,
+          "rep_3gram": 0.8267716535433071,
+          "rep_4gram": 0.7905138339920948,
+          "line_rep": 0.7333333333333334,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "288",
+              "1",
+              "4",
+              "2",
+              "0"
+            ],
+            "completion_numbers": [
+              "6",
+              "1",
+              "7",
+              "3",
+              "8",
+              "5",
+              "4",
+              "9",
+              "2",
+              "0"
+            ],
+            "overlap_numbers": [
+              "4",
+              "2",
+              "0",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "7",
+              "8",
+              "3",
+              "5",
+              "9",
+              "6"
+            ],
+            "numeric_recall": 0.8,
+            "numeric_precision": 0.4,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/140",
+        "category": "HumanEval",
+        "outcome": "SYNTAX_ERROR",
+        "ast_valid": false,
+        "ast_error": "SyntaxError: unterminated string literal (detected at line 13) (line 13)",
+        "details": "SyntaxError: unterminated string literal (detected at line 13)",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9568627450980393,
+          "rep_3gram": 0.9566929133858267,
+          "rep_4gram": 0.9565217391304348,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/141",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.8784313725490196,
+          "rep_3gram": 0.8622047244094488,
+          "rep_4gram": 0.8458498023715415,
+          "line_rep": 0.75,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "9",
+              "0"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/142",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9568627450980393,
+          "rep_3gram": 0.9566929133858267,
+          "rep_4gram": 0.9565217391304348,
+          "line_rep": 0.9166666666666666,
+          "has_consecutive_dup_lines": true,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "0",
+              "3",
+              "5",
+              "2",
+              "4",
+              "126",
+              "6",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/143",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 39,
+          "is_early_exit": false,
+          "rep_2gram": 0.4736842105263158,
+          "rep_3gram": 0.3783783783783784,
+          "rep_4gram": 0.36111111111111116,
+          "line_rep": 0.33333333333333337,
+          "has_consecutive_dup_lines": true,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "100",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/144",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "test1",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.8862745098039215,
+          "rep_3gram": 0.8503937007874016,
+          "rep_4gram": 0.8142292490118577,
+          "line_rep": 0.7608695652173914,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "7",
+              "5",
+              "2",
+              "10",
+              "6",
+              "1"
+            ],
+            "completion_numbers": [
+              "6",
+              "1",
+              "7",
+              "3",
+              "8",
+              "5",
+              "4",
+              "9",
+              "2",
+              "0"
+            ],
+            "overlap_numbers": [
+              "6",
+              "7",
+              "5",
+              "2",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "8",
+              "3",
+              "9",
+              "4",
+              "0"
+            ],
+            "numeric_recall": 0.8333333333333334,
+            "numeric_precision": 0.5,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/145",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 18,
+          "is_early_exit": false,
+          "rep_2gram": 0.05882352941176472,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "11",
+              "12",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/146",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9490196078431372,
+          "rep_3gram": 0.9448818897637795,
+          "rep_4gram": 0.9407114624505929,
+          "line_rep": 0.9347826086956522,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "109",
+              "7",
+              "15",
+              "3",
+              "45",
+              "5",
+              "73",
+              "33",
+              "21",
+              "9",
+              "10",
+              "2",
+              "14",
+              "1"
+            ],
+            "completion_numbers": [
+              "0",
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 0.07142857142857142,
+            "numeric_precision": 0.5,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/147",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 15,
+          "is_early_exit": false,
+          "rep_2gram": 0.0714285714285714,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "7",
+              "3",
+              "5",
+              "13",
+              "21",
+              "1"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [
+              "1"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.16666666666666666,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/148",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "TypeError: replace() takes at most 3 arguments (5 given)",
+        "extended_metrics": {
+          "token_count": 236,
+          "is_early_exit": false,
+          "rep_2gram": 0.7957446808510639,
+          "rep_3gram": 0.7307692307692308,
+          "rep_4gram": 0.6609442060085837,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/149",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.8666666666666667,
+          "rep_3gram": 0.8385826771653544,
+          "rep_4gram": 0.8221343873517787,
+          "line_rep": 0.8260869565217391,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/150",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 44,
+          "is_early_exit": false,
+          "rep_2gram": 0.37209302325581395,
+          "rep_3gram": 0.3571428571428571,
+          "rep_4gram": 0.3414634146341463,
+          "line_rep": 0.25,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "12",
+              "7",
+              "15",
+              "8",
+              "34",
+              "5"
+            ],
+            "completion_numbers": [
+              "1"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "1"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/151",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "This prints if this assert fails 2 (good for debugging!)",
+        "extended_metrics": {
+          "token_count": 25,
+          "is_early_exit": false,
+          "rep_2gram": 0.20833333333333337,
+          "rep_3gram": 0.17391304347826086,
+          "rep_4gram": 0.13636363636363635,
+          "line_rep": 0.25,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1",
+              "3",
+              "9",
+              "10",
+              "81",
+              "2",
+              "0"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [
+              "0"
+            ],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.14285714285714285,
+            "numeric_precision": 1.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/152",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "This prints if this assert fails 1 (good for debugging!)",
+        "extended_metrics": {
+          "token_count": 238,
+          "is_early_exit": false,
+          "rep_2gram": 0.8312236286919832,
+          "rep_3gram": 0.7754237288135593,
+          "rep_4gram": 0.7234042553191489,
+          "line_rep": 0.5357142857142857,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "1",
+              "3",
+              "5",
+              "4",
+              "2",
+              "0"
+            ],
+            "completion_numbers": [
+              "6",
+              "7",
+              "8",
+              "3",
+              "5",
+              "4",
+              "9",
+              "2",
+              "1"
+            ],
+            "overlap_numbers": [
+              "3",
+              "5",
+              "2",
+              "4",
+              "6",
+              "1"
+            ],
+            "hallucinated_numbers": [
+              "8",
+              "9",
+              "7"
+            ],
+            "numeric_recall": 0.8571428571428571,
+            "numeric_precision": 0.6666666666666666,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/153",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 41,
+          "is_early_exit": false,
+          "rep_2gram": 0.4,
+          "rep_3gram": 0.28205128205128205,
+          "rep_4gram": 0.1842105263157895,
+          "line_rep": 0.2857142857142857,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "1"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/154",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "test #0",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9176470588235294,
+          "rep_3gram": 0.9133858267716536,
+          "rep_4gram": 0.9090909090909091,
+          "line_rep": 0.90625,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/155",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9568627450980393,
+          "rep_3gram": 0.9566929133858267,
+          "rep_4gram": 0.9565217391304348,
+          "line_rep": 0.9565217391304348,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "2",
+              "12",
+              "1",
+              "123"
+            ],
+            "completion_numbers": [
+              "0"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "0"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/156",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 19,
+          "is_early_exit": false,
+          "rep_2gram": 0.05555555555555558,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "19",
+              "426",
+              "1000",
+              "152",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/157",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "This prints if this assert fails 1 (good for debugging!)",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9176470588235294,
+          "rep_3gram": 0.9015748031496063,
+          "rep_4gram": 0.8893280632411067,
+          "line_rep": 0.8695652173913043,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "90",
+              "4",
+              "2",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/158",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "t1",
+        "extended_metrics": {
+          "token_count": 31,
+          "is_early_exit": false,
+          "rep_2gram": 0.16666666666666663,
+          "rep_3gram": 0.10344827586206895,
+          "rep_4gram": 0.0357142857142857,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [
+              "0",
+              "1"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "0",
+              "1"
+            ],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/159",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "RecursionError: maximum recursion depth exceeded",
+        "extended_metrics": {
+          "token_count": 179,
+          "is_early_exit": false,
+          "rep_2gram": 0.8426966292134832,
+          "rep_3gram": 0.8305084745762712,
+          "rep_4gram": 0.8238636363636364,
+          "line_rep": 0.8,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "0",
+              "12",
+              "7",
+              "8",
+              "1000",
+              "5",
+              "2",
+              "4",
+              "10",
+              "9",
+              "11",
+              "1"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/160",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "NameError: name 'operands' is not defined",
+        "extended_metrics": {
+          "token_count": 31,
+          "is_early_exit": false,
+          "rep_2gram": 0.19999999999999996,
+          "rep_3gram": 0.13793103448275867,
+          "rep_4gram": 0.1071428571428571,
+          "line_rep": 0.19999999999999996,
+          "has_consecutive_dup_lines": true,
+          "is_degenerate_loop": false,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "3",
+              "5",
+              "4",
+              "9",
+              "2"
+            ],
+            "completion_numbers": [
+              "0",
+              "1"
+            ],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [
+              "0",
+              "1"
+            ],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": false
+          }
+        }
+      },
+      {
+        "id": "HumanEval/161",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "NameError: name 'i' is not defined",
+        "extended_metrics": {
+          "token_count": 256,
+          "is_early_exit": false,
+          "rep_2gram": 0.9333333333333333,
+          "rep_3gram": 0.9330708661417323,
+          "rep_4gram": 0.9328063241106719,
+          "line_rep": 0.9117647058823529,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "4321",
+              "1234"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      },
+      {
+        "id": "HumanEval/162",
+        "category": "HumanEval",
+        "outcome": "FAILED_ASSERTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "Assertion failed",
+        "extended_metrics": {
+          "token_count": 8,
+          "is_early_exit": false,
+          "rep_2gram": 0.1428571428571429,
+          "rep_3gram": 0.0,
+          "rep_4gram": 0.0,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": false,
+            "prompt_numbers": [],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": null,
+            "numeric_precision": null,
+            "exact_number_match": null,
+            "zero_numbers_emitted": null
+          }
+        }
+      },
+      {
+        "id": "HumanEval/163",
+        "category": "HumanEval",
+        "outcome": "RUNTIME_EXCEPTION",
+        "ast_valid": true,
+        "ast_error": null,
+        "details": "AttributeError: 'int' object has no attribute 'replace'",
+        "extended_metrics": {
+          "token_count": 32,
+          "is_early_exit": false,
+          "rep_2gram": 0.29032258064516125,
+          "rep_3gram": 0.23333333333333328,
+          "rep_4gram": 0.2068965517241379,
+          "line_rep": 0.0,
+          "has_consecutive_dup_lines": false,
+          "is_degenerate_loop": true,
+          "numerical": {
+            "has_prompt_numbers": true,
+            "prompt_numbers": [
+              "6",
+              "8",
+              "4",
+              "10",
+              "2",
+              "14"
+            ],
+            "completion_numbers": [],
+            "overlap_numbers": [],
+            "hallucinated_numbers": [],
+            "numeric_recall": 0.0,
+            "numeric_precision": 0.0,
+            "exact_number_match": false,
+            "zero_numbers_emitted": true
+          }
+        }
+      }
+    ]
+  },
+  "seconds": 913.4516984159709,
+  "trace": "/Users/ivansamuel/Documents/Projects/telos/research/100m_checkpoint_comparison_2026-10-18/humaneval/100m_5b_alpha075.generations.jsonl"
+}

@@ -1,0 +1,63 @@
+{
+  "current_source_sha256": "f2435e74dc0462172c5f3f86da0cf7e077f2986dbf50e1fa330d21be2f757d4a",
+  "rank_patch_occurrences": 1,
+  "patched_current_sha256": "888d21b53e734192ed7cb560b352de8fc36125855c5bd81ddd9bc7263312381b",
+  "recorded_trainer_sha256": "888d21b53e734192ed7cb560b352de8fc36125855c5bd81ddd9bc7263312381b",
+  "rank_patch_alone_reproduces_recorded_trainer": true,
+  "core/xla_model": {
+    "source": "https://raw.githubusercontent.com/pytorch/xla/v2.8.0/torch_xla/core/xla_model.py",
+    "sha256": "e0738da80ef043be25e010ead99eada39849db2c596a7b37bfa530aa9783262a",
+    "defines_get_ordinal": false,
+    "defines_global_ordinal": false
+  },
+  "runtime": {
+    "source": "https://raw.githubusercontent.com/pytorch/xla/v2.8.0/torch_xla/runtime.py",
+    "sha256": "e9cca412711ed12310033280afda70387316ad336ea5618a8d61d39db4b9d3bc",
+    "defines_get_ordinal": false,
+    "defines_global_ordinal": true
+  },
+  "index_arithmetic_replay": {
+    "source_revision": "a2f09a06eefa836c91efe8f937646127f754ece5",
+    "replay": "Pure index arithmetic from replicated trainer; no actual accelerator execution or historical rank reconstruction.",
+    "results": {
+      "fallback_rank0": {
+        "distinct_sequence_rows_per_step": [
+          48,
+          48,
+          48
+        ],
+        "rank_offsets": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "nominal_sequences_per_step": 384,
+        "actual_distinct_tokens_per_step": 24576
+      },
+      "correct_rank": {
+        "distinct_sequence_rows_per_step": [
+          384,
+          384,
+          384
+        ],
+        "rank_offsets": [
+          0,
+          48,
+          96,
+          144,
+          192,
+          240,
+          288,
+          336
+        ],
+        "nominal_sequences_per_step": 384,
+        "actual_distinct_tokens_per_step": 196608
+      }
+    }
+  }
+}

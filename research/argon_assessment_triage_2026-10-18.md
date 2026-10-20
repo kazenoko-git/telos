@@ -1,5 +1,7 @@
 # Triage of Gemini Argon’s TPU/CUDA assessment — 18 October 2026
 
+**20 October update:** Hypothesis 2 now has substantially stronger historical support from downloaded Kaggle logs: completed AR and unified COROSred runs report all eight workers as rank zero. The AR log also records a source revision containing the defective rank fallback and data-indexing path. See the [primary rank-collapse bug report](TPU_RANK_COLLAPSE_BUG_REPORT.md). The original triage below is preserved as the assessment made before those logs were recovered; its RNG-lockstep and isolated-causality cautions still apply.
+
 Source: user-supplied assessment in `/Users/ivansamuel/.codex/attachments/64310357-9ba6-4373-ac98-47eb2fa1fefb/Pasted text.txt`. This is a bounded source/document review; no new training, checkpoint evaluation or hardware experiment was run. No Codex review agents were resumed.
 
 ## Accepted correction: endpoint content identity

@@ -1,0 +1,1255 @@
+8.8s 1 [IPKernelApp] WARNING | Kernel is running over TCP without encryption. All communication (including code and outputs) is sent in plain text and is susceptible to eavesdropping. Use IPC transport or launch with kernel manager-provisioned CurveZMQ keys to enable transport encryption.
+9.6s 2 Cloning into '/kaggle/working/telos'...
+9.8s 3 Cloning repository into /kaggle/working/telos...
+9.8s 4 Cloning into '/kaggle/working/telos'...
+9.8s 5 
+9.8s 6 Cloning into '/kaggle/working/telos'...
+16.7s 7 [33mWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.[0m[33m
+16.9s 8 [0m
+16.9s 9 [1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m A new release of pip is available: [0m[31;49m25.0.1[0m[39;49m -> [0m[32;49m26.2.1[0m
+16.9s 10 [1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m To update, run: [0m[32;49mpip install --upgrade pip[0m
+16.9s 11 ✓ Working directory set to: /kaggle/working/telos
+16.9s 12 [33mWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.[0m[33m
+16.9s 13 [0m
+16.9s 14 [1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m A new release of pip is available: [0m[31;49m25.0.1[0m[39;49m -> [0m[32;49m26.2.1[0m
+16.9s 15 [1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m To update, run: [0m[32;49mpip install --upgrade pip[0m
+16.9s 16 
+16.9s 17 [33mWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.[0m[33m
+16.9s 18 [0m
+16.9s 19 [1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m A new release of pip is available: [0m[31;49m25.0.1[0m[39;49m -> [0m[32;49m26.2.1[0m
+16.9s 20 [1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m To update, run: [0m[32;49mpip install --upgrade pip[0m
+17.9s 21 ✓ Created data/python_corpus_5b.json
+17.9s 22 Downloading data/python_corpus_5b.bin (9.31 GB) from Kazenowoko/telos...
+97.4s 23 Autosave too slow: 39.23 sec, over 25% limit. Backing off to 60 sec
+101.3s 24 ✓ Download complete: /kaggle/working/telos/data/python_corpus_5b.bin (10005.6 MB)
+101.8s 25 HEAD is now at b286a90 fix: eliminate PyTorch-XLA double gradient reduction and add final checkpoint rendezvous
+102.1s 26 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package '
+102.1s 27 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviou
+102.1s 28 telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+102.1s 29 
+102.1s 30 r
+114.2s 31 /usr/local/lib/python3.12/site-packages/torch_xla/experimental/gru.py:113: SyntaxWarning: invalid es
+114.2s 32 /usr/local/lib/python3.12/site-packages/torch_xla/experimental/gru.py:113: SyntaxWarning: invalid escape sequence '\_'
+114.2s 33 * **h_n**: tensor of shape :math:`(D * \text{num\_layers}, H_{out})` or
+114.2s 34 
+114.2s 35 cape sequence '\_'
+114.2s 36 * **h_n**: tensor of shape :math:`(D * \text{num\_layers}, H_{out})` or
+120.8s 37 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can con
+120.8s 38 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pi
+120.8s 39 flict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such
+120.8s 40 p uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+120.8s 41 warnings.warn(
+120.8s 42 
+120.8s 43 as Colab or Kaggle, restart your notebook runtime afterwards.
+120.8s 44 warnings.warn(
+123.5s 45 ============================================================================
+123.5s 46 TÉLOS UNIFIED TRAINER  |  Paradigm: AR
+123.5s 47 Hardware Backend:     PYTORCH (xla)
+123.5s 48 Target Parameters:    105,404,160 (~100M)
+123.5s 49 Batch Config:         batch_size=16, grad_accum=3, devices=8 (effective=384 seqs / 196,608 tok)
+123.5s 50 Training Steps:       25,432 steps | LR: 3.46e-04 -> 3.46e-05 (warmup=508)
+123.5s 51 Checkpoint Dir:       checkpoints/ar/100m_5b (every 3500 steps)
+123.5s 52 [Hardware] Launching multi-core PyTorch-XLA execution across 8 TPU cores via xmp.spawn...
+123.7s 53 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package '
+123.7s 54 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviou
+123.7s 55 telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+123.7s 56 
+123.7s 57 r
+123.7s 58 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package '
+123.7s 59 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviou
+123.7s 60 telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+123.7s 61 
+123.7s 62 r
+123.7s 63 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package '
+123.7s 64 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviou
+123.7s 65 telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+123.7s 66 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package
+123.7s 67 r
+123.7s 68 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behavi
+123.7s 69 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+123.7s 70 
+123.7s 71 our
+123.7s 72 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package '
+123.7s 73 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviou
+123.7s 74 telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+123.7s 75 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package
+123.7s 76 r
+123.7s 77 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behavi
+123.7s 78 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+123.7s 79 
+123.7s 80 our
+123.7s 81 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package '
+123.7s 82 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviou
+123.7s 83 telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+123.7s 84 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package
+123.7s 85 r
+123.7s 86 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behavi
+123.7s 87 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+123.7s 88 
+123.7s 89 our
+126.2s 90 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can con
+126.2s 91 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pi
+126.2s 92 flict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such
+126.2s 93 p uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+126.2s 94 warnings.warn(
+126.2s 95 /usr/local/lib/python
+126.2s 96 as Colab or Kaggle, restart your notebook runtime afterwards.
+126.2s 97 warnings.warn(
+126.2s 98 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla
+126.2s 99 3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensor
+126.2s 100 `. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, r
+126.2s 101 flow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+126.2s 102 warnings.warn(
+126.2s 103 
+126.2s 104 estart your notebook runtime afterwards.
+126.2s 105 warnings.warn(
+126.2s 106 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can con
+126.2s 107 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pi
+126.2s 108 flict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such
+126.2s 109 p uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+126.2s 110 warnings.warn(
+126.2s 111 
+126.2s 112 as Colab or Kaggle, restart your notebook runtime afterwards.
+126.2s 113 warnings.warn(
+126.2s 114 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can con
+126.2s 115 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pi
+126.2s 116 flict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such
+126.2s 117 p uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+126.2s 118 warnings.warn(
+126.2s 119 
+126.2s 120 as Colab or Kaggle, restart your notebook runtime afterwards.
+126.2s 121 warnings.warn(
+126.2s 122 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can con
+126.2s 123 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pi
+126.2s 124 flict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such
+126.2s 125 p uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+126.2s 126 warnings.warn(
+126.2s 127 /usr/local/lib/python
+126.2s 128 as Colab or Kaggle, restart your notebook runtime afterwards.
+126.2s 129 warnings.warn(
+126.2s 130 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla
+126.2s 131 3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensor
+126.2s 132 `. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, r
+126.2s 133 flow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+126.2s 134 warnings.warn(
+126.2s 135 
+126.2s 136 estart your notebook runtime afterwards.
+126.2s 137 warnings.warn(
+126.2s 138 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can con
+126.2s 139 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pi
+126.2s 140 flict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such
+126.2s 141 p uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+126.2s 142 warnings.warn(
+126.2s 143 
+126.2s 144 as Colab or Kaggle, restart your notebook runtime afterwards.
+126.2s 145 warnings.warn(
+126.3s 146 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can con
+126.3s 147 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pi
+126.3s 148 flict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such
+126.3s 149 p uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+126.3s 150 warnings.warn(
+126.3s 151 
+126.3s 152 as Colab or Kaggle, restart your notebook runtime afterwards.
+126.3s 153 warnings.warn(
+256.4s 154 [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+256.4s 155 [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+256.4s 156 Loading pre-tokenized dataset from data/python_corpus_5b.bin...
+256.4s 157 Checkpoint Directory: checkpoints/ar/100m_5b (Paradigm: AR)
+256.4s 158 [AR] Step      1/25432 | Loss: 9.1498 | CE: 9.150 | LR: 6.82e-07 |   0.0 st/s |     2,013 tok/s | ETA: 41397.2m
+389.9s 159 [AR] Step      2/25432 | Loss: 9.1670 | CE: 9.167 | LR: 1.36e-06 |   0.0 st/s |     1,715 tok/s | ETA: 48599.5m
+390.6s 160 [AR] Step      3/25432 | Loss: 9.1649 | CE: 9.165 | LR: 2.05e-06 |   0.0 st/s |     2,414 tok/s | ETA: 34524.6m
+391.2s 161 [AR] Step      4/25432 | Loss: 9.1845 | CE: 9.185 | LR: 2.73e-06 |   0.0 st/s |     3,210 tok/s | ETA: 25960.9m
+391.9s 162 [AR] Step      5/25432 | Loss: 9.1558 | CE: 9.156 | LR: 3.41e-06 |   0.0 st/s |     4,001 tok/s | ETA: 20824.4m
+394.1s 163 [AR] Step     10/25432 | Loss: 9.0905 | CE: 9.090 | LR: 6.82e-06 |   0.0 st/s |     7,931 tok/s | ETA: 10503.1m
+398.4s 164 [AR] Step     20/25432 | Loss: 8.7309 | CE: 8.731 | LR: 1.36e-05 |   0.1 st/s |    15,603 tok/s | ETA: 5336.8m
+400.6s 165 [AR] Step     25/25432 | Loss: 8.3574 | CE: 8.357 | LR: 1.70e-05 |   0.1 st/s |    19,327 tok/s | ETA: 4307.6m
+402.8s 166 [AR] Step     30/25432 | Loss: 8.0875 | CE: 8.088 | LR: 2.05e-05 |   0.1 st/s |    22,993 tok/s | ETA: 3620.1m
+407.1s 167 [AR] Step     40/25432 | Loss: 8.2841 | CE: 8.284 | LR: 2.73e-05 |   0.2 st/s |    30,164 tok/s | ETA: 2758.4m
+411.7s 168 [AR] Step     50/25432 | Loss: 7.2228 | CE: 7.223 | LR: 3.41e-05 |   0.2 st/s |    36,995 tok/s | ETA: 2248.2m
+422.8s 169 [AR] Step     75/25432 | Loss: 7.0534 | CE: 7.053 | LR: 5.11e-05 |   0.3 st/s |    53,361 tok/s | ETA: 1557.1m
+433.6s 170 [AR] Step    100/25432 | Loss: 6.6209 | CE: 6.621 | LR: 6.82e-05 |   0.3 st/s |    68,374 tok/s | ETA: 1214.0m
+444.6s 171 [AR] Step    125/25432 | Loss: 6.4882 | CE: 6.488 | LR: 8.52e-05 |   0.4 st/s |    82,424 tok/s | ETA: 1006.1m
+455.3s 172 [AR] Step    150/25432 | Loss: 6.1058 | CE: 6.106 | LR: 1.02e-04 |   0.5 st/s |    95,336 tok/s | ETA: 869.0m
+466.0s 173 [AR] Step    175/25432 | Loss: 5.9637 | CE: 5.964 | LR: 1.19e-04 |   0.5 st/s |   107,610 tok/s | ETA: 769.1m
+476.8s 174 [AR] Step    200/25432 | Loss: 5.7427 | CE: 5.743 | LR: 1.36e-04 |   0.6 st/s |   118,849 tok/s | ETA: 695.7m
+487.5s 175 [AR] Step    225/25432 | Loss: 5.6480 | CE: 5.648 | LR: 1.53e-04 |   0.7 st/s |   129,612 tok/s | ETA: 637.3m
+498.1s 176 [AR] Step    250/25432 | Loss: 6.6121 | CE: 6.612 | LR: 1.70e-04 |   0.7 st/s |   139,690 tok/s | ETA: 590.7m
+509.0s 177 [AR] Step    275/25432 | Loss: 5.7495 | CE: 5.750 | LR: 1.88e-04 |   0.8 st/s |   149,103 tok/s | ETA: 552.9m
+519.7s 178 [AR] Step    300/25432 | Loss: 5.0581 | CE: 5.058 | LR: 2.05e-04 |   0.8 st/s |   157,897 tok/s | ETA: 521.6m
+656.8s 179 [AR] Step    325/25432 | Loss: 5.0229 | CE: 5.023 | LR: 2.22e-04 |   0.6 st/s |   126,633 tok/s | ETA: 649.7m
+667.9s 180 [AR] Step    350/25432 | Loss: 4.9820 | CE: 4.982 | LR: 2.39e-04 |   0.7 st/s |   131,822 tok/s | ETA: 623.5m
+678.8s 181 [AR] Step    375/25432 | Loss: 5.1454 | CE: 5.145 | LR: 2.56e-04 |   0.7 st/s |   138,555 tok/s | ETA: 592.6m
+689.4s 182 [AR] Step    400/25432 | Loss: 4.8267 | CE: 4.827 | LR: 2.73e-04 |   0.7 st/s |   144,709 tok/s | ETA: 566.8m
+700.3s 183 [AR] Step    425/25432 | Loss: 5.0382 | CE: 5.038 | LR: 2.90e-04 |   0.8 st/s |   150,812 tok/s | ETA: 543.3m
+711.3s 184 [AR] Step    450/25432 | Loss: 4.3118 | CE: 4.312 | LR: 3.07e-04 |   0.8 st/s |   156,503 tok/s | ETA: 523.1m
+722.3s 185 [AR] Step    475/25432 | Loss: 5.0356 | CE: 5.036 | LR: 3.24e-04 |   0.8 st/s |   162,117 tok/s | ETA: 504.4m
+733.1s 186 [AR] Step    500/25432 | Loss: 4.7731 | CE: 4.773 | LR: 3.41e-04 |   0.9 st/s |   167,418 tok/s | ETA: 488.0m
+744.0s 187 [AR] Step    525/25432 | Loss: 5.3022 | CE: 5.302 | LR: 3.46e-04 |   0.9 st/s |   172,689 tok/s | ETA: 472.6m
+754.9s 188 [AR] Step    550/25432 | Loss: 4.2219 | CE: 4.222 | LR: 3.46e-04 |   0.9 st/s |   177,587 tok/s | ETA: 459.1m
+765.7s 189 [AR] Step    575/25432 | Loss: 4.2923 | CE: 4.292 | LR: 3.46e-04 |   0.9 st/s |   182,485 tok/s | ETA: 446.3m
+776.6s 190 [AR] Step    600/25432 | Loss: 4.1955 | CE: 4.196 | LR: 3.46e-04 |   1.0 st/s |   187,066 tok/s | ETA: 435.0m
+787.4s 191 [AR] Step    625/25432 | Loss: 4.4158 | CE: 4.416 | LR: 3.46e-04 |   1.0 st/s |   191,640 tok/s | ETA: 424.2m
+798.2s 192 [AR] Step    650/25432 | Loss: 4.0006 | CE: 4.001 | LR: 3.46e-04 |   1.0 st/s |   195,934 tok/s | ETA: 414.5m
+808.8s 193 [AR] Step    675/25432 | Loss: 4.1920 | CE: 4.192 | LR: 3.46e-04 |   1.0 st/s |   200,392 tok/s | ETA: 404.8m
+819.1s 194 [AR] Step    700/25432 | Loss: 4.5778 | CE: 4.578 | LR: 3.46e-04 |   1.0 st/s |   204,504 tok/s | ETA: 396.3m
+829.6s 195 [AR] Step    725/25432 | Loss: 4.2576 | CE: 4.258 | LR: 3.46e-04 |   1.1 st/s |   208,688 tok/s | ETA: 387.9m
+839.8s 196 [AR] Step    750/25432 | Loss: 4.4345 | CE: 4.435 | LR: 3.46e-04 |   1.1 st/s |   212,607 tok/s | ETA: 380.4m
+850.1s 197 [AR] Step    775/25432 | Loss: 3.9971 | CE: 3.997 | LR: 3.46e-04 |   1.1 st/s |   216,598 tok/s | ETA: 373.0m
+860.1s 198 [AR] Step    800/25432 | Loss: 4.3801 | CE: 4.380 | LR: 3.46e-04 |   1.1 st/s |   220,303 tok/s | ETA: 366.4m
+870.7s 199 [AR] Step    825/25432 | Loss: 4.6688 | CE: 4.669 | LR: 3.46e-04 |   1.1 st/s |   223,941 tok/s | ETA: 360.1m
+880.6s 200 [AR] Step    850/25432 | Loss: 3.9781 | CE: 3.978 | LR: 3.46e-04 |   1.2 st/s |   227,482 tok/s | ETA: 354.1m
+890.6s 201 [AR] Step    875/25432 | Loss: 4.5033 | CE: 4.503 | LR: 3.46e-04 |   1.2 st/s |   231,114 tok/s | ETA: 348.2m
+901.2s 202 [AR] Step    900/25432 | Loss: 4.1000 | CE: 4.100 | LR: 3.46e-04 |   1.2 st/s |   234,463 tok/s | ETA: 342.9m
+911.8s 203 [AR] Step    925/25432 | Loss: 4.1521 | CE: 4.152 | LR: 3.46e-04 |   1.2 st/s |   237,616 tok/s | ETA: 338.0m
+922.6s 204 [AR] Step    950/25432 | Loss: 4.0713 | CE: 4.071 | LR: 3.46e-04 |   1.2 st/s |   240,688 tok/s | ETA: 333.3m
+933.5s 205 [AR] Step    975/25432 | Loss: 3.8171 | CE: 3.817 | LR: 3.46e-04 |   1.2 st/s |   243,550 tok/s | ETA: 329.1m
+944.3s 206 [AR] Step   1000/25432 | Loss: 4.1968 | CE: 4.197 | LR: 3.46e-04 |   1.3 st/s |   246,438 tok/s | ETA: 324.9m
+954.9s 207 [AR] Step   1025/25432 | Loss: 4.3146 | CE: 4.315 | LR: 3.46e-04 |   1.3 st/s |   249,228 tok/s | ETA: 320.9m
+965.3s 208 [AR] Step   1050/25432 | Loss: 4.2455 | CE: 4.246 | LR: 3.46e-04 |   1.3 st/s |   252,018 tok/s | ETA: 317.0m
+976.0s 209 [AR] Step   1075/25432 | Loss: 3.6678 | CE: 3.668 | LR: 3.46e-04 |   1.3 st/s |   254,867 tok/s | ETA: 313.2m
+986.4s 210 [AR] Step   1100/25432 | Loss: 5.1132 | CE: 5.113 | LR: 3.46e-04 |   1.3 st/s |   257,409 tok/s | ETA: 309.7m
+997.0s 211 [AR] Step   1125/25432 | Loss: 3.5844 | CE: 3.584 | LR: 3.46e-04 |   1.3 st/s |   260,008 tok/s | ETA: 306.3m
+1007.4s 212 [AR] Step   1150/25432 | Loss: 3.8605 | CE: 3.860 | LR: 3.46e-04 |   1.3 st/s |   262,604 tok/s | ETA: 303.0m
+1017.8s 213 [AR] Step   1175/25432 | Loss: 4.1893 | CE: 4.189 | LR: 3.46e-04 |   1.3 st/s |   265,096 tok/s | ETA: 299.8m
+1028.5s 214 [AR] Step   1200/25432 | Loss: 3.9244 | CE: 3.924 | LR: 3.46e-04 |   1.4 st/s |   267,410 tok/s | ETA: 296.9m
+1039.0s 215 [AR] Step   1225/25432 | Loss: 3.6534 | CE: 3.653 | LR: 3.46e-04 |   1.4 st/s |   269,830 tok/s | ETA: 294.0m
+1049.5s 216 [AR] Step   1250/25432 | Loss: 3.2234 | CE: 3.223 | LR: 3.46e-04 |   1.4 st/s |   272,143 tok/s | ETA: 291.2m
+1060.1s 217 [AR] Step   1275/25432 | Loss: 3.8761 | CE: 3.876 | LR: 3.46e-04 |   1.4 st/s |   274,462 tok/s | ETA: 288.4m
+1070.5s 218 [AR] Step   1300/25432 | Loss: 3.9637 | CE: 3.964 | LR: 3.46e-04 |   1.4 st/s |   276,585 tok/s | ETA: 285.9m
+1081.1s 219 [AR] Step   1325/25432 | Loss: 3.8037 | CE: 3.804 | LR: 3.46e-04 |   1.4 st/s |   278,802 tok/s | ETA: 283.3m
+1091.3s 220 [AR] Step   1350/25432 | Loss: 3.4820 | CE: 3.482 | LR: 3.46e-04 |   1.4 st/s |   280,844 tok/s | ETA: 281.0m
+1101.8s 221 [AR] Step   1375/25432 | Loss: 3.5904 | CE: 3.590 | LR: 3.45e-04 |   1.4 st/s |   282,934 tok/s | ETA: 278.6m
+1112.5s 222 [AR] Step   1400/25432 | Loss: 4.2678 | CE: 4.268 | LR: 3.45e-04 |   1.4 st/s |   284,770 tok/s | ETA: 276.5m
+1123.3s 223 [AR] Step   1425/25432 | Loss: 3.8196 | CE: 3.820 | LR: 3.45e-04 |   1.5 st/s |   286,738 tok/s | ETA: 274.3m
+1133.8s 224 [AR] Step   1450/25432 | Loss: 3.6408 | CE: 3.641 | LR: 3.45e-04 |   1.5 st/s |   288,643 tok/s | ETA: 272.3m
+1144.4s 225 [AR] Step   1475/25432 | Loss: 3.3845 | CE: 3.384 | LR: 3.45e-04 |   1.5 st/s |   290,583 tok/s | ETA: 270.2m
+1155.0s 226 [AR] Step   1500/25432 | Loss: 3.6518 | CE: 3.652 | LR: 3.45e-04 |   1.5 st/s |   292,330 tok/s | ETA: 268.3m
+1165.6s 227 [AR] Step   1525/25432 | Loss: 3.4012 | CE: 3.401 | LR: 3.45e-04 |   1.5 st/s |   294,178 tok/s | ETA: 266.3m
+1176.2s 228 [AR] Step   1550/25432 | Loss: 3.3478 | CE: 3.348 | LR: 3.45e-04 |   1.5 st/s |   295,874 tok/s | ETA: 264.5m
+1186.9s 229 [AR] Step   1575/25432 | Loss: 3.7288 | CE: 3.729 | LR: 3.45e-04 |   1.5 st/s |   297,615 tok/s | ETA: 262.7m
+1197.3s 230 [AR] Step   1600/25432 | Loss: 3.5614 | CE: 3.561 | LR: 3.45e-04 |   1.5 st/s |   299,235 tok/s | ETA: 261.0m
+1208.1s 231 [AR] Step   1625/25432 | Loss: 3.4033 | CE: 3.403 | LR: 3.45e-04 |   1.5 st/s |   300,849 tok/s | ETA: 259.3m
+1219.1s 232 [AR] Step   1650/25432 | Loss: 3.4521 | CE: 3.452 | LR: 3.45e-04 |   1.5 st/s |   302,287 tok/s | ETA: 257.8m
+1229.9s 233 [AR] Step   1675/25432 | Loss: 3.7319 | CE: 3.732 | LR: 3.45e-04 |   1.5 st/s |   303,874 tok/s | ETA: 256.2m
+1240.6s 234 [AR] Step   1700/25432 | Loss: 3.0837 | CE: 3.084 | LR: 3.45e-04 |   1.6 st/s |   305,352 tok/s | ETA: 254.7m
+1250.9s 235 [AR] Step   1725/25432 | Loss: 3.1998 | CE: 3.200 | LR: 3.45e-04 |   1.6 st/s |   307,009 tok/s | ETA: 253.0m
+1261.1s 236 [AR] Step   1750/25432 | Loss: 2.8663 | CE: 2.866 | LR: 3.45e-04 |   1.6 st/s |   308,536 tok/s | ETA: 251.5m
+1271.5s 237 [AR] Step   1775/25432 | Loss: 3.3787 | CE: 3.379 | LR: 3.44e-04 |   1.6 st/s |   310,121 tok/s | ETA: 250.0m
+1281.8s 238 [AR] Step   1800/25432 | Loss: 3.3504 | CE: 3.350 | LR: 3.44e-04 |   1.6 st/s |   311,593 tok/s | ETA: 248.5m
+1292.0s 239 [AR] Step   1825/25432 | Loss: 3.3533 | CE: 3.353 | LR: 3.44e-04 |   1.6 st/s |   313,144 tok/s | ETA: 247.0m
+1302.3s 240 [AR] Step   1850/25432 | Loss: 2.4163 | CE: 2.416 | LR: 3.44e-04 |   1.6 st/s |   314,565 tok/s | ETA: 245.7m
+1312.6s 241 [AR] Step   1875/25432 | Loss: 2.8444 | CE: 2.844 | LR: 3.44e-04 |   1.6 st/s |   316,054 tok/s | ETA: 244.2m
+1322.9s 242 [AR] Step   1900/25432 | Loss: 3.0425 | CE: 3.042 | LR: 3.44e-04 |   1.6 st/s |   317,402 tok/s | ETA: 242.9m
+1333.3s 243 [AR] Step   1925/25432 | Loss: 2.9814 | CE: 2.981 | LR: 3.44e-04 |   1.6 st/s |   318,827 tok/s | ETA: 241.6m
+1343.6s 244 [AR] Step   1950/25432 | Loss: 3.1877 | CE: 3.188 | LR: 3.44e-04 |   1.6 st/s |   320,123 tok/s | ETA: 240.4m
+1354.0s 245 [AR] Step   1975/25432 | Loss: 2.7788 | CE: 2.779 | LR: 3.44e-04 |   1.6 st/s |   321,492 tok/s | ETA: 239.1m
+1364.3s 246 [AR] Step   2000/25432 | Loss: 3.0581 | CE: 3.058 | LR: 3.44e-04 |   1.6 st/s |   322,749 tok/s | ETA: 237.9m
+1374.6s 247 [AR] Step   2025/25432 | Loss: 2.4166 | CE: 2.417 | LR: 3.44e-04 |   1.6 st/s |   324,117 tok/s | ETA: 236.6m
+1385.1s 248 [AR] Step   2050/25432 | Loss: 2.7391 | CE: 2.739 | LR: 3.43e-04 |   1.7 st/s |   325,318 tok/s | ETA: 235.5m
+1396.0s 249 [AR] Step   2075/25432 | Loss: 3.0937 | CE: 3.094 | LR: 3.43e-04 |   1.7 st/s |   326,480 tok/s | ETA: 234.4m
+1406.1s 250 [AR] Step   2100/25432 | Loss: 2.4326 | CE: 2.433 | LR: 3.43e-04 |   1.7 st/s |   327,664 tok/s | ETA: 233.3m
+1416.3s 251 [AR] Step   2125/25432 | Loss: 1.9305 | CE: 1.931 | LR: 3.43e-04 |   1.7 st/s |   328,953 tok/s | ETA: 232.2m
+1426.4s 252 [AR] Step   2150/25432 | Loss: 2.7265 | CE: 2.726 | LR: 3.43e-04 |   1.7 st/s |   330,156 tok/s | ETA: 231.1m
+1436.9s 253 [AR] Step   2175/25432 | Loss: 2.3093 | CE: 2.309 | LR: 3.43e-04 |   1.7 st/s |   331,393 tok/s | ETA: 230.0m
+1447.2s 254 [AR] Step   2200/25432 | Loss: 2.7962 | CE: 2.796 | LR: 3.43e-04 |   1.7 st/s |   332,443 tok/s | ETA: 229.0m
+1457.7s 255 [AR] Step   2225/25432 | Loss: 2.4308 | CE: 2.431 | LR: 3.43e-04 |   1.7 st/s |   333,636 tok/s | ETA: 227.9m
+1467.9s 256 [AR] Step   2250/25432 | Loss: 1.8486 | CE: 1.849 | LR: 3.43e-04 |   1.7 st/s |   334,659 tok/s | ETA: 227.0m
+1478.3s 257 [AR] Step   2275/25432 | Loss: 2.9341 | CE: 2.934 | LR: 3.43e-04 |   1.7 st/s |   335,828 tok/s | ETA: 226.0m
+1488.5s 258 [AR] Step   2300/25432 | Loss: 2.6281 | CE: 2.628 | LR: 3.42e-04 |   1.7 st/s |   336,840 tok/s | ETA: 225.0m
+1498.8s 259 [AR] Step   2325/25432 | Loss: 3.0249 | CE: 3.025 | LR: 3.42e-04 |   1.7 st/s |   337,998 tok/s | ETA: 224.0m
+1509.9s 260 [AR] Step   2350/25432 | Loss: 2.8207 | CE: 2.821 | LR: 3.42e-04 |   1.7 st/s |   338,850 tok/s | ETA: 223.2m
+1521.0s 261 [AR] Step   2375/25432 | Loss: 2.9792 | CE: 2.979 | LR: 3.42e-04 |   1.7 st/s |   339,702 tok/s | ETA: 222.4m
+1531.8s 262 [AR] Step   2400/25432 | Loss: 3.6973 | CE: 3.697 | LR: 3.42e-04 |   1.7 st/s |   340,630 tok/s | ETA: 221.6m
+1542.9s 263 [AR] Step   2425/25432 | Loss: 2.5099 | CE: 2.510 | LR: 3.42e-04 |   1.7 st/s |   341,477 tok/s | ETA: 220.8m
+1553.8s 264 [AR] Step   2450/25432 | Loss: 2.8604 | CE: 2.860 | LR: 3.42e-04 |   1.7 st/s |   342,246 tok/s | ETA: 220.0m
+1565.0s 265 [AR] Step   2475/25432 | Loss: 3.1145 | CE: 3.115 | LR: 3.42e-04 |   1.7 st/s |   343,053 tok/s | ETA: 219.3m
+1575.8s 266 [AR] Step   2500/25432 | Loss: 2.9951 | CE: 2.995 | LR: 3.42e-04 |   1.7 st/s |   343,851 tok/s | ETA: 218.5m
+1586.8s 267 [AR] Step   2525/25432 | Loss: 2.8154 | CE: 2.815 | LR: 3.41e-04 |   1.8 st/s |   344,748 tok/s | ETA: 217.7m
+1597.4s 268 [AR] Step   2550/25432 | Loss: 2.1294 | CE: 2.129 | LR: 3.41e-04 |   1.8 st/s |   345,471 tok/s | ETA: 217.0m
+1608.2s 269 [AR] Step   2575/25432 | Loss: 4.4193 | CE: 4.419 | LR: 3.41e-04 |   1.8 st/s |   346,273 tok/s | ETA: 216.3m
+1619.0s 270 [AR] Step   2600/25432 | Loss: 2.2750 | CE: 2.275 | LR: 3.41e-04 |   1.8 st/s |   347,040 tok/s | ETA: 215.6m
+1629.8s 271 [AR] Step   2625/25432 | Loss: 2.8154 | CE: 2.815 | LR: 3.41e-04 |   1.8 st/s |   347,865 tok/s | ETA: 214.8m
+1640.6s 272 [AR] Step   2650/25432 | Loss: 2.7222 | CE: 2.722 | LR: 3.41e-04 |   1.8 st/s |   348,601 tok/s | ETA: 214.1m
+1651.4s 273 [AR] Step   2675/25432 | Loss: 2.9914 | CE: 2.991 | LR: 3.41e-04 |   1.8 st/s |   349,412 tok/s | ETA: 213.4m
+1662.2s 274 [AR] Step   2700/25432 | Loss: 2.6778 | CE: 2.678 | LR: 3.40e-04 |   1.8 st/s |   350,101 tok/s | ETA: 212.8m
+1672.8s 275 [AR] Step   2725/25432 | Loss: 2.4973 | CE: 2.497 | LR: 3.40e-04 |   1.8 st/s |   350,946 tok/s | ETA: 212.0m
+1683.6s 276 [AR] Step   2750/25432 | Loss: 2.5650 | CE: 2.565 | LR: 3.40e-04 |   1.8 st/s |   351,622 tok/s | ETA: 211.4m
+1694.4s 277 [AR] Step   2775/25432 | Loss: 2.2359 | CE: 2.236 | LR: 3.40e-04 |   1.8 st/s |   352,403 tok/s | ETA: 210.7m
+1704.7s 278 [AR] Step   2800/25432 | Loss: 2.6221 | CE: 2.622 | LR: 3.40e-04 |   1.8 st/s |   353,191 tok/s | ETA: 210.0m
+1715.0s 279 [AR] Step   2825/25432 | Loss: 2.4467 | CE: 2.447 | LR: 3.40e-04 |   1.8 st/s |   354,046 tok/s | ETA: 209.2m
+1725.3s 280 [AR] Step   2850/25432 | Loss: 2.5609 | CE: 2.561 | LR: 3.40e-04 |   1.8 st/s |   354,803 tok/s | ETA: 208.6m
+1735.8s 281 [AR] Step   2875/25432 | Loss: 1.8850 | CE: 1.885 | LR: 3.40e-04 |   1.8 st/s |   355,595 tok/s | ETA: 207.9m
+1746.9s 282 [AR] Step   2900/25432 | Loss: 2.9511 | CE: 2.951 | LR: 3.39e-04 |   1.8 st/s |   356,158 tok/s | ETA: 207.3m
+1757.8s 283 [AR] Step   2925/25432 | Loss: 2.7382 | CE: 2.738 | LR: 3.39e-04 |   1.8 st/s |   356,825 tok/s | ETA: 206.7m
+1768.7s 284 [AR] Step   2950/25432 | Loss: 2.8176 | CE: 2.818 | LR: 3.39e-04 |   1.8 st/s |   357,423 tok/s | ETA: 206.1m
+1779.3s 285 [AR] Step   2975/25432 | Loss: 2.8256 | CE: 2.826 | LR: 3.39e-04 |   1.8 st/s |   358,197 tok/s | ETA: 205.4m
+1789.8s 286 [AR] Step   3000/25432 | Loss: 2.2979 | CE: 2.298 | LR: 3.39e-04 |   1.8 st/s |   358,864 tok/s | ETA: 204.8m
+1800.5s 287 [AR] Step   3025/25432 | Loss: 2.2991 | CE: 2.299 | LR: 3.39e-04 |   1.8 st/s |   359,588 tok/s | ETA: 204.2m
+1811.0s 288 [AR] Step   3050/25432 | Loss: 1.4253 | CE: 1.425 | LR: 3.38e-04 |   1.8 st/s |   360,185 tok/s | ETA: 203.6m
+1821.6s 289 [AR] Step   3075/25432 | Loss: 0.6333 | CE: 0.633 | LR: 3.38e-04 |   1.8 st/s |   360,923 tok/s | ETA: 203.0m
+1832.1s 290 [AR] Step   3100/25432 | Loss: 2.4108 | CE: 2.411 | LR: 3.38e-04 |   1.8 st/s |   361,536 tok/s | ETA: 202.4m
+1842.6s 291 [AR] Step   3125/25432 | Loss: 0.6692 | CE: 0.669 | LR: 3.38e-04 |   1.8 st/s |   362,251 tok/s | ETA: 201.8m
+1853.0s 292 [AR] Step   3150/25432 | Loss: 2.9936 | CE: 2.994 | LR: 3.38e-04 |   1.8 st/s |   362,877 tok/s | ETA: 201.2m
+1863.6s 293 [AR] Step   3175/25432 | Loss: 2.7639 | CE: 2.764 | LR: 3.38e-04 |   1.8 st/s |   363,570 tok/s | ETA: 200.6m
+1874.1s 294 [AR] Step   3200/25432 | Loss: 2.4855 | CE: 2.486 | LR: 3.38e-04 |   1.9 st/s |   364,077 tok/s | ETA: 200.1m
+1884.8s 295 [AR] Step   3225/25432 | Loss: 1.7049 | CE: 1.705 | LR: 3.37e-04 |   1.9 st/s |   364,701 tok/s | ETA: 199.5m
+1895.3s 296 [AR] Step   3250/25432 | Loss: 2.4491 | CE: 2.449 | LR: 3.37e-04 |   1.9 st/s |   365,299 tok/s | ETA: 199.0m
+1906.0s 297 [AR] Step   3275/25432 | Loss: 2.5271 | CE: 2.527 | LR: 3.37e-04 |   1.9 st/s |   365,893 tok/s | ETA: 198.4m
+1916.8s 298 [AR] Step   3300/25432 | Loss: 1.5732 | CE: 1.573 | LR: 3.37e-04 |   1.9 st/s |   366,395 tok/s | ETA: 197.9m
+1927.3s 299 [AR] Step   3325/25432 | Loss: 1.8794 | CE: 1.879 | LR: 3.37e-04 |   1.9 st/s |   367,024 tok/s | ETA: 197.4m
+1938.3s 300 [AR] Step   3350/25432 | Loss: 2.2436 | CE: 2.244 | LR: 3.37e-04 |   1.9 st/s |   367,482 tok/s | ETA: 196.9m
+1949.3s 301 [AR] Step   3375/25432 | Loss: 2.3325 | CE: 2.332 | LR: 3.36e-04 |   1.9 st/s |   368,008 tok/s | ETA: 196.4m
+1960.2s 302 [AR] Step   3400/25432 | Loss: 2.5151 | CE: 2.515 | LR: 3.36e-04 |   1.9 st/s |   368,465 tok/s | ETA: 195.9m
+1971.1s 303 [AR] Step   3425/25432 | Loss: 2.3709 | CE: 2.371 | LR: 3.36e-04 |   1.9 st/s |   368,986 tok/s | ETA: 195.4m
+1982.0s 304 [AR] Step   3450/25432 | Loss: 2.1348 | CE: 2.135 | LR: 3.36e-04 |   1.9 st/s |   369,436 tok/s | ETA: 195.0m
+1993.0s 305 [AR] Step   3475/25432 | Loss: 2.7995 | CE: 2.800 | LR: 3.36e-04 |   1.9 st/s |   369,941 tok/s | ETA: 194.5m
+2003.9s 306 [AR] Step   3500/25432 | Loss: 2.2423 | CE: 2.242 | LR: 3.35e-04 |   1.9 st/s |   370,398 tok/s | ETA: 194.0m
+2003.9s 307 
+2003.9s 308 [Checkpoint Step   3500] Saving checkpoint weights to checkpoints/ar/100m_5b/checkpoint_step_3500.pt...
+2004.9s 309 [Checkpoint Verified] Successfully saved checkpoints/ar/100m_5b/checkpoint_step_3500.pt (446.8 MB)
+2004.9s 310 [Checkpoint Step   3500] Successfully saved weights to checkpoints/ar/100m_5b/checkpoint_step_3500.pt
+2004.9s 311 
+2016.2s 312 [AR] Step   3525/25432 | Loss: 2.1288 | CE: 2.129 | LR: 3.35e-04 |   1.9 st/s |   370,604 tok/s | ETA: 193.7m
+2027.4s 313 [AR] Step   3550/25432 | Loss: 2.3140 | CE: 2.314 | LR: 3.35e-04 |   1.9 st/s |   371,057 tok/s | ETA: 193.2m
+2038.1s 314 [AR] Step   3575/25432 | Loss: 2.3663 | CE: 2.366 | LR: 3.35e-04 |   1.9 st/s |   371,577 tok/s | ETA: 192.7m
+2048.7s 315 [AR] Step   3600/25432 | Loss: 1.7957 | CE: 1.796 | LR: 3.35e-04 |   1.9 st/s |   372,035 tok/s | ETA: 192.3m
+2059.7s 316 [AR] Step   3625/25432 | Loss: 2.2235 | CE: 2.224 | LR: 3.35e-04 |   1.9 st/s |   372,457 tok/s | ETA: 191.9m
+2070.8s 317 [AR] Step   3650/25432 | Loss: 2.0271 | CE: 2.027 | LR: 3.34e-04 |   1.9 st/s |   372,833 tok/s | ETA: 191.4m
+2081.5s 318 [AR] Step   3675/25432 | Loss: 2.5498 | CE: 2.550 | LR: 3.34e-04 |   1.9 st/s |   373,339 tok/s | ETA: 191.0m
+2091.9s 319 [AR] Step   3700/25432 | Loss: 2.0728 | CE: 2.073 | LR: 3.34e-04 |   1.9 st/s |   373,827 tok/s | ETA: 190.5m
+2103.0s 320 [AR] Step   3725/25432 | Loss: 2.4144 | CE: 2.414 | LR: 3.34e-04 |   1.9 st/s |   374,263 tok/s | ETA: 190.1m
+2114.0s 321 [AR] Step   3750/25432 | Loss: 2.5864 | CE: 2.586 | LR: 3.34e-04 |   1.9 st/s |   374,639 tok/s | ETA: 189.6m
+2124.9s 322 [AR] Step   3775/25432 | Loss: 2.4070 | CE: 2.407 | LR: 3.33e-04 |   1.9 st/s |   375,098 tok/s | ETA: 189.2m
+2135.8s 323 [AR] Step   3800/25432 | Loss: 2.3496 | CE: 2.350 | LR: 3.33e-04 |   1.9 st/s |   375,480 tok/s | ETA: 188.8m
+2146.7s 324 [AR] Step   3825/25432 | Loss: 3.3617 | CE: 3.362 | LR: 3.33e-04 |   1.9 st/s |   375,910 tok/s | ETA: 188.3m
+2157.3s 325 [AR] Step   3850/25432 | Loss: 2.2902 | CE: 2.290 | LR: 3.33e-04 |   1.9 st/s |   376,451 tok/s | ETA: 187.9m
+2168.0s 326 [AR] Step   3875/25432 | Loss: 2.0637 | CE: 2.064 | LR: 3.33e-04 |   1.9 st/s |   376,859 tok/s | ETA: 187.4m
+2178.5s 327 [AR] Step   3900/25432 | Loss: 2.4351 | CE: 2.435 | LR: 3.32e-04 |   1.9 st/s |   377,341 tok/s | ETA: 187.0m
+2189.0s 328 [AR] Step   3925/25432 | Loss: 2.6662 | CE: 2.666 | LR: 3.32e-04 |   1.9 st/s |   377,853 tok/s | ETA: 186.5m
+2199.1s 329 [AR] Step   3950/25432 | Loss: 2.9921 | CE: 2.992 | LR: 3.32e-04 |   1.9 st/s |   378,301 tok/s | ETA: 186.1m
+2209.7s 330 [AR] Step   3975/25432 | Loss: 2.2211 | CE: 2.221 | LR: 3.32e-04 |   1.9 st/s |   378,770 tok/s | ETA: 185.6m
+2220.2s 331 [AR] Step   4000/25432 | Loss: 2.6319 | CE: 2.632 | LR: 3.32e-04 |   1.9 st/s |   379,219 tok/s | ETA: 185.2m
+2231.1s 332 [AR] Step   4025/25432 | Loss: 2.1002 | CE: 2.100 | LR: 3.31e-04 |   1.9 st/s |   379,632 tok/s | ETA: 184.8m
+2241.4s 333 [AR] Step   4050/25432 | Loss: 2.4458 | CE: 2.446 | LR: 3.31e-04 |   1.9 st/s |   380,046 tok/s | ETA: 184.4m
+2252.2s 334 [AR] Step   4075/25432 | Loss: 2.4346 | CE: 2.435 | LR: 3.31e-04 |   1.9 st/s |   380,428 tok/s | ETA: 184.0m
+2262.9s 335 [AR] Step   4100/25432 | Loss: 2.1419 | CE: 2.142 | LR: 3.31e-04 |   1.9 st/s |   380,798 tok/s | ETA: 183.6m
+2273.3s 336 [AR] Step   4125/25432 | Loss: 1.8476 | CE: 1.848 | LR: 3.31e-04 |   1.9 st/s |   381,353 tok/s | ETA: 183.1m
+2283.9s 337 [AR] Step   4150/25432 | Loss: 3.0325 | CE: 3.032 | LR: 3.30e-04 |   1.9 st/s |   381,695 tok/s | ETA: 182.7m
+2294.5s 338 [AR] Step   4175/25432 | Loss: 2.3787 | CE: 2.379 | LR: 3.30e-04 |   1.9 st/s |   382,158 tok/s | ETA: 182.3m
+2305.1s 339 [AR] Step   4200/25432 | Loss: 2.6433 | CE: 2.643 | LR: 3.30e-04 |   1.9 st/s |   382,491 tok/s | ETA: 181.9m
+2315.7s 340 [AR] Step   4225/25432 | Loss: 2.3917 | CE: 2.392 | LR: 3.30e-04 |   1.9 st/s |   382,918 tok/s | ETA: 181.5m
+2326.6s 341 [AR] Step   4250/25432 | Loss: 2.0010 | CE: 2.001 | LR: 3.29e-04 |   1.9 st/s |   383,187 tok/s | ETA: 181.1m
+2337.4s 342 [AR] Step   4275/25432 | Loss: 2.5470 | CE: 2.547 | LR: 3.29e-04 |   2.0 st/s |   383,579 tok/s | ETA: 180.7m
+2348.1s 343 [AR] Step   4300/25432 | Loss: 2.0369 | CE: 2.037 | LR: 3.29e-04 |   2.0 st/s |   383,908 tok/s | ETA: 180.4m
+2358.4s 344 [AR] Step   4325/25432 | Loss: 2.1500 | CE: 2.150 | LR: 3.29e-04 |   2.0 st/s |   384,376 tok/s | ETA: 179.9m
+2368.6s 345 [AR] Step   4350/25432 | Loss: 2.2571 | CE: 2.257 | LR: 3.28e-04 |   2.0 st/s |   384,804 tok/s | ETA: 179.5m
+2379.0s 346 [AR] Step   4375/25432 | Loss: 1.9520 | CE: 1.952 | LR: 3.28e-04 |   2.0 st/s |   385,323 tok/s | ETA: 179.1m
+2389.2s 347 [AR] Step   4400/25432 | Loss: 2.4498 | CE: 2.450 | LR: 3.28e-04 |   2.0 st/s |   385,697 tok/s | ETA: 178.7m
+2400.2s 348 [AR] Step   4425/25432 | Loss: 2.9842 | CE: 2.984 | LR: 3.28e-04 |   2.0 st/s |   385,978 tok/s | ETA: 178.3m
+2411.1s 349 [AR] Step   4450/25432 | Loss: 0.8729 | CE: 0.873 | LR: 3.28e-04 |   2.0 st/s |   386,262 tok/s | ETA: 178.0m
+2421.8s 350 [AR] Step   4475/25432 | Loss: 2.5149 | CE: 2.515 | LR: 3.27e-04 |   2.0 st/s |   386,645 tok/s | ETA: 177.6m
+2432.2s 351 [AR] Step   4500/25432 | Loss: 2.1362 | CE: 2.136 | LR: 3.27e-04 |   2.0 st/s |   386,995 tok/s | ETA: 177.2m
+2442.8s 352 [AR] Step   4525/25432 | Loss: 1.7836 | CE: 1.784 | LR: 3.27e-04 |   2.0 st/s |   387,422 tok/s | ETA: 176.8m
+2453.4s 353 [AR] Step   4550/25432 | Loss: 2.0943 | CE: 2.094 | LR: 3.27e-04 |   2.0 st/s |   387,744 tok/s | ETA: 176.5m
+2464.2s 354 [AR] Step   4575/25432 | Loss: 1.9653 | CE: 1.965 | LR: 3.26e-04 |   2.0 st/s |   388,059 tok/s | ETA: 176.1m
+2475.1s 355 [AR] Step   4600/25432 | Loss: 2.1869 | CE: 2.187 | LR: 3.26e-04 |   2.0 st/s |   388,298 tok/s | ETA: 175.8m
+2486.2s 356 [AR] Step   4625/25432 | Loss: 2.3790 | CE: 2.379 | LR: 3.26e-04 |   2.0 st/s |   388,599 tok/s | ETA: 175.5m
+2497.0s 357 [AR] Step   4650/25432 | Loss: 2.0381 | CE: 2.038 | LR: 3.26e-04 |   2.0 st/s |   388,863 tok/s | ETA: 175.1m
+2508.0s 358 [AR] Step   4675/25432 | Loss: 1.9038 | CE: 1.904 | LR: 3.25e-04 |   2.0 st/s |   389,173 tok/s | ETA: 174.8m
+2519.0s 359 [AR] Step   4700/25432 | Loss: 2.1983 | CE: 2.198 | LR: 3.25e-04 |   2.0 st/s |   389,405 tok/s | ETA: 174.5m
+2530.0s 360 [AR] Step   4725/25432 | Loss: 2.1942 | CE: 2.194 | LR: 3.25e-04 |   2.0 st/s |   389,702 tok/s | ETA: 174.1m
+2540.9s 361 [AR] Step   4750/25432 | Loss: 2.2770 | CE: 2.277 | LR: 3.25e-04 |   2.0 st/s |   389,950 tok/s | ETA: 173.8m
+2551.9s 362 [AR] Step   4775/25432 | Loss: 2.4853 | CE: 2.485 | LR: 3.24e-04 |   2.0 st/s |   390,242 tok/s | ETA: 173.5m
+2562.8s 363 [AR] Step   4800/25432 | Loss: 2.2878 | CE: 2.288 | LR: 3.24e-04 |   2.0 st/s |   390,487 tok/s | ETA: 173.1m
+2573.8s 364 [AR] Step   4825/25432 | Loss: 2.3963 | CE: 2.396 | LR: 3.24e-04 |   2.0 st/s |   390,783 tok/s | ETA: 172.8m
+2584.6s 365 [AR] Step   4850/25432 | Loss: 2.5367 | CE: 2.537 | LR: 3.24e-04 |   2.0 st/s |   391,092 tok/s | ETA: 172.4m
+2595.4s 366 [AR] Step   4875/25432 | Loss: 1.9809 | CE: 1.981 | LR: 3.23e-04 |   2.0 st/s |   391,405 tok/s | ETA: 172.1m
+2606.1s 367 [AR] Step   4900/25432 | Loss: 2.8837 | CE: 2.884 | LR: 3.23e-04 |   2.0 st/s |   391,643 tok/s | ETA: 171.8m
+2617.1s 368 [AR] Step   4925/25432 | Loss: 2.2674 | CE: 2.267 | LR: 3.23e-04 |   2.0 st/s |   391,965 tok/s | ETA: 171.4m
+2628.0s 369 [AR] Step   4950/25432 | Loss: 2.2585 | CE: 2.259 | LR: 3.23e-04 |   2.0 st/s |   392,191 tok/s | ETA: 171.1m
+2639.0s 370 [AR] Step   4975/25432 | Loss: 2.4719 | CE: 2.472 | LR: 3.22e-04 |   2.0 st/s |   392,425 tok/s | ETA: 170.8m
+2649.7s 371 [AR] Step   5000/25432 | Loss: 2.1893 | CE: 2.189 | LR: 3.22e-04 |   2.0 st/s |   392,685 tok/s | ETA: 170.5m
+2659.9s 372 [AR] Step   5025/25432 | Loss: 2.6676 | CE: 2.668 | LR: 3.22e-04 |   2.0 st/s |   393,087 tok/s | ETA: 170.1m
+2670.4s 373 [AR] Step   5050/25432 | Loss: 2.2793 | CE: 2.279 | LR: 3.22e-04 |   2.0 st/s |   393,335 tok/s | ETA: 169.8m
+2681.4s 374 [AR] Step   5075/25432 | Loss: 0.5540 | CE: 0.554 | LR: 3.21e-04 |   2.0 st/s |   393,670 tok/s | ETA: 169.4m
+2692.1s 375 [AR] Step   5100/25432 | Loss: 1.9568 | CE: 1.957 | LR: 3.21e-04 |   2.0 st/s |   393,888 tok/s | ETA: 169.1m
+2703.1s 376 [AR] Step   5125/25432 | Loss: 2.0845 | CE: 2.084 | LR: 3.21e-04 |   2.0 st/s |   394,106 tok/s | ETA: 168.8m
+2713.9s 377 [AR] Step   5150/25432 | Loss: 2.4468 | CE: 2.447 | LR: 3.20e-04 |   2.0 st/s |   394,366 tok/s | ETA: 168.5m
+2724.9s 378 [AR] Step   5175/25432 | Loss: 2.1280 | CE: 2.128 | LR: 3.20e-04 |   2.0 st/s |   394,647 tok/s | ETA: 168.2m
+2735.7s 379 [AR] Step   5200/25432 | Loss: 2.4274 | CE: 2.427 | LR: 3.20e-04 |   2.0 st/s |   394,813 tok/s | ETA: 167.9m
+2746.7s 380 [AR] Step   5225/25432 | Loss: 2.0274 | CE: 2.027 | LR: 3.20e-04 |   2.0 st/s |   395,106 tok/s | ETA: 167.6m
+2757.2s 381 [AR] Step   5250/25432 | Loss: 2.2246 | CE: 2.225 | LR: 3.19e-04 |   2.0 st/s |   395,325 tok/s | ETA: 167.3m
+2767.7s 382 [AR] Step   5275/25432 | Loss: 2.1913 | CE: 2.191 | LR: 3.19e-04 |   2.0 st/s |   395,656 tok/s | ETA: 166.9m
+2778.1s 383 [AR] Step   5300/25432 | Loss: 2.1275 | CE: 2.127 | LR: 3.19e-04 |   2.0 st/s |   395,912 tok/s | ETA: 166.6m
+2789.2s 384 [AR] Step   5325/25432 | Loss: 1.8227 | CE: 1.823 | LR: 3.19e-04 |   2.0 st/s |   396,201 tok/s | ETA: 166.3m
+2800.1s 385 [AR] Step   5350/25432 | Loss: 2.3390 | CE: 2.339 | LR: 3.18e-04 |   2.0 st/s |   396,371 tok/s | ETA: 166.0m
+2811.0s 386 [AR] Step   5375/25432 | Loss: 2.3813 | CE: 2.381 | LR: 3.18e-04 |   2.0 st/s |   396,646 tok/s | ETA: 165.7m
+2821.4s 387 [AR] Step   5400/25432 | Loss: 1.8909 | CE: 1.891 | LR: 3.18e-04 |   2.0 st/s |   396,898 tok/s | ETA: 165.4m
+2832.1s 388 [AR] Step   5425/25432 | Loss: 2.4165 | CE: 2.416 | LR: 3.17e-04 |   2.0 st/s |   397,160 tok/s | ETA: 165.1m
+2842.5s 389 [AR] Step   5450/25432 | Loss: 2.3231 | CE: 2.323 | LR: 3.17e-04 |   2.0 st/s |   397,394 tok/s | ETA: 164.8m
+2853.1s 390 [AR] Step   5475/25432 | Loss: 2.1923 | CE: 2.192 | LR: 3.17e-04 |   2.0 st/s |   397,735 tok/s | ETA: 164.4m
+2863.6s 391 [AR] Step   5500/25432 | Loss: 2.3193 | CE: 2.319 | LR: 3.17e-04 |   2.0 st/s |   397,975 tok/s | ETA: 164.1m
+2873.6s 392 [AR] Step   5525/25432 | Loss: 2.0999 | CE: 2.100 | LR: 3.16e-04 |   2.0 st/s |   398,281 tok/s | ETA: 163.8m
+2883.7s 393 [AR] Step   5550/25432 | Loss: 1.6644 | CE: 1.664 | LR: 3.16e-04 |   2.0 st/s |   398,641 tok/s | ETA: 163.4m
+2893.9s 394 [AR] Step   5575/25432 | Loss: 2.2435 | CE: 2.244 | LR: 3.16e-04 |   2.0 st/s |   398,987 tok/s | ETA: 163.1m
+2904.0s 395 [AR] Step   5600/25432 | Loss: 2.6382 | CE: 2.638 | LR: 3.15e-04 |   2.0 st/s |   399,261 tok/s | ETA: 162.8m
+2914.1s 396 [AR] Step   5625/25432 | Loss: 2.1484 | CE: 2.148 | LR: 3.15e-04 |   2.0 st/s |   399,616 tok/s | ETA: 162.4m
+2924.5s 397 [AR] Step   5650/25432 | Loss: 1.6214 | CE: 1.621 | LR: 3.15e-04 |   2.0 st/s |   399,832 tok/s | ETA: 162.1m
+2934.7s 398 [AR] Step   5675/25432 | Loss: 3.6953 | CE: 3.695 | LR: 3.15e-04 |   2.0 st/s |   400,208 tok/s | ETA: 161.8m
+2945.3s 399 [AR] Step   5700/25432 | Loss: 1.9585 | CE: 1.958 | LR: 3.14e-04 |   2.0 st/s |   400,392 tok/s | ETA: 161.5m
+2956.0s 400 [AR] Step   5725/25432 | Loss: 2.4805 | CE: 2.480 | LR: 3.14e-04 |   2.0 st/s |   400,671 tok/s | ETA: 161.2m
+2966.5s 401 [AR] Step   5750/25432 | Loss: 1.7383 | CE: 1.738 | LR: 3.14e-04 |   2.0 st/s |   400,880 tok/s | ETA: 160.9m
+2977.2s 402 [AR] Step   5775/25432 | Loss: 2.5543 | CE: 2.554 | LR: 3.13e-04 |   2.0 st/s |   401,143 tok/s | ETA: 160.6m
+2987.6s 403 [AR] Step   5800/25432 | Loss: 1.7927 | CE: 1.793 | LR: 3.13e-04 |   2.0 st/s |   401,332 tok/s | ETA: 160.3m
+2998.3s 404 [AR] Step   5825/25432 | Loss: 1.7940 | CE: 1.794 | LR: 3.13e-04 |   2.0 st/s |   401,623 tok/s | ETA: 160.0m
+3008.8s 405 [AR] Step   5850/25432 | Loss: 2.1566 | CE: 2.157 | LR: 3.12e-04 |   2.0 st/s |   401,824 tok/s | ETA: 159.7m
+3019.6s 406 [AR] Step   5875/25432 | Loss: 1.3755 | CE: 1.375 | LR: 3.12e-04 |   2.0 st/s |   402,017 tok/s | ETA: 159.4m
+3030.0s 407 [AR] Step   5900/25432 | Loss: 1.7603 | CE: 1.760 | LR: 3.12e-04 |   2.0 st/s |   402,250 tok/s | ETA: 159.1m
+3040.4s 408 [AR] Step   5925/25432 | Loss: 1.6643 | CE: 1.664 | LR: 3.12e-04 |   2.0 st/s |   402,549 tok/s | ETA: 158.8m
+3051.1s 409 [AR] Step   5950/25432 | Loss: 2.3706 | CE: 2.371 | LR: 3.11e-04 |   2.0 st/s |   402,738 tok/s | ETA: 158.5m
+3062.0s 410 [AR] Step   5975/25432 | Loss: 1.5701 | CE: 1.570 | LR: 3.11e-04 |   2.0 st/s |   402,945 tok/s | ETA: 158.2m
+3073.0s 411 [AR] Step   6000/25432 | Loss: 2.1858 | CE: 2.186 | LR: 3.11e-04 |   2.0 st/s |   403,016 tok/s | ETA: 158.0m
+3084.1s 412 [AR] Step   6025/25432 | Loss: 2.0771 | CE: 2.077 | LR: 3.10e-04 |   2.1 st/s |   403,196 tok/s | ETA: 157.7m
+3095.2s 413 [AR] Step   6050/25432 | Loss: 2.4806 | CE: 2.481 | LR: 3.10e-04 |   2.1 st/s |   403,326 tok/s | ETA: 157.5m
+3106.2s 414 [AR] Step   6075/25432 | Loss: 1.7396 | CE: 1.740 | LR: 3.10e-04 |   2.1 st/s |   403,509 tok/s | ETA: 157.2m
+3117.2s 415 [AR] Step   6100/25432 | Loss: 2.2935 | CE: 2.293 | LR: 3.09e-04 |   2.1 st/s |   403,646 tok/s | ETA: 156.9m
+3128.2s 416 [AR] Step   6125/25432 | Loss: 3.2500 | CE: 3.250 | LR: 3.09e-04 |   2.1 st/s |   403,826 tok/s | ETA: 156.7m
+3138.9s 417 [AR] Step   6150/25432 | Loss: 2.5998 | CE: 2.600 | LR: 3.09e-04 |   2.1 st/s |   404,003 tok/s | ETA: 156.4m
+3149.5s 418 [AR] Step   6175/25432 | Loss: 1.9874 | CE: 1.987 | LR: 3.08e-04 |   2.1 st/s |   404,281 tok/s | ETA: 156.1m
+3160.0s 419 [AR] Step   6200/25432 | Loss: 0.6927 | CE: 0.693 | LR: 3.08e-04 |   2.1 st/s |   404,435 tok/s | ETA: 155.8m
+3170.6s 420 [AR] Step   6225/25432 | Loss: 2.0365 | CE: 2.037 | LR: 3.08e-04 |   2.1 st/s |   404,712 tok/s | ETA: 155.5m
+3181.2s 421 [AR] Step   6250/25432 | Loss: 1.7966 | CE: 1.797 | LR: 3.07e-04 |   2.1 st/s |   404,899 tok/s | ETA: 155.2m
+3191.9s 422 [AR] Step   6275/25432 | Loss: 2.6452 | CE: 2.645 | LR: 3.07e-04 |   2.1 st/s |   405,092 tok/s | ETA: 155.0m
+3202.4s 423 [AR] Step   6300/25432 | Loss: 2.2063 | CE: 2.206 | LR: 3.07e-04 |   2.1 st/s |   405,307 tok/s | ETA: 154.7m
+3213.1s 424 [AR] Step   6325/25432 | Loss: 2.5226 | CE: 2.523 | LR: 3.06e-04 |   2.1 st/s |   405,529 tok/s | ETA: 154.4m
+3223.7s 425 [AR] Step   6350/25432 | Loss: 2.2763 | CE: 2.276 | LR: 3.06e-04 |   2.1 st/s |   405,703 tok/s | ETA: 154.1m
+3234.5s 426 [AR] Step   6375/25432 | Loss: 2.1880 | CE: 2.188 | LR: 3.06e-04 |   2.1 st/s |   405,877 tok/s | ETA: 153.9m
+3245.0s 427 [AR] Step   6400/25432 | Loss: 1.9695 | CE: 1.969 | LR: 3.05e-04 |   2.1 st/s |   406,084 tok/s | ETA: 153.6m
+3255.8s 428 [AR] Step   6425/25432 | Loss: 2.3627 | CE: 2.363 | LR: 3.05e-04 |   2.1 st/s |   406,249 tok/s | ETA: 153.3m
+3266.4s 429 [AR] Step   6450/25432 | Loss: 1.5774 | CE: 1.577 | LR: 3.05e-04 |   2.1 st/s |   406,454 tok/s | ETA: 153.0m
+3277.0s 430 [AR] Step   6475/25432 | Loss: 2.0040 | CE: 2.004 | LR: 3.04e-04 |   2.1 st/s |   406,679 tok/s | ETA: 152.7m
+3287.3s 431 [AR] Step   6500/25432 | Loss: 1.8782 | CE: 1.878 | LR: 3.04e-04 |   2.1 st/s |   406,847 tok/s | ETA: 152.5m
+3297.5s 432 [AR] Step   6525/25432 | Loss: 1.7053 | CE: 1.705 | LR: 3.04e-04 |   2.1 st/s |   407,090 tok/s | ETA: 152.2m
+3307.9s 433 [AR] Step   6550/25432 | Loss: 2.0312 | CE: 2.031 | LR: 3.03e-04 |   2.1 st/s |   407,309 tok/s | ETA: 151.9m
+3318.3s 434 [AR] Step   6575/25432 | Loss: 2.0523 | CE: 2.052 | LR: 3.03e-04 |   2.1 st/s |   407,555 tok/s | ETA: 151.6m
+3328.6s 435 [AR] Step   6600/25432 | Loss: 2.5960 | CE: 2.596 | LR: 3.03e-04 |   2.1 st/s |   407,719 tok/s | ETA: 151.4m
+3339.0s 436 [AR] Step   6625/25432 | Loss: 2.0839 | CE: 2.084 | LR: 3.02e-04 |   2.1 st/s |   407,973 tok/s | ETA: 151.1m
+3349.2s 437 [AR] Step   6650/25432 | Loss: 2.7417 | CE: 2.742 | LR: 3.02e-04 |   2.1 st/s |   408,172 tok/s | ETA: 150.8m
+3359.7s 438 [AR] Step   6675/25432 | Loss: 1.5158 | CE: 1.516 | LR: 3.02e-04 |   2.1 st/s |   408,427 tok/s | ETA: 150.5m
+3370.4s 439 [AR] Step   6700/25432 | Loss: 1.4379 | CE: 1.438 | LR: 3.01e-04 |   2.1 st/s |   408,599 tok/s | ETA: 150.2m
+3380.8s 440 [AR] Step   6725/25432 | Loss: 2.1137 | CE: 2.114 | LR: 3.01e-04 |   2.1 st/s |   408,793 tok/s | ETA: 150.0m
+3391.3s 441 [AR] Step   6750/25432 | Loss: 2.3480 | CE: 2.348 | LR: 3.01e-04 |   2.1 st/s |   408,973 tok/s | ETA: 149.7m
+3401.6s 442 [AR] Step   6775/25432 | Loss: 2.1054 | CE: 2.105 | LR: 3.00e-04 |   2.1 st/s |   409,172 tok/s | ETA: 149.4m
+3411.9s 443 [AR] Step   6800/25432 | Loss: 2.1792 | CE: 2.179 | LR: 3.00e-04 |   2.1 st/s |   409,369 tok/s | ETA: 149.1m
+3422.2s 444 [AR] Step   6825/25432 | Loss: 2.0290 | CE: 2.029 | LR: 3.00e-04 |   2.1 st/s |   409,593 tok/s | ETA: 148.9m
+3432.5s 445 [AR] Step   6850/25432 | Loss: 2.3798 | CE: 2.380 | LR: 2.99e-04 |   2.1 st/s |   409,785 tok/s | ETA: 148.6m
+3442.8s 446 [AR] Step   6875/25432 | Loss: 1.1737 | CE: 1.174 | LR: 2.99e-04 |   2.1 st/s |   410,027 tok/s | ETA: 148.3m
+3453.1s 447 [AR] Step   6900/25432 | Loss: 2.0823 | CE: 2.082 | LR: 2.98e-04 |   2.1 st/s |   410,212 tok/s | ETA: 148.0m
+3463.3s 448 [AR] Step   6925/25432 | Loss: 1.9113 | CE: 1.911 | LR: 2.98e-04 |   2.1 st/s |   410,452 tok/s | ETA: 147.7m
+3473.6s 449 [AR] Step   6950/25432 | Loss: 2.1331 | CE: 2.133 | LR: 2.98e-04 |   2.1 st/s |   410,637 tok/s | ETA: 147.5m
+3483.8s 450 [AR] Step   6975/25432 | Loss: 1.6088 | CE: 1.609 | LR: 2.97e-04 |   2.1 st/s |   410,876 tok/s | ETA: 147.2m
+3494.0s 451 [AR] Step   7000/25432 | Loss: 1.4936 | CE: 1.494 | LR: 2.97e-04 |   2.1 st/s |   411,063 tok/s | ETA: 146.9m
+3494.0s 452 
+3494.0s 453 [Checkpoint Step   7000] Saving checkpoint weights to checkpoints/ar/100m_5b/checkpoint_step_7000.pt...
+3494.8s 454 [Checkpoint Verified] Successfully saved checkpoints/ar/100m_5b/checkpoint_step_7000.pt (446.8 MB)
+3494.8s 455 [Checkpoint Step   7000] Successfully saved weights to checkpoints/ar/100m_5b/checkpoint_step_7000.pt
+3494.8s 456 
+3505.3s 457 [AR] Step   7025/25432 | Loss: 1.7567 | CE: 1.757 | LR: 2.97e-04 |   2.1 st/s |   411,177 tok/s | ETA: 146.7m
+3515.7s 458 [AR] Step   7050/25432 | Loss: 1.6545 | CE: 1.654 | LR: 2.96e-04 |   2.1 st/s |   411,341 tok/s | ETA: 146.4m
+3526.0s 459 [AR] Step   7075/25432 | Loss: 1.7869 | CE: 1.787 | LR: 2.96e-04 |   2.1 st/s |   411,565 tok/s | ETA: 146.2m
+3536.2s 460 [AR] Step   7100/25432 | Loss: 2.0473 | CE: 2.047 | LR: 2.96e-04 |   2.1 st/s |   411,746 tok/s | ETA: 145.9m
+3546.6s 461 [AR] Step   7125/25432 | Loss: 1.9395 | CE: 1.940 | LR: 2.95e-04 |   2.1 st/s |   411,974 tok/s | ETA: 145.6m
+3556.9s 462 [AR] Step   7150/25432 | Loss: 2.1008 | CE: 2.101 | LR: 2.95e-04 |   2.1 st/s |   412,137 tok/s | ETA: 145.4m
+3567.1s 463 [AR] Step   7175/25432 | Loss: 1.9754 | CE: 1.975 | LR: 2.95e-04 |   2.1 st/s |   412,365 tok/s | ETA: 145.1m
+3577.4s 464 [AR] Step   7200/25432 | Loss: 2.0264 | CE: 2.026 | LR: 2.94e-04 |   2.1 st/s |   412,541 tok/s | ETA: 144.8m
+3587.9s 465 [AR] Step   7225/25432 | Loss: 1.7968 | CE: 1.797 | LR: 2.94e-04 |   2.1 st/s |   412,766 tok/s | ETA: 144.5m
+3598.3s 466 [AR] Step   7250/25432 | Loss: 1.6204 | CE: 1.620 | LR: 2.93e-04 |   2.1 st/s |   412,906 tok/s | ETA: 144.3m
+3609.0s 467 [AR] Step   7275/25432 | Loss: 1.0164 | CE: 1.016 | LR: 2.93e-04 |   2.1 st/s |   413,117 tok/s | ETA: 144.0m
+3619.8s 468 [AR] Step   7300/25432 | Loss: 2.0723 | CE: 2.072 | LR: 2.93e-04 |   2.1 st/s |   413,223 tok/s | ETA: 143.8m
+3630.6s 469 [AR] Step   7325/25432 | Loss: 2.1227 | CE: 2.123 | LR: 2.92e-04 |   2.1 st/s |   413,339 tok/s | ETA: 143.5m
+3641.3s 470 [AR] Step   7350/25432 | Loss: 1.9779 | CE: 1.978 | LR: 2.92e-04 |   2.1 st/s |   413,482 tok/s | ETA: 143.3m
+3652.2s 471 [AR] Step   7375/25432 | Loss: 1.9560 | CE: 1.956 | LR: 2.92e-04 |   2.1 st/s |   413,596 tok/s | ETA: 143.1m
+3662.9s 472 [AR] Step   7400/25432 | Loss: 1.5113 | CE: 1.511 | LR: 2.91e-04 |   2.1 st/s |   413,749 tok/s | ETA: 142.8m
+3673.7s 473 [AR] Step   7425/25432 | Loss: 1.6212 | CE: 1.621 | LR: 2.91e-04 |   2.1 st/s |   413,859 tok/s | ETA: 142.6m
+3684.4s 474 [AR] Step   7450/25432 | Loss: 2.2827 | CE: 2.283 | LR: 2.90e-04 |   2.1 st/s |   414,012 tok/s | ETA: 142.3m
+3695.2s 475 [AR] Step   7475/25432 | Loss: 2.1064 | CE: 2.106 | LR: 2.90e-04 |   2.1 st/s |   414,161 tok/s | ETA: 142.1m
+3705.4s 476 [AR] Step   7500/25432 | Loss: 1.7569 | CE: 1.757 | LR: 2.90e-04 |   2.1 st/s |   414,273 tok/s | ETA: 141.8m
+3715.7s 477 [AR] Step   7525/25432 | Loss: 1.9416 | CE: 1.942 | LR: 2.89e-04 |   2.1 st/s |   414,484 tok/s | ETA: 141.6m
+3725.9s 478 [AR] Step   7550/25432 | Loss: 1.8139 | CE: 1.814 | LR: 2.89e-04 |   2.1 st/s |   414,643 tok/s | ETA: 141.3m
+3736.1s 479 [AR] Step   7575/25432 | Loss: 0.5551 | CE: 0.555 | LR: 2.89e-04 |   2.1 st/s |   414,854 tok/s | ETA: 141.0m
+3746.4s 480 [AR] Step   7600/25432 | Loss: 1.8483 | CE: 1.848 | LR: 2.88e-04 |   2.1 st/s |   415,019 tok/s | ETA: 140.8m
+3756.8s 481 [AR] Step   7625/25432 | Loss: 2.1038 | CE: 2.104 | LR: 2.88e-04 |   2.1 st/s |   415,225 tok/s | ETA: 140.5m
+3767.1s 482 [AR] Step   7650/25432 | Loss: 2.3164 | CE: 2.316 | LR: 2.87e-04 |   2.1 st/s |   415,355 tok/s | ETA: 140.3m
+3777.6s 483 [AR] Step   7675/25432 | Loss: 1.5583 | CE: 1.558 | LR: 2.87e-04 |   2.1 st/s |   415,564 tok/s | ETA: 140.0m
+3788.5s 484 [AR] Step   7700/25432 | Loss: 2.1428 | CE: 2.143 | LR: 2.87e-04 |   2.1 st/s |   415,645 tok/s | ETA: 139.8m
+3798.7s 485 [AR] Step   7725/25432 | Loss: 1.5541 | CE: 1.554 | LR: 2.86e-04 |   2.1 st/s |   415,821 tok/s | ETA: 139.5m
+3809.2s 486 [AR] Step   7750/25432 | Loss: 1.7183 | CE: 1.718 | LR: 2.86e-04 |   2.1 st/s |   415,984 tok/s | ETA: 139.3m
+3820.1s 487 [AR] Step   7775/25432 | Loss: 1.8215 | CE: 1.821 | LR: 2.86e-04 |   2.1 st/s |   416,102 tok/s | ETA: 139.0m
+3830.8s 488 [AR] Step   7800/25432 | Loss: 1.9600 | CE: 1.960 | LR: 2.85e-04 |   2.1 st/s |   416,201 tok/s | ETA: 138.8m
+3841.0s 489 [AR] Step   7825/25432 | Loss: 2.3208 | CE: 2.321 | LR: 2.85e-04 |   2.1 st/s |   416,382 tok/s | ETA: 138.6m
+3851.3s 490 [AR] Step   7850/25432 | Loss: 1.7029 | CE: 1.703 | LR: 2.84e-04 |   2.1 st/s |   416,537 tok/s | ETA: 138.3m
+3861.5s 491 [AR] Step   7875/25432 | Loss: 1.5144 | CE: 1.514 | LR: 2.84e-04 |   2.1 st/s |   416,737 tok/s | ETA: 138.1m
+3871.8s 492 [AR] Step   7900/25432 | Loss: 2.0284 | CE: 2.028 | LR: 2.84e-04 |   2.1 st/s |   416,883 tok/s | ETA: 137.8m
+3881.9s 493 [AR] Step   7925/25432 | Loss: 1.7376 | CE: 1.738 | LR: 2.83e-04 |   2.1 st/s |   417,093 tok/s | ETA: 137.5m
+3892.1s 494 [AR] Step   7950/25432 | Loss: 1.9337 | CE: 1.934 | LR: 2.83e-04 |   2.1 st/s |   417,240 tok/s | ETA: 137.3m
+3902.4s 495 [AR] Step   7975/25432 | Loss: 2.4789 | CE: 2.479 | LR: 2.82e-04 |   2.1 st/s |   417,430 tok/s | ETA: 137.0m
+3912.6s 496 [AR] Step   8000/25432 | Loss: 1.8741 | CE: 1.874 | LR: 2.82e-04 |   2.1 st/s |   417,579 tok/s | ETA: 136.8m
+3922.8s 497 [AR] Step   8025/25432 | Loss: 2.1029 | CE: 2.103 | LR: 2.82e-04 |   2.1 st/s |   417,778 tok/s | ETA: 136.5m
+3933.0s 498 [AR] Step   8050/25432 | Loss: 1.4917 | CE: 1.492 | LR: 2.81e-04 |   2.1 st/s |   417,924 tok/s | ETA: 136.3m
+3943.3s 499 [AR] Step   8075/25432 | Loss: 2.1889 | CE: 2.189 | LR: 2.81e-04 |   2.1 st/s |   418,109 tok/s | ETA: 136.0m
+3953.6s 500 [AR] Step   8100/25432 | Loss: 1.7509 | CE: 1.751 | LR: 2.80e-04 |   2.1 st/s |   418,258 tok/s | ETA: 135.8m
+3964.0s 501 [AR] Step   8125/25432 | Loss: 1.8038 | CE: 1.804 | LR: 2.80e-04 |   2.1 st/s |   418,423 tok/s | ETA: 135.5m
+3974.8s 502 [AR] Step   8150/25432 | Loss: 1.8500 | CE: 1.850 | LR: 2.80e-04 |   2.1 st/s |   418,552 tok/s | ETA: 135.3m
+3985.8s 503 [AR] Step   8175/25432 | Loss: 1.5036 | CE: 1.504 | LR: 2.79e-04 |   2.1 st/s |   418,639 tok/s | ETA: 135.1m
+3995.9s 504 [AR] Step   8200/25432 | Loss: 2.3110 | CE: 2.311 | LR: 2.79e-04 |   2.1 st/s |   418,764 tok/s | ETA: 134.8m
+4006.4s 505 [AR] Step   8225/25432 | Loss: 2.1340 | CE: 2.134 | LR: 2.78e-04 |   2.1 st/s |   418,952 tok/s | ETA: 134.6m
+4016.9s 506 [AR] Step   8250/25432 | Loss: 2.2438 | CE: 2.244 | LR: 2.78e-04 |   2.1 st/s |   419,074 tok/s | ETA: 134.3m
+4027.7s 507 [AR] Step   8275/25432 | Loss: 1.9595 | CE: 1.960 | LR: 2.78e-04 |   2.1 st/s |   419,170 tok/s | ETA: 134.1m
+4037.9s 508 [AR] Step   8300/25432 | Loss: 2.1557 | CE: 2.156 | LR: 2.77e-04 |   2.1 st/s |   419,293 tok/s | ETA: 133.9m
+4048.1s 509 [AR] Step   8325/25432 | Loss: 1.4780 | CE: 1.478 | LR: 2.77e-04 |   2.1 st/s |   419,473 tok/s | ETA: 133.6m
+4058.4s 510 [AR] Step   8350/25432 | Loss: 1.9734 | CE: 1.973 | LR: 2.76e-04 |   2.1 st/s |   419,613 tok/s | ETA: 133.4m
+4068.5s 511 [AR] Step   8375/25432 | Loss: 1.6176 | CE: 1.618 | LR: 2.76e-04 |   2.1 st/s |   419,800 tok/s | ETA: 133.1m
+4078.9s 512 [AR] Step   8400/25432 | Loss: 1.9261 | CE: 1.926 | LR: 2.75e-04 |   2.1 st/s |   419,922 tok/s | ETA: 132.9m
+4089.2s 513 [AR] Step   8425/25432 | Loss: 1.4557 | CE: 1.456 | LR: 2.75e-04 |   2.1 st/s |   420,098 tok/s | ETA: 132.7m
+4099.3s 514 [AR] Step   8450/25432 | Loss: 1.8410 | CE: 1.841 | LR: 2.75e-04 |   2.1 st/s |   420,241 tok/s | ETA: 132.4m
+4109.5s 515 [AR] Step   8475/25432 | Loss: 1.9394 | CE: 1.939 | LR: 2.74e-04 |   2.1 st/s |   420,421 tok/s | ETA: 132.2m
+4119.6s 516 [AR] Step   8500/25432 | Loss: 1.9324 | CE: 1.932 | LR: 2.74e-04 |   2.1 st/s |   420,564 tok/s | ETA: 131.9m
+4129.9s 517 [AR] Step   8525/25432 | Loss: 2.0519 | CE: 2.052 | LR: 2.73e-04 |   2.1 st/s |   420,738 tok/s | ETA: 131.7m
+4140.2s 518 [AR] Step   8550/25432 | Loss: 1.7510 | CE: 1.751 | LR: 2.73e-04 |   2.1 st/s |   420,865 tok/s | ETA: 131.4m
+4151.1s 519 [AR] Step   8575/25432 | Loss: 1.8648 | CE: 1.865 | LR: 2.73e-04 |   2.1 st/s |   421,031 tok/s | ETA: 131.2m
+4162.1s 520 [AR] Step   8600/25432 | Loss: 2.0662 | CE: 2.066 | LR: 2.72e-04 |   2.1 st/s |   421,046 tok/s | ETA: 131.0m
+4173.1s 521 [AR] Step   8625/25432 | Loss: 1.9928 | CE: 1.993 | LR: 2.72e-04 |   2.1 st/s |   421,139 tok/s | ETA: 130.8m
+4183.8s 522 [AR] Step   8650/25432 | Loss: 1.3315 | CE: 1.331 | LR: 2.71e-04 |   2.1 st/s |   421,239 tok/s | ETA: 130.5m
+4194.7s 523 [AR] Step   8675/25432 | Loss: 1.9612 | CE: 1.961 | LR: 2.71e-04 |   2.1 st/s |   421,310 tok/s | ETA: 130.3m
+4205.4s 524 [AR] Step   8700/25432 | Loss: 1.8974 | CE: 1.897 | LR: 2.70e-04 |   2.1 st/s |   421,412 tok/s | ETA: 130.1m
+4216.2s 525 [AR] Step   8725/25432 | Loss: 1.9634 | CE: 1.963 | LR: 2.70e-04 |   2.1 st/s |   421,531 tok/s | ETA: 129.9m
+4226.9s 526 [AR] Step   8750/25432 | Loss: 2.2637 | CE: 2.264 | LR: 2.70e-04 |   2.1 st/s |   421,615 tok/s | ETA: 129.7m
+4237.1s 527 [AR] Step   8775/25432 | Loss: 1.4738 | CE: 1.474 | LR: 2.69e-04 |   2.1 st/s |   421,724 tok/s | ETA: 129.4m
+4247.3s 528 [AR] Step   8800/25432 | Loss: 1.7162 | CE: 1.716 | LR: 2.69e-04 |   2.1 st/s |   421,858 tok/s | ETA: 129.2m
+4257.4s 529 [AR] Step   8825/25432 | Loss: 1.9831 | CE: 1.983 | LR: 2.68e-04 |   2.1 st/s |   422,036 tok/s | ETA: 128.9m
+4267.7s 530 [AR] Step   8850/25432 | Loss: 2.2212 | CE: 2.221 | LR: 2.68e-04 |   2.1 st/s |   422,152 tok/s | ETA: 128.7m
+4278.5s 531 [AR] Step   8875/25432 | Loss: 2.3709 | CE: 2.371 | LR: 2.68e-04 |   2.1 st/s |   422,263 tok/s | ETA: 128.5m
+4288.7s 532 [AR] Step   8900/25432 | Loss: 1.7097 | CE: 1.710 | LR: 2.67e-04 |   2.1 st/s |   422,389 tok/s | ETA: 128.3m
+4298.9s 533 [AR] Step   8925/25432 | Loss: 1.8777 | CE: 1.878 | LR: 2.67e-04 |   2.1 st/s |   422,553 tok/s | ETA: 128.0m
+4309.1s 534 [AR] Step   8950/25432 | Loss: 1.9799 | CE: 1.980 | LR: 2.66e-04 |   2.1 st/s |   422,678 tok/s | ETA: 127.8m
+4319.3s 535 [AR] Step   8975/25432 | Loss: 1.9619 | CE: 1.962 | LR: 2.66e-04 |   2.2 st/s |   422,839 tok/s | ETA: 127.5m
+4329.5s 536 [AR] Step   9000/25432 | Loss: 1.9437 | CE: 1.944 | LR: 2.65e-04 |   2.2 st/s |   422,962 tok/s | ETA: 127.3m
+4339.7s 537 [AR] Step   9025/25432 | Loss: 2.0092 | CE: 2.009 | LR: 2.65e-04 |   2.2 st/s |   423,128 tok/s | ETA: 127.1m
+4349.9s 538 [AR] Step   9050/25432 | Loss: 1.9348 | CE: 1.935 | LR: 2.64e-04 |   2.2 st/s |   423,253 tok/s | ETA: 126.8m
+4360.4s 539 [AR] Step   9075/25432 | Loss: 1.4309 | CE: 1.431 | LR: 2.64e-04 |   2.2 st/s |   423,382 tok/s | ETA: 126.6m
+4370.1s 540 [AR] Step   9100/25432 | Loss: 1.6917 | CE: 1.692 | LR: 2.64e-04 |   2.2 st/s |   423,562 tok/s | ETA: 126.3m
+4379.9s 541 [AR] Step   9125/25432 | Loss: 1.3912 | CE: 1.391 | LR: 2.63e-04 |   2.2 st/s |   423,780 tok/s | ETA: 126.1m
+4389.6s 542 [AR] Step   9150/25432 | Loss: 1.3136 | CE: 1.314 | LR: 2.63e-04 |   2.2 st/s |   423,935 tok/s | ETA: 125.9m
+4399.4s 543 [AR] Step   9175/25432 | Loss: 0.3139 | CE: 0.314 | LR: 2.62e-04 |   2.2 st/s |   424,149 tok/s | ETA: 125.6m
+4409.2s 544 [AR] Step   9200/25432 | Loss: 2.4642 | CE: 2.464 | LR: 2.62e-04 |   2.2 st/s |   424,299 tok/s | ETA: 125.4m
+4419.0s 545 [AR] Step   9225/25432 | Loss: 2.2357 | CE: 2.236 | LR: 2.61e-04 |   2.2 st/s |   424,507 tok/s | ETA: 125.1m
+4428.9s 546 [AR] Step   9250/25432 | Loss: 1.5993 | CE: 1.599 | LR: 2.61e-04 |   2.2 st/s |   424,654 tok/s | ETA: 124.9m
+4438.9s 547 [AR] Step   9275/25432 | Loss: 1.6473 | CE: 1.647 | LR: 2.61e-04 |   2.2 st/s |   424,842 tok/s | ETA: 124.6m
+4448.8s 548 [AR] Step   9300/25432 | Loss: 1.8666 | CE: 1.867 | LR: 2.60e-04 |   2.2 st/s |   424,973 tok/s | ETA: 124.4m
+4459.0s 549 [AR] Step   9325/25432 | Loss: 1.7228 | CE: 1.723 | LR: 2.60e-04 |   2.2 st/s |   425,114 tok/s | ETA: 124.2m
+4468.8s 550 [AR] Step   9350/25432 | Loss: 0.2540 | CE: 0.254 | LR: 2.59e-04 |   2.2 st/s |   425,281 tok/s | ETA: 123.9m
+4478.8s 551 [AR] Step   9375/25432 | Loss: 1.8222 | CE: 1.822 | LR: 2.59e-04 |   2.2 st/s |   425,477 tok/s | ETA: 123.7m
+4488.5s 552 [AR] Step   9400/25432 | Loss: 1.8414 | CE: 1.841 | LR: 2.58e-04 |   2.2 st/s |   425,615 tok/s | ETA: 123.4m
+4498.5s 553 [AR] Step   9425/25432 | Loss: 2.3710 | CE: 2.371 | LR: 2.58e-04 |   2.2 st/s |   425,804 tok/s | ETA: 123.2m
+4508.3s 554 [AR] Step   9450/25432 | Loss: 1.9183 | CE: 1.918 | LR: 2.57e-04 |   2.2 st/s |   425,933 tok/s | ETA: 123.0m
+4518.2s 555 [AR] Step   9475/25432 | Loss: 2.2412 | CE: 2.241 | LR: 2.57e-04 |   2.2 st/s |   426,124 tok/s | ETA: 122.7m
+4528.2s 556 [AR] Step   9500/25432 | Loss: 2.2886 | CE: 2.289 | LR: 2.57e-04 |   2.2 st/s |   426,265 tok/s | ETA: 122.5m
+4538.2s 557 [AR] Step   9525/25432 | Loss: 1.4598 | CE: 1.460 | LR: 2.56e-04 |   2.2 st/s |   426,433 tok/s | ETA: 122.2m
+4548.1s 558 [AR] Step   9550/25432 | Loss: 3.2840 | CE: 3.284 | LR: 2.56e-04 |   2.2 st/s |   426,562 tok/s | ETA: 122.0m
+4558.0s 559 [AR] Step   9575/25432 | Loss: 2.0412 | CE: 2.041 | LR: 2.55e-04 |   2.2 st/s |   426,739 tok/s | ETA: 121.8m
+4567.9s 560 [AR] Step   9600/25432 | Loss: 2.1314 | CE: 2.131 | LR: 2.55e-04 |   2.2 st/s |   426,837 tok/s | ETA: 121.5m
+4577.7s 561 [AR] Step   9625/25432 | Loss: 1.9497 | CE: 1.950 | LR: 2.54e-04 |   2.2 st/s |   427,053 tok/s | ETA: 121.3m
+4587.5s 562 [AR] Step   9650/25432 | Loss: 1.9302 | CE: 1.930 | LR: 2.54e-04 |   2.2 st/s |   427,190 tok/s | ETA: 121.1m
+4597.4s 563 [AR] Step   9675/25432 | Loss: 1.5339 | CE: 1.534 | LR: 2.54e-04 |   2.2 st/s |   427,379 tok/s | ETA: 120.8m
+4607.2s 564 [AR] Step   9700/25432 | Loss: 2.1295 | CE: 2.130 | LR: 2.53e-04 |   2.2 st/s |   427,509 tok/s | ETA: 120.6m
+4617.1s 565 [AR] Step   9725/25432 | Loss: 1.7668 | CE: 1.767 | LR: 2.53e-04 |   2.2 st/s |   427,682 tok/s | ETA: 120.3m
+4626.8s 566 [AR] Step   9750/25432 | Loss: 2.5221 | CE: 2.522 | LR: 2.52e-04 |   2.2 st/s |   427,825 tok/s | ETA: 120.1m
+4636.7s 567 [AR] Step   9775/25432 | Loss: 1.9314 | CE: 1.931 | LR: 2.52e-04 |   2.2 st/s |   428,018 tok/s | ETA: 119.9m
+4646.5s 568 [AR] Step   9800/25432 | Loss: 1.9397 | CE: 1.940 | LR: 2.51e-04 |   2.2 st/s |   428,126 tok/s | ETA: 119.6m
+4656.5s 569 [AR] Step   9825/25432 | Loss: 1.4413 | CE: 1.441 | LR: 2.51e-04 |   2.2 st/s |   428,318 tok/s | ETA: 119.4m
+4666.2s 570 [AR] Step   9850/25432 | Loss: 1.7763 | CE: 1.776 | LR: 2.50e-04 |   2.2 st/s |   428,444 tok/s | ETA: 119.2m
+4676.0s 571 [AR] Step   9875/25432 | Loss: 3.1351 | CE: 3.135 | LR: 2.50e-04 |   2.2 st/s |   428,628 tok/s | ETA: 118.9m
+4685.9s 572 [AR] Step   9900/25432 | Loss: 1.2250 | CE: 1.225 | LR: 2.49e-04 |   2.2 st/s |   428,761 tok/s | ETA: 118.7m
+4695.8s 573 [AR] Step   9925/25432 | Loss: 1.8444 | CE: 1.844 | LR: 2.49e-04 |   2.2 st/s |   428,929 tok/s | ETA: 118.5m
+4705.4s 574 [AR] Step   9950/25432 | Loss: 2.0318 | CE: 2.032 | LR: 2.48e-04 |   2.2 st/s |   429,066 tok/s | ETA: 118.2m
+4715.3s 575 [AR] Step   9975/25432 | Loss: 1.8767 | CE: 1.877 | LR: 2.48e-04 |   2.2 st/s |   429,254 tok/s | ETA: 118.0m
+4725.1s 576 [AR] Step  10000/25432 | Loss: 2.1448 | CE: 2.145 | LR: 2.48e-04 |   2.2 st/s |   429,372 tok/s | ETA: 117.8m
+4734.9s 577 [AR] Step  10025/25432 | Loss: 2.1687 | CE: 2.169 | LR: 2.47e-04 |   2.2 st/s |   429,556 tok/s | ETA: 117.5m
+4744.8s 578 [AR] Step  10050/25432 | Loss: 1.8435 | CE: 1.844 | LR: 2.47e-04 |   2.2 st/s |   429,682 tok/s | ETA: 117.3m
+4755.1s 579 [AR] Step  10075/25432 | Loss: 2.1360 | CE: 2.136 | LR: 2.46e-04 |   2.2 st/s |   429,823 tok/s | ETA: 117.1m
+4765.2s 580 [AR] Step  10100/25432 | Loss: 2.1438 | CE: 2.144 | LR: 2.46e-04 |   2.2 st/s |   429,908 tok/s | ETA: 116.9m
+4775.6s 581 [AR] Step  10125/25432 | Loss: 3.0486 | CE: 3.049 | LR: 2.45e-04 |   2.2 st/s |   430,029 tok/s | ETA: 116.6m
+4785.9s 582 [AR] Step  10150/25432 | Loss: 1.8817 | CE: 1.882 | LR: 2.45e-04 |   2.2 st/s |   430,108 tok/s | ETA: 116.4m
+4796.4s 583 [AR] Step  10175/25432 | Loss: 1.4882 | CE: 1.488 | LR: 2.44e-04 |   2.2 st/s |   430,216 tok/s | ETA: 116.2m
+4807.1s 584 [AR] Step  10200/25432 | Loss: 1.7058 | CE: 1.706 | LR: 2.44e-04 |   2.2 st/s |   430,238 tok/s | ETA: 116.0m
+4817.6s 585 [AR] Step  10225/25432 | Loss: 1.7414 | CE: 1.741 | LR: 2.43e-04 |   2.2 st/s |   430,350 tok/s | ETA: 115.8m
+4827.7s 586 [AR] Step  10250/25432 | Loss: 1.5200 | CE: 1.520 | LR: 2.43e-04 |   2.2 st/s |   430,445 tok/s | ETA: 115.6m
+4838.1s 587 [AR] Step  10275/25432 | Loss: 0.8208 | CE: 0.821 | LR: 2.43e-04 |   2.2 st/s |   430,578 tok/s | ETA: 115.3m
+4848.6s 588 [AR] Step  10300/25432 | Loss: 1.8987 | CE: 1.899 | LR: 2.42e-04 |   2.2 st/s |   430,659 tok/s | ETA: 115.1m
+4858.7s 589 [AR] Step  10325/25432 | Loss: 2.5833 | CE: 2.583 | LR: 2.42e-04 |   2.2 st/s |   430,761 tok/s | ETA: 114.9m
+4869.0s 590 [AR] Step  10350/25432 | Loss: 2.1286 | CE: 2.129 | LR: 2.41e-04 |   2.2 st/s |   430,851 tok/s | ETA: 114.7m
+4879.8s 591 [AR] Step  10375/25432 | Loss: 2.0037 | CE: 2.004 | LR: 2.41e-04 |   2.2 st/s |   430,924 tok/s | ETA: 114.5m
+4890.5s 592 [AR] Step  10400/25432 | Loss: 1.9059 | CE: 1.906 | LR: 2.40e-04 |   2.2 st/s |   430,969 tok/s | ETA: 114.3m
+4901.1s 593 [AR] Step  10425/25432 | Loss: 2.4158 | CE: 2.416 | LR: 2.40e-04 |   2.2 st/s |   431,058 tok/s | ETA: 114.1m
+4911.5s 594 [AR] Step  10450/25432 | Loss: 1.2866 | CE: 1.287 | LR: 2.39e-04 |   2.2 st/s |   431,134 tok/s | ETA: 113.9m
+4921.6s 595 [AR] Step  10475/25432 | Loss: 2.0087 | CE: 2.009 | LR: 2.39e-04 |   2.2 st/s |   431,262 tok/s | ETA: 113.6m
+4931.7s 596 [AR] Step  10500/25432 | Loss: 1.6820 | CE: 1.682 | LR: 2.38e-04 |   2.2 st/s |   431,362 tok/s | ETA: 113.4m
+4931.7s 597 
+4931.7s 598 [Checkpoint Step  10500] Saving checkpoint weights to checkpoints/ar/100m_5b/checkpoint_step_10500.pt...
+4932.5s 599 [Checkpoint Verified] Successfully saved checkpoints/ar/100m_5b/checkpoint_step_10500.pt (446.8 MB)
+4932.5s 600 [Checkpoint Step  10500] Successfully saved weights to checkpoints/ar/100m_5b/checkpoint_step_10500.pt
+4932.5s 601 
+4943.6s 602 [AR] Step  10525/25432 | Loss: 2.1274 | CE: 2.127 | LR: 2.38e-04 |   2.2 st/s |   431,340 tok/s | ETA: 113.2m
+4954.7s 603 [AR] Step  10550/25432 | Loss: 2.0871 | CE: 2.087 | LR: 2.37e-04 |   2.2 st/s |   431,339 tok/s | ETA: 113.1m
+4965.2s 604 [AR] Step  10575/25432 | Loss: 1.9220 | CE: 1.922 | LR: 2.37e-04 |   2.2 st/s |   431,440 tok/s | ETA: 112.8m
+4975.8s 605 [AR] Step  10600/25432 | Loss: 1.6326 | CE: 1.633 | LR: 2.36e-04 |   2.2 st/s |   431,500 tok/s | ETA: 112.6m
+4986.0s 606 [AR] Step  10625/25432 | Loss: 1.7972 | CE: 1.797 | LR: 2.36e-04 |   2.2 st/s |   431,619 tok/s | ETA: 112.4m
+4996.4s 607 [AR] Step  10650/25432 | Loss: 1.5804 | CE: 1.580 | LR: 2.35e-04 |   2.2 st/s |   431,701 tok/s | ETA: 112.2m
+5006.8s 608 [AR] Step  10675/25432 | Loss: 1.9207 | CE: 1.921 | LR: 2.35e-04 |   2.2 st/s |   431,810 tok/s | ETA: 112.0m
+5017.0s 609 [AR] Step  10700/25432 | Loss: 1.7569 | CE: 1.757 | LR: 2.35e-04 |   2.2 st/s |   431,884 tok/s | ETA: 111.8m
+5027.2s 610 [AR] Step  10725/25432 | Loss: 0.9008 | CE: 0.901 | LR: 2.34e-04 |   2.2 st/s |   432,006 tok/s | ETA: 111.6m
+5037.5s 611 [AR] Step  10750/25432 | Loss: 1.3269 | CE: 1.327 | LR: 2.34e-04 |   2.2 st/s |   432,082 tok/s | ETA: 111.3m
+5048.1s 612 [AR] Step  10775/25432 | Loss: 2.0320 | CE: 2.032 | LR: 2.33e-04 |   2.2 st/s |   432,165 tok/s | ETA: 111.1m
+5058.6s 613 [AR] Step  10800/25432 | Loss: 1.6183 | CE: 1.618 | LR: 2.33e-04 |   2.2 st/s |   432,227 tok/s | ETA: 110.9m
+5069.6s 614 [AR] Step  10825/25432 | Loss: 1.5785 | CE: 1.578 | LR: 2.32e-04 |   2.2 st/s |   432,281 tok/s | ETA: 110.7m
+5080.5s 615 [AR] Step  10850/25432 | Loss: 2.1194 | CE: 2.119 | LR: 2.32e-04 |   2.2 st/s |   432,302 tok/s | ETA: 110.5m
+5091.4s 616 [AR] Step  10875/25432 | Loss: 1.8014 | CE: 1.801 | LR: 2.31e-04 |   2.2 st/s |   432,364 tok/s | ETA: 110.3m
+5102.3s 617 [AR] Step  10900/25432 | Loss: 2.3885 | CE: 2.388 | LR: 2.31e-04 |   2.2 st/s |   432,388 tok/s | ETA: 110.1m
+5113.1s 618 [AR] Step  10925/25432 | Loss: 2.0028 | CE: 2.003 | LR: 2.30e-04 |   2.2 st/s |   432,451 tok/s | ETA: 109.9m
+5123.4s 619 [AR] Step  10950/25432 | Loss: 1.3323 | CE: 1.332 | LR: 2.30e-04 |   2.2 st/s |   432,529 tok/s | ETA: 109.7m
+5134.0s 620 [AR] Step  10975/25432 | Loss: 2.0088 | CE: 2.009 | LR: 2.29e-04 |   2.2 st/s |   432,639 tok/s | ETA: 109.5m
+5144.6s 621 [AR] Step  11000/25432 | Loss: 1.8863 | CE: 1.886 | LR: 2.29e-04 |   2.2 st/s |   432,656 tok/s | ETA: 109.3m
+5155.5s 622 [AR] Step  11025/25432 | Loss: 1.8790 | CE: 1.879 | LR: 2.28e-04 |   2.2 st/s |   432,711 tok/s | ETA: 109.1m
+5166.4s 623 [AR] Step  11050/25432 | Loss: 1.8646 | CE: 1.865 | LR: 2.28e-04 |   2.2 st/s |   432,740 tok/s | ETA: 108.9m
+5177.4s 624 [AR] Step  11075/25432 | Loss: 1.5326 | CE: 1.533 | LR: 2.28e-04 |   2.2 st/s |   432,823 tok/s | ETA: 108.7m
+5188.0s 625 [AR] Step  11100/25432 | Loss: 1.5554 | CE: 1.555 | LR: 2.27e-04 |   2.2 st/s |   432,853 tok/s | ETA: 108.5m
+5199.1s 626 [AR] Step  11125/25432 | Loss: 1.3180 | CE: 1.318 | LR: 2.27e-04 |   2.2 st/s |   432,896 tok/s | ETA: 108.3m
+5209.7s 627 [AR] Step  11150/25432 | Loss: 2.4353 | CE: 2.435 | LR: 2.26e-04 |   2.2 st/s |   432,958 tok/s | ETA: 108.1m
+5220.6s 628 [AR] Step  11175/25432 | Loss: 1.5167 | CE: 1.517 | LR: 2.26e-04 |   2.2 st/s |   433,016 tok/s | ETA: 107.9m
+5231.3s 629 [AR] Step  11200/25432 | Loss: 0.2730 | CE: 0.273 | LR: 2.25e-04 |   2.2 st/s |   433,015 tok/s | ETA: 107.7m
+5242.2s 630 [AR] Step  11225/25432 | Loss: 1.6966 | CE: 1.697 | LR: 2.25e-04 |   2.2 st/s |   433,072 tok/s | ETA: 107.5m
+5252.7s 631 [AR] Step  11250/25432 | Loss: 2.4033 | CE: 2.403 | LR: 2.24e-04 |   2.2 st/s |   433,130 tok/s | ETA: 107.3m
+5263.5s 632 [AR] Step  11275/25432 | Loss: 1.7757 | CE: 1.776 | LR: 2.24e-04 |   2.2 st/s |   433,233 tok/s | ETA: 107.1m
+5274.1s 633 [AR] Step  11300/25432 | Loss: 1.6603 | CE: 1.660 | LR: 2.23e-04 |   2.2 st/s |   433,278 tok/s | ETA: 106.9m
+5284.3s 634 [AR] Step  11325/25432 | Loss: 2.0392 | CE: 2.039 | LR: 2.23e-04 |   2.2 st/s |   433,355 tok/s | ETA: 106.7m
+5294.8s 635 [AR] Step  11350/25432 | Loss: 1.8678 | CE: 1.868 | LR: 2.22e-04 |   2.2 st/s |   433,405 tok/s | ETA: 106.5m
+5305.6s 636 [AR] Step  11375/25432 | Loss: 1.7894 | CE: 1.789 | LR: 2.22e-04 |   2.2 st/s |   433,469 tok/s | ETA: 106.3m
+5316.4s 637 [AR] Step  11400/25432 | Loss: 2.7230 | CE: 2.723 | LR: 2.21e-04 |   2.2 st/s |   433,490 tok/s | ETA: 106.1m
+5327.3s 638 [AR] Step  11425/25432 | Loss: 1.4189 | CE: 1.419 | LR: 2.21e-04 |   2.2 st/s |   433,547 tok/s | ETA: 105.9m
+5338.1s 639 [AR] Step  11450/25432 | Loss: 1.8889 | CE: 1.889 | LR: 2.20e-04 |   2.2 st/s |   433,576 tok/s | ETA: 105.7m
+5349.0s 640 [AR] Step  11475/25432 | Loss: 1.8337 | CE: 1.834 | LR: 2.20e-04 |   2.2 st/s |   433,628 tok/s | ETA: 105.5m
+5359.3s 641 [AR] Step  11500/25432 | Loss: 1.6508 | CE: 1.651 | LR: 2.19e-04 |   2.2 st/s |   433,695 tok/s | ETA: 105.3m
+5369.6s 642 [AR] Step  11525/25432 | Loss: 1.6536 | CE: 1.654 | LR: 2.19e-04 |   2.2 st/s |   433,798 tok/s | ETA: 105.1m
+5379.9s 643 [AR] Step  11550/25432 | Loss: 2.2598 | CE: 2.260 | LR: 2.18e-04 |   2.2 st/s |   433,867 tok/s | ETA: 104.8m
+5390.3s 644 [AR] Step  11575/25432 | Loss: 1.6849 | CE: 1.685 | LR: 2.18e-04 |   2.2 st/s |   433,968 tok/s | ETA: 104.6m
+5400.4s 645 [AR] Step  11600/25432 | Loss: 2.6791 | CE: 2.679 | LR: 2.17e-04 |   2.2 st/s |   434,047 tok/s | ETA: 104.4m
+5410.6s 646 [AR] Step  11625/25432 | Loss: 1.6618 | CE: 1.662 | LR: 2.17e-04 |   2.2 st/s |   434,153 tok/s | ETA: 104.2m
+5420.9s 647 [AR] Step  11650/25432 | Loss: 1.6059 | CE: 1.606 | LR: 2.16e-04 |   2.2 st/s |   434,234 tok/s | ETA: 104.0m
+5431.1s 648 [AR] Step  11675/25432 | Loss: 1.6287 | CE: 1.629 | LR: 2.16e-04 |   2.2 st/s |   434,329 tok/s | ETA: 103.8m
+5441.4s 649 [AR] Step  11700/25432 | Loss: 0.3686 | CE: 0.369 | LR: 2.15e-04 |   2.2 st/s |   434,408 tok/s | ETA: 103.6m
+5452.1s 650 [AR] Step  11725/25432 | Loss: 2.8608 | CE: 2.861 | LR: 2.15e-04 |   2.2 st/s |   434,501 tok/s | ETA: 103.4m
+5462.5s 651 [AR] Step  11750/25432 | Loss: 2.0441 | CE: 2.044 | LR: 2.14e-04 |   2.2 st/s |   434,541 tok/s | ETA: 103.2m
+5473.1s 652 [AR] Step  11775/25432 | Loss: 1.6584 | CE: 1.658 | LR: 2.14e-04 |   2.2 st/s |   434,635 tok/s | ETA: 103.0m
+5483.6s 653 [AR] Step  11800/25432 | Loss: 1.9749 | CE: 1.975 | LR: 2.13e-04 |   2.2 st/s |   434,670 tok/s | ETA: 102.8m
+5494.2s 654 [AR] Step  11825/25432 | Loss: 1.6123 | CE: 1.612 | LR: 2.13e-04 |   2.2 st/s |   434,759 tok/s | ETA: 102.6m
+5504.5s 655 [AR] Step  11850/25432 | Loss: 1.7380 | CE: 1.738 | LR: 2.12e-04 |   2.2 st/s |   434,787 tok/s | ETA: 102.4m
+5515.1s 656 [AR] Step  11875/25432 | Loss: 2.1309 | CE: 2.131 | LR: 2.12e-04 |   2.2 st/s |   434,893 tok/s | ETA: 102.1m
+5525.7s 657 [AR] Step  11900/25432 | Loss: 1.6013 | CE: 1.601 | LR: 2.11e-04 |   2.2 st/s |   434,936 tok/s | ETA: 101.9m
+5536.4s 658 [AR] Step  11925/25432 | Loss: 1.5768 | CE: 1.577 | LR: 2.11e-04 |   2.2 st/s |   435,008 tok/s | ETA: 101.7m
+5546.9s 659 [AR] Step  11950/25432 | Loss: 1.4614 | CE: 1.461 | LR: 2.11e-04 |   2.2 st/s |   435,027 tok/s | ETA: 101.6m
+5557.6s 660 [AR] Step  11975/25432 | Loss: 1.6816 | CE: 1.682 | LR: 2.10e-04 |   2.2 st/s |   435,115 tok/s | ETA: 101.3m
+5567.9s 661 [AR] Step  12000/25432 | Loss: 1.1301 | CE: 1.130 | LR: 2.10e-04 |   2.2 st/s |   435,142 tok/s | ETA: 101.1m
+5578.4s 662 [AR] Step  12025/25432 | Loss: 2.0227 | CE: 2.023 | LR: 2.09e-04 |   2.2 st/s |   435,248 tok/s | ETA: 100.9m
+5588.5s 663 [AR] Step  12050/25432 | Loss: 1.5644 | CE: 1.564 | LR: 2.09e-04 |   2.2 st/s |   435,300 tok/s | ETA: 100.7m
+5598.7s 664 [AR] Step  12075/25432 | Loss: 1.6664 | CE: 1.666 | LR: 2.08e-04 |   2.2 st/s |   435,403 tok/s | ETA: 100.5m
+5609.1s 665 [AR] Step  12100/25432 | Loss: 1.5110 | CE: 1.511 | LR: 2.08e-04 |   2.2 st/s |   435,477 tok/s | ETA: 100.3m
+5619.4s 666 [AR] Step  12125/25432 | Loss: 1.7772 | CE: 1.777 | LR: 2.07e-04 |   2.2 st/s |   435,556 tok/s | ETA: 100.1m
+5629.7s 667 [AR] Step  12150/25432 | Loss: 1.4447 | CE: 1.445 | LR: 2.07e-04 |   2.2 st/s |   435,619 tok/s | ETA: 99.9m
+5640.2s 668 [AR] Step  12175/25432 | Loss: 1.4732 | CE: 1.473 | LR: 2.06e-04 |   2.2 st/s |   435,705 tok/s | ETA: 99.7m
+5651.1s 669 [AR] Step  12200/25432 | Loss: 1.9725 | CE: 1.972 | LR: 2.06e-04 |   2.2 st/s |   435,712 tok/s | ETA: 99.5m
+5662.0s 670 [AR] Step  12225/25432 | Loss: 1.6149 | CE: 1.615 | LR: 2.05e-04 |   2.2 st/s |   435,753 tok/s | ETA: 99.3m
+5672.7s 671 [AR] Step  12250/25432 | Loss: 1.8440 | CE: 1.844 | LR: 2.05e-04 |   2.2 st/s |   435,782 tok/s | ETA: 99.1m
+5683.3s 672 [AR] Step  12275/25432 | Loss: 1.8633 | CE: 1.863 | LR: 2.04e-04 |   2.2 st/s |   435,849 tok/s | ETA: 98.9m
+5694.1s 673 [AR] Step  12300/25432 | Loss: 2.2029 | CE: 2.203 | LR: 2.04e-04 |   2.2 st/s |   435,871 tok/s | ETA: 98.7m
+5705.0s 674 [AR] Step  12325/25432 | Loss: 1.9898 | CE: 1.990 | LR: 2.03e-04 |   2.2 st/s |   435,929 tok/s | ETA: 98.5m
+5715.7s 675 [AR] Step  12350/25432 | Loss: 1.9869 | CE: 1.987 | LR: 2.03e-04 |   2.2 st/s |   435,970 tok/s | ETA: 98.3m
+5726.7s 676 [AR] Step  12375/25432 | Loss: 1.4876 | CE: 1.488 | LR: 2.02e-04 |   2.2 st/s |   436,004 tok/s | ETA: 98.1m
+5737.2s 677 [AR] Step  12400/25432 | Loss: 1.5918 | CE: 1.592 | LR: 2.02e-04 |   2.2 st/s |   436,071 tok/s | ETA: 97.9m
+5748.1s 678 [AR] Step  12425/25432 | Loss: 1.8976 | CE: 1.898 | LR: 2.01e-04 |   2.2 st/s |   436,096 tok/s | ETA: 97.7m
+5758.5s 679 [AR] Step  12450/25432 | Loss: 1.7674 | CE: 1.767 | LR: 2.01e-04 |   2.2 st/s |   436,148 tok/s | ETA: 97.5m
+5769.1s 680 [AR] Step  12475/25432 | Loss: 2.0346 | CE: 2.035 | LR: 2.00e-04 |   2.2 st/s |   436,220 tok/s | ETA: 97.3m
+5779.7s 681 [AR] Step  12500/25432 | Loss: 1.4317 | CE: 1.432 | LR: 2.00e-04 |   2.2 st/s |   436,271 tok/s | ETA: 97.1m
+5790.3s 682 [AR] Step  12525/25432 | Loss: 1.6633 | CE: 1.663 | LR: 1.99e-04 |   2.2 st/s |   436,343 tok/s | ETA: 96.9m
+5800.9s 683 [AR] Step  12550/25432 | Loss: 2.0358 | CE: 2.036 | LR: 1.99e-04 |   2.2 st/s |   436,379 tok/s | ETA: 96.7m
+5811.7s 684 [AR] Step  12575/25432 | Loss: 1.7655 | CE: 1.765 | LR: 1.98e-04 |   2.2 st/s |   436,402 tok/s | ETA: 96.5m
+5821.7s 685 [AR] Step  12600/25432 | Loss: 1.8329 | CE: 1.833 | LR: 1.98e-04 |   2.2 st/s |   436,477 tok/s | ETA: 96.3m
+5832.5s 686 [AR] Step  12625/25432 | Loss: 1.9450 | CE: 1.945 | LR: 1.97e-04 |   2.2 st/s |   436,563 tok/s | ETA: 96.1m
+5842.9s 687 [AR] Step  12650/25432 | Loss: 1.9200 | CE: 1.920 | LR: 1.97e-04 |   2.2 st/s |   436,594 tok/s | ETA: 95.9m
+5853.5s 688 [AR] Step  12675/25432 | Loss: 1.8906 | CE: 1.891 | LR: 1.96e-04 |   2.2 st/s |   436,651 tok/s | ETA: 95.7m
+5863.6s 689 [AR] Step  12700/25432 | Loss: 2.0414 | CE: 2.041 | LR: 1.96e-04 |   2.2 st/s |   436,721 tok/s | ETA: 95.5m
+5873.6s 690 [AR] Step  12725/25432 | Loss: 2.0459 | CE: 2.046 | LR: 1.95e-04 |   2.2 st/s |   436,829 tok/s | ETA: 95.3m
+5884.3s 691 [AR] Step  12750/25432 | Loss: 2.2325 | CE: 2.233 | LR: 1.95e-04 |   2.2 st/s |   436,888 tok/s | ETA: 95.1m
+5895.0s 692 [AR] Step  12775/25432 | Loss: 1.3898 | CE: 1.390 | LR: 1.94e-04 |   2.2 st/s |   436,916 tok/s | ETA: 94.9m
+5905.0s 693 [AR] Step  12800/25432 | Loss: 1.8476 | CE: 1.848 | LR: 1.94e-04 |   2.2 st/s |   437,025 tok/s | ETA: 94.7m
+5915.5s 694 [AR] Step  12825/25432 | Loss: 1.3201 | CE: 1.320 | LR: 1.93e-04 |   2.2 st/s |   437,095 tok/s | ETA: 94.5m
+5925.6s 695 [AR] Step  12850/25432 | Loss: 2.1508 | CE: 2.151 | LR: 1.93e-04 |   2.2 st/s |   437,140 tok/s | ETA: 94.3m
+5936.2s 696 [AR] Step  12875/25432 | Loss: 1.8994 | CE: 1.899 | LR: 1.92e-04 |   2.2 st/s |   437,227 tok/s | ETA: 94.1m
+5946.1s 697 [AR] Step  12900/25432 | Loss: 0.2994 | CE: 0.299 | LR: 1.92e-04 |   2.2 st/s |   437,301 tok/s | ETA: 93.9m
+5956.3s 698 [AR] Step  12925/25432 | Loss: 1.1193 | CE: 1.119 | LR: 1.92e-04 |   2.2 st/s |   437,386 tok/s | ETA: 93.7m
+5966.4s 699 [AR] Step  12950/25432 | Loss: 1.6930 | CE: 1.693 | LR: 1.91e-04 |   2.2 st/s |   437,486 tok/s | ETA: 93.5m
+5977.3s 700 [AR] Step  12975/25432 | Loss: 1.8604 | CE: 1.860 | LR: 1.91e-04 |   2.2 st/s |   437,494 tok/s | ETA: 93.3m
+5988.3s 701 [AR] Step  13000/25432 | Loss: 1.6092 | CE: 1.609 | LR: 1.90e-04 |   2.2 st/s |   437,508 tok/s | ETA: 93.1m
+5999.5s 702 [AR] Step  13025/25432 | Loss: 1.9863 | CE: 1.986 | LR: 1.90e-04 |   2.2 st/s |   437,533 tok/s | ETA: 92.9m
+6010.5s 703 [AR] Step  13050/25432 | Loss: 1.8136 | CE: 1.814 | LR: 1.89e-04 |   2.2 st/s |   437,545 tok/s | ETA: 92.7m
+6021.6s 704 [AR] Step  13075/25432 | Loss: 1.6382 | CE: 1.638 | LR: 1.89e-04 |   2.2 st/s |   437,548 tok/s | ETA: 92.5m
+6032.5s 705 [AR] Step  13100/25432 | Loss: 1.5378 | CE: 1.538 | LR: 1.88e-04 |   2.2 st/s |   437,551 tok/s | ETA: 92.4m
+6043.5s 706 [AR] Step  13125/25432 | Loss: 2.1257 | CE: 2.126 | LR: 1.88e-04 |   2.2 st/s |   437,588 tok/s | ETA: 92.2m
+6053.9s 707 [AR] Step  13150/25432 | Loss: 2.1382 | CE: 2.138 | LR: 1.87e-04 |   2.2 st/s |   437,633 tok/s | ETA: 92.0m
+6063.9s 708 [AR] Step  13175/25432 | Loss: 1.5394 | CE: 1.539 | LR: 1.87e-04 |   2.2 st/s |   437,749 tok/s | ETA: 91.8m
+6073.7s 709 [AR] Step  13200/25432 | Loss: 1.6097 | CE: 1.610 | LR: 1.86e-04 |   2.2 st/s |   437,822 tok/s | ETA: 91.5m
+6083.9s 710 [AR] Step  13225/25432 | Loss: 1.4363 | CE: 1.436 | LR: 1.86e-04 |   2.2 st/s |   437,941 tok/s | ETA: 91.3m
+6093.8s 711 [AR] Step  13250/25432 | Loss: 0.8139 | CE: 0.814 | LR: 1.85e-04 |   2.2 st/s |   438,006 tok/s | ETA: 91.1m
+6103.8s 712 [AR] Step  13275/25432 | Loss: 1.8214 | CE: 1.821 | LR: 1.85e-04 |   2.2 st/s |   438,114 tok/s | ETA: 90.9m
+6113.4s 713 [AR] Step  13300/25432 | Loss: 1.6043 | CE: 1.604 | LR: 1.84e-04 |   2.2 st/s |   438,195 tok/s | ETA: 90.7m
+6123.5s 714 [AR] Step  13325/25432 | Loss: 1.4606 | CE: 1.461 | LR: 1.84e-04 |   2.2 st/s |   438,331 tok/s | ETA: 90.5m
+6133.2s 715 [AR] Step  13350/25432 | Loss: 1.6946 | CE: 1.695 | LR: 1.83e-04 |   2.2 st/s |   438,399 tok/s | ETA: 90.3m
+6143.4s 716 [AR] Step  13375/25432 | Loss: 1.8791 | CE: 1.879 | LR: 1.83e-04 |   2.2 st/s |   438,489 tok/s | ETA: 90.1m
+6153.7s 717 [AR] Step  13400/25432 | Loss: 1.7000 | CE: 1.700 | LR: 1.82e-04 |   2.2 st/s |   438,555 tok/s | ETA: 89.9m
+6164.0s 718 [AR] Step  13425/25432 | Loss: 1.6616 | CE: 1.662 | LR: 1.82e-04 |   2.2 st/s |   438,629 tok/s | ETA: 89.7m
+6173.8s 719 [AR] Step  13450/25432 | Loss: 1.7003 | CE: 1.700 | LR: 1.81e-04 |   2.2 st/s |   438,719 tok/s | ETA: 89.5m
+6183.8s 720 [AR] Step  13475/25432 | Loss: 2.4122 | CE: 2.412 | LR: 1.81e-04 |   2.2 st/s |   438,830 tok/s | ETA: 89.3m
+6193.5s 721 [AR] Step  13500/25432 | Loss: 1.9003 | CE: 1.900 | LR: 1.80e-04 |   2.2 st/s |   438,903 tok/s | ETA: 89.1m
+6203.5s 722 [AR] Step  13525/25432 | Loss: 1.8426 | CE: 1.843 | LR: 1.80e-04 |   2.2 st/s |   439,019 tok/s | ETA: 88.9m
+6213.3s 723 [AR] Step  13550/25432 | Loss: 1.6629 | CE: 1.663 | LR: 1.79e-04 |   2.2 st/s |   439,101 tok/s | ETA: 88.7m
+6223.3s 724 [AR] Step  13575/25432 | Loss: 1.7319 | CE: 1.732 | LR: 1.79e-04 |   2.2 st/s |   439,211 tok/s | ETA: 88.5m
+6233.1s 725 [AR] Step  13600/25432 | Loss: 3.2337 | CE: 3.234 | LR: 1.78e-04 |   2.2 st/s |   439,273 tok/s | ETA: 88.3m
+6243.0s 726 [AR] Step  13625/25432 | Loss: 1.8548 | CE: 1.855 | LR: 1.78e-04 |   2.2 st/s |   439,390 tok/s | ETA: 88.1m
+6252.7s 727 [AR] Step  13650/25432 | Loss: 2.0772 | CE: 2.077 | LR: 1.77e-04 |   2.2 st/s |   439,467 tok/s | ETA: 87.9m
+6262.7s 728 [AR] Step  13675/25432 | Loss: 1.6213 | CE: 1.621 | LR: 1.77e-04 |   2.2 st/s |   439,588 tok/s | ETA: 87.6m
+6272.4s 729 [AR] Step  13700/25432 | Loss: 2.0445 | CE: 2.045 | LR: 1.76e-04 |   2.2 st/s |   439,659 tok/s | ETA: 87.4m
+6282.2s 730 [AR] Step  13725/25432 | Loss: 1.5026 | CE: 1.503 | LR: 1.76e-04 |   2.2 st/s |   439,794 tok/s | ETA: 87.2m
+6291.9s 731 [AR] Step  13750/25432 | Loss: 1.4142 | CE: 1.414 | LR: 1.75e-04 |   2.2 st/s |   439,877 tok/s | ETA: 87.0m
+6301.8s 732 [AR] Step  13775/25432 | Loss: 1.9971 | CE: 1.997 | LR: 1.75e-04 |   2.2 st/s |   439,989 tok/s | ETA: 86.8m
+6311.6s 733 [AR] Step  13800/25432 | Loss: 1.7458 | CE: 1.746 | LR: 1.74e-04 |   2.2 st/s |   440,063 tok/s | ETA: 86.6m
+6321.6s 734 [AR] Step  13825/25432 | Loss: 1.3460 | CE: 1.346 | LR: 1.74e-04 |   2.2 st/s |   440,174 tok/s | ETA: 86.4m
+6331.3s 735 [AR] Step  13850/25432 | Loss: 1.4623 | CE: 1.462 | LR: 1.73e-04 |   2.2 st/s |   440,246 tok/s | ETA: 86.2m
+6341.8s 736 [AR] Step  13875/25432 | Loss: 2.0380 | CE: 2.038 | LR: 1.73e-04 |   2.2 st/s |   440,327 tok/s | ETA: 86.0m
+6352.3s 737 [AR] Step  13900/25432 | Loss: 1.5031 | CE: 1.503 | LR: 1.72e-04 |   2.2 st/s |   440,355 tok/s | ETA: 85.8m
+6362.8s 738 [AR] Step  13925/25432 | Loss: 1.3034 | CE: 1.303 | LR: 1.72e-04 |   2.2 st/s |   440,430 tok/s | ETA: 85.6m
+6373.1s 739 [AR] Step  13950/25432 | Loss: 0.2123 | CE: 0.212 | LR: 1.71e-04 |   2.2 st/s |   440,453 tok/s | ETA: 85.4m
+6383.8s 740 [AR] Step  13975/25432 | Loss: 1.8695 | CE: 1.870 | LR: 1.71e-04 |   2.2 st/s |   440,529 tok/s | ETA: 85.2m
+6393.8s 741 [AR] Step  14000/25432 | Loss: 1.7655 | CE: 1.765 | LR: 1.70e-04 |   2.2 st/s |   440,571 tok/s | ETA: 85.0m
+6393.8s 742 
+6393.8s 743 [Checkpoint Step  14000] Saving checkpoint weights to checkpoints/ar/100m_5b/checkpoint_step_14000.pt...
+6394.6s 744 [Checkpoint Verified] Successfully saved checkpoints/ar/100m_5b/checkpoint_step_14000.pt (446.8 MB)
+6394.6s 745 [Checkpoint Step  14000] Successfully saved weights to checkpoints/ar/100m_5b/checkpoint_step_14000.pt
+6394.6s 746 
+6405.3s 747 [AR] Step  14025/25432 | Loss: 1.3732 | CE: 1.373 | LR: 1.70e-04 |   2.2 st/s |   440,561 tok/s | ETA: 84.8m
+6415.8s 748 [AR] Step  14050/25432 | Loss: 1.4208 | CE: 1.421 | LR: 1.69e-04 |   2.2 st/s |   440,619 tok/s | ETA: 84.6m
+6426.0s 749 [AR] Step  14075/25432 | Loss: 1.6902 | CE: 1.690 | LR: 1.69e-04 |   2.2 st/s |   440,673 tok/s | ETA: 84.4m
+6436.1s 750 [AR] Step  14100/25432 | Loss: 1.8212 | CE: 1.821 | LR: 1.68e-04 |   2.2 st/s |   440,752 tok/s | ETA: 84.2m
+6446.4s 751 [AR] Step  14125/25432 | Loss: 3.3164 | CE: 3.316 | LR: 1.68e-04 |   2.2 st/s |   440,808 tok/s | ETA: 84.1m
+6456.7s 752 [AR] Step  14150/25432 | Loss: 1.3836 | CE: 1.384 | LR: 1.67e-04 |   2.2 st/s |   440,851 tok/s | ETA: 83.9m
+6466.7s 753 [AR] Step  14175/25432 | Loss: 1.4140 | CE: 1.414 | LR: 1.67e-04 |   2.2 st/s |   440,963 tok/s | ETA: 83.7m
+6476.5s 754 [AR] Step  14200/25432 | Loss: 1.3827 | CE: 1.383 | LR: 1.66e-04 |   2.2 st/s |   441,020 tok/s | ETA: 83.5m
+6486.5s 755 [AR] Step  14225/25432 | Loss: 2.0553 | CE: 2.055 | LR: 1.66e-04 |   2.2 st/s |   441,135 tok/s | ETA: 83.2m
+6496.3s 756 [AR] Step  14250/25432 | Loss: 1.4919 | CE: 1.492 | LR: 1.65e-04 |   2.2 st/s |   441,197 tok/s | ETA: 83.0m
+6506.3s 757 [AR] Step  14275/25432 | Loss: 1.4440 | CE: 1.444 | LR: 1.65e-04 |   2.2 st/s |   441,304 tok/s | ETA: 82.8m
+6516.2s 758 [AR] Step  14300/25432 | Loss: 1.5378 | CE: 1.538 | LR: 1.65e-04 |   2.2 st/s |   441,369 tok/s | ETA: 82.6m
+6526.3s 759 [AR] Step  14325/25432 | Loss: 1.8212 | CE: 1.821 | LR: 1.64e-04 |   2.2 st/s |   441,466 tok/s | ETA: 82.4m
+6536.3s 760 [AR] Step  14350/25432 | Loss: 1.4481 | CE: 1.448 | LR: 1.64e-04 |   2.2 st/s |   441,526 tok/s | ETA: 82.2m
+6546.4s 761 [AR] Step  14375/25432 | Loss: 1.8293 | CE: 1.829 | LR: 1.63e-04 |   2.2 st/s |   441,616 tok/s | ETA: 82.0m
+6556.2s 762 [AR] Step  14400/25432 | Loss: 1.7704 | CE: 1.770 | LR: 1.63e-04 |   2.2 st/s |   441,677 tok/s | ETA: 81.8m
+6566.5s 763 [AR] Step  14425/25432 | Loss: 1.0934 | CE: 1.093 | LR: 1.62e-04 |   2.2 st/s |   441,745 tok/s | ETA: 81.6m
+6576.9s 764 [AR] Step  14450/25432 | Loss: 1.7990 | CE: 1.799 | LR: 1.62e-04 |   2.2 st/s |   441,804 tok/s | ETA: 81.5m
+6586.9s 765 [AR] Step  14475/25432 | Loss: 1.6090 | CE: 1.609 | LR: 1.61e-04 |   2.2 st/s |   441,869 tok/s | ETA: 81.3m
+6596.9s 766 [AR] Step  14500/25432 | Loss: 1.5110 | CE: 1.511 | LR: 1.61e-04 |   2.2 st/s |   441,931 tok/s | ETA: 81.1m
+6607.0s 767 [AR] Step  14525/25432 | Loss: 1.8615 | CE: 1.862 | LR: 1.60e-04 |   2.2 st/s |   442,019 tok/s | ETA: 80.9m
+6616.8s 768 [AR] Step  14550/25432 | Loss: 2.0109 | CE: 2.011 | LR: 1.60e-04 |   2.2 st/s |   442,084 tok/s | ETA: 80.7m
+6626.7s 769 [AR] Step  14575/25432 | Loss: 1.7035 | CE: 1.703 | LR: 1.59e-04 |   2.2 st/s |   442,185 tok/s | ETA: 80.5m
+6636.6s 770 [AR] Step  14600/25432 | Loss: 2.3752 | CE: 2.375 | LR: 1.59e-04 |   2.2 st/s |   442,256 tok/s | ETA: 80.3m
+6646.4s 771 [AR] Step  14625/25432 | Loss: 1.6497 | CE: 1.650 | LR: 1.58e-04 |   2.2 st/s |   442,351 tok/s | ETA: 80.1m
+6656.3s 772 [AR] Step  14650/25432 | Loss: 1.6538 | CE: 1.654 | LR: 1.58e-04 |   2.3 st/s |   442,423 tok/s | ETA: 79.9m
+6666.3s 773 [AR] Step  14675/25432 | Loss: 1.9352 | CE: 1.935 | LR: 1.57e-04 |   2.3 st/s |   442,525 tok/s | ETA: 79.7m
+6676.2s 774 [AR] Step  14700/25432 | Loss: 1.3623 | CE: 1.362 | LR: 1.57e-04 |   2.3 st/s |   442,578 tok/s | ETA: 79.5m
+6686.0s 775 [AR] Step  14725/25432 | Loss: 1.8259 | CE: 1.826 | LR: 1.56e-04 |   2.3 st/s |   442,681 tok/s | ETA: 79.3m
+6696.4s 776 [AR] Step  14750/25432 | Loss: 0.2615 | CE: 0.261 | LR: 1.56e-04 |   2.3 st/s |   442,744 tok/s | ETA: 79.1m
+6706.3s 777 [AR] Step  14775/25432 | Loss: 1.9584 | CE: 1.958 | LR: 1.55e-04 |   2.3 st/s |   442,824 tok/s | ETA: 78.9m
+6716.2s 778 [AR] Step  14800/25432 | Loss: 1.8283 | CE: 1.828 | LR: 1.55e-04 |   2.3 st/s |   442,895 tok/s | ETA: 78.7m
+6726.3s 779 [AR] Step  14825/25432 | Loss: 1.4629 | CE: 1.463 | LR: 1.55e-04 |   2.3 st/s |   442,991 tok/s | ETA: 78.5m
+6736.1s 780 [AR] Step  14850/25432 | Loss: 1.5998 | CE: 1.600 | LR: 1.54e-04 |   2.3 st/s |   443,045 tok/s | ETA: 78.3m
+6746.3s 781 [AR] Step  14875/25432 | Loss: 1.6913 | CE: 1.691 | LR: 1.54e-04 |   2.3 st/s |   443,145 tok/s | ETA: 78.1m
+6756.3s 782 [AR] Step  14900/25432 | Loss: 1.9577 | CE: 1.958 | LR: 1.53e-04 |   2.3 st/s |   443,174 tok/s | ETA: 77.9m
+6766.3s 783 [AR] Step  14925/25432 | Loss: 1.2500 | CE: 1.250 | LR: 1.53e-04 |   2.3 st/s |   443,283 tok/s | ETA: 77.7m
+6776.2s 784 [AR] Step  14950/25432 | Loss: 1.1004 | CE: 1.100 | LR: 1.52e-04 |   2.3 st/s |   443,334 tok/s | ETA: 77.5m
+6786.3s 785 [AR] Step  14975/25432 | Loss: 1.7916 | CE: 1.792 | LR: 1.52e-04 |   2.3 st/s |   443,435 tok/s | ETA: 77.3m
+6796.3s 786 [AR] Step  15000/25432 | Loss: 1.5464 | CE: 1.546 | LR: 1.51e-04 |   2.3 st/s |   443,477 tok/s | ETA: 77.1m
+6806.3s 787 [AR] Step  15025/25432 | Loss: 1.6878 | CE: 1.688 | LR: 1.51e-04 |   2.3 st/s |   443,559 tok/s | ETA: 76.9m
+6816.0s 788 [AR] Step  15050/25432 | Loss: 1.9483 | CE: 1.948 | LR: 1.50e-04 |   2.3 st/s |   443,634 tok/s | ETA: 76.7m
+6825.9s 789 [AR] Step  15075/25432 | Loss: 1.8845 | CE: 1.884 | LR: 1.50e-04 |   2.3 st/s |   443,739 tok/s | ETA: 76.5m
+6835.7s 790 [AR] Step  15100/25432 | Loss: 1.7272 | CE: 1.727 | LR: 1.49e-04 |   2.3 st/s |   443,797 tok/s | ETA: 76.3m
+6846.3s 791 [AR] Step  15125/25432 | Loss: 1.5715 | CE: 1.572 | LR: 1.49e-04 |   2.3 st/s |   443,860 tok/s | ETA: 76.1m
+6856.7s 792 [AR] Step  15150/25432 | Loss: 2.0086 | CE: 2.009 | LR: 1.48e-04 |   2.3 st/s |   443,872 tok/s | ETA: 75.9m
+6867.1s 793 [AR] Step  15175/25432 | Loss: 1.6239 | CE: 1.624 | LR: 1.48e-04 |   2.3 st/s |   443,936 tok/s | ETA: 75.7m
+6876.9s 794 [AR] Step  15200/25432 | Loss: 1.6216 | CE: 1.622 | LR: 1.47e-04 |   2.3 st/s |   443,998 tok/s | ETA: 75.5m
+6886.7s 795 [AR] Step  15225/25432 | Loss: 0.9912 | CE: 0.991 | LR: 1.47e-04 |   2.3 st/s |   444,099 tok/s | ETA: 75.3m
+6896.4s 796 [AR] Step  15250/25432 | Loss: 1.4476 | CE: 1.448 | LR: 1.46e-04 |   2.3 st/s |   444,171 tok/s | ETA: 75.1m
+6906.3s 797 [AR] Step  15275/25432 | Loss: 1.9992 | CE: 1.999 | LR: 1.46e-04 |   2.3 st/s |   444,272 tok/s | ETA: 74.9m
+6916.0s 798 [AR] Step  15300/25432 | Loss: 1.3787 | CE: 1.379 | LR: 1.45e-04 |   2.3 st/s |   444,335 tok/s | ETA: 74.7m
+6926.3s 799 [AR] Step  15325/25432 | Loss: 1.7335 | CE: 1.733 | LR: 1.45e-04 |   2.3 st/s |   444,406 tok/s | ETA: 74.5m
+6936.4s 800 [AR] Step  15350/25432 | Loss: 4.7762 | CE: 4.776 | LR: 1.44e-04 |   2.3 st/s |   444,469 tok/s | ETA: 74.3m
+6946.8s 801 [AR] Step  15375/25432 | Loss: 1.6547 | CE: 1.655 | LR: 1.44e-04 |   2.3 st/s |   444,511 tok/s | ETA: 74.1m
+6956.8s 802 [AR] Step  15400/25432 | Loss: 1.6461 | CE: 1.646 | LR: 1.44e-04 |   2.3 st/s |   444,578 tok/s | ETA: 73.9m
+6967.0s 803 [AR] Step  15425/25432 | Loss: 1.7277 | CE: 1.728 | LR: 1.43e-04 |   2.3 st/s |   444,655 tok/s | ETA: 73.7m
+6976.6s 804 [AR] Step  15450/25432 | Loss: 1.4937 | CE: 1.494 | LR: 1.43e-04 |   2.3 st/s |   444,701 tok/s | ETA: 73.6m
+6986.5s 805 [AR] Step  15475/25432 | Loss: 2.0741 | CE: 2.074 | LR: 1.42e-04 |   2.3 st/s |   444,802 tok/s | ETA: 73.4m
+6996.4s 806 [AR] Step  15500/25432 | Loss: 1.8368 | CE: 1.837 | LR: 1.42e-04 |   2.3 st/s |   444,851 tok/s | ETA: 73.2m
+7006.5s 807 [AR] Step  15525/25432 | Loss: 1.8116 | CE: 1.812 | LR: 1.41e-04 |   2.3 st/s |   444,930 tok/s | ETA: 73.0m
+7016.6s 808 [AR] Step  15550/25432 | Loss: 2.4177 | CE: 2.418 | LR: 1.41e-04 |   2.3 st/s |   445,004 tok/s | ETA: 72.8m
+7026.7s 809 [AR] Step  15575/25432 | Loss: 1.2479 | CE: 1.248 | LR: 1.40e-04 |   2.3 st/s |   445,062 tok/s | ETA: 72.6m
+7036.7s 810 [AR] Step  15600/25432 | Loss: 1.8633 | CE: 1.863 | LR: 1.40e-04 |   2.3 st/s |   445,115 tok/s | ETA: 72.4m
+7046.7s 811 [AR] Step  15625/25432 | Loss: 2.4650 | CE: 2.465 | LR: 1.39e-04 |   2.3 st/s |   445,205 tok/s | ETA: 72.2m
+7056.8s 812 [AR] Step  15650/25432 | Loss: 2.0026 | CE: 2.003 | LR: 1.39e-04 |   2.3 st/s |   445,263 tok/s | ETA: 72.0m
+7067.2s 813 [AR] Step  15675/25432 | Loss: 1.9910 | CE: 1.991 | LR: 1.38e-04 |   2.3 st/s |   445,306 tok/s | ETA: 71.8m
+7077.2s 814 [AR] Step  15700/25432 | Loss: 2.0408 | CE: 2.041 | LR: 1.38e-04 |   2.3 st/s |   445,366 tok/s | ETA: 71.6m
+7087.3s 815 [AR] Step  15725/25432 | Loss: 1.4993 | CE: 1.499 | LR: 1.38e-04 |   2.3 st/s |   445,450 tok/s | ETA: 71.4m
+7097.1s 816 [AR] Step  15750/25432 | Loss: 1.4365 | CE: 1.437 | LR: 1.37e-04 |   2.3 st/s |   445,496 tok/s | ETA: 71.2m
+7107.0s 817 [AR] Step  15775/25432 | Loss: 1.7072 | CE: 1.707 | LR: 1.37e-04 |   2.3 st/s |   445,585 tok/s | ETA: 71.0m
+7117.0s 818 [AR] Step  15800/25432 | Loss: 2.0483 | CE: 2.048 | LR: 1.36e-04 |   2.3 st/s |   445,642 tok/s | ETA: 70.8m
+7127.1s 819 [AR] Step  15825/25432 | Loss: 2.1956 | CE: 2.196 | LR: 1.36e-04 |   2.3 st/s |   445,698 tok/s | ETA: 70.6m
+7137.4s 820 [AR] Step  15850/25432 | Loss: 1.6433 | CE: 1.643 | LR: 1.35e-04 |   2.3 st/s |   445,759 tok/s | ETA: 70.4m
+7147.7s 821 [AR] Step  15875/25432 | Loss: 1.6467 | CE: 1.647 | LR: 1.35e-04 |   2.3 st/s |   445,795 tok/s | ETA: 70.2m
+7158.2s 822 [AR] Step  15900/25432 | Loss: 4.6644 | CE: 4.664 | LR: 1.34e-04 |   2.3 st/s |   445,827 tok/s | ETA: 70.1m
+7168.8s 823 [AR] Step  15925/25432 | Loss: 1.7206 | CE: 1.721 | LR: 1.34e-04 |   2.3 st/s |   445,871 tok/s | ETA: 69.9m
+7178.8s 824 [AR] Step  15950/25432 | Loss: 1.6668 | CE: 1.667 | LR: 1.33e-04 |   2.3 st/s |   445,919 tok/s | ETA: 69.7m
+7188.8s 825 [AR] Step  15975/25432 | Loss: 1.1852 | CE: 1.185 | LR: 1.33e-04 |   2.3 st/s |   446,000 tok/s | ETA: 69.5m
+7199.0s 826 [AR] Step  16000/25432 | Loss: 1.5106 | CE: 1.511 | LR: 1.32e-04 |   2.3 st/s |   446,038 tok/s | ETA: 69.3m
+7209.8s 827 [AR] Step  16025/25432 | Loss: 1.4578 | CE: 1.458 | LR: 1.32e-04 |   2.3 st/s |   446,060 tok/s | ETA: 69.1m
+7220.5s 828 [AR] Step  16050/25432 | Loss: 1.8929 | CE: 1.893 | LR: 1.32e-04 |   2.3 st/s |   446,063 tok/s | ETA: 68.9m
+7230.6s 829 [AR] Step  16075/25432 | Loss: 2.5332 | CE: 2.533 | LR: 1.31e-04 |   2.3 st/s |   446,119 tok/s | ETA: 68.7m
+7240.7s 830 [AR] Step  16100/25432 | Loss: 1.6564 | CE: 1.656 | LR: 1.31e-04 |   2.3 st/s |   446,161 tok/s | ETA: 68.5m
+7250.9s 831 [AR] Step  16125/25432 | Loss: 2.6576 | CE: 2.658 | LR: 1.30e-04 |   2.3 st/s |   446,227 tok/s | ETA: 68.3m
+7261.4s 832 [AR] Step  16150/25432 | Loss: 2.0613 | CE: 2.061 | LR: 1.30e-04 |   2.3 st/s |   446,284 tok/s | ETA: 68.2m
+7272.2s 833 [AR] Step  16175/25432 | Loss: 1.3144 | CE: 1.314 | LR: 1.29e-04 |   2.3 st/s |   446,306 tok/s | ETA: 68.0m
+7282.9s 834 [AR] Step  16200/25432 | Loss: 1.7319 | CE: 1.732 | LR: 1.29e-04 |   2.3 st/s |   446,309 tok/s | ETA: 67.8m
+7293.4s 835 [AR] Step  16225/25432 | Loss: 1.7359 | CE: 1.736 | LR: 1.28e-04 |   2.3 st/s |   446,344 tok/s | ETA: 67.6m
+7303.8s 836 [AR] Step  16250/25432 | Loss: 1.7389 | CE: 1.739 | LR: 1.28e-04 |   2.3 st/s |   446,365 tok/s | ETA: 67.4m
+7314.5s 837 [AR] Step  16275/25432 | Loss: 1.6554 | CE: 1.655 | LR: 1.28e-04 |   2.3 st/s |   446,415 tok/s | ETA: 67.2m
+7325.3s 838 [AR] Step  16300/25432 | Loss: 1.6926 | CE: 1.693 | LR: 1.27e-04 |   2.3 st/s |   446,403 tok/s | ETA: 67.0m
+7336.1s 839 [AR] Step  16325/25432 | Loss: 1.9138 | CE: 1.914 | LR: 1.27e-04 |   2.3 st/s |   446,420 tok/s | ETA: 66.8m
+7346.8s 840 [AR] Step  16350/25432 | Loss: 1.4755 | CE: 1.475 | LR: 1.26e-04 |   2.3 st/s |   446,440 tok/s | ETA: 66.7m
+7357.7s 841 [AR] Step  16375/25432 | Loss: 1.8622 | CE: 1.862 | LR: 1.26e-04 |   2.3 st/s |   446,444 tok/s | ETA: 66.5m
+7367.8s 842 [AR] Step  16400/25432 | Loss: 2.0379 | CE: 2.038 | LR: 1.25e-04 |   2.3 st/s |   446,485 tok/s | ETA: 66.3m
+7378.2s 843 [AR] Step  16425/25432 | Loss: 1.7365 | CE: 1.736 | LR: 1.25e-04 |   2.3 st/s |   446,552 tok/s | ETA: 66.1m
+7388.4s 844 [AR] Step  16450/25432 | Loss: 1.9580 | CE: 1.958 | LR: 1.24e-04 |   2.3 st/s |   446,579 tok/s | ETA: 65.9m
+7398.7s 845 [AR] Step  16475/25432 | Loss: 1.6409 | CE: 1.641 | LR: 1.24e-04 |   2.3 st/s |   446,639 tok/s | ETA: 65.7m
+7408.9s 846 [AR] Step  16500/25432 | Loss: 0.7780 | CE: 0.778 | LR: 1.23e-04 |   2.3 st/s |   446,687 tok/s | ETA: 65.5m
+7418.9s 847 [AR] Step  16525/25432 | Loss: 1.6607 | CE: 1.661 | LR: 1.23e-04 |   2.3 st/s |   446,733 tok/s | ETA: 65.3m
+7428.9s 848 [AR] Step  16550/25432 | Loss: 1.5573 | CE: 1.557 | LR: 1.23e-04 |   2.3 st/s |   446,781 tok/s | ETA: 65.1m
+7439.0s 849 [AR] Step  16575/25432 | Loss: 1.8907 | CE: 1.891 | LR: 1.22e-04 |   2.3 st/s |   446,858 tok/s | ETA: 64.9m
+7448.9s 850 [AR] Step  16600/25432 | Loss: 1.8022 | CE: 1.802 | LR: 1.22e-04 |   2.3 st/s |   446,912 tok/s | ETA: 64.8m
+7458.9s 851 [AR] Step  16625/25432 | Loss: 1.8228 | CE: 1.823 | LR: 1.21e-04 |   2.3 st/s |   447,004 tok/s | ETA: 64.6m
+7468.7s 852 [AR] Step  16650/25432 | Loss: 2.4494 | CE: 2.449 | LR: 1.21e-04 |   2.3 st/s |   447,049 tok/s | ETA: 64.4m
+7478.6s 853 [AR] Step  16675/25432 | Loss: 1.5702 | CE: 1.570 | LR: 1.20e-04 |   2.3 st/s |   447,133 tok/s | ETA: 64.2m
+7488.4s 854 [AR] Step  16700/25432 | Loss: 1.8060 | CE: 1.806 | LR: 1.20e-04 |   2.3 st/s |   447,187 tok/s | ETA: 64.0m
+7498.2s 855 [AR] Step  16725/25432 | Loss: 1.5009 | CE: 1.501 | LR: 1.20e-04 |   2.3 st/s |   447,273 tok/s | ETA: 63.8m
+7507.9s 856 [AR] Step  16750/25432 | Loss: 1.2366 | CE: 1.237 | LR: 1.19e-04 |   2.3 st/s |   447,332 tok/s | ETA: 63.6m
+7517.8s 857 [AR] Step  16775/25432 | Loss: 1.9136 | CE: 1.914 | LR: 1.19e-04 |   2.3 st/s |   447,421 tok/s | ETA: 63.4m
+7527.6s 858 [AR] Step  16800/25432 | Loss: 2.0239 | CE: 2.024 | LR: 1.18e-04 |   2.3 st/s |   447,481 tok/s | ETA: 63.2m
+7537.4s 859 [AR] Step  16825/25432 | Loss: 1.0903 | CE: 1.090 | LR: 1.18e-04 |   2.3 st/s |   447,566 tok/s | ETA: 63.0m
+7547.1s 860 [AR] Step  16850/25432 | Loss: 1.3513 | CE: 1.351 | LR: 1.17e-04 |   2.3 st/s |   447,624 tok/s | ETA: 62.8m
+7557.0s 861 [AR] Step  16875/25432 | Loss: 1.8871 | CE: 1.887 | LR: 1.17e-04 |   2.3 st/s |   447,706 tok/s | ETA: 62.6m
+7567.1s 862 [AR] Step  16900/25432 | Loss: 1.9275 | CE: 1.928 | LR: 1.16e-04 |   2.3 st/s |   447,758 tok/s | ETA: 62.4m
+7577.2s 863 [AR] Step  16925/25432 | Loss: 2.0978 | CE: 2.098 | LR: 1.16e-04 |   2.3 st/s |   447,825 tok/s | ETA: 62.2m
+7587.2s 864 [AR] Step  16950/25432 | Loss: 2.2126 | CE: 2.213 | LR: 1.16e-04 |   2.3 st/s |   447,846 tok/s | ETA: 62.1m
+7597.5s 865 [AR] Step  16975/25432 | Loss: 1.8866 | CE: 1.887 | LR: 1.15e-04 |   2.3 st/s |   447,922 tok/s | ETA: 61.9m
+7607.5s 866 [AR] Step  17000/25432 | Loss: 1.9605 | CE: 1.960 | LR: 1.15e-04 |   2.3 st/s |   447,940 tok/s | ETA: 61.7m
+7617.5s 867 [AR] Step  17025/25432 | Loss: 1.5234 | CE: 1.523 | LR: 1.14e-04 |   2.3 st/s |   448,012 tok/s | ETA: 61.5m
+7627.6s 868 [AR] Step  17050/25432 | Loss: 1.3770 | CE: 1.377 | LR: 1.14e-04 |   2.3 st/s |   448,053 tok/s | ETA: 61.3m
+7637.6s 869 [AR] Step  17075/25432 | Loss: 1.7076 | CE: 1.708 | LR: 1.14e-04 |   2.3 st/s |   448,124 tok/s | ETA: 61.1m
+7647.5s 870 [AR] Step  17100/25432 | Loss: 1.6985 | CE: 1.699 | LR: 1.13e-04 |   2.3 st/s |   448,189 tok/s | ETA: 60.9m
+7657.9s 871 [AR] Step  17125/25432 | Loss: 1.2243 | CE: 1.224 | LR: 1.13e-04 |   2.3 st/s |   448,244 tok/s | ETA: 60.7m
+7667.9s 872 [AR] Step  17150/25432 | Loss: 1.5757 | CE: 1.576 | LR: 1.12e-04 |   2.3 st/s |   448,271 tok/s | ETA: 60.5m
+7677.7s 873 [AR] Step  17175/25432 | Loss: 1.5035 | CE: 1.504 | LR: 1.12e-04 |   2.3 st/s |   448,360 tok/s | ETA: 60.3m
+7687.7s 874 [AR] Step  17200/25432 | Loss: 1.6543 | CE: 1.654 | LR: 1.11e-04 |   2.3 st/s |   448,412 tok/s | ETA: 60.2m
+7697.6s 875 [AR] Step  17225/25432 | Loss: 0.3699 | CE: 0.370 | LR: 1.11e-04 |   2.3 st/s |   448,492 tok/s | ETA: 60.0m
+7707.4s 876 [AR] Step  17250/25432 | Loss: 1.8436 | CE: 1.844 | LR: 1.10e-04 |   2.3 st/s |   448,536 tok/s | ETA: 59.8m
+7717.5s 877 [AR] Step  17275/25432 | Loss: 1.9197 | CE: 1.920 | LR: 1.10e-04 |   2.3 st/s |   448,594 tok/s | ETA: 59.6m
+7727.6s 878 [AR] Step  17300/25432 | Loss: 1.9827 | CE: 1.983 | LR: 1.10e-04 |   2.3 st/s |   448,636 tok/s | ETA: 59.4m
+7737.5s 879 [AR] Step  17325/25432 | Loss: 1.7135 | CE: 1.714 | LR: 1.09e-04 |   2.3 st/s |   448,699 tok/s | ETA: 59.2m
+7747.6s 880 [AR] Step  17350/25432 | Loss: 1.3637 | CE: 1.364 | LR: 1.09e-04 |   2.3 st/s |   448,740 tok/s | ETA: 59.0m
+7757.6s 881 [AR] Step  17375/25432 | Loss: 0.2794 | CE: 0.279 | LR: 1.08e-04 |   2.3 st/s |   448,809 tok/s | ETA: 58.8m
+7767.6s 882 [AR] Step  17400/25432 | Loss: 0.2179 | CE: 0.218 | LR: 1.08e-04 |   2.3 st/s |   448,851 tok/s | ETA: 58.6m
+7777.7s 883 [AR] Step  17425/25432 | Loss: 2.0149 | CE: 2.015 | LR: 1.08e-04 |   2.3 st/s |   448,920 tok/s | ETA: 58.4m
+7787.6s 884 [AR] Step  17450/25432 | Loss: 1.6810 | CE: 1.681 | LR: 1.07e-04 |   2.3 st/s |   448,961 tok/s | ETA: 58.3m
+7797.6s 885 [AR] Step  17475/25432 | Loss: 1.8262 | CE: 1.826 | LR: 1.07e-04 |   2.3 st/s |   449,033 tok/s | ETA: 58.1m
+7807.5s 886 [AR] Step  17500/25432 | Loss: 1.3475 | CE: 1.347 | LR: 1.06e-04 |   2.3 st/s |   449,081 tok/s | ETA: 57.9m
+7807.5s 887 
+7807.5s 888 [Checkpoint Step  17500] Saving checkpoint weights to checkpoints/ar/100m_5b/checkpoint_step_17500.pt...
+7808.2s 889 [Checkpoint Verified] Successfully saved checkpoints/ar/100m_5b/checkpoint_step_17500.pt (446.8 MB)
+7808.2s 890 [Checkpoint Step  17500] Successfully saved weights to checkpoints/ar/100m_5b/checkpoint_step_17500.pt
+7808.2s 891 
+7818.3s 892 [AR] Step  17525/25432 | Loss: 1.2887 | CE: 1.289 | LR: 1.06e-04 |   2.3 st/s |   449,101 tok/s | ETA: 57.7m
+7828.2s 893 [AR] Step  17550/25432 | Loss: 2.0544 | CE: 2.054 | LR: 1.05e-04 |   2.3 st/s |   449,149 tok/s | ETA: 57.5m
+7838.1s 894 [AR] Step  17575/25432 | Loss: 1.7542 | CE: 1.754 | LR: 1.05e-04 |   2.3 st/s |   449,227 tok/s | ETA: 57.3m
+7847.9s 895 [AR] Step  17600/25432 | Loss: 1.3166 | CE: 1.317 | LR: 1.05e-04 |   2.3 st/s |   449,276 tok/s | ETA: 57.1m
+7857.8s 896 [AR] Step  17625/25432 | Loss: 1.8417 | CE: 1.842 | LR: 1.04e-04 |   2.3 st/s |   449,351 tok/s | ETA: 56.9m
+7867.7s 897 [AR] Step  17650/25432 | Loss: 1.9564 | CE: 1.956 | LR: 1.04e-04 |   2.3 st/s |   449,398 tok/s | ETA: 56.7m
+7877.7s 898 [AR] Step  17675/25432 | Loss: 1.5602 | CE: 1.560 | LR: 1.03e-04 |   2.3 st/s |   449,468 tok/s | ETA: 56.6m
+7887.5s 899 [AR] Step  17700/25432 | Loss: 1.4632 | CE: 1.463 | LR: 1.03e-04 |   2.3 st/s |   449,516 tok/s | ETA: 56.4m
+7897.5s 900 [AR] Step  17725/25432 | Loss: 1.9403 | CE: 1.940 | LR: 1.03e-04 |   2.3 st/s |   449,586 tok/s | ETA: 56.2m
+7907.5s 901 [AR] Step  17750/25432 | Loss: 1.9780 | CE: 1.978 | LR: 1.02e-04 |   2.3 st/s |   449,632 tok/s | ETA: 56.0m
+7917.3s 902 [AR] Step  17775/25432 | Loss: 1.5043 | CE: 1.504 | LR: 1.02e-04 |   2.3 st/s |   449,707 tok/s | ETA: 55.8m
+7927.0s 903 [AR] Step  17800/25432 | Loss: 1.8823 | CE: 1.882 | LR: 1.01e-04 |   2.3 st/s |   449,769 tok/s | ETA: 55.6m
+7936.9s 904 [AR] Step  17825/25432 | Loss: 1.5486 | CE: 1.549 | LR: 1.01e-04 |   2.3 st/s |   449,859 tok/s | ETA: 55.4m
+7946.7s 905 [AR] Step  17850/25432 | Loss: 1.6028 | CE: 1.603 | LR: 1.01e-04 |   2.3 st/s |   449,900 tok/s | ETA: 55.2m
+7956.6s 906 [AR] Step  17875/25432 | Loss: 1.7260 | CE: 1.726 | LR: 1.00e-04 |   2.3 st/s |   449,978 tok/s | ETA: 55.0m
+7966.3s 907 [AR] Step  17900/25432 | Loss: 1.6738 | CE: 1.674 | LR: 9.98e-05 |   2.3 st/s |   450,027 tok/s | ETA: 54.8m
+7976.4s 908 [AR] Step  17925/25432 | Loss: 1.8193 | CE: 1.819 | LR: 9.95e-05 |   2.3 st/s |   450,103 tok/s | ETA: 54.7m
+7986.2s 909 [AR] Step  17950/25432 | Loss: 1.5813 | CE: 1.581 | LR: 9.90e-05 |   2.3 st/s |   450,146 tok/s | ETA: 54.5m
+7996.2s 910 [AR] Step  17975/25432 | Loss: 1.1936 | CE: 1.194 | LR: 9.87e-05 |   2.3 st/s |   450,220 tok/s | ETA: 54.3m
+8005.8s 911 [AR] Step  18000/25432 | Loss: 1.6921 | CE: 1.692 | LR: 9.82e-05 |   2.3 st/s |   450,259 tok/s | ETA: 54.1m
+8015.7s 912 [AR] Step  18025/25432 | Loss: 1.6321 | CE: 1.632 | LR: 9.79e-05 |   2.3 st/s |   450,346 tok/s | ETA: 53.9m
+8025.4s 913 [AR] Step  18050/25432 | Loss: 1.8505 | CE: 1.850 | LR: 9.74e-05 |   2.3 st/s |   450,393 tok/s | ETA: 53.7m
+8035.4s 914 [AR] Step  18075/25432 | Loss: 1.9744 | CE: 1.974 | LR: 9.71e-05 |   2.3 st/s |   450,470 tok/s | ETA: 53.5m
+8045.9s 915 [AR] Step  18100/25432 | Loss: 1.7476 | CE: 1.748 | LR: 9.66e-05 |   2.3 st/s |   450,483 tok/s | ETA: 53.3m
+8056.2s 916 [AR] Step  18125/25432 | Loss: 1.5848 | CE: 1.585 | LR: 9.63e-05 |   2.3 st/s |   450,526 tok/s | ETA: 53.1m
+8066.4s 917 [AR] Step  18150/25432 | Loss: 1.6151 | CE: 1.615 | LR: 9.58e-05 |   2.3 st/s |   450,562 tok/s | ETA: 53.0m
+8076.9s 918 [AR] Step  18175/25432 | Loss: 1.0080 | CE: 1.008 | LR: 9.55e-05 |   2.3 st/s |   450,596 tok/s | ETA: 52.8m
+8086.7s 919 [AR] Step  18200/25432 | Loss: 1.8327 | CE: 1.833 | LR: 9.50e-05 |   2.3 st/s |   450,635 tok/s | ETA: 52.6m
+8096.6s 920 [AR] Step  18225/25432 | Loss: 2.2443 | CE: 2.244 | LR: 9.47e-05 |   2.3 st/s |   450,711 tok/s | ETA: 52.4m
+8106.8s 921 [AR] Step  18250/25432 | Loss: 1.9934 | CE: 1.993 | LR: 9.43e-05 |   2.3 st/s |   450,726 tok/s | ETA: 52.2m
+8117.2s 922 [AR] Step  18275/25432 | Loss: 0.8463 | CE: 0.846 | LR: 9.40e-05 |   2.3 st/s |   450,786 tok/s | ETA: 52.0m
+8127.5s 923 [AR] Step  18300/25432 | Loss: 1.5915 | CE: 1.591 | LR: 9.35e-05 |   2.3 st/s |   450,796 tok/s | ETA: 51.8m
+8138.0s 924 [AR] Step  18325/25432 | Loss: 1.6430 | CE: 1.643 | LR: 9.32e-05 |   2.3 st/s |   450,842 tok/s | ETA: 51.7m
+8148.2s 925 [AR] Step  18350/25432 | Loss: 1.5967 | CE: 1.597 | LR: 9.27e-05 |   2.3 st/s |   450,863 tok/s | ETA: 51.5m
+8158.7s 926 [AR] Step  18375/25432 | Loss: 2.3744 | CE: 2.374 | LR: 9.24e-05 |   2.3 st/s |   450,899 tok/s | ETA: 51.3m
+8169.0s 927 [AR] Step  18400/25432 | Loss: 1.4011 | CE: 1.401 | LR: 9.20e-05 |   2.3 st/s |   450,932 tok/s | ETA: 51.1m
+8179.0s 928 [AR] Step  18425/25432 | Loss: 1.5170 | CE: 1.517 | LR: 9.17e-05 |   2.3 st/s |   450,985 tok/s | ETA: 50.9m
+8189.0s 929 [AR] Step  18450/25432 | Loss: 0.3187 | CE: 0.319 | LR: 9.12e-05 |   2.3 st/s |   451,026 tok/s | ETA: 50.7m
+8199.2s 930 [AR] Step  18475/25432 | Loss: 2.2321 | CE: 2.232 | LR: 9.09e-05 |   2.3 st/s |   451,066 tok/s | ETA: 50.5m
+8209.2s 931 [AR] Step  18500/25432 | Loss: 1.7644 | CE: 1.764 | LR: 9.05e-05 |   2.3 st/s |   451,092 tok/s | ETA: 50.4m
+8219.2s 932 [AR] Step  18525/25432 | Loss: 1.8788 | CE: 1.879 | LR: 9.02e-05 |   2.3 st/s |   451,154 tok/s | ETA: 50.2m
+8229.3s 933 [AR] Step  18550/25432 | Loss: 1.1296 | CE: 1.130 | LR: 8.97e-05 |   2.3 st/s |   451,185 tok/s | ETA: 50.0m
+8239.4s 934 [AR] Step  18575/25432 | Loss: 1.7798 | CE: 1.780 | LR: 8.94e-05 |   2.3 st/s |   451,244 tok/s | ETA: 49.8m
+8249.4s 935 [AR] Step  18600/25432 | Loss: 1.7692 | CE: 1.769 | LR: 8.90e-05 |   2.3 st/s |   451,278 tok/s | ETA: 49.6m
+8259.4s 936 [AR] Step  18625/25432 | Loss: 1.0709 | CE: 1.071 | LR: 8.87e-05 |   2.3 st/s |   451,347 tok/s | ETA: 49.4m
+8269.4s 937 [AR] Step  18650/25432 | Loss: 2.2144 | CE: 2.214 | LR: 8.82e-05 |   2.3 st/s |   451,377 tok/s | ETA: 49.2m
+8279.5s 938 [AR] Step  18675/25432 | Loss: 1.7218 | CE: 1.722 | LR: 8.79e-05 |   2.3 st/s |   451,441 tok/s | ETA: 49.0m
+8289.6s 939 [AR] Step  18700/25432 | Loss: 1.7937 | CE: 1.794 | LR: 8.75e-05 |   2.3 st/s |   451,479 tok/s | ETA: 48.9m
+8299.6s 940 [AR] Step  18725/25432 | Loss: 1.8011 | CE: 1.801 | LR: 8.72e-05 |   2.3 st/s |   451,533 tok/s | ETA: 48.7m
+8309.6s 941 [AR] Step  18750/25432 | Loss: 1.6409 | CE: 1.641 | LR: 8.67e-05 |   2.3 st/s |   451,567 tok/s | ETA: 48.5m
+8319.8s 942 [AR] Step  18775/25432 | Loss: 1.6315 | CE: 1.631 | LR: 8.64e-05 |   2.3 st/s |   451,631 tok/s | ETA: 48.3m
+8329.8s 943 [AR] Step  18800/25432 | Loss: 1.8828 | CE: 1.883 | LR: 8.60e-05 |   2.3 st/s |   451,654 tok/s | ETA: 48.1m
+8340.0s 944 [AR] Step  18825/25432 | Loss: 1.7333 | CE: 1.733 | LR: 8.57e-05 |   2.3 st/s |   451,719 tok/s | ETA: 47.9m
+8349.9s 945 [AR] Step  18850/25432 | Loss: 1.8836 | CE: 1.884 | LR: 8.53e-05 |   2.3 st/s |   451,752 tok/s | ETA: 47.7m
+8359.8s 946 [AR] Step  18875/25432 | Loss: 2.1174 | CE: 2.117 | LR: 8.50e-05 |   2.3 st/s |   451,829 tok/s | ETA: 47.6m
+8369.8s 947 [AR] Step  18900/25432 | Loss: 1.7441 | CE: 1.744 | LR: 8.46e-05 |   2.3 st/s |   451,865 tok/s | ETA: 47.4m
+8379.8s 948 [AR] Step  18925/25432 | Loss: 1.5265 | CE: 1.527 | LR: 8.43e-05 |   2.3 st/s |   451,930 tok/s | ETA: 47.2m
+8389.8s 949 [AR] Step  18950/25432 | Loss: 1.5307 | CE: 1.531 | LR: 8.38e-05 |   2.3 st/s |   451,940 tok/s | ETA: 47.0m
+8399.9s 950 [AR] Step  18975/25432 | Loss: 1.5515 | CE: 1.552 | LR: 8.36e-05 |   2.3 st/s |   452,003 tok/s | ETA: 46.8m
+8409.8s 951 [AR] Step  19000/25432 | Loss: 1.5418 | CE: 1.542 | LR: 8.31e-05 |   2.3 st/s |   452,046 tok/s | ETA: 46.6m
+8419.9s 952 [AR] Step  19025/25432 | Loss: 1.4384 | CE: 1.438 | LR: 8.28e-05 |   2.3 st/s |   452,115 tok/s | ETA: 46.4m
+8429.6s 953 [AR] Step  19050/25432 | Loss: 1.7697 | CE: 1.770 | LR: 8.24e-05 |   2.3 st/s |   452,151 tok/s | ETA: 46.3m
+8439.6s 954 [AR] Step  19075/25432 | Loss: 1.8013 | CE: 1.801 | LR: 8.21e-05 |   2.3 st/s |   452,223 tok/s | ETA: 46.1m
+8449.4s 955 [AR] Step  19100/25432 | Loss: 1.2376 | CE: 1.238 | LR: 8.17e-05 |   2.3 st/s |   452,262 tok/s | ETA: 45.9m
+8459.4s 956 [AR] Step  19125/25432 | Loss: 1.6491 | CE: 1.649 | LR: 8.14e-05 |   2.3 st/s |   452,331 tok/s | ETA: 45.7m
+8469.3s 957 [AR] Step  19150/25432 | Loss: 1.7733 | CE: 1.773 | LR: 8.10e-05 |   2.3 st/s |   452,354 tok/s | ETA: 45.5m
+8479.4s 958 [AR] Step  19175/25432 | Loss: 1.3938 | CE: 1.394 | LR: 8.07e-05 |   2.3 st/s |   452,409 tok/s | ETA: 45.3m
+8489.5s 959 [AR] Step  19200/25432 | Loss: 1.5223 | CE: 1.522 | LR: 8.03e-05 |   2.3 st/s |   452,433 tok/s | ETA: 45.1m
+8499.5s 960 [AR] Step  19225/25432 | Loss: 1.5461 | CE: 1.546 | LR: 8.00e-05 |   2.3 st/s |   452,490 tok/s | ETA: 44.9m
+8509.5s 961 [AR] Step  19250/25432 | Loss: 1.5981 | CE: 1.598 | LR: 7.96e-05 |   2.3 st/s |   452,529 tok/s | ETA: 44.8m
+8519.5s 962 [AR] Step  19275/25432 | Loss: 2.0943 | CE: 2.094 | LR: 7.93e-05 |   2.3 st/s |   452,592 tok/s | ETA: 44.6m
+8529.6s 963 [AR] Step  19300/25432 | Loss: 2.0249 | CE: 2.025 | LR: 7.89e-05 |   2.3 st/s |   452,639 tok/s | ETA: 44.4m
+8539.4s 964 [AR] Step  19325/25432 | Loss: 1.4141 | CE: 1.414 | LR: 7.87e-05 |   2.3 st/s |   452,697 tok/s | ETA: 44.2m
+8549.2s 965 [AR] Step  19350/25432 | Loss: 1.4345 | CE: 1.434 | LR: 7.82e-05 |   2.3 st/s |   452,739 tok/s | ETA: 44.0m
+8559.2s 966 [AR] Step  19375/25432 | Loss: 2.0795 | CE: 2.080 | LR: 7.80e-05 |   2.3 st/s |   452,806 tok/s | ETA: 43.8m
+8568.9s 967 [AR] Step  19400/25432 | Loss: 1.3260 | CE: 1.326 | LR: 7.76e-05 |   2.3 st/s |   452,848 tok/s | ETA: 43.6m
+8579.0s 968 [AR] Step  19425/25432 | Loss: 1.6621 | CE: 1.662 | LR: 7.73e-05 |   2.3 st/s |   452,919 tok/s | ETA: 43.5m
+8589.6s 969 [AR] Step  19450/25432 | Loss: 1.8313 | CE: 1.831 | LR: 7.69e-05 |   2.3 st/s |   452,905 tok/s | ETA: 43.3m
+8600.4s 970 [AR] Step  19475/25432 | Loss: 1.8256 | CE: 1.826 | LR: 7.66e-05 |   2.3 st/s |   452,923 tok/s | ETA: 43.1m
+8610.9s 971 [AR] Step  19500/25432 | Loss: 1.2437 | CE: 1.244 | LR: 7.62e-05 |   2.3 st/s |   452,918 tok/s | ETA: 42.9m
+8620.9s 972 [AR] Step  19525/25432 | Loss: 1.9633 | CE: 1.963 | LR: 7.60e-05 |   2.3 st/s |   452,976 tok/s | ETA: 42.7m
+8630.7s 973 [AR] Step  19550/25432 | Loss: 1.4112 | CE: 1.411 | LR: 7.56e-05 |   2.3 st/s |   453,010 tok/s | ETA: 42.5m
+8640.9s 974 [AR] Step  19575/25432 | Loss: 1.5603 | CE: 1.560 | LR: 7.53e-05 |   2.3 st/s |   453,079 tok/s | ETA: 42.4m
+8651.6s 975 [AR] Step  19600/25432 | Loss: 1.7167 | CE: 1.717 | LR: 7.49e-05 |   2.3 st/s |   453,079 tok/s | ETA: 42.2m
+8662.3s 976 [AR] Step  19625/25432 | Loss: 1.7405 | CE: 1.741 | LR: 7.46e-05 |   2.3 st/s |   453,105 tok/s | ETA: 42.0m
+8672.8s 977 [AR] Step  19650/25432 | Loss: 1.7736 | CE: 1.774 | LR: 7.42e-05 |   2.3 st/s |   453,100 tok/s | ETA: 41.8m
+8682.8s 978 [AR] Step  19675/25432 | Loss: 1.7987 | CE: 1.799 | LR: 7.40e-05 |   2.3 st/s |   453,163 tok/s | ETA: 41.6m
+8693.0s 979 [AR] Step  19700/25432 | Loss: 1.5037 | CE: 1.504 | LR: 7.36e-05 |   2.3 st/s |   453,171 tok/s | ETA: 41.4m
+8702.9s 980 [AR] Step  19725/25432 | Loss: 1.9003 | CE: 1.900 | LR: 7.33e-05 |   2.3 st/s |   453,242 tok/s | ETA: 41.3m
+8712.9s 981 [AR] Step  19750/25432 | Loss: 1.8581 | CE: 1.858 | LR: 7.29e-05 |   2.3 st/s |   453,283 tok/s | ETA: 41.1m
+8723.5s 982 [AR] Step  19775/25432 | Loss: 1.7572 | CE: 1.757 | LR: 7.27e-05 |   2.3 st/s |   453,305 tok/s | ETA: 40.9m
+8733.9s 983 [AR] Step  19800/25432 | Loss: 2.0652 | CE: 2.065 | LR: 7.23e-05 |   2.3 st/s |   453,304 tok/s | ETA: 40.7m
+8744.6s 984 [AR] Step  19825/25432 | Loss: 1.2979 | CE: 1.298 | LR: 7.20e-05 |   2.3 st/s |   453,342 tok/s | ETA: 40.5m
+8754.9s 985 [AR] Step  19850/25432 | Loss: 1.6643 | CE: 1.664 | LR: 7.17e-05 |   2.3 st/s |   453,347 tok/s | ETA: 40.3m
+8765.4s 986 [AR] Step  19875/25432 | Loss: 1.8652 | CE: 1.865 | LR: 7.14e-05 |   2.3 st/s |   453,388 tok/s | ETA: 40.2m
+8775.8s 987 [AR] Step  19900/25432 | Loss: 2.1323 | CE: 2.132 | LR: 7.10e-05 |   2.3 st/s |   453,377 tok/s | ETA: 40.0m
+8786.3s 988 [AR] Step  19925/25432 | Loss: 2.1113 | CE: 2.111 | LR: 7.08e-05 |   2.3 st/s |   453,426 tok/s | ETA: 39.8m
+8796.7s 989 [AR] Step  19950/25432 | Loss: 1.6903 | CE: 1.690 | LR: 7.04e-05 |   2.3 st/s |   453,428 tok/s | ETA: 39.6m
+8807.4s 990 [AR] Step  19975/25432 | Loss: 1.3591 | CE: 1.359 | LR: 7.01e-05 |   2.3 st/s |   453,441 tok/s | ETA: 39.4m
+8817.8s 991 [AR] Step  20000/25432 | Loss: 1.4895 | CE: 1.490 | LR: 6.98e-05 |   2.3 st/s |   453,461 tok/s | ETA: 39.3m
+8828.6s 992 [AR] Step  20025/25432 | Loss: 1.7648 | CE: 1.765 | LR: 6.95e-05 |   2.3 st/s |   453,486 tok/s | ETA: 39.1m
+8839.2s 993 [AR] Step  20050/25432 | Loss: 1.7969 | CE: 1.797 | LR: 6.92e-05 |   2.3 st/s |   453,480 tok/s | ETA: 38.9m
+8850.0s 994 [AR] Step  20075/25432 | Loss: 1.8674 | CE: 1.867 | LR: 6.89e-05 |   2.3 st/s |   453,484 tok/s | ETA: 38.7m
+8860.6s 995 [AR] Step  20100/25432 | Loss: 1.8122 | CE: 1.812 | LR: 6.85e-05 |   2.3 st/s |   453,495 tok/s | ETA: 38.5m
+8871.3s 996 [AR] Step  20125/25432 | Loss: 1.7347 | CE: 1.735 | LR: 6.83e-05 |   2.3 st/s |   453,518 tok/s | ETA: 38.3m
+8881.5s 997 [AR] Step  20150/25432 | Loss: 0.8625 | CE: 0.862 | LR: 6.79e-05 |   2.3 st/s |   453,519 tok/s | ETA: 38.2m
+8891.9s 998 [AR] Step  20175/25432 | Loss: 1.5348 | CE: 1.535 | LR: 6.77e-05 |   2.3 st/s |   453,571 tok/s | ETA: 38.0m
+8901.8s 999 [AR] Step  20200/25432 | Loss: 1.5210 | CE: 1.521 | LR: 6.73e-05 |   2.3 st/s |   453,602 tok/s | ETA: 37.8m
+8911.9s 1000 [AR] Step  20225/25432 | Loss: 0.5815 | CE: 0.581 | LR: 6.71e-05 |   2.3 st/s |   453,648 tok/s | ETA: 37.6m
+8922.4s 1001 [AR] Step  20250/25432 | Loss: 1.8816 | CE: 1.882 | LR: 6.67e-05 |   2.3 st/s |   453,649 tok/s | ETA: 37.4m
+8933.0s 1002 [AR] Step  20275/25432 | Loss: 1.6159 | CE: 1.616 | LR: 6.65e-05 |   2.3 st/s |   453,679 tok/s | ETA: 37.2m
+8943.6s 1003 [AR] Step  20300/25432 | Loss: 1.5101 | CE: 1.510 | LR: 6.61e-05 |   2.3 st/s |   453,662 tok/s | ETA: 37.1m
+8954.5s 1004 [AR] Step  20325/25432 | Loss: 1.1787 | CE: 1.179 | LR: 6.59e-05 |   2.3 st/s |   453,671 tok/s | ETA: 36.9m
+8965.3s 1005 [AR] Step  20350/25432 | Loss: 1.6523 | CE: 1.652 | LR: 6.55e-05 |   2.3 st/s |   453,660 tok/s | ETA: 36.7m
+8976.1s 1006 [AR] Step  20375/25432 | Loss: 1.1143 | CE: 1.114 | LR: 6.53e-05 |   2.3 st/s |   453,674 tok/s | ETA: 36.5m
+8986.9s 1007 [AR] Step  20400/25432 | Loss: 1.8382 | CE: 1.838 | LR: 6.50e-05 |   2.3 st/s |   453,665 tok/s | ETA: 36.3m
+8997.8s 1008 [AR] Step  20425/25432 | Loss: 1.9989 | CE: 1.999 | LR: 6.47e-05 |   2.3 st/s |   453,677 tok/s | ETA: 36.2m
+9008.2s 1009 [AR] Step  20450/25432 | Loss: 1.2382 | CE: 1.238 | LR: 6.44e-05 |   2.3 st/s |   453,699 tok/s | ETA: 36.0m
+9018.8s 1010 [AR] Step  20475/25432 | Loss: 2.0832 | CE: 2.083 | LR: 6.41e-05 |   2.3 st/s |   453,731 tok/s | ETA: 35.8m
+9028.9s 1011 [AR] Step  20500/25432 | Loss: 1.4037 | CE: 1.404 | LR: 6.38e-05 |   2.3 st/s |   453,760 tok/s | ETA: 35.6m
+9039.0s 1012 [AR] Step  20525/25432 | Loss: 1.3288 | CE: 1.329 | LR: 6.36e-05 |   2.3 st/s |   453,792 tok/s | ETA: 35.4m
+9049.0s 1013 [AR] Step  20550/25432 | Loss: 1.3228 | CE: 1.323 | LR: 6.32e-05 |   2.3 st/s |   453,836 tok/s | ETA: 35.2m
+9059.3s 1014 [AR] Step  20575/25432 | Loss: 1.6605 | CE: 1.660 | LR: 6.30e-05 |   2.3 st/s |   453,862 tok/s | ETA: 35.1m
+9069.2s 1015 [AR] Step  20600/25432 | Loss: 1.6548 | CE: 1.655 | LR: 6.27e-05 |   2.3 st/s |   453,911 tok/s | ETA: 34.9m
+9079.0s 1016 [AR] Step  20625/25432 | Loss: 1.9084 | CE: 1.908 | LR: 6.24e-05 |   2.3 st/s |   453,971 tok/s | ETA: 34.7m
+9089.0s 1017 [AR] Step  20650/25432 | Loss: 1.9604 | CE: 1.960 | LR: 6.21e-05 |   2.3 st/s |   453,998 tok/s | ETA: 34.5m
+9099.1s 1018 [AR] Step  20675/25432 | Loss: 2.1884 | CE: 2.188 | LR: 6.19e-05 |   2.3 st/s |   454,044 tok/s | ETA: 34.3m
+9109.2s 1019 [AR] Step  20700/25432 | Loss: 1.8177 | CE: 1.818 | LR: 6.16e-05 |   2.3 st/s |   454,065 tok/s | ETA: 34.1m
+9119.9s 1020 [AR] Step  20725/25432 | Loss: 1.8599 | CE: 1.860 | LR: 6.13e-05 |   2.3 st/s |   454,085 tok/s | ETA: 34.0m
+9129.9s 1021 [AR] Step  20750/25432 | Loss: 1.6904 | CE: 1.690 | LR: 6.10e-05 |   2.3 st/s |   454,112 tok/s | ETA: 33.8m
+9140.0s 1022 [AR] Step  20775/25432 | Loss: 1.3252 | CE: 1.325 | LR: 6.08e-05 |   2.3 st/s |   454,161 tok/s | ETA: 33.6m
+9150.0s 1023 [AR] Step  20800/25432 | Loss: 1.9711 | CE: 1.971 | LR: 6.05e-05 |   2.3 st/s |   454,190 tok/s | ETA: 33.4m
+9159.9s 1024 [AR] Step  20825/25432 | Loss: 1.6325 | CE: 1.632 | LR: 6.02e-05 |   2.3 st/s |   454,240 tok/s | ETA: 33.2m
+9169.8s 1025 [AR] Step  20850/25432 | Loss: 1.8704 | CE: 1.870 | LR: 5.99e-05 |   2.3 st/s |   454,273 tok/s | ETA: 33.1m
+9180.1s 1026 [AR] Step  20875/25432 | Loss: 1.5328 | CE: 1.533 | LR: 5.97e-05 |   2.3 st/s |   454,328 tok/s | ETA: 32.9m
+9190.3s 1027 [AR] Step  20900/25432 | Loss: 1.9848 | CE: 1.985 | LR: 5.94e-05 |   2.3 st/s |   454,352 tok/s | ETA: 32.7m
+9200.5s 1028 [AR] Step  20925/25432 | Loss: 1.5370 | CE: 1.537 | LR: 5.92e-05 |   2.3 st/s |   454,388 tok/s | ETA: 32.5m
+9210.4s 1029 [AR] Step  20950/25432 | Loss: 1.7663 | CE: 1.766 | LR: 5.89e-05 |   2.3 st/s |   454,409 tok/s | ETA: 32.3m
+9220.5s 1030 [AR] Step  20975/25432 | Loss: 1.8656 | CE: 1.866 | LR: 5.87e-05 |   2.3 st/s |   454,470 tok/s | ETA: 32.1m
+9230.3s 1031 [AR] Step  21000/25432 | Loss: 1.6268 | CE: 1.627 | LR: 5.83e-05 |   2.3 st/s |   454,493 tok/s | ETA: 32.0m
+9230.3s 1032 
+9230.3s 1033 [Checkpoint Step  21000] Saving checkpoint weights to checkpoints/ar/100m_5b/checkpoint_step_21000.pt...
+9231.1s 1034 [Checkpoint Verified] Successfully saved checkpoints/ar/100m_5b/checkpoint_step_21000.pt (446.8 MB)
+9231.1s 1035 [Checkpoint Step  21000] Successfully saved weights to checkpoints/ar/100m_5b/checkpoint_step_21000.pt
+9231.1s 1036 
+9241.5s 1037 [AR] Step  21025/25432 | Loss: 1.8500 | CE: 1.850 | LR: 5.81e-05 |   2.3 st/s |   454,492 tok/s | ETA: 31.8m
+9251.2s 1038 [AR] Step  21050/25432 | Loss: 1.5892 | CE: 1.589 | LR: 5.78e-05 |   2.3 st/s |   454,526 tok/s | ETA: 31.6m
+9260.9s 1039 [AR] Step  21075/25432 | Loss: 1.4933 | CE: 1.493 | LR: 5.76e-05 |   2.3 st/s |   454,601 tok/s | ETA: 31.4m
+9270.6s 1040 [AR] Step  21100/25432 | Loss: 1.4922 | CE: 1.492 | LR: 5.73e-05 |   2.3 st/s |   454,651 tok/s | ETA: 31.2m
+9280.4s 1041 [AR] Step  21125/25432 | Loss: 1.5261 | CE: 1.526 | LR: 5.71e-05 |   2.3 st/s |   454,716 tok/s | ETA: 31.0m
+9290.5s 1042 [AR] Step  21150/25432 | Loss: 1.5264 | CE: 1.526 | LR: 5.68e-05 |   2.3 st/s |   454,754 tok/s | ETA: 30.9m
+9300.8s 1043 [AR] Step  21175/25432 | Loss: 1.4315 | CE: 1.432 | LR: 5.66e-05 |   2.3 st/s |   454,782 tok/s | ETA: 30.7m
+9310.8s 1044 [AR] Step  21200/25432 | Loss: 0.4146 | CE: 0.415 | LR: 5.63e-05 |   2.3 st/s |   454,815 tok/s | ETA: 30.5m
+9320.6s 1045 [AR] Step  21225/25432 | Loss: 1.6980 | CE: 1.698 | LR: 5.61e-05 |   2.3 st/s |   454,866 tok/s | ETA: 30.3m
+9330.4s 1046 [AR] Step  21250/25432 | Loss: 1.6012 | CE: 1.601 | LR: 5.58e-05 |   2.3 st/s |   454,905 tok/s | ETA: 30.1m
+9340.4s 1047 [AR] Step  21275/25432 | Loss: 1.5347 | CE: 1.535 | LR: 5.56e-05 |   2.3 st/s |   454,966 tok/s | ETA: 29.9m
+9350.2s 1048 [AR] Step  21300/25432 | Loss: 1.4721 | CE: 1.472 | LR: 5.53e-05 |   2.3 st/s |   454,997 tok/s | ETA: 29.8m
+9360.3s 1049 [AR] Step  21325/25432 | Loss: 1.6153 | CE: 1.615 | LR: 5.51e-05 |   2.3 st/s |   455,055 tok/s | ETA: 29.6m
+9370.1s 1050 [AR] Step  21350/25432 | Loss: 1.4523 | CE: 1.452 | LR: 5.48e-05 |   2.3 st/s |   455,082 tok/s | ETA: 29.4m
+9380.1s 1051 [AR] Step  21375/25432 | Loss: 1.8453 | CE: 1.845 | LR: 5.46e-05 |   2.3 st/s |   455,142 tok/s | ETA: 29.2m
+9390.0s 1052 [AR] Step  21400/25432 | Loss: 1.7987 | CE: 1.799 | LR: 5.43e-05 |   2.3 st/s |   455,173 tok/s | ETA: 29.0m
+9400.2s 1053 [AR] Step  21425/25432 | Loss: 1.6664 | CE: 1.666 | LR: 5.42e-05 |   2.3 st/s |   455,198 tok/s | ETA: 28.8m
+9410.2s 1054 [AR] Step  21450/25432 | Loss: 1.4981 | CE: 1.498 | LR: 5.39e-05 |   2.3 st/s |   455,244 tok/s | ETA: 28.7m
+9420.3s 1055 [AR] Step  21475/25432 | Loss: 1.2618 | CE: 1.262 | LR: 5.37e-05 |   2.3 st/s |   455,272 tok/s | ETA: 28.5m
+9430.2s 1056 [AR] Step  21500/25432 | Loss: 1.7132 | CE: 1.713 | LR: 5.34e-05 |   2.3 st/s |   455,313 tok/s | ETA: 28.3m
+9440.4s 1057 [AR] Step  21525/25432 | Loss: 1.5046 | CE: 1.505 | LR: 5.32e-05 |   2.3 st/s |   455,348 tok/s | ETA: 28.1m
+9450.5s 1058 [AR] Step  21550/25432 | Loss: 1.5108 | CE: 1.511 | LR: 5.29e-05 |   2.3 st/s |   455,365 tok/s | ETA: 27.9m
+9461.0s 1059 [AR] Step  21575/25432 | Loss: 1.6695 | CE: 1.669 | LR: 5.27e-05 |   2.3 st/s |   455,407 tok/s | ETA: 27.8m
+9471.0s 1060 [AR] Step  21600/25432 | Loss: 1.5312 | CE: 1.531 | LR: 5.25e-05 |   2.3 st/s |   455,438 tok/s | ETA: 27.6m
+9481.2s 1061 [AR] Step  21625/25432 | Loss: 1.7526 | CE: 1.753 | LR: 5.23e-05 |   2.3 st/s |   455,466 tok/s | ETA: 27.4m
+9491.3s 1062 [AR] Step  21650/25432 | Loss: 1.1038 | CE: 1.104 | LR: 5.20e-05 |   2.3 st/s |   455,484 tok/s | ETA: 27.2m
+9502.0s 1063 [AR] Step  21675/25432 | Loss: 1.8490 | CE: 1.849 | LR: 5.18e-05 |   2.3 st/s |   455,521 tok/s | ETA: 27.0m
+9512.2s 1064 [AR] Step  21700/25432 | Loss: 2.2194 | CE: 2.219 | LR: 5.16e-05 |   2.3 st/s |   455,525 tok/s | ETA: 26.8m
+9522.8s 1065 [AR] Step  21725/25432 | Loss: 1.3884 | CE: 1.388 | LR: 5.14e-05 |   2.3 st/s |   455,557 tok/s | ETA: 26.7m
+9532.7s 1066 [AR] Step  21750/25432 | Loss: 1.8032 | CE: 1.803 | LR: 5.11e-05 |   2.3 st/s |   455,583 tok/s | ETA: 26.5m
+9542.8s 1067 [AR] Step  21775/25432 | Loss: 1.5409 | CE: 1.541 | LR: 5.10e-05 |   2.3 st/s |   455,610 tok/s | ETA: 26.3m
+9553.4s 1068 [AR] Step  21800/25432 | Loss: 1.6903 | CE: 1.690 | LR: 5.07e-05 |   2.3 st/s |   455,625 tok/s | ETA: 26.1m
+9564.2s 1069 [AR] Step  21825/25432 | Loss: 1.4386 | CE: 1.439 | LR: 5.05e-05 |   2.3 st/s |   455,645 tok/s | ETA: 25.9m
+9574.7s 1070 [AR] Step  21850/25432 | Loss: 1.8459 | CE: 1.846 | LR: 5.03e-05 |   2.3 st/s |   455,641 tok/s | ETA: 25.8m
+9585.5s 1071 [AR] Step  21875/25432 | Loss: 1.6856 | CE: 1.686 | LR: 5.01e-05 |   2.3 st/s |   455,635 tok/s | ETA: 25.6m
+9596.1s 1072 [AR] Step  21900/25432 | Loss: 1.8220 | CE: 1.822 | LR: 4.98e-05 |   2.3 st/s |   455,651 tok/s | ETA: 25.4m
+9606.8s 1073 [AR] Step  21925/25432 | Loss: 1.4966 | CE: 1.497 | LR: 4.97e-05 |   2.3 st/s |   455,649 tok/s | ETA: 25.2m
+9617.1s 1074 [AR] Step  21950/25432 | Loss: 1.4682 | CE: 1.468 | LR: 4.94e-05 |   2.3 st/s |   455,664 tok/s | ETA: 25.0m
+9627.7s 1075 [AR] Step  21975/25432 | Loss: 1.6229 | CE: 1.623 | LR: 4.92e-05 |   2.3 st/s |   455,682 tok/s | ETA: 24.9m
+9637.9s 1076 [AR] Step  22000/25432 | Loss: 1.4841 | CE: 1.484 | LR: 4.90e-05 |   2.3 st/s |   455,701 tok/s | ETA: 24.7m
+9648.6s 1077 [AR] Step  22025/25432 | Loss: 1.6829 | CE: 1.683 | LR: 4.88e-05 |   2.3 st/s |   455,714 tok/s | ETA: 24.5m
+9659.2s 1078 [AR] Step  22050/25432 | Loss: 1.0849 | CE: 1.085 | LR: 4.86e-05 |   2.3 st/s |   455,726 tok/s | ETA: 24.3m
+9669.9s 1079 [AR] Step  22075/25432 | Loss: 1.4437 | CE: 1.444 | LR: 4.84e-05 |   2.3 st/s |   455,743 tok/s | ETA: 24.1m
+9680.7s 1080 [AR] Step  22100/25432 | Loss: 1.4001 | CE: 1.400 | LR: 4.82e-05 |   2.3 st/s |   455,735 tok/s | ETA: 24.0m
+9691.5s 1081 [AR] Step  22125/25432 | Loss: 1.6857 | CE: 1.686 | LR: 4.80e-05 |   2.3 st/s |   455,745 tok/s | ETA: 23.8m
+9702.1s 1082 [AR] Step  22150/25432 | Loss: 2.4778 | CE: 2.478 | LR: 4.78e-05 |   2.3 st/s |   455,739 tok/s | ETA: 23.6m
+9712.9s 1083 [AR] Step  22175/25432 | Loss: 1.4237 | CE: 1.424 | LR: 4.76e-05 |   2.3 st/s |   455,735 tok/s | ETA: 23.4m
+9723.0s 1084 [AR] Step  22200/25432 | Loss: 1.9016 | CE: 1.902 | LR: 4.74e-05 |   2.3 st/s |   455,769 tok/s | ETA: 23.2m
+9733.3s 1085 [AR] Step  22225/25432 | Loss: 1.9253 | CE: 1.925 | LR: 4.72e-05 |   2.3 st/s |   455,789 tok/s | ETA: 23.1m
+9743.9s 1086 [AR] Step  22250/25432 | Loss: 1.6127 | CE: 1.613 | LR: 4.70e-05 |   2.3 st/s |   455,800 tok/s | ETA: 22.9m
+9754.7s 1087 [AR] Step  22275/25432 | Loss: 1.3731 | CE: 1.373 | LR: 4.69e-05 |   2.3 st/s |   455,821 tok/s | ETA: 22.7m
+9765.1s 1088 [AR] Step  22300/25432 | Loss: 1.3522 | CE: 1.352 | LR: 4.66e-05 |   2.3 st/s |   455,819 tok/s | ETA: 22.5m
+9775.7s 1089 [AR] Step  22325/25432 | Loss: 1.3720 | CE: 1.372 | LR: 4.65e-05 |   2.3 st/s |   455,840 tok/s | ETA: 22.3m
+9786.4s 1090 [AR] Step  22350/25432 | Loss: 1.6902 | CE: 1.690 | LR: 4.63e-05 |   2.3 st/s |   455,838 tok/s | ETA: 22.2m
+9796.6s 1091 [AR] Step  22375/25432 | Loss: 1.6772 | CE: 1.677 | LR: 4.61e-05 |   2.3 st/s |   455,857 tok/s | ETA: 22.0m
+9806.8s 1092 [AR] Step  22400/25432 | Loss: 1.5666 | CE: 1.567 | LR: 4.59e-05 |   2.3 st/s |   455,874 tok/s | ETA: 21.8m
+9817.2s 1093 [AR] Step  22425/25432 | Loss: 1.7662 | CE: 1.766 | LR: 4.57e-05 |   2.3 st/s |   455,907 tok/s | ETA: 21.6m
+9827.5s 1094 [AR] Step  22450/25432 | Loss: 1.4897 | CE: 1.490 | LR: 4.55e-05 |   2.3 st/s |   455,920 tok/s | ETA: 21.4m
+9838.1s 1095 [AR] Step  22475/25432 | Loss: 1.6241 | CE: 1.624 | LR: 4.54e-05 |   2.3 st/s |   455,949 tok/s | ETA: 21.3m
+9848.5s 1096 [AR] Step  22500/25432 | Loss: 1.7409 | CE: 1.741 | LR: 4.52e-05 |   2.3 st/s |   455,942 tok/s | ETA: 21.1m
+9859.2s 1097 [AR] Step  22525/25432 | Loss: 1.6372 | CE: 1.637 | LR: 4.50e-05 |   2.3 st/s |   455,966 tok/s | ETA: 20.9m
+9869.6s 1098 [AR] Step  22550/25432 | Loss: 1.4834 | CE: 1.483 | LR: 4.48e-05 |   2.3 st/s |   455,961 tok/s | ETA: 20.7m
+9880.4s 1099 [AR] Step  22575/25432 | Loss: 1.2615 | CE: 1.262 | LR: 4.47e-05 |   2.3 st/s |   455,985 tok/s | ETA: 20.5m
+9890.8s 1100 [AR] Step  22600/25432 | Loss: 1.4179 | CE: 1.418 | LR: 4.45e-05 |   2.3 st/s |   455,988 tok/s | ETA: 20.4m
+9901.5s 1101 [AR] Step  22625/25432 | Loss: 1.8054 | CE: 1.805 | LR: 4.43e-05 |   2.3 st/s |   456,007 tok/s | ETA: 20.2m
+9911.5s 1102 [AR] Step  22650/25432 | Loss: 1.9809 | CE: 1.981 | LR: 4.41e-05 |   2.3 st/s |   456,029 tok/s | ETA: 20.0m
+9921.7s 1103 [AR] Step  22675/25432 | Loss: 1.6903 | CE: 1.690 | LR: 4.40e-05 |   2.3 st/s |   456,072 tok/s | ETA: 19.8m
+9932.4s 1104 [AR] Step  22700/25432 | Loss: 1.7466 | CE: 1.747 | LR: 4.38e-05 |   2.3 st/s |   456,066 tok/s | ETA: 19.6m
+9943.2s 1105 [AR] Step  22725/25432 | Loss: 1.5491 | CE: 1.549 | LR: 4.37e-05 |   2.3 st/s |   456,077 tok/s | ETA: 19.4m
+9953.0s 1106 [AR] Step  22750/25432 | Loss: 1.5675 | CE: 1.567 | LR: 4.35e-05 |   2.3 st/s |   456,092 tok/s | ETA: 19.3m
+9963.3s 1107 [AR] Step  22775/25432 | Loss: 1.5480 | CE: 1.548 | LR: 4.33e-05 |   2.3 st/s |   456,136 tok/s | ETA: 19.1m
+9973.6s 1108 [AR] Step  22800/25432 | Loss: 1.5161 | CE: 1.516 | LR: 4.31e-05 |   2.3 st/s |   456,155 tok/s | ETA: 18.9m
+9983.5s 1109 [AR] Step  22825/25432 | Loss: 1.5238 | CE: 1.524 | LR: 4.30e-05 |   2.3 st/s |   456,192 tok/s | ETA: 18.7m
+9993.3s 1110 [AR] Step  22850/25432 | Loss: 0.7254 | CE: 0.725 | LR: 4.28e-05 |   2.3 st/s |   456,222 tok/s | ETA: 18.5m
+10003.4s 1111 [AR] Step  22875/25432 | Loss: 1.1543 | CE: 1.154 | LR: 4.27e-05 |   2.3 st/s |   456,261 tok/s | ETA: 18.4m
+10013.4s 1112 [AR] Step  22900/25432 | Loss: 1.6097 | CE: 1.610 | LR: 4.25e-05 |   2.3 st/s |   456,281 tok/s | ETA: 18.2m
+10023.2s 1113 [AR] Step  22925/25432 | Loss: 1.5596 | CE: 1.560 | LR: 4.24e-05 |   2.3 st/s |   456,346 tok/s | ETA: 18.0m
+10033.0s 1114 [AR] Step  22950/25432 | Loss: 2.0822 | CE: 2.082 | LR: 4.22e-05 |   2.3 st/s |   456,386 tok/s | ETA: 17.8m
+10043.2s 1115 [AR] Step  22975/25432 | Loss: 1.6004 | CE: 1.600 | LR: 4.21e-05 |   2.3 st/s |   456,422 tok/s | ETA: 17.6m
+10053.2s 1116 [AR] Step  23000/25432 | Loss: 1.7274 | CE: 1.727 | LR: 4.19e-05 |   2.3 st/s |   456,457 tok/s | ETA: 17.5m
+10063.2s 1117 [AR] Step  23025/25432 | Loss: 1.3110 | CE: 1.311 | LR: 4.18e-05 |   2.3 st/s |   456,486 tok/s | ETA: 17.3m
+10073.1s 1118 [AR] Step  23050/25432 | Loss: 1.9685 | CE: 1.968 | LR: 4.16e-05 |   2.3 st/s |   456,528 tok/s | ETA: 17.1m
+10083.1s 1119 [AR] Step  23075/25432 | Loss: 1.8593 | CE: 1.859 | LR: 4.15e-05 |   2.3 st/s |   456,560 tok/s | ETA: 16.9m
+10093.4s 1120 [AR] Step  23100/25432 | Loss: 1.4452 | CE: 1.445 | LR: 4.13e-05 |   2.3 st/s |   456,570 tok/s | ETA: 16.7m
+10103.9s 1121 [AR] Step  23125/25432 | Loss: 1.3686 | CE: 1.369 | LR: 4.12e-05 |   2.3 st/s |   456,612 tok/s | ETA: 16.6m
+10114.2s 1122 [AR] Step  23150/25432 | Loss: 1.7141 | CE: 1.714 | LR: 4.10e-05 |   2.3 st/s |   456,617 tok/s | ETA: 16.4m
+10124.2s 1123 [AR] Step  23175/25432 | Loss: 1.3583 | CE: 1.358 | LR: 4.09e-05 |   2.3 st/s |   456,650 tok/s | ETA: 16.2m
+10134.2s 1124 [AR] Step  23200/25432 | Loss: 1.7716 | CE: 1.772 | LR: 4.08e-05 |   2.3 st/s |   456,674 tok/s | ETA: 16.0m
+10144.2s 1125 [AR] Step  23225/25432 | Loss: 1.7061 | CE: 1.706 | LR: 4.07e-05 |   2.3 st/s |   456,733 tok/s | ETA: 15.8m
+10154.0s 1126 [AR] Step  23250/25432 | Loss: 1.6914 | CE: 1.691 | LR: 4.05e-05 |   2.3 st/s |   456,764 tok/s | ETA: 15.7m
+10164.0s 1127 [AR] Step  23275/25432 | Loss: 5.0666 | CE: 5.067 | LR: 4.04e-05 |   2.3 st/s |   456,814 tok/s | ETA: 15.5m
+10173.8s 1128 [AR] Step  23300/25432 | Loss: 1.2790 | CE: 1.279 | LR: 4.02e-05 |   2.3 st/s |   456,841 tok/s | ETA: 15.3m
+10184.1s 1129 [AR] Step  23325/25432 | Loss: 1.6545 | CE: 1.654 | LR: 4.01e-05 |   2.3 st/s |   456,870 tok/s | ETA: 15.1m
+10194.7s 1130 [AR] Step  23350/25432 | Loss: 1.4985 | CE: 1.498 | LR: 4.00e-05 |   2.3 st/s |   456,865 tok/s | ETA: 14.9m
+10205.2s 1131 [AR] Step  23375/25432 | Loss: 1.7802 | CE: 1.780 | LR: 3.99e-05 |   2.3 st/s |   456,883 tok/s | ETA: 14.8m
+10215.2s 1132 [AR] Step  23400/25432 | Loss: 1.7861 | CE: 1.786 | LR: 3.97e-05 |   2.3 st/s |   456,906 tok/s | ETA: 14.6m
+10225.1s 1133 [AR] Step  23425/25432 | Loss: 1.6522 | CE: 1.652 | LR: 3.96e-05 |   2.3 st/s |   456,951 tok/s | ETA: 14.4m
+10235.1s 1134 [AR] Step  23450/25432 | Loss: 1.9928 | CE: 1.993 | LR: 3.95e-05 |   2.3 st/s |   456,972 tok/s | ETA: 14.2m
+10245.0s 1135 [AR] Step  23475/25432 | Loss: 1.4060 | CE: 1.406 | LR: 3.94e-05 |   2.3 st/s |   457,028 tok/s | ETA: 14.0m
+10254.9s 1136 [AR] Step  23500/25432 | Loss: 1.5083 | CE: 1.508 | LR: 3.92e-05 |   2.3 st/s |   457,067 tok/s | ETA: 13.9m
+10265.0s 1137 [AR] Step  23525/25432 | Loss: 1.6087 | CE: 1.609 | LR: 3.91e-05 |   2.3 st/s |   457,099 tok/s | ETA: 13.7m
+10274.9s 1138 [AR] Step  23550/25432 | Loss: 1.9982 | CE: 1.998 | LR: 3.90e-05 |   2.3 st/s |   457,135 tok/s | ETA: 13.5m
+10285.1s 1139 [AR] Step  23575/25432 | Loss: 1.5208 | CE: 1.521 | LR: 3.89e-05 |   2.3 st/s |   457,162 tok/s | ETA: 13.3m
+10294.9s 1140 [AR] Step  23600/25432 | Loss: 1.3212 | CE: 1.321 | LR: 3.88e-05 |   2.3 st/s |   457,195 tok/s | ETA: 13.1m
+10304.9s 1141 [AR] Step  23625/25432 | Loss: 1.6594 | CE: 1.659 | LR: 3.87e-05 |   2.3 st/s |   457,249 tok/s | ETA: 12.9m
+10314.7s 1142 [AR] Step  23650/25432 | Loss: 1.5083 | CE: 1.508 | LR: 3.86e-05 |   2.3 st/s |   457,276 tok/s | ETA: 12.8m
+10324.7s 1143 [AR] Step  23675/25432 | Loss: 1.7650 | CE: 1.765 | LR: 3.85e-05 |   2.3 st/s |   457,325 tok/s | ETA: 12.6m
+10334.6s 1144 [AR] Step  23700/25432 | Loss: 1.4704 | CE: 1.470 | LR: 3.83e-05 |   2.3 st/s |   457,353 tok/s | ETA: 12.4m
+10344.7s 1145 [AR] Step  23725/25432 | Loss: 1.7331 | CE: 1.733 | LR: 3.83e-05 |   2.3 st/s |   457,381 tok/s | ETA: 12.2m
+10354.5s 1146 [AR] Step  23750/25432 | Loss: 2.2380 | CE: 2.238 | LR: 3.81e-05 |   2.3 st/s |   457,415 tok/s | ETA: 12.0m
+10364.6s 1147 [AR] Step  23775/25432 | Loss: 1.6177 | CE: 1.618 | LR: 3.80e-05 |   2.3 st/s |   457,463 tok/s | ETA: 11.9m
+10374.5s 1148 [AR] Step  23800/25432 | Loss: 2.0118 | CE: 2.012 | LR: 3.79e-05 |   2.3 st/s |   457,488 tok/s | ETA: 11.7m
+10384.5s 1149 [AR] Step  23825/25432 | Loss: 1.8441 | CE: 1.844 | LR: 3.78e-05 |   2.3 st/s |   457,536 tok/s | ETA: 11.5m
+10394.5s 1150 [AR] Step  23850/25432 | Loss: 1.1574 | CE: 1.157 | LR: 3.77e-05 |   2.3 st/s |   457,551 tok/s | ETA: 11.3m
+10405.0s 1151 [AR] Step  23875/25432 | Loss: 1.8924 | CE: 1.892 | LR: 3.77e-05 |   2.3 st/s |   457,581 tok/s | ETA: 11.1m
+10415.2s 1152 [AR] Step  23900/25432 | Loss: 0.9926 | CE: 0.993 | LR: 3.75e-05 |   2.3 st/s |   457,585 tok/s | ETA: 11.0m
+10425.7s 1153 [AR] Step  23925/25432 | Loss: 0.8413 | CE: 0.841 | LR: 3.75e-05 |   2.3 st/s |   457,613 tok/s | ETA: 10.8m
+10436.2s 1154 [AR] Step  23950/25432 | Loss: 1.8444 | CE: 1.844 | LR: 3.74e-05 |   2.3 st/s |   457,613 tok/s | ETA: 10.6m
+10446.6s 1155 [AR] Step  23975/25432 | Loss: 1.6060 | CE: 1.606 | LR: 3.73e-05 |   2.3 st/s |   457,638 tok/s | ETA: 10.4m
+10457.0s 1156 [AR] Step  24000/25432 | Loss: 1.8516 | CE: 1.852 | LR: 3.72e-05 |   2.3 st/s |   457,644 tok/s | ETA: 10.3m
+10467.3s 1157 [AR] Step  24025/25432 | Loss: 2.4924 | CE: 2.492 | LR: 3.71e-05 |   2.3 st/s |   457,674 tok/s | ETA: 10.1m
+10477.6s 1158 [AR] Step  24050/25432 | Loss: 1.4090 | CE: 1.409 | LR: 3.70e-05 |   2.3 st/s |   457,676 tok/s | ETA:  9.9m
+10487.5s 1159 [AR] Step  24075/25432 | Loss: 1.7600 | CE: 1.760 | LR: 3.69e-05 |   2.3 st/s |   457,714 tok/s | ETA:  9.7m
+10497.5s 1160 [AR] Step  24100/25432 | Loss: 1.5967 | CE: 1.597 | LR: 3.68e-05 |   2.3 st/s |   457,734 tok/s | ETA:  9.5m
+10507.7s 1161 [AR] Step  24125/25432 | Loss: 1.5822 | CE: 1.582 | LR: 3.68e-05 |   2.3 st/s |   457,777 tok/s | ETA:  9.4m
+10517.9s 1162 [AR] Step  24150/25432 | Loss: 1.3920 | CE: 1.392 | LR: 3.67e-05 |   2.3 st/s |   457,784 tok/s | ETA:  9.2m
+10527.9s 1163 [AR] Step  24175/25432 | Loss: 1.9010 | CE: 1.901 | LR: 3.66e-05 |   2.3 st/s |   457,825 tok/s | ETA:  9.0m
+10538.0s 1164 [AR] Step  24200/25432 | Loss: 1.8179 | CE: 1.818 | LR: 3.65e-05 |   2.3 st/s |   457,852 tok/s | ETA:  8.8m
+10548.2s 1165 [AR] Step  24225/25432 | Loss: 2.7480 | CE: 2.748 | LR: 3.65e-05 |   2.3 st/s |   457,890 tok/s | ETA:  8.6m
+10558.2s 1166 [AR] Step  24250/25432 | Loss: 1.8813 | CE: 1.881 | LR: 3.64e-05 |   2.3 st/s |   457,909 tok/s | ETA:  8.5m
+10568.1s 1167 [AR] Step  24275/25432 | Loss: 1.6299 | CE: 1.630 | LR: 3.63e-05 |   2.3 st/s |   457,955 tok/s | ETA:  8.3m
+10578.5s 1168 [AR] Step  24300/25432 | Loss: 1.4494 | CE: 1.449 | LR: 3.62e-05 |   2.3 st/s |   457,977 tok/s | ETA:  8.1m
+10588.7s 1169 [AR] Step  24325/25432 | Loss: 1.7940 | CE: 1.794 | LR: 3.62e-05 |   2.3 st/s |   458,007 tok/s | ETA:  7.9m
+10599.3s 1170 [AR] Step  24350/25432 | Loss: 1.7046 | CE: 1.705 | LR: 3.61e-05 |   2.3 st/s |   457,995 tok/s | ETA:  7.7m
+10609.6s 1171 [AR] Step  24375/25432 | Loss: 1.4949 | CE: 1.495 | LR: 3.60e-05 |   2.3 st/s |   458,030 tok/s | ETA:  7.6m
+10619.7s 1172 [AR] Step  24400/25432 | Loss: 1.3591 | CE: 1.359 | LR: 3.60e-05 |   2.3 st/s |   458,024 tok/s | ETA:  7.4m
+10630.4s 1173 [AR] Step  24425/25432 | Loss: 1.3010 | CE: 1.301 | LR: 3.59e-05 |   2.3 st/s |   458,062 tok/s | ETA:  7.2m
+10641.3s 1174 [AR] Step  24450/25432 | Loss: 1.3012 | CE: 1.301 | LR: 3.58e-05 |   2.3 st/s |   458,048 tok/s | ETA:  7.0m
+10652.2s 1175 [AR] Step  24475/25432 | Loss: 1.5155 | CE: 1.515 | LR: 3.58e-05 |   2.3 st/s |   458,034 tok/s | ETA:  6.8m
+10663.0s 1176 [AR] Step  24500/25432 | Loss: 1.3891 | CE: 1.389 | LR: 3.57e-05 |   2.3 st/s |   458,037 tok/s | ETA:  6.7m
+10663.0s 1177 
+10663.0s 1178 [Checkpoint Step  24500] Saving checkpoint weights to checkpoints/ar/100m_5b/checkpoint_step_24500.pt...
+10663.8s 1179 [Checkpoint Verified] Successfully saved checkpoints/ar/100m_5b/checkpoint_step_24500.pt (446.8 MB)
+10663.8s 1180 [Checkpoint Step  24500] Successfully saved weights to checkpoints/ar/100m_5b/checkpoint_step_24500.pt
+10663.8s 1181 
+10674.9s 1182 [AR] Step  24525/25432 | Loss: 1.6897 | CE: 1.690 | LR: 3.57e-05 |   2.3 st/s |   457,994 tok/s | ETA:  6.5m
+10685.4s 1183 [AR] Step  24550/25432 | Loss: 1.6376 | CE: 1.638 | LR: 3.56e-05 |   2.3 st/s |   457,974 tok/s | ETA:  6.3m
+10696.2s 1184 [AR] Step  24575/25432 | Loss: 1.9036 | CE: 1.904 | LR: 3.56e-05 |   2.3 st/s |   457,990 tok/s | ETA:  6.1m
+10706.6s 1185 [AR] Step  24600/25432 | Loss: 1.2686 | CE: 1.269 | LR: 3.55e-05 |   2.3 st/s |   458,002 tok/s | ETA:  6.0m
+10716.6s 1186 [AR] Step  24625/25432 | Loss: 1.7999 | CE: 1.800 | LR: 3.55e-05 |   2.3 st/s |   458,024 tok/s | ETA:  5.8m
+10726.6s 1187 [AR] Step  24650/25432 | Loss: 1.5439 | CE: 1.544 | LR: 3.54e-05 |   2.3 st/s |   458,043 tok/s | ETA:  5.6m
+10736.8s 1188 [AR] Step  24675/25432 | Loss: 1.5422 | CE: 1.542 | LR: 3.54e-05 |   2.3 st/s |   458,082 tok/s | ETA:  5.4m
+10747.4s 1189 [AR] Step  24700/25432 | Loss: 1.4703 | CE: 1.470 | LR: 3.53e-05 |   2.3 st/s |   458,071 tok/s | ETA:  5.2m
+10757.6s 1190 [AR] Step  24725/25432 | Loss: 1.9206 | CE: 1.921 | LR: 3.53e-05 |   2.3 st/s |   458,128 tok/s | ETA:  5.1m
+10767.6s 1191 [AR] Step  24750/25432 | Loss: 1.6310 | CE: 1.631 | LR: 3.52e-05 |   2.3 st/s |   458,147 tok/s | ETA:  4.9m
+10777.6s 1192 [AR] Step  24775/25432 | Loss: 1.0019 | CE: 1.002 | LR: 3.52e-05 |   2.3 st/s |   458,190 tok/s | ETA:  4.7m
+10787.5s 1193 [AR] Step  24800/25432 | Loss: 0.6249 | CE: 0.625 | LR: 3.51e-05 |   2.3 st/s |   458,209 tok/s | ETA:  4.5m
+10797.5s 1194 [AR] Step  24825/25432 | Loss: 2.0299 | CE: 2.030 | LR: 3.51e-05 |   2.3 st/s |   458,253 tok/s | ETA:  4.3m
+10807.4s 1195 [AR] Step  24850/25432 | Loss: 1.7196 | CE: 1.720 | LR: 3.51e-05 |   2.3 st/s |   458,272 tok/s | ETA:  4.2m
+10817.4s 1196 [AR] Step  24875/25432 | Loss: 1.7938 | CE: 1.794 | LR: 3.50e-05 |   2.3 st/s |   458,320 tok/s | ETA:  4.0m
+10827.3s 1197 [AR] Step  24900/25432 | Loss: 1.6595 | CE: 1.660 | LR: 3.50e-05 |   2.3 st/s |   458,343 tok/s | ETA:  3.8m
+10837.4s 1198 [AR] Step  24925/25432 | Loss: 1.7885 | CE: 1.788 | LR: 3.50e-05 |   2.3 st/s |   458,372 tok/s | ETA:  3.6m
+10847.3s 1199 [AR] Step  24950/25432 | Loss: 1.9188 | CE: 1.919 | LR: 3.49e-05 |   2.3 st/s |   458,394 tok/s | ETA:  3.4m
+10857.6s 1200 [AR] Step  24975/25432 | Loss: 2.0299 | CE: 2.030 | LR: 3.49e-05 |   2.3 st/s |   458,429 tok/s | ETA:  3.3m
+10868.0s 1201 [AR] Step  25000/25432 | Loss: 1.8502 | CE: 1.850 | LR: 3.49e-05 |   2.3 st/s |   458,435 tok/s | ETA:  3.1m
+10878.5s 1202 [AR] Step  25025/25432 | Loss: 1.6648 | CE: 1.665 | LR: 3.49e-05 |   2.3 st/s |   458,459 tok/s | ETA:  2.9m
+10888.9s 1203 [AR] Step  25050/25432 | Loss: 1.8059 | CE: 1.806 | LR: 3.48e-05 |   2.3 st/s |   458,461 tok/s | ETA:  2.7m
+10899.6s 1204 [AR] Step  25075/25432 | Loss: 1.6704 | CE: 1.670 | LR: 3.48e-05 |   2.3 st/s |   458,482 tok/s | ETA:  2.6m
+10910.1s 1205 [AR] Step  25100/25432 | Loss: 1.2956 | CE: 1.296 | LR: 3.48e-05 |   2.3 st/s |   458,481 tok/s | ETA:  2.4m
+10920.9s 1206 [AR] Step  25125/25432 | Loss: 2.0229 | CE: 2.023 | LR: 3.48e-05 |   2.3 st/s |   458,468 tok/s | ETA:  2.2m
+10931.5s 1207 [AR] Step  25150/25432 | Loss: 2.2150 | CE: 2.215 | LR: 3.47e-05 |   2.3 st/s |   458,479 tok/s | ETA:  2.0m
+10941.7s 1208 [AR] Step  25175/25432 | Loss: 1.7317 | CE: 1.732 | LR: 3.47e-05 |   2.3 st/s |   458,499 tok/s | ETA:  1.8m
+10951.7s 1209 [AR] Step  25200/25432 | Loss: 1.7004 | CE: 1.700 | LR: 3.47e-05 |   2.3 st/s |   458,529 tok/s | ETA:  1.7m
+10961.9s 1210 [AR] Step  25225/25432 | Loss: 1.8087 | CE: 1.809 | LR: 3.47e-05 |   2.3 st/s |   458,554 tok/s | ETA:  1.5m
+10972.2s 1211 [AR] Step  25250/25432 | Loss: 2.1982 | CE: 2.198 | LR: 3.47e-05 |   2.3 st/s |   458,553 tok/s | ETA:  1.3m
+10982.3s 1212 [AR] Step  25275/25432 | Loss: 1.6469 | CE: 1.647 | LR: 3.47e-05 |   2.3 st/s |   458,585 tok/s | ETA:  1.1m
+10992.3s 1213 [AR] Step  25300/25432 | Loss: 1.9379 | CE: 1.938 | LR: 3.47e-05 |   2.3 st/s |   458,605 tok/s | ETA:  0.9m
+11002.4s 1214 [AR] Step  25325/25432 | Loss: 1.7118 | CE: 1.712 | LR: 3.47e-05 |   2.3 st/s |   458,650 tok/s | ETA:  0.8m
+11012.3s 1215 [AR] Step  25350/25432 | Loss: 1.8038 | CE: 1.804 | LR: 3.46e-05 |   2.3 st/s |   458,684 tok/s | ETA:  0.6m
+11022.5s 1216 [AR] Step  25375/25432 | Loss: 1.2544 | CE: 1.254 | LR: 3.46e-05 |   2.3 st/s |   458,708 tok/s | ETA:  0.4m
+11032.3s 1217 [AR] Step  25400/25432 | Loss: 1.8464 | CE: 1.846 | LR: 3.46e-05 |   2.3 st/s |   458,733 tok/s | ETA:  0.2m
+11042.3s 1218 [AR] Step  25425/25432 | Loss: 0.9963 | CE: 0.996 | LR: 3.46e-05 |   2.3 st/s |   458,767 tok/s | ETA:  0.0m
+11045.3s 1219 [AR] Step  25432/25432 | Loss: 1.5303 | CE: 1.530 | LR: 3.46e-05 |   2.3 st/s |   458,764 tok/s | ETA:  0.0m
+11046.1s 1220 [Checkpoint Verified] Successfully saved checkpoints/ar/100m_5b/checkpoint_final.pt (446.8 MB)
+11046.5s 1221 [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+11046.5s 1222 [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+11046.5s 1223 ======================================================================
+11046.5s 1224 AR PyTorch Training Complete! Total time: 181.66 minutes.
+11046.5s 1225 Saved standalone model artifact to checkpoints/ar/100m_5b/
+11046.5s 1226 ======================================================================
+11046.5s 1227 [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+11046.5s 1228 [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+11046.5s 1229 [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+11046.5s 1230 [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+11046.5s 1231 [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+11046.5s 1232 [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+11046.5s 1233 [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+11046.5s 1234 [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+11046.5s 1235 [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+11046.5s 1236 [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+11046.5s 1237 [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+11046.5s 1238 [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+11061.5s 1239 Found 9 files in /kaggle/working/telos/checkpoints/ar/100m_5b (3409.0 MB total).
+11061.5s 1240 - checkpoint_final.pt (426.1 MB)
+11061.5s 1241 - checkpoint_step_10500.pt (426.1 MB)
+11061.5s 1242 - checkpoint_step_14000.pt (426.1 MB)
+11061.5s 1243 - checkpoint_step_17500.pt (426.1 MB)
+11061.5s 1244 - checkpoint_step_21000.pt (426.1 MB)
+11061.5s 1245 - checkpoint_step_24500.pt (426.1 MB)
+11061.5s 1246 - checkpoint_step_3500.pt (426.1 MB)
+11061.5s 1247 - checkpoint_step_7000.pt (426.1 MB)
+11061.5s 1248 - config.json (0.0 MB)
+11061.5s 1249 
+11061.5s 1250 Uploading to https://huggingface.co/Kazenowoko/telos/tree/main/checkpoints/ar/100m_5b ...
+11073.8s 1251 ✓ Upload complete in 12.4s (274.2 MB/s)!
+11077.3s 1252 [NbConvertApp] Converting notebook __notebook__.ipynb to notebook
+11078.2s 1253 [NbConvertApp] Writing 361243 bytes to __notebook__.ipynb
+11087.1s 1254 [NbConvertApp] Converting notebook __notebook__.ipynb to html
+11089.3s 1255 [NbConvertApp] Writing 754106 bytes to __results__.html

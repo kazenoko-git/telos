@@ -1,0 +1,887 @@
+{
+  "100m_r50_tpu_v5e8_seed42_cad1": {
+    "path": "/Users/ivansamuel/Documents/Projects/telos/checkpoints/corosred/unified/100m_r50_tpu_v5e8_seed42_cad1/checkpoint_final.pt",
+    "bytes": 449192216,
+    "sha256": "738be7d6fe82044798cf3f3d0cbac65e4906f06e69214fde615ce0d58aa0240e",
+    "checkpoint_keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 768,
+        "n_layers": 14,
+        "n_heads": 12,
+        "n_kv_heads": 12,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 25432,
+        "max_lr": 0.0003464101615137754,
+        "min_lr": 3.464101615137754e-05,
+        "warmup_steps": 508,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16",
+        "seed": 42,
+        "default_cadence": 1,
+        "lr_cadence": 1,
+        "sched_cadence": 1,
+        "cadence": 1
+      },
+      "checkpoint": {
+        "checkpoint_dir": "/kaggle/working/100m_r50_tpu_v5e8_seed42_cad1/checkpoints/corosred/unified/100m_r50_tpu_v5e8_seed42_cad1",
+        "save_every_steps": 2000
+      },
+      "data": {
+        "train_path": "/kaggle/working/100m_r50_tpu_v5e8_seed42_cad1/data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 105404160,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "seed": 42,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.6,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.65,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5,
+        "default_cadence": 1,
+        "sched_cadence": 1,
+        "cadence": 1
+      },
+      "paradigm": "corosred"
+    },
+    "non_weight_state": {
+      "global_step": 25432,
+      "scheduler_state_dict": {
+        "warmup_steps": 508,
+        "max_steps": 25432,
+        "min_lr": 3.464101615137754e-05,
+        "update_cadence": 1,
+        "base_lrs": [
+          0.0003464101615137754,
+          0.0003464101615137754
+        ],
+        "last_epoch": 25432,
+        "_step_count": 25433,
+        "_is_initial": false,
+        "_get_lr_called_within_step": false,
+        "_last_lr": [
+          3.464101615137754e-05,
+          3.464101615137754e-05
+        ]
+      },
+      "lrh_acc_ema": 0.8994065045103563,
+      "lrh_auc_ema": 0.7689678380055763
+    },
+    "optimizer_saved": false,
+    "parameter_dtypes": [
+      "torch.float32"
+    ],
+    "embedding_output_equal": true,
+    "sidecars": {
+      "runtime.json": {
+        "python": "3.12.13 (main, Jun 24 2026, 04:58:23) [GCC 14.2.0]",
+        "run_id": "100m_r50_tpu_v5e8_seed42_cad1",
+        "telos-ml": "1.0.0",
+        "torch": "2.8.0+cpu",
+        "torch-xla": "2.8.0",
+        "libtpu": "0.0.17",
+        "numpy": "2.5.0",
+        "compatibility_patch": "XLA global_ordinal rank API",
+        "trainer_sha256": "888d21b53e734192ed7cb560b352de8fc36125855c5bd81ddd9bc7263312381b",
+        "single_core_fallback": "disabled",
+        "cli_sha256": "8f54110d693746854a620f23e49e744c97a38b26edbc6fc54fe6ebfe8460043b"
+      },
+      "launch_command.json": [
+        "/usr/local/bin/telos",
+        "train",
+        "--paradigm",
+        "corosred",
+        "--params",
+        "100M",
+        "--d-model",
+        "768",
+        "--n-layers",
+        "14",
+        "--vocab-size",
+        "8192",
+        "--seq-len",
+        "512",
+        "--tokens",
+        "5B",
+        "--effective-batch",
+        "384",
+        "--batch-size",
+        "48",
+        "--grad-accum",
+        "1",
+        "--hardware",
+        "xla",
+        "--devices",
+        "8",
+        "--causal-ratio",
+        "0.65",
+        "--mask-prob",
+        "0.20",
+        "--hold-frac",
+        "0.20",
+        "--alpha-min",
+        "0.6",
+        "--beta-max",
+        "0.35",
+        "--default-cadence",
+        "1",
+        "--sched-step",
+        "1",
+        "--lr-cadence",
+        "1",
+        "--cadence",
+        "1",
+        "--seed",
+        "42",
+        "--data",
+        "/kaggle/working/100m_r50_tpu_v5e8_seed42_cad1/data/python_corpus_5b.bin",
+        "--checkpoint-dir",
+        "/kaggle/working/100m_r50_tpu_v5e8_seed42_cad1/checkpoints/corosred/unified/100m_r50_tpu_v5e8_seed42_cad1",
+        "--save-every",
+        "2000"
+      ],
+      "dataset_source.json": {
+        "repo_id": "Kazenowoko/telos",
+        "revision": "d728840aada52094748903ddc56256807a0bfd61",
+        "filename": "data/python_corpus_5b.bin",
+        "bytes": 10005585546,
+        "remote_lfs_sha256": "3941fb8594155c1049feff0e3f2be3415aa05de86905f649a43f2ab7e6bb7ebe",
+        "dtype": "uint16",
+        "vocab_size": 8192
+      }
+    }
+  },
+  "100m_5b": {
+    "path": "/Users/ivansamuel/Documents/Projects/telos/checkpoints/corosred/unified/100m_5b/checkpoint_final.pt",
+    "bytes": 449191960,
+    "sha256": "a1da7c7145fcb2c3b87c93c131fdf553ca88c3b6fd6c327e86335dc3fd1e9621",
+    "checkpoint_keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 768,
+        "n_layers": 14,
+        "n_heads": 12,
+        "n_kv_heads": 12,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 25432,
+        "max_lr": 0.0003464101615137754,
+        "min_lr": 3.464101615137754e-05,
+        "warmup_steps": 508,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16"
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/100m_5b",
+        "save_every_steps": 3500
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 105404160,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.5,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.65,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5
+      },
+      "paradigm": "corosred"
+    },
+    "non_weight_state": {
+      "global_step": 25432,
+      "scheduler_state_dict": {
+        "warmup_steps": 508,
+        "max_steps": 25432,
+        "min_lr": 3.464101615137754e-05,
+        "update_cadence": 10,
+        "base_lrs": [
+          0.0003464101615137754,
+          0.0003464101615137754
+        ],
+        "last_epoch": 25432,
+        "_step_count": 25433,
+        "_is_initial": false,
+        "_get_lr_called_within_step": false,
+        "_last_lr": [
+          3.464101615137754e-05,
+          3.464101615137754e-05
+        ]
+      },
+      "lrh_acc_ema": 0.4903092667849428,
+      "lrh_auc_ema": 0.4929235196375896
+    },
+    "optimizer_saved": false,
+    "parameter_dtypes": [
+      "torch.float32"
+    ],
+    "embedding_output_equal": true,
+    "sidecars": {}
+  },
+  "100m_tpu_2": {
+    "path": "/Users/ivansamuel/Documents/Projects/telos/checkpoints/corosred/unified/100m_tpu_2/checkpoint_final.pt",
+    "bytes": 449191960,
+    "sha256": "cb0a727b99e667b00ed6baef27ba2fb7a4c816832b010879242ce60577905792",
+    "checkpoint_keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 768,
+        "n_layers": 14,
+        "n_heads": 12,
+        "n_kv_heads": 12,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 25432,
+        "max_lr": 0.0003464101615137754,
+        "min_lr": 3.464101615137754e-05,
+        "warmup_steps": 508,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16"
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/100m_tpu_2",
+        "save_every_steps": 3500
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 105404160,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.5,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.65,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5
+      },
+      "paradigm": "corosred"
+    },
+    "non_weight_state": {
+      "global_step": 25432,
+      "scheduler_state_dict": {
+        "warmup_steps": 508,
+        "max_steps": 25432,
+        "min_lr": 3.464101615137754e-05,
+        "update_cadence": 10,
+        "base_lrs": [
+          0.0003464101615137754,
+          0.0003464101615137754
+        ],
+        "last_epoch": 25432,
+        "_step_count": 25433,
+        "_is_initial": false,
+        "_get_lr_called_within_step": false,
+        "_last_lr": [
+          3.464101615137754e-05,
+          3.464101615137754e-05
+        ]
+      },
+      "lrh_acc_ema": 0.5041337430394219,
+      "lrh_auc_ema": 0.48170143734957716
+    },
+    "optimizer_saved": false,
+    "parameter_dtypes": [
+      "torch.float32"
+    ],
+    "embedding_output_equal": true,
+    "sidecars": {}
+  },
+  "100m_5b_alpha075": {
+    "path": "/Users/ivansamuel/Documents/Projects/telos/checkpoints/corosred/unified/100m_5b_alpha075/checkpoint_final.pt",
+    "bytes": 449191960,
+    "sha256": "bba465fa2d524fbf154e7793b1414c39e508da7eaf116b4025db6f1a42aecb59",
+    "checkpoint_keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 768,
+        "n_layers": 14,
+        "n_heads": 12,
+        "n_kv_heads": 12,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 25432,
+        "max_lr": 0.0003464101615137754,
+        "min_lr": 3.464101615137754e-05,
+        "warmup_steps": 508,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16"
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/100m_5b",
+        "save_every_steps": 3500
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 105404160,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.75,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.65,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5
+      },
+      "paradigm": "corosred"
+    },
+    "non_weight_state": {
+      "global_step": 25432,
+      "scheduler_state_dict": {
+        "warmup_steps": 508,
+        "max_steps": 25432,
+        "min_lr": 3.464101615137754e-05,
+        "update_cadence": 10,
+        "base_lrs": [
+          0.0003464101615137754,
+          0.0003464101615137754
+        ],
+        "last_epoch": 25432,
+        "_step_count": 25433,
+        "_is_initial": false,
+        "_get_lr_called_within_step": false,
+        "_last_lr": [
+          3.464101615137754e-05,
+          3.464101615137754e-05
+        ]
+      },
+      "lrh_acc_ema": 0.5184596173603395,
+      "lrh_auc_ema": 0.5098725190357267
+    },
+    "optimizer_saved": false,
+    "parameter_dtypes": [
+      "torch.float32"
+    ],
+    "embedding_output_equal": true,
+    "sidecars": {}
+  },
+  "100m_schedstep1": {
+    "path": "/Users/ivansamuel/Documents/Projects/telos/checkpoints/corosred/unified/100m_schedstep1/checkpoint_final.pt",
+    "bytes": 449191960,
+    "sha256": "1ac4646fa1aee1162d1feea6fdb2b26a9d71c359a48b99249a507271f96c2434",
+    "checkpoint_keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 768,
+        "n_layers": 14,
+        "n_heads": 12,
+        "n_kv_heads": 12,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 25432,
+        "max_lr": 0.0003464101615137754,
+        "min_lr": 3.464101615137754e-05,
+        "warmup_steps": 508,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16",
+        "sched_cadence": 1
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/100m_schedstep1",
+        "save_every_steps": 3500
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 105404160,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.65,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.7,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5,
+        "sched_cadence": 1
+      },
+      "paradigm": "corosred"
+    },
+    "non_weight_state": {
+      "global_step": 25432,
+      "scheduler_state_dict": {
+        "warmup_steps": 508,
+        "max_steps": 25432,
+        "min_lr": 3.464101615137754e-05,
+        "update_cadence": 10,
+        "base_lrs": [
+          0.0003464101615137754,
+          0.0003464101615137754
+        ],
+        "last_epoch": 25432,
+        "_step_count": 25433,
+        "_is_initial": false,
+        "_get_lr_called_within_step": false,
+        "_last_lr": [
+          3.464101615137754e-05,
+          3.464101615137754e-05
+        ]
+      },
+      "lrh_acc_ema": 0.4915736216968223,
+      "lrh_auc_ema": 0.47703162450102726
+    },
+    "optimizer_saved": false,
+    "parameter_dtypes": [
+      "torch.float32"
+    ],
+    "embedding_output_equal": true,
+    "sidecars": {}
+  },
+  "50m_python": {
+    "path": "/Users/ivansamuel/Documents/Projects/telos/checkpoints/corosred/unified/50m_python/checkpoint_final.pt",
+    "bytes": 214541336,
+    "sha256": "59ee1988e001a7f094e707ac60cee1d4162ded69c1be7f1436089ad260644442",
+    "checkpoint_keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 512,
+        "n_layers": 14,
+        "n_heads": 8,
+        "n_kv_heads": 8,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 12716,
+        "max_lr": 0.0004242640687119285,
+        "min_lr": 4.2426406871192855e-05,
+        "warmup_steps": 254,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16"
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/50m_python",
+        "save_every_steps": 4000
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 49166848,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.5,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.65,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5
+      },
+      "paradigm": "corosred"
+    },
+    "non_weight_state": {
+      "global_step": 12716,
+      "scheduler_state_dict": {
+        "warmup_steps": 254,
+        "max_steps": 12716,
+        "min_lr": 4.2426406871192855e-05,
+        "update_cadence": 10,
+        "base_lrs": [
+          0.0004242640687119285,
+          0.0004242640687119285
+        ],
+        "last_epoch": 12716,
+        "_step_count": 12717,
+        "_is_initial": false,
+        "_get_lr_called_within_step": false,
+        "_last_lr": [
+          4.2426406871192855e-05,
+          4.2426406871192855e-05
+        ]
+      },
+      "lrh_acc_ema": 0.47184343118248895,
+      "lrh_auc_ema": 0.49682470739990126
+    },
+    "optimizer_saved": false,
+    "parameter_dtypes": [
+      "torch.float32"
+    ],
+    "embedding_output_equal": true,
+    "sidecars": {}
+  },
+  "50m_tpu_schedstep1": {
+    "path": "/Users/ivansamuel/Documents/Projects/telos/checkpoints/corosred/unified/50m_tpu_schedstep1/checkpoint_final.pt",
+    "bytes": 214541336,
+    "sha256": "f1db63c89ba579af959996342306ca75a07b8f71fe87db57372c0ba1a55d4eb9",
+    "checkpoint_keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 512,
+        "n_layers": 14,
+        "n_heads": 8,
+        "n_kv_heads": 8,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 12716,
+        "max_lr": 0.0004242640687119285,
+        "min_lr": 4.2426406871192855e-05,
+        "warmup_steps": 254,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16",
+        "sched_cadence": 1
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/50m_python",
+        "save_every_steps": 4000
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 49166848,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.5,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.65,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5,
+        "sched_cadence": 1
+      },
+      "paradigm": "corosred"
+    },
+    "non_weight_state": {
+      "global_step": 12716,
+      "scheduler_state_dict": {
+        "warmup_steps": 254,
+        "max_steps": 12716,
+        "min_lr": 4.2426406871192855e-05,
+        "update_cadence": 10,
+        "base_lrs": [
+          0.0004242640687119285,
+          0.0004242640687119285
+        ],
+        "last_epoch": 12716,
+        "_step_count": 12717,
+        "_is_initial": false,
+        "_get_lr_called_within_step": false,
+        "_last_lr": [
+          4.2426406871192855e-05,
+          4.2426406871192855e-05
+        ]
+      },
+      "lrh_acc_ema": 0.509994163059569,
+      "lrh_auc_ema": 0.5021619524799567
+    },
+    "optimizer_saved": false,
+    "parameter_dtypes": [
+      "torch.float32"
+    ],
+    "embedding_output_equal": true,
+    "sidecars": {}
+  },
+  "50m_tpu_lrcadence_schedstep1": {
+    "path": "/Users/ivansamuel/Documents/Projects/telos/checkpoints/corosred/unified/50m_tpu_lrcadence_schedstep1/checkpoint_final.pt",
+    "bytes": 214541336,
+    "sha256": "5e62ca9fedc1aaf2ad3951c5a4f7da6085bbf661cf0b25b4cb28bda0c69ae781",
+    "checkpoint_keys": [
+      "global_step",
+      "model_state_dict",
+      "scheduler_state_dict",
+      "config",
+      "lrh_acc_ema",
+      "lrh_auc_ema"
+    ],
+    "config": {
+      "model": {
+        "vocab_size": 8192,
+        "seq_len": 512,
+        "max_seq_len": 512,
+        "d_model": 512,
+        "n_layers": 14,
+        "n_heads": 8,
+        "n_kv_heads": 8,
+        "tied_embeddings": true,
+        "use_reliability_head": true,
+        "mask_token_id": 1,
+        "paradigm": "corosred",
+        "is_causal": true
+      },
+      "training": {
+        "batch_size": 48,
+        "gradient_accumulation": 1,
+        "max_steps": 12716,
+        "max_lr": 0.0004242640687119285,
+        "min_lr": 4.2426406871192855e-05,
+        "warmup_steps": 254,
+        "weight_decay": 0.1,
+        "grad_clip": 1.0,
+        "precision": "bf16",
+        "lr_cadence": 1,
+        "sched_cadence": 1
+      },
+      "checkpoint": {
+        "checkpoint_dir": "checkpoints/corosred/unified/50m_python",
+        "save_every_steps": 4000
+      },
+      "data": {
+        "train_path": "data/python_corpus_5b.bin"
+      },
+      "_resolved_params": 49166848,
+      "_backend": "pytorch",
+      "_device": "xla",
+      "_device_count": 8,
+      "corosred": {
+        "unified": true,
+        "phase": "unified",
+        "alpha_max": 0.85,
+        "alpha_min": 0.5,
+        "beta_min": 0.15,
+        "beta_max": 0.35,
+        "gamma_max": 0.1,
+        "hold_fraction": 0.2,
+        "decay_power": 2.5,
+        "gamma_gate_auc": 0.55,
+        "acc_gate_threshold": 0.65,
+        "causal_ratio": 0.65,
+        "routing_cache_steps": 50,
+        "adaptive_rebalance": false,
+        "mask_prob": 0.2,
+        "k_amb": 5,
+        "sched_cadence": 1
+      },
+      "paradigm": "corosred"
+    },
+    "non_weight_state": {
+      "global_step": 12716,
+      "scheduler_state_dict": {
+        "warmup_steps": 254,
+        "max_steps": 12716,
+        "min_lr": 4.2426406871192855e-05,
+        "update_cadence": 1,
+        "base_lrs": [
+          0.0004242640687119285,
+          0.0004242640687119285
+        ],
+        "last_epoch": 12716,
+        "_step_count": 12717,
+        "_is_initial": false,
+        "_get_lr_called_within_step": false,
+        "_last_lr": [
+          4.2426406871192855e-05,
+          4.2426406871192855e-05
+        ]
+      },
+      "lrh_acc_ema": 0.5180060210968573,
+      "lrh_auc_ema": 0.5102418258444982
+    },
+    "optimizer_saved": false,
+    "parameter_dtypes": [
+      "torch.float32"
+    ],
+    "embedding_output_equal": true,
+    "sidecars": {}
+  }
+}

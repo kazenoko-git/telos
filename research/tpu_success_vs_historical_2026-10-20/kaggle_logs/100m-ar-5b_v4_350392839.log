@@ -1,0 +1,985 @@
+9.5s 1 [IPKernelApp] WARNING | Kernel is running over TCP without encryption. All communication (including code and outputs) is sent in plain text and is susceptible to eavesdropping. Use IPC transport or launch with kernel manager-provisioned CurveZMQ keys to enable transport encryption.
+10.3s 2 Cloning into '/kaggle/working/telos'...
+10.5s 3 Cloning repository into /kaggle/working/telos...
+10.5s 4 Cloning into '/kaggle/working/telos'...
+10.5s 5 
+10.5s 6 Cloning into '/kaggle/working/telos'...
+22.8s 7 [33mWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.[0m[33m
+22.9s 8 [0m
+22.9s 9 [1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m A new release of pip is available: [0m[31;49m25.0.1[0m[39;49m -> [0m[32;49m26.2.1[0m
+22.9s 10 [1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m To update, run: [0m[32;49mpip install --upgrade pip[0m
+23.0s 11 [33mWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.[0m[33m
+23.0s 12 [0m
+23.0s 13 [1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m A new release of pip is available: [0m[31;49m25.0.1[0m[39;49m -> [0m[32;49m26.2.1[0m
+23.0s 14 [1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m To update, run: [0m[32;49mpip install --upgrade pip[0m
+23.0s 15 
+23.0s 16 [33mWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.[0m[33m
+23.0s 17 [0m
+23.0s 18 [1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m A new release of pip is available: [0m[31;49m25.0.1[0m[39;49m -> [0m[32;49m26.2.1[0m
+23.0s 19 [1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m To update, run: [0m[32;49mpip install --upgrade pip[0m
+23.0s 20 ✓ Environment ready. Working directory: /kaggle/working/telos
+23.0s 21 ✓ Kaggle Disk: 19.4 GB free out of 19.5 GB
+24.0s 22 ✓ Metadata initialized: data/python_corpus_5b.json
+24.0s 23 Downloading data/python_corpus_5b.bin (9.31 GB) from Kazenowoko/telos...
+116.9s 24 ✓ Download complete: data/python_corpus_5b.bin (10.01 GB)
+116.9s 25 ✓ Remaining Kaggle Disk Space: 10.1 GB
+122.4s 26 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package '
+122.4s 27 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviou
+122.4s 28 telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+122.4s 29 
+122.4s 30 r
+134.8s 31 /usr/local/lib/python3.12/site-packages/torch_xla/experimental/gru.py:113: SyntaxWarning: invalid es
+134.8s 32 /usr/local/lib/python3.12/site-packages/torch_xla/experimental/gru.py:113: SyntaxWarning: invalid escape sequence '\_'
+134.8s 33 * **h_n**: tensor of shape :math:`(D * \text{num\_layers}, H_{out})` or
+134.8s 34 
+134.8s 35 cape sequence '\_'
+134.8s 36 * **h_n**: tensor of shape :math:`(D * \text{num\_layers}, H_{out})` or
+140.1s 37 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can con
+140.1s 38 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pi
+140.1s 39 flict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such
+140.1s 40 p uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+140.1s 41 warnings.warn(
+140.1s 42 
+140.1s 43 as Colab or Kaggle, restart your notebook runtime afterwards.
+140.1s 44 warnings.warn(
+142.0s 45 ============================================================================
+142.0s 46 TÉLOS UNIFIED TRAINER  |  Paradigm: COROSRED (Unified Continuous)
+142.0s 47 Hardware Backend:     PYTORCH (xla)
+142.0s 48 Target Parameters:    74,647,680 (~75M)
+142.0s 49 Batch Config:         batch_size=48, grad_accum=1, devices=8 (effective=384 seqs / 196,608 tok)
+142.0s 50 Training Steps:       19,074 steps | LR: 3.79e-04 -> 3.79e-05 (warmup=381)
+142.0s 51 Checkpoint Dir:       checkpoints/corosred/unified/75m_python (every 4000 steps)
+142.0s 52 [Hardware] Launching multi-core PyTorch-XLA execution across 8 TPU cores via xmp.spawn...
+142.1s 53 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package '
+142.1s 54 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviou
+142.1s 55 telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+142.1s 56 
+142.1s 57 r
+142.1s 58 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package '
+142.1s 59 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviou
+142.1s 60 telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+142.1s 61 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package
+142.1s 62 r
+142.1s 63 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behavi
+142.1s 64 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+142.1s 65 
+142.1s 66 our
+142.1s 67 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package '
+142.1s 68 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviou
+142.1s 69 telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+142.1s 70 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package
+142.1s 71 r
+142.1s 72 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behavi
+142.1s 73 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+142.1s 74 
+142.1s 75 our
+142.1s 76 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package '
+142.1s 77 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviou
+142.1s 78 telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+142.1s 79 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package
+142.1s 80 r
+142.1s 81 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behavi
+142.1s 82 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+142.1s 83 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of packa
+142.1s 84 our
+142.1s 85 <frozen runpy>:128: RuntimeWarning: 'telos.train.cli' found in sys.modules after import of package 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable beha
+142.1s 86 ge 'telos.train', but prior to execution of 'telos.train.cli'; this may result in unpredictable behaviour
+142.1s 87 
+142.1s 88 viour
+144.7s 89 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can con
+144.7s 90 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pi
+144.7s 91 flict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such
+144.7s 92 p uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+144.7s 93 warnings.warn(
+144.7s 94 
+144.7s 95 as Colab or Kaggle, restart your notebook runtime afterwards.
+144.7s 96 warnings.warn(
+144.7s 97 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can con
+144.7s 98 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pi
+144.7s 99 flict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such
+144.7s 100 p uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+144.7s 101 warnings.warn(
+144.7s 102 
+144.7s 103 as Colab or Kaggle, restart your notebook runtime afterwards.
+144.7s 104 warnings.warn(
+144.7s 105 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can con
+144.7s 106 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pi
+144.7s 107 flict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such
+144.7s 108 p uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+144.7s 109 warnings.warn(
+144.7s 110 
+144.7s 111 as Colab or Kaggle, restart your notebook runtime afterwards.
+144.7s 112 warnings.warn(
+144.7s 113 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can con
+144.7s 114 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pi
+144.7s 115 flict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such
+144.7s 116 p uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+144.7s 117 warnings.warn(
+144.7s 118 
+144.7s 119 as Colab or Kaggle, restart your notebook runtime afterwards.
+144.7s 120 warnings.warn(
+144.7s 121 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can con
+144.7s 122 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pi
+144.7s 123 flict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such
+144.7s 124 p uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+144.7s 125 warnings.warn(
+144.7s 126 
+144.7s 127 as Colab or Kaggle, restart your notebook runtime afterwards.
+144.7s 128 warnings.warn(
+144.7s 129 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can con
+144.7s 130 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pi
+144.7s 131 flict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such
+144.7s 132 p uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+144.7s 133 warnings.warn(
+144.7s 134 
+144.7s 135 as Colab or Kaggle, restart your notebook runtime afterwards.
+144.7s 136 warnings.warn(
+144.7s 137 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can con
+144.7s 138 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pi
+144.7s 139 flict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such
+144.7s 140 p uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+144.7s 141 warnings.warn(
+144.7s 142 
+144.7s 143 as Colab or Kaggle, restart your notebook runtime afterwards.
+144.7s 144 warnings.warn(
+144.7s 145 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can con
+144.7s 146 /usr/local/lib/python3.12/site-packages/torch_xla/__init__.py:258: UserWarning: `tensorflow` can conflict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pi
+144.7s 147 flict with `torch-xla`. Prefer `tensorflow-cpu` when using PyTorch/XLA. To silence this warning, `pip uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such
+144.7s 148 p uninstall -y tensorflow && pip install tensorflow-cpu`. If you are in a notebook environment such as Colab or Kaggle, restart your notebook runtime afterwards.
+144.7s 149 warnings.warn(
+144.7s 150 
+144.7s 151 as Colab or Kaggle, restart your notebook runtime afterwards.
+144.7s 152 warnings.warn(
+280.9s 153 [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+280.9s 154 [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+280.9s 155 [COROSred Unified] Initialized continuous multi-objective loop: alpha=[0.85->0.50 floor], beta=[0.15->0.35], gamma_max=0.10, hold=20%, adaptive_rebalance=False.
+280.9s 156 Loading pre-tokenized dataset from data/python_corpus_5b.bin...
+280.9s 157 Checkpoint Directory: checkpoints/corosred/unified/75m_python (Paradigm: COROSRED)
+280.9s 158 [COROSRED-UNIFIED] Step      1/19074 | Loss: 8.4747 | C-CE: 9.120 | I-CE: 9.154 | α=0.85 β=0.15 γ=0.00 | Acc=0.55 AUC=0.48 |   0.0 st/s |     1,659 tok/s | ETA: 37677.8m
+420.1s 159 [COROSRED-UNIFIED] Step      2/19074 | Loss: 8.5236 | C-CE: 9.167 | I-CE: 9.167 | α=0.85 β=0.15 γ=0.00 | Acc=0.55 AUC=0.48 |   0.0 st/s |     1,648 tok/s | ETA: 37928.8m
+572.6s 160 [COROSRED-UNIFIED] Step      3/19074 | Loss: 8.4611 | C-CE: 9.104 | I-CE: 9.154 | α=0.85 β=0.15 γ=0.00 | Acc=0.55 AUC=0.48 |   0.0 st/s |     1,440 tok/s | ETA: 43383.9m
+573.1s 161 [COROSRED-UNIFIED] Step      4/19074 | Loss: 8.4494 | C-CE: 9.094 | I-CE: 9.159 | α=0.85 β=0.15 γ=0.00 | Acc=0.55 AUC=0.48 |   0.0 st/s |     1,916 tok/s | ETA: 32620.2m
+573.7s 162 [COROSRED-UNIFIED] Step      5/19074 | Loss: 8.4526 | C-CE: 9.098 | I-CE: 9.161 | α=0.85 β=0.15 γ=0.00 | Acc=0.55 AUC=0.48 |   0.0 st/s |     2,392 tok/s | ETA: 26127.0m
+575.3s 163 [COROSRED-UNIFIED] Step     10/19074 | Loss: 8.3511 | C-CE: 8.982 | I-CE: 9.107 | α=0.85 β=0.15 γ=0.00 | Acc=0.55 AUC=0.48 |   0.0 st/s |     4,764 tok/s | ETA: 13111.4m
+578.3s 164 [COROSRED-UNIFIED] Step     20/19074 | Loss: 8.0399 | C-CE: 8.656 | I-CE: 8.822 | α=0.85 β=0.15 γ=0.00 | Acc=0.55 AUC=0.48 |   0.0 st/s |     9,460 tok/s | ETA: 6599.9m
+579.9s 165 [COROSRED-UNIFIED] Step     25/19074 | Loss: 8.2703 | C-CE: 8.901 | I-CE: 8.503 | α=0.85 β=0.15 γ=0.00 | Acc=0.55 AUC=0.48 |   0.1 st/s |    11,773 tok/s | ETA: 5302.0m
+581.7s 166 [COROSRED-UNIFIED] Step     30/19074 | Loss: 7.5393 | C-CE: 8.109 | I-CE: 8.170 | α=0.85 β=0.15 γ=0.00 | Acc=0.55 AUC=0.48 |   0.1 st/s |    14,081 tok/s | ETA: 4431.8m
+584.9s 167 [COROSRED-UNIFIED] Step     40/19074 | Loss: 7.9522 | C-CE: 8.554 | I-CE: 8.509 | α=0.85 β=0.15 γ=0.00 | Acc=0.55 AUC=0.48 |   0.1 st/s |    18,631 tok/s | ETA: 3347.6m
+589.5s 168 [COROSRED-UNIFIED] Step     50/19074 | Loss: 7.0280 | C-CE: 7.561 | I-CE: 7.433 | α=0.85 β=0.15 γ=0.00 | Acc=0.54 AUC=0.48 |   0.1 st/s |    23,015 tok/s | ETA: 2708.6m
+597.4s 169 [COROSRED-UNIFIED] Step     75/19074 | Loss: 6.8079 | C-CE: 7.324 | I-CE: 7.127 | α=0.85 β=0.15 γ=0.00 | Acc=0.54 AUC=0.48 |   0.2 st/s |    33,893 tok/s | ETA: 1836.9m
+605.9s 170 [COROSRED-UNIFIED] Step    100/19074 | Loss: 6.2348 | C-CE: 6.709 | I-CE: 6.620 | α=0.85 β=0.15 γ=0.00 | Acc=0.54 AUC=0.48 |   0.2 st/s |    44,326 tok/s | ETA: 1402.6m
+613.9s 171 [COROSRED-UNIFIED] Step    125/19074 | Loss: 5.9105 | C-CE: 6.351 | I-CE: 6.689 | α=0.85 β=0.15 γ=0.00 | Acc=0.54 AUC=0.48 |   0.3 st/s |    54,427 tok/s | ETA: 1140.8m
+622.4s 172 [COROSRED-UNIFIED] Step    150/19074 | Loss: 5.8772 | C-CE: 6.314 | I-CE: 6.572 | α=0.85 β=0.15 γ=0.00 | Acc=0.54 AUC=0.48 |   0.3 st/s |    64,108 tok/s | ETA: 967.3m
+630.4s 173 [COROSRED-UNIFIED] Step    175/19074 | Loss: 5.7635 | C-CE: 6.194 | I-CE: 6.573 | α=0.85 β=0.15 γ=0.00 | Acc=0.54 AUC=0.48 |   0.4 st/s |    73,519 tok/s | ETA: 842.3m
+638.8s 174 [COROSRED-UNIFIED] Step    200/19074 | Loss: 5.2082 | C-CE: 5.587 | I-CE: 6.457 | α=0.85 β=0.15 γ=0.00 | Acc=0.54 AUC=0.48 |   0.4 st/s |    82,542 tok/s | ETA: 749.3m
+646.8s 175 [COROSRED-UNIFIED] Step    225/19074 | Loss: 5.3989 | C-CE: 5.798 | I-CE: 6.460 | α=0.85 β=0.15 γ=0.00 | Acc=0.54 AUC=0.48 |   0.5 st/s |    91,321 tok/s | ETA: 676.3m
+655.3s 176 [COROSRED-UNIFIED] Step    250/19074 | Loss: 5.9998 | C-CE: 6.438 | I-CE: 7.169 | α=0.85 β=0.15 γ=0.00 | Acc=0.54 AUC=0.48 |   0.5 st/s |    99,718 tok/s | ETA: 618.6m
+663.2s 177 [COROSRED-UNIFIED] Step    275/19074 | Loss: 5.2398 | C-CE: 5.623 | I-CE: 6.615 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.5 st/s |   107,954 tok/s | ETA: 570.6m
+671.6s 178 [COROSRED-UNIFIED] Step    300/19074 | Loss: 5.0420 | C-CE: 5.408 | I-CE: 6.152 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.6 st/s |   115,848 tok/s | ETA: 531.0m
+818.5s 179 [COROSRED-UNIFIED] Step    325/19074 | Loss: 5.0977 | C-CE: 5.474 | I-CE: 6.077 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.5 st/s |    97,394 tok/s | ETA: 630.8m
+967.8s 180 [COROSRED-UNIFIED] Step    350/19074 | Loss: 4.8661 | C-CE: 5.222 | I-CE: 5.863 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.4 st/s |    85,435 tok/s | ETA: 718.1m
+976.3s 181 [COROSRED-UNIFIED] Step    375/19074 | Loss: 4.4527 | C-CE: 4.767 | I-CE: 6.109 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.5 st/s |    90,579 tok/s | ETA: 676.5m
+984.8s 182 [COROSRED-UNIFIED] Step    400/19074 | Loss: 4.6683 | C-CE: 5.016 | I-CE: 5.718 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.5 st/s |    95,629 tok/s | ETA: 639.9m
+993.2s 183 [COROSRED-UNIFIED] Step    425/19074 | Loss: 4.6523 | C-CE: 4.992 | I-CE: 5.717 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.5 st/s |   100,577 tok/s | ETA: 607.6m
+1001.7s 184 [COROSRED-UNIFIED] Step    450/19074 | Loss: 4.4710 | C-CE: 4.804 | I-CE: 5.126 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.5 st/s |   105,411 tok/s | ETA: 578.9m
+1009.8s 185 [COROSRED-UNIFIED] Step    475/19074 | Loss: 5.0313 | C-CE: 5.406 | I-CE: 5.873 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.6 st/s |   110,200 tok/s | ETA: 553.0m
+1018.4s 186 [COROSRED-UNIFIED] Step    500/19074 | Loss: 5.1062 | C-CE: 5.487 | I-CE: 5.628 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.6 st/s |   114,839 tok/s | ETA: 530.0m
+1026.9s 187 [COROSRED-UNIFIED] Step    525/19074 | Loss: 4.5429 | C-CE: 4.869 | I-CE: 5.900 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.6 st/s |   119,395 tok/s | ETA: 509.1m
+1035.5s 188 [COROSRED-UNIFIED] Step    550/19074 | Loss: 4.8126 | C-CE: 5.183 | I-CE: 4.929 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.6 st/s |   123,852 tok/s | ETA: 490.1m
+1043.6s 189 [COROSRED-UNIFIED] Step    575/19074 | Loss: 4.1430 | C-CE: 4.448 | I-CE: 5.016 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.7 st/s |   128,291 tok/s | ETA: 472.5m
+1051.9s 190 [COROSRED-UNIFIED] Step    600/19074 | Loss: 3.9289 | C-CE: 4.208 | I-CE: 5.098 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.7 st/s |   132,612 tok/s | ETA: 456.5m
+1060.0s 191 [COROSRED-UNIFIED] Step    625/19074 | Loss: 4.1334 | C-CE: 4.439 | I-CE: 5.030 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.7 st/s |   136,891 tok/s | ETA: 441.6m
+1068.4s 192 [COROSRED-UNIFIED] Step    650/19074 | Loss: 4.5018 | C-CE: 4.837 | I-CE: 4.932 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.7 st/s |   141,059 tok/s | ETA: 428.0m
+1076.5s 193 [COROSRED-UNIFIED] Step    675/19074 | Loss: 3.7577 | C-CE: 4.026 | I-CE: 4.828 | α=0.85 β=0.15 γ=0.00 | Acc=0.53 AUC=0.48 |   0.7 st/s |   145,179 tok/s | ETA: 415.3m
+1084.8s 194 [COROSRED-UNIFIED] Step    700/19074 | Loss: 3.9550 | C-CE: 4.237 | I-CE: 5.201 | α=0.85 β=0.15 γ=0.00 | Acc=0.52 AUC=0.48 |   0.8 st/s |   149,192 tok/s | ETA: 403.6m
+1093.1s 195 [COROSRED-UNIFIED] Step    725/19074 | Loss: 4.3180 | C-CE: 4.644 | I-CE: 4.766 | α=0.85 β=0.15 γ=0.00 | Acc=0.52 AUC=0.48 |   0.8 st/s |   153,153 tok/s | ETA: 392.6m
+1101.4s 196 [COROSRED-UNIFIED] Step    750/19074 | Loss: 4.0161 | C-CE: 4.307 | I-CE: 5.003 | α=0.85 β=0.15 γ=0.00 | Acc=0.52 AUC=0.48 |   0.8 st/s |   157,024 tok/s | ETA: 382.4m
+1109.8s 197 [COROSRED-UNIFIED] Step    775/19074 | Loss: 3.8858 | C-CE: 4.173 | I-CE: 4.466 | α=0.85 β=0.15 γ=0.00 | Acc=0.52 AUC=0.48 |   0.8 st/s |   160,831 tok/s | ETA: 372.8m
+1118.5s 198 [COROSRED-UNIFIED] Step    800/19074 | Loss: 4.1352 | C-CE: 4.437 | I-CE: 4.873 | α=0.85 β=0.15 γ=0.00 | Acc=0.52 AUC=0.48 |   0.8 st/s |   164,509 tok/s | ETA: 364.0m
+1126.9s 199 [COROSRED-UNIFIED] Step    825/19074 | Loss: 5.7507 | C-CE: 6.207 | I-CE: 5.185 | α=0.85 β=0.15 γ=0.00 | Acc=0.52 AUC=0.48 |   0.9 st/s |   168,166 tok/s | ETA: 355.6m
+1135.5s 200 [COROSRED-UNIFIED] Step    850/19074 | Loss: 4.0649 | C-CE: 4.367 | I-CE: 4.775 | α=0.85 β=0.15 γ=0.00 | Acc=0.52 AUC=0.48 |   0.9 st/s |   171,742 tok/s | ETA: 347.7m
+1143.9s 201 [COROSRED-UNIFIED] Step    875/19074 | Loss: 4.4143 | C-CE: 4.741 | I-CE: 5.111 | α=0.85 β=0.15 γ=0.00 | Acc=0.52 AUC=0.48 |   0.9 st/s |   175,277 tok/s | ETA: 340.2m
+1152.4s 202 [COROSRED-UNIFIED] Step    900/19074 | Loss: 3.7149 | C-CE: 3.988 | I-CE: 4.608 | α=0.85 β=0.15 γ=0.00 | Acc=0.52 AUC=0.48 |   0.9 st/s |   178,738 tok/s | ETA: 333.2m
+1160.7s 203 [COROSRED-UNIFIED] Step    925/19074 | Loss: 3.7288 | C-CE: 4.002 | I-CE: 4.607 | α=0.85 β=0.15 γ=0.00 | Acc=0.52 AUC=0.48 |   0.9 st/s |   182,164 tok/s | ETA: 326.5m
+1169.2s 204 [COROSRED-UNIFIED] Step    950/19074 | Loss: 3.4738 | C-CE: 3.722 | I-CE: 4.665 | α=0.85 β=0.15 γ=0.00 | Acc=0.52 AUC=0.48 |   0.9 st/s |   185,510 tok/s | ETA: 320.1m
+1177.6s 205 [COROSRED-UNIFIED] Step    975/19074 | Loss: 4.2015 | C-CE: 4.523 | I-CE: 4.438 | α=0.85 β=0.15 γ=0.00 | Acc=0.52 AUC=0.48 |   1.0 st/s |   188,816 tok/s | ETA: 314.1m
+1186.1s 206 [COROSRED-UNIFIED] Step   1000/19074 | Loss: 4.0924 | C-CE: 4.396 | I-CE: 4.787 | α=0.85 β=0.15 γ=0.00 | Acc=0.52 AUC=0.48 |   1.0 st/s |   192,052 tok/s | ETA: 308.4m
+1194.5s 207 [COROSRED-UNIFIED] Step   1025/19074 | Loss: 3.6398 | C-CE: 3.900 | I-CE: 4.767 | α=0.85 β=0.15 γ=0.00 | Acc=0.52 AUC=0.48 |   1.0 st/s |   195,252 tok/s | ETA: 302.9m
+1203.0s 208 [COROSRED-UNIFIED] Step   1050/19074 | Loss: 4.0844 | C-CE: 4.389 | I-CE: 4.588 | α=0.85 β=0.15 γ=0.00 | Acc=0.52 AUC=0.48 |   1.0 st/s |   198,372 tok/s | ETA: 297.7m
+1211.5s 209 [COROSRED-UNIFIED] Step   1075/19074 | Loss: 3.7222 | C-CE: 4.004 | I-CE: 4.107 | α=0.85 β=0.15 γ=0.00 | Acc=0.52 AUC=0.48 |   1.0 st/s |   201,462 tok/s | ETA: 292.8m
+1220.0s 210 [COROSRED-UNIFIED] Step   1100/19074 | Loss: 4.5614 | C-CE: 4.888 | I-CE: 5.844 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.0 st/s |   204,481 tok/s | ETA: 288.0m
+1228.5s 211 [COROSRED-UNIFIED] Step   1125/19074 | Loss: 3.7356 | C-CE: 4.021 | I-CE: 4.007 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.1 st/s |   207,468 tok/s | ETA: 283.5m
+1237.0s 212 [COROSRED-UNIFIED] Step   1150/19074 | Loss: 3.5720 | C-CE: 3.834 | I-CE: 4.444 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.1 st/s |   210,403 tok/s | ETA: 279.1m
+1245.3s 213 [COROSRED-UNIFIED] Step   1175/19074 | Loss: 3.5963 | C-CE: 3.855 | I-CE: 4.740 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.1 st/s |   213,315 tok/s | ETA: 275.0m
+1253.9s 214 [COROSRED-UNIFIED] Step   1200/19074 | Loss: 3.8132 | C-CE: 4.097 | I-CE: 4.495 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.1 st/s |   216,143 tok/s | ETA: 271.0m
+1262.5s 215 [COROSRED-UNIFIED] Step   1225/19074 | Loss: 3.7084 | C-CE: 3.983 | I-CE: 4.235 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.1 st/s |   218,927 tok/s | ETA: 267.2m
+1271.2s 216 [COROSRED-UNIFIED] Step   1250/19074 | Loss: 3.7356 | C-CE: 4.023 | I-CE: 3.871 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.1 st/s |   221,634 tok/s | ETA: 263.5m
+1279.8s 217 [COROSRED-UNIFIED] Step   1275/19074 | Loss: 4.1060 | C-CE: 4.418 | I-CE: 4.459 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.1 st/s |   224,342 tok/s | ETA: 260.0m
+1288.5s 218 [COROSRED-UNIFIED] Step   1300/19074 | Loss: 3.3349 | C-CE: 3.577 | I-CE: 4.244 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.2 st/s |   226,972 tok/s | ETA: 256.6m
+1297.2s 219 [COROSRED-UNIFIED] Step   1325/19074 | Loss: 3.6490 | C-CE: 3.920 | I-CE: 4.328 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.2 st/s |   229,560 tok/s | ETA: 253.4m
+1306.0s 220 [COROSRED-UNIFIED] Step   1350/19074 | Loss: 3.8273 | C-CE: 4.120 | I-CE: 4.081 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.2 st/s |   232,095 tok/s | ETA: 250.2m
+1314.6s 221 [COROSRED-UNIFIED] Step   1375/19074 | Loss: 3.2575 | C-CE: 3.492 | I-CE: 4.171 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.2 st/s |   234,629 tok/s | ETA: 247.2m
+1323.4s 222 [COROSRED-UNIFIED] Step   1400/19074 | Loss: 3.7590 | C-CE: 4.034 | I-CE: 4.524 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.2 st/s |   237,081 tok/s | ETA: 244.3m
+1331.8s 223 [COROSRED-UNIFIED] Step   1425/19074 | Loss: 3.1397 | C-CE: 3.363 | I-CE: 4.299 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.2 st/s |   239,586 tok/s | ETA: 241.4m
+1340.4s 224 [COROSRED-UNIFIED] Step   1450/19074 | Loss: 3.3976 | C-CE: 3.646 | I-CE: 4.172 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.2 st/s |   241,995 tok/s | ETA: 238.6m
+1348.9s 225 [COROSRED-UNIFIED] Step   1475/19074 | Loss: 3.5552 | C-CE: 3.820 | I-CE: 3.990 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.2 st/s |   244,417 tok/s | ETA: 235.9m
+1357.5s 226 [COROSRED-UNIFIED] Step   1500/19074 | Loss: 3.1845 | C-CE: 3.419 | I-CE: 3.893 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.3 st/s |   246,765 tok/s | ETA: 233.4m
+1365.4s 227 [COROSRED-UNIFIED] Step   1525/19074 | Loss: 3.5890 | C-CE: 3.862 | I-CE: 3.784 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.3 st/s |   249,223 tok/s | ETA: 230.7m
+1373.7s 228 [COROSRED-UNIFIED] Step   1550/19074 | Loss: 3.4080 | C-CE: 3.657 | I-CE: 4.219 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.3 st/s |   251,571 tok/s | ETA: 228.3m
+1381.6s 229 [COROSRED-UNIFIED] Step   1575/19074 | Loss: 3.2100 | C-CE: 3.439 | I-CE: 4.171 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.3 st/s |   253,980 tok/s | ETA: 225.8m
+1389.7s 230 [COROSRED-UNIFIED] Step   1600/19074 | Loss: 3.1471 | C-CE: 3.371 | I-CE: 4.167 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.3 st/s |   256,303 tok/s | ETA: 223.4m
+1398.1s 231 [COROSRED-UNIFIED] Step   1625/19074 | Loss: 3.0711 | C-CE: 3.293 | I-CE: 3.884 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.3 st/s |   258,544 tok/s | ETA: 221.1m
+1406.8s 232 [COROSRED-UNIFIED] Step   1650/19074 | Loss: 3.2294 | C-CE: 3.467 | I-CE: 4.026 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.3 st/s |   260,689 tok/s | ETA: 219.0m
+1415.2s 233 [COROSRED-UNIFIED] Step   1675/19074 | Loss: 3.0948 | C-CE: 3.309 | I-CE: 4.383 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.3 st/s |   262,865 tok/s | ETA: 216.9m
+1423.8s 234 [COROSRED-UNIFIED] Step   1700/19074 | Loss: 2.8658 | C-CE: 3.069 | I-CE: 3.857 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.3 st/s |   264,968 tok/s | ETA: 214.9m
+1432.1s 235 [COROSRED-UNIFIED] Step   1725/19074 | Loss: 2.8395 | C-CE: 3.042 | I-CE: 3.794 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.4 st/s |   267,096 tok/s | ETA: 212.8m
+1440.7s 236 [COROSRED-UNIFIED] Step   1750/19074 | Loss: 3.3152 | C-CE: 3.571 | I-CE: 3.322 | α=0.85 β=0.15 γ=0.00 | Acc=0.51 AUC=0.48 |   1.4 st/s |   269,150 tok/s | ETA: 210.9m
+1449.1s 237 [COROSRED-UNIFIED] Step   1775/19074 | Loss: 2.9298 | C-CE: 3.137 | I-CE: 4.056 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.4 st/s |   271,225 tok/s | ETA: 209.0m
+1457.6s 238 [COROSRED-UNIFIED] Step   1800/19074 | Loss: 3.2119 | C-CE: 3.449 | I-CE: 3.855 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.4 st/s |   273,234 tok/s | ETA: 207.2m
+1466.0s 239 [COROSRED-UNIFIED] Step   1825/19074 | Loss: 3.0637 | C-CE: 3.283 | I-CE: 3.994 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.4 st/s |   275,244 tok/s | ETA: 205.4m
+1474.7s 240 [COROSRED-UNIFIED] Step   1850/19074 | Loss: 2.4632 | C-CE: 2.642 | I-CE: 3.106 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.4 st/s |   277,167 tok/s | ETA: 203.6m
+1483.2s 241 [COROSRED-UNIFIED] Step   1875/19074 | Loss: 2.5156 | C-CE: 2.696 | I-CE: 3.411 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.4 st/s |   279,094 tok/s | ETA: 201.9m
+1492.0s 242 [COROSRED-UNIFIED] Step   1900/19074 | Loss: 2.5103 | C-CE: 2.685 | I-CE: 3.525 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.4 st/s |   280,952 tok/s | ETA: 200.3m
+1500.7s 243 [COROSRED-UNIFIED] Step   1925/19074 | Loss: 3.1488 | C-CE: 3.383 | I-CE: 3.574 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.4 st/s |   282,793 tok/s | ETA: 198.7m
+1509.7s 244 [COROSRED-UNIFIED] Step   1950/19074 | Loss: 2.8293 | C-CE: 3.034 | I-CE: 3.647 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.4 st/s |   284,563 tok/s | ETA: 197.2m
+1518.3s 245 [COROSRED-UNIFIED] Step   1975/19074 | Loss: 2.7443 | C-CE: 2.946 | I-CE: 3.258 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.5 st/s |   286,365 tok/s | ETA: 195.7m
+1527.4s 246 [COROSRED-UNIFIED] Step   2000/19074 | Loss: 2.8013 | C-CE: 3.002 | I-CE: 3.656 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.5 st/s |   288,076 tok/s | ETA: 194.2m
+1535.9s 247 [COROSRED-UNIFIED] Step   2025/19074 | Loss: 2.6912 | C-CE: 2.895 | I-CE: 2.980 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.5 st/s |   289,858 tok/s | ETA: 192.7m
+1544.8s 248 [COROSRED-UNIFIED] Step   2050/19074 | Loss: 1.9634 | C-CE: 2.092 | I-CE: 3.119 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.5 st/s |   291,563 tok/s | ETA: 191.3m
+1553.3s 249 [COROSRED-UNIFIED] Step   2075/19074 | Loss: 2.9274 | C-CE: 3.138 | I-CE: 3.689 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.5 st/s |   293,296 tok/s | ETA: 189.9m
+1562.2s 250 [COROSRED-UNIFIED] Step   2100/19074 | Loss: 2.7602 | C-CE: 2.974 | I-CE: 2.794 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.5 st/s |   294,948 tok/s | ETA: 188.6m
+1570.7s 251 [COROSRED-UNIFIED] Step   2125/19074 | Loss: 2.0487 | C-CE: 2.199 | I-CE: 2.469 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.5 st/s |   296,662 tok/s | ETA: 187.2m
+1579.5s 252 [COROSRED-UNIFIED] Step   2150/19074 | Loss: 2.6664 | C-CE: 2.862 | I-CE: 3.255 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.5 st/s |   298,284 tok/s | ETA: 185.9m
+1587.9s 253 [COROSRED-UNIFIED] Step   2175/19074 | Loss: 2.5045 | C-CE: 2.691 | I-CE: 2.793 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.5 st/s |   299,968 tok/s | ETA: 184.6m
+1596.7s 254 [COROSRED-UNIFIED] Step   2200/19074 | Loss: 2.9114 | C-CE: 3.126 | I-CE: 3.423 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.5 st/s |   301,556 tok/s | ETA: 183.4m
+1605.2s 255 [COROSRED-UNIFIED] Step   2225/19074 | Loss: 1.9765 | C-CE: 2.114 | I-CE: 2.629 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.5 st/s |   303,184 tok/s | ETA: 182.1m
+1614.1s 256 [COROSRED-UNIFIED] Step   2250/19074 | Loss: 2.7542 | C-CE: 2.965 | I-CE: 2.973 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.5 st/s |   304,713 tok/s | ETA: 180.9m
+1622.7s 257 [COROSRED-UNIFIED] Step   2275/19074 | Loss: 2.6889 | C-CE: 2.875 | I-CE: 3.666 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.6 st/s |   306,291 tok/s | ETA: 179.7m
+1631.5s 258 [COROSRED-UNIFIED] Step   2300/19074 | Loss: 2.6484 | C-CE: 2.840 | I-CE: 3.423 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.6 st/s |   307,799 tok/s | ETA: 178.6m
+1640.2s 259 [COROSRED-UNIFIED] Step   2325/19074 | Loss: 3.0785 | C-CE: 3.308 | I-CE: 3.557 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.6 st/s |   309,313 tok/s | ETA: 177.4m
+1649.2s 260 [COROSRED-UNIFIED] Step   2350/19074 | Loss: 2.6097 | C-CE: 2.793 | I-CE: 3.590 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.6 st/s |   310,742 tok/s | ETA: 176.4m
+1658.0s 261 [COROSRED-UNIFIED] Step   2375/19074 | Loss: 2.6172 | C-CE: 2.803 | I-CE: 3.602 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.6 st/s |   312,205 tok/s | ETA: 175.3m
+1666.7s 262 [COROSRED-UNIFIED] Step   2400/19074 | Loss: 3.0167 | C-CE: 3.226 | I-CE: 4.303 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.6 st/s |   313,677 tok/s | ETA: 174.2m
+1674.9s 263 [COROSRED-UNIFIED] Step   2425/19074 | Loss: 2.8418 | C-CE: 3.062 | I-CE: 2.981 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.6 st/s |   315,220 tok/s | ETA: 173.1m
+1683.3s 264 [COROSRED-UNIFIED] Step   2450/19074 | Loss: 2.7746 | C-CE: 2.980 | I-CE: 3.431 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.6 st/s |   316,703 tok/s | ETA: 172.0m
+1691.6s 265 [COROSRED-UNIFIED] Step   2475/19074 | Loss: 3.0391 | C-CE: 3.254 | I-CE: 3.846 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.6 st/s |   318,195 tok/s | ETA: 170.9m
+1700.0s 266 [COROSRED-UNIFIED] Step   2500/19074 | Loss: 2.2543 | C-CE: 2.404 | I-CE: 3.586 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.6 st/s |   319,653 tok/s | ETA: 169.9m
+1708.2s 267 [COROSRED-UNIFIED] Step   2525/19074 | Loss: 2.5631 | C-CE: 2.745 | I-CE: 3.457 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.6 st/s |   321,142 tok/s | ETA: 168.9m
+1716.6s 268 [COROSRED-UNIFIED] Step   2550/19074 | Loss: 2.7058 | C-CE: 2.914 | I-CE: 2.771 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.6 st/s |   322,576 tok/s | ETA: 167.9m
+1725.0s 269 [COROSRED-UNIFIED] Step   2575/19074 | Loss: 2.5042 | C-CE: 2.661 | I-CE: 4.496 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.6 st/s |   323,974 tok/s | ETA: 166.9m
+1733.9s 270 [COROSRED-UNIFIED] Step   2600/19074 | Loss: 2.2255 | C-CE: 2.384 | I-CE: 2.930 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.7 st/s |   325,270 tok/s | ETA: 166.0m
+1742.6s 271 [COROSRED-UNIFIED] Step   2625/19074 | Loss: 4.0821 | C-CE: 4.411 | I-CE: 3.323 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.7 st/s |   326,591 tok/s | ETA: 165.0m
+1751.4s 272 [COROSRED-UNIFIED] Step   2650/19074 | Loss: 2.7273 | C-CE: 2.925 | I-CE: 3.304 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.7 st/s |   327,879 tok/s | ETA: 164.1m
+1760.0s 273 [COROSRED-UNIFIED] Step   2675/19074 | Loss: 2.8595 | C-CE: 3.067 | I-CE: 3.563 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.7 st/s |   329,190 tok/s | ETA: 163.2m
+1768.8s 274 [COROSRED-UNIFIED] Step   2700/19074 | Loss: 2.7377 | C-CE: 2.943 | I-CE: 3.137 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.7 st/s |   330,457 tok/s | ETA: 162.4m
+1777.2s 275 [COROSRED-UNIFIED] Step   2725/19074 | Loss: 2.1254 | C-CE: 2.277 | I-CE: 2.845 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.7 st/s |   331,764 tok/s | ETA: 161.5m
+1785.9s 276 [COROSRED-UNIFIED] Step   2750/19074 | Loss: 2.5818 | C-CE: 2.773 | I-CE: 3.118 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.7 st/s |   333,023 tok/s | ETA: 160.6m
+1794.4s 277 [COROSRED-UNIFIED] Step   2775/19074 | Loss: 1.9886 | C-CE: 2.128 | I-CE: 2.724 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.7 st/s |   334,302 tok/s | ETA: 159.8m
+1803.1s 278 [COROSRED-UNIFIED] Step   2800/19074 | Loss: 2.4485 | C-CE: 2.626 | I-CE: 3.126 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.7 st/s |   335,524 tok/s | ETA: 158.9m
+1811.5s 279 [COROSRED-UNIFIED] Step   2825/19074 | Loss: 2.3559 | C-CE: 2.530 | I-CE: 2.795 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.7 st/s |   336,786 tok/s | ETA: 158.1m
+1820.2s 280 [COROSRED-UNIFIED] Step   2850/19074 | Loss: 2.3301 | C-CE: 2.497 | I-CE: 3.071 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.7 st/s |   337,991 tok/s | ETA: 157.3m
+1828.9s 281 [COROSRED-UNIFIED] Step   2875/19074 | Loss: 2.0625 | C-CE: 2.216 | I-CE: 2.500 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.7 st/s |   339,186 tok/s | ETA: 156.5m
+1837.6s 282 [COROSRED-UNIFIED] Step   2900/19074 | Loss: 2.1522 | C-CE: 2.293 | I-CE: 3.466 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.7 st/s |   340,350 tok/s | ETA: 155.7m
+1846.1s 283 [COROSRED-UNIFIED] Step   2925/19074 | Loss: 2.4501 | C-CE: 2.624 | I-CE: 3.207 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.7 st/s |   341,557 tok/s | ETA: 154.9m
+1854.8s 284 [COROSRED-UNIFIED] Step   2950/19074 | Loss: 2.6675 | C-CE: 2.861 | I-CE: 3.387 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.7 st/s |   342,696 tok/s | ETA: 154.2m
+1863.3s 285 [COROSRED-UNIFIED] Step   2975/19074 | Loss: 2.3575 | C-CE: 2.523 | I-CE: 3.154 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.7 st/s |   343,875 tok/s | ETA: 153.4m
+1872.0s 286 [COROSRED-UNIFIED] Step   3000/19074 | Loss: 2.3893 | C-CE: 2.561 | I-CE: 2.946 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   345,009 tok/s | ETA: 152.7m
+1880.0s 287 [COROSRED-UNIFIED] Step   3025/19074 | Loss: 2.6074 | C-CE: 2.808 | I-CE: 2.695 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   346,248 tok/s | ETA: 151.9m
+1888.4s 288 [COROSRED-UNIFIED] Step   3050/19074 | Loss: 2.2076 | C-CE: 2.379 | I-CE: 2.211 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   347,424 tok/s | ETA: 151.1m
+1896.6s 289 [COROSRED-UNIFIED] Step   3075/19074 | Loss: 0.6784 | C-CE: 0.718 | I-CE: 1.334 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   348,618 tok/s | ETA: 150.4m
+1904.9s 290 [COROSRED-UNIFIED] Step   3100/19074 | Loss: 2.1677 | C-CE: 2.321 | I-CE: 2.853 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   349,765 tok/s | ETA: 149.7m
+1913.0s 291 [COROSRED-UNIFIED] Step   3125/19074 | Loss: 0.7241 | C-CE: 0.765 | I-CE: 1.501 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   350,961 tok/s | ETA: 148.9m
+1921.3s 292 [COROSRED-UNIFIED] Step   3150/19074 | Loss: 2.4506 | C-CE: 2.623 | I-CE: 3.380 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   352,101 tok/s | ETA: 148.2m
+1929.4s 293 [COROSRED-UNIFIED] Step   3175/19074 | Loss: 2.7712 | C-CE: 2.980 | I-CE: 3.140 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   353,270 tok/s | ETA: 147.5m
+1937.7s 294 [COROSRED-UNIFIED] Step   3200/19074 | Loss: 2.1509 | C-CE: 2.304 | I-CE: 2.820 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   354,382 tok/s | ETA: 146.8m
+1945.8s 295 [COROSRED-UNIFIED] Step   3225/19074 | Loss: 2.3356 | C-CE: 2.520 | I-CE: 2.143 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   355,533 tok/s | ETA: 146.1m
+1954.1s 296 [COROSRED-UNIFIED] Step   3250/19074 | Loss: 2.6386 | C-CE: 2.842 | I-CE: 2.812 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   356,625 tok/s | ETA: 145.4m
+1962.4s 297 [COROSRED-UNIFIED] Step   3275/19074 | Loss: 2.4115 | C-CE: 2.585 | I-CE: 3.015 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   357,717 tok/s | ETA: 144.7m
+1970.9s 298 [COROSRED-UNIFIED] Step   3300/19074 | Loss: 2.3710 | C-CE: 2.558 | I-CE: 2.125 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   358,745 tok/s | ETA: 144.1m
+1979.2s 299 [COROSRED-UNIFIED] Step   3325/19074 | Loss: 2.3958 | C-CE: 2.583 | I-CE: 2.296 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   359,818 tok/s | ETA: 143.4m
+1987.6s 300 [COROSRED-UNIFIED] Step   3350/19074 | Loss: 2.7244 | C-CE: 2.934 | I-CE: 2.883 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   360,860 tok/s | ETA: 142.8m
+1995.6s 301 [COROSRED-UNIFIED] Step   3375/19074 | Loss: 2.2625 | C-CE: 2.434 | I-CE: 2.554 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   361,954 tok/s | ETA: 142.1m
+2004.2s 302 [COROSRED-UNIFIED] Step   3400/19074 | Loss: 2.8334 | C-CE: 3.047 | I-CE: 3.119 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.8 st/s |   362,934 tok/s | ETA: 141.5m
+2012.5s 303 [COROSRED-UNIFIED] Step   3425/19074 | Loss: 2.5379 | C-CE: 2.729 | I-CE: 2.729 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.48 |   1.9 st/s |   363,969 tok/s | ETA: 140.9m
+2021.0s 304 [COROSRED-UNIFIED] Step   3450/19074 | Loss: 2.2837 | C-CE: 2.455 | I-CE: 2.593 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   364,945 tok/s | ETA: 140.3m
+2029.3s 305 [COROSRED-UNIFIED] Step   3475/19074 | Loss: 2.4708 | C-CE: 2.647 | I-CE: 3.246 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   365,957 tok/s | ETA: 139.7m
+2037.9s 306 [COROSRED-UNIFIED] Step   3500/19074 | Loss: 2.0230 | C-CE: 2.172 | I-CE: 2.410 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   366,900 tok/s | ETA: 139.1m
+2046.2s 307 [COROSRED-UNIFIED] Step   3525/19074 | Loss: 2.0621 | C-CE: 2.214 | I-CE: 2.521 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   367,900 tok/s | ETA: 138.5m
+2054.7s 308 [COROSRED-UNIFIED] Step   3550/19074 | Loss: 2.3247 | C-CE: 2.499 | I-CE: 2.607 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   368,836 tok/s | ETA: 137.9m
+2063.0s 309 [COROSRED-UNIFIED] Step   3575/19074 | Loss: 2.4853 | C-CE: 2.670 | I-CE: 2.871 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   369,821 tok/s | ETA: 137.3m
+2071.5s 310 [COROSRED-UNIFIED] Step   3600/19074 | Loss: 1.7251 | C-CE: 1.849 | I-CE: 2.189 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   370,746 tok/s | ETA: 136.8m
+2080.1s 311 [COROSRED-UNIFIED] Step   3625/19074 | Loss: 2.5019 | C-CE: 2.693 | I-CE: 2.587 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   371,645 tok/s | ETA: 136.2m
+2088.7s 312 [COROSRED-UNIFIED] Step   3650/19074 | Loss: 2.4529 | C-CE: 2.647 | I-CE: 2.322 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   372,529 tok/s | ETA: 135.7m
+2097.2s 313 [COROSRED-UNIFIED] Step   3675/19074 | Loss: 2.5920 | C-CE: 2.785 | I-CE: 3.038 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   373,432 tok/s | ETA: 135.1m
+2105.8s 314 [COROSRED-UNIFIED] Step   3700/19074 | Loss: 2.3675 | C-CE: 2.548 | I-CE: 2.499 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   374,315 tok/s | ETA: 134.6m
+2114.1s 315 [COROSRED-UNIFIED] Step   3725/19074 | Loss: 2.3265 | C-CE: 2.495 | I-CE: 2.965 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   375,236 tok/s | ETA: 134.0m
+2122.7s 316 [COROSRED-UNIFIED] Step   3750/19074 | Loss: 2.4773 | C-CE: 2.656 | I-CE: 3.153 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   376,098 tok/s | ETA: 133.5m
+2131.1s 317 [COROSRED-UNIFIED] Step   3775/19074 | Loss: 2.3599 | C-CE: 2.536 | I-CE: 2.638 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   377,001 tok/s | ETA: 133.0m
+2139.6s 318 [COROSRED-UNIFIED] Step   3800/19074 | Loss: 1.9901 | C-CE: 2.124 | I-CE: 2.974 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   377,860 tok/s | ETA: 132.5m
+2147.8s 319 [COROSRED-UNIFIED] Step   3825/19074 | Loss: 2.1063 | C-CE: 2.251 | I-CE: 2.996 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   378,780 tok/s | ETA: 131.9m
+2156.3s 320 [COROSRED-UNIFIED] Step   3850/19074 | Loss: 1.8342 | C-CE: 1.961 | I-CE: 2.653 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   379,618 tok/s | ETA: 131.4m
+2164.6s 321 [COROSRED-UNIFIED] Step   3875/19074 | Loss: 2.1768 | C-CE: 2.347 | I-CE: 2.154 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   380,510 tok/s | ETA: 130.9m
+2173.2s 322 [COROSRED-UNIFIED] Step   3900/19074 | Loss: 2.0895 | C-CE: 2.238 | I-CE: 2.771 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   381,318 tok/s | ETA: 130.4m
+2181.6s 323 [COROSRED-UNIFIED] Step   3925/19074 | Loss: 2.5662 | C-CE: 2.754 | I-CE: 3.078 | α=0.85 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   382,173 tok/s | ETA: 129.9m
+2190.3s 324 [COROSRED-UNIFIED] Step   3950/19074 | Loss: 2.5910 | C-CE: 2.776 | I-CE: 3.515 | α=0.84 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   1.9 st/s |   382,967 tok/s | ETA: 129.4m
+2198.6s 325 [COROSRED-UNIFIED] Step   3975/19074 | Loss: 2.0894 | C-CE: 2.241 | I-CE: 2.695 | α=0.84 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   2.0 st/s |   383,811 tok/s | ETA: 128.9m
+2207.5s 326 [COROSRED-UNIFIED] Step   4000/19074 | Loss: 1.7362 | C-CE: 1.850 | I-CE: 2.922 | α=0.84 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   2.0 st/s |   384,548 tok/s | ETA: 128.4m
+2207.5s 327 
+2207.5s 328 [Checkpoint Step   4000] Saving checkpoint weights to checkpoints/corosred/unified/75m_python/checkpoint_step_4000.pt...
+2208.1s 329 [Checkpoint Verified] Successfully saved checkpoints/corosred/unified/75m_python/checkpoint_step_4000.pt (321.3 MB)
+2208.1s 330 [Checkpoint Step   4000] Successfully saved weights to checkpoints/corosred/unified/75m_python/checkpoint_step_4000.pt
+2208.1s 331 
+2216.8s 332 [COROSRED-UNIFIED] Step   4025/19074 | Loss: 1.9895 | C-CE: 2.136 | I-CE: 2.456 | α=0.84 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   2.0 st/s |   385,196 tok/s | ETA: 128.0m
+2225.6s 333 [COROSRED-UNIFIED] Step   4050/19074 | Loss: 2.0293 | C-CE: 2.173 | I-CE: 2.893 | α=0.84 β=0.15 γ=0.00 | Acc=0.50 AUC=0.49 |   2.0 st/s |   385,933 tok/s | ETA: 127.6m
+2234.1s 334 [COROSRED-UNIFIED] Step   4075/19074 | Loss: 2.2900 | C-CE: 2.463 | I-CE: 2.728 | α=0.84 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   386,726 tok/s | ETA: 127.1m
+2242.6s 335 [COROSRED-UNIFIED] Step   4100/19074 | Loss: 2.4169 | C-CE: 2.609 | I-CE: 2.357 | α=0.84 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   387,507 tok/s | ETA: 126.6m
+2250.8s 336 [COROSRED-UNIFIED] Step   4125/19074 | Loss: 1.9168 | C-CE: 2.061 | I-CE: 2.242 | α=0.83 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   388,329 tok/s | ETA: 126.1m
+2259.2s 337 [COROSRED-UNIFIED] Step   4150/19074 | Loss: 2.5705 | C-CE: 2.751 | I-CE: 3.550 | α=0.83 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   389,122 tok/s | ETA: 125.7m
+2267.6s 338 [COROSRED-UNIFIED] Step   4175/19074 | Loss: 2.4802 | C-CE: 2.672 | I-CE: 2.742 | α=0.83 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   389,911 tok/s | ETA: 125.2m
+2276.2s 339 [COROSRED-UNIFIED] Step   4200/19074 | Loss: 1.7251 | C-CE: 1.840 | I-CE: 2.777 | α=0.83 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   390,648 tok/s | ETA: 124.8m
+2284.4s 340 [COROSRED-UNIFIED] Step   4225/19074 | Loss: 2.2914 | C-CE: 2.463 | I-CE: 2.834 | α=0.83 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   391,457 tok/s | ETA: 124.3m
+2292.9s 341 [COROSRED-UNIFIED] Step   4250/19074 | Loss: 1.9065 | C-CE: 2.052 | I-CE: 2.176 | α=0.83 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   392,195 tok/s | ETA: 123.9m
+2301.1s 342 [COROSRED-UNIFIED] Step   4275/19074 | Loss: 1.7541 | C-CE: 1.869 | I-CE: 3.029 | α=0.83 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   392,993 tok/s | ETA: 123.4m
+2309.4s 343 [COROSRED-UNIFIED] Step   4300/19074 | Loss: 2.5609 | C-CE: 2.768 | I-CE: 2.409 | α=0.82 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   393,759 tok/s | ETA: 122.9m
+2317.6s 344 [COROSRED-UNIFIED] Step   4325/19074 | Loss: 2.3043 | C-CE: 2.489 | I-CE: 2.329 | α=0.82 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   394,552 tok/s | ETA: 122.5m
+2325.9s 345 [COROSRED-UNIFIED] Step   4350/19074 | Loss: 2.0335 | C-CE: 2.187 | I-CE: 2.563 | α=0.82 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   395,301 tok/s | ETA: 122.1m
+2334.1s 346 [COROSRED-UNIFIED] Step   4375/19074 | Loss: 2.2946 | C-CE: 2.474 | I-CE: 2.398 | α=0.82 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   396,074 tok/s | ETA: 121.6m
+2342.5s 347 [COROSRED-UNIFIED] Step   4400/19074 | Loss: 1.9687 | C-CE: 2.113 | I-CE: 2.714 | α=0.82 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   396,805 tok/s | ETA: 121.2m
+2350.6s 348 [COROSRED-UNIFIED] Step   4425/19074 | Loss: 1.9550 | C-CE: 2.089 | I-CE: 3.142 | α=0.82 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   397,582 tok/s | ETA: 120.7m
+2359.0s 349 [COROSRED-UNIFIED] Step   4450/19074 | Loss: 2.3635 | C-CE: 2.577 | I-CE: 1.239 | α=0.82 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   398,307 tok/s | ETA: 120.3m
+2367.0s 350 [COROSRED-UNIFIED] Step   4475/19074 | Loss: 2.4254 | C-CE: 2.611 | I-CE: 2.941 | α=0.81 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   399,072 tok/s | ETA: 119.9m
+2375.5s 351 [COROSRED-UNIFIED] Step   4500/19074 | Loss: 2.1075 | C-CE: 2.270 | I-CE: 2.453 | α=0.81 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   399,764 tok/s | ETA: 119.5m
+2383.7s 352 [COROSRED-UNIFIED] Step   4525/19074 | Loss: 2.3012 | C-CE: 2.478 | I-CE: 2.748 | α=0.81 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   400,511 tok/s | ETA: 119.0m
+2392.0s 353 [COROSRED-UNIFIED] Step   4550/19074 | Loss: 2.4327 | C-CE: 2.633 | I-CE: 2.358 | α=0.81 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   401,214 tok/s | ETA: 118.6m
+2400.2s 354 [COROSRED-UNIFIED] Step   4575/19074 | Loss: 1.8997 | C-CE: 2.048 | I-CE: 2.202 | α=0.81 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   401,946 tok/s | ETA: 118.2m
+2408.6s 355 [COROSRED-UNIFIED] Step   4600/19074 | Loss: 1.9949 | C-CE: 2.148 | I-CE: 2.511 | α=0.81 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.0 st/s |   402,627 tok/s | ETA: 117.8m
+2416.8s 356 [COROSRED-UNIFIED] Step   4625/19074 | Loss: 1.8999 | C-CE: 2.037 | I-CE: 2.691 | α=0.81 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   403,345 tok/s | ETA: 117.4m
+2425.2s 357 [COROSRED-UNIFIED] Step   4650/19074 | Loss: 1.8231 | C-CE: 1.959 | I-CE: 2.424 | α=0.81 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   404,026 tok/s | ETA: 117.0m
+2433.3s 358 [COROSRED-UNIFIED] Step   4675/19074 | Loss: 2.3140 | C-CE: 2.505 | I-CE: 2.263 | α=0.80 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   404,740 tok/s | ETA: 116.6m
+2441.7s 359 [COROSRED-UNIFIED] Step   4700/19074 | Loss: 2.1224 | C-CE: 2.292 | I-CE: 2.367 | α=0.80 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   405,412 tok/s | ETA: 116.2m
+2449.8s 360 [COROSRED-UNIFIED] Step   4725/19074 | Loss: 2.1606 | C-CE: 2.330 | I-CE: 2.508 | α=0.80 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   406,122 tok/s | ETA: 115.8m
+2458.2s 361 [COROSRED-UNIFIED] Step   4750/19074 | Loss: 2.2728 | C-CE: 2.455 | I-CE: 2.450 | α=0.80 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   406,787 tok/s | ETA: 115.4m
+2466.2s 362 [COROSRED-UNIFIED] Step   4775/19074 | Loss: 2.5784 | C-CE: 2.778 | I-CE: 3.118 | α=0.80 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   407,492 tok/s | ETA: 115.0m
+2474.5s 363 [COROSRED-UNIFIED] Step   4800/19074 | Loss: 2.2676 | C-CE: 2.448 | I-CE: 2.653 | α=0.80 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   408,158 tok/s | ETA: 114.6m
+2482.5s 364 [COROSRED-UNIFIED] Step   4825/19074 | Loss: 2.2377 | C-CE: 2.414 | I-CE: 2.643 | α=0.80 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   408,866 tok/s | ETA: 114.2m
+2490.9s 365 [COROSRED-UNIFIED] Step   4850/19074 | Loss: 2.3569 | C-CE: 2.543 | I-CE: 2.832 | α=0.79 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   409,510 tok/s | ETA: 113.8m
+2499.0s 366 [COROSRED-UNIFIED] Step   4875/19074 | Loss: 2.4550 | C-CE: 2.665 | I-CE: 2.118 | α=0.79 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   410,198 tok/s | ETA: 113.4m
+2507.3s 367 [COROSRED-UNIFIED] Step   4900/19074 | Loss: 2.2960 | C-CE: 2.468 | I-CE: 3.166 | α=0.79 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   410,844 tok/s | ETA: 113.0m
+2515.4s 368 [COROSRED-UNIFIED] Step   4925/19074 | Loss: 2.4454 | C-CE: 2.649 | I-CE: 2.460 | α=0.79 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   411,509 tok/s | ETA: 112.7m
+2523.8s 369 [COROSRED-UNIFIED] Step   4950/19074 | Loss: 1.9166 | C-CE: 2.061 | I-CE: 2.713 | α=0.79 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   412,141 tok/s | ETA: 112.3m
+2531.8s 370 [COROSRED-UNIFIED] Step   4975/19074 | Loss: 1.7891 | C-CE: 1.920 | I-CE: 2.670 | α=0.79 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   412,810 tok/s | ETA: 111.9m
+2540.1s 371 [COROSRED-UNIFIED] Step   5000/19074 | Loss: 1.7600 | C-CE: 1.898 | I-CE: 2.375 | α=0.79 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   413,433 tok/s | ETA: 111.5m
+2548.1s 372 [COROSRED-UNIFIED] Step   5025/19074 | Loss: 2.6012 | C-CE: 2.814 | I-CE: 2.849 | α=0.79 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   414,109 tok/s | ETA: 111.2m
+2556.5s 373 [COROSRED-UNIFIED] Step   5050/19074 | Loss: 2.1518 | C-CE: 2.325 | I-CE: 2.492 | α=0.78 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   414,719 tok/s | ETA: 110.8m
+2564.5s 374 [COROSRED-UNIFIED] Step   5075/19074 | Loss: 0.7599 | C-CE: 0.813 | I-CE: 1.254 | α=0.78 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   415,369 tok/s | ETA: 110.4m
+2572.9s 375 [COROSRED-UNIFIED] Step   5100/19074 | Loss: 2.3878 | C-CE: 2.585 | I-CE: 2.600 | α=0.78 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   415,971 tok/s | ETA: 110.1m
+2581.0s 376 [COROSRED-UNIFIED] Step   5125/19074 | Loss: 2.2194 | C-CE: 2.408 | I-CE: 2.181 | α=0.78 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   416,615 tok/s | ETA: 109.7m
+2589.4s 377 [COROSRED-UNIFIED] Step   5150/19074 | Loss: 1.6714 | C-CE: 1.787 | I-CE: 2.884 | α=0.78 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   417,198 tok/s | ETA: 109.4m
+2597.5s 378 [COROSRED-UNIFIED] Step   5175/19074 | Loss: 2.5713 | C-CE: 2.792 | I-CE: 2.435 | α=0.78 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   417,817 tok/s | ETA: 109.0m
+2605.8s 379 [COROSRED-UNIFIED] Step   5200/19074 | Loss: 2.3625 | C-CE: 2.553 | I-CE: 2.820 | α=0.78 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   418,411 tok/s | ETA: 108.7m
+2613.9s 380 [COROSRED-UNIFIED] Step   5225/19074 | Loss: 1.9884 | C-CE: 2.152 | I-CE: 2.263 | α=0.78 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   419,044 tok/s | ETA: 108.3m
+2622.2s 381 [COROSRED-UNIFIED] Step   5250/19074 | Loss: 2.0377 | C-CE: 2.201 | I-CE: 2.534 | α=0.77 β=0.15 γ=0.00 | Acc=0.51 AUC=0.49 |   2.1 st/s |   419,626 tok/s | ETA: 107.9m
+2630.2s 382 [COROSRED-UNIFIED] Step   5275/19074 | Loss: 1.8544 | C-CE: 2.001 | I-CE: 2.381 | α=0.77 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.1 st/s |   420,251 tok/s | ETA: 107.6m
+2638.6s 383 [COROSRED-UNIFIED] Step   5300/19074 | Loss: 2.1874 | C-CE: 2.370 | I-CE: 2.325 | α=0.77 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.1 st/s |   420,819 tok/s | ETA: 107.3m
+2646.5s 384 [COROSRED-UNIFIED] Step   5325/19074 | Loss: 1.9504 | C-CE: 2.120 | I-CE: 1.939 | α=0.77 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.1 st/s |   421,444 tok/s | ETA: 106.9m
+2654.8s 385 [COROSRED-UNIFIED] Step   5350/19074 | Loss: 2.2886 | C-CE: 2.477 | I-CE: 2.614 | α=0.77 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.1 st/s |   422,019 tok/s | ETA: 106.6m
+2662.9s 386 [COROSRED-UNIFIED] Step   5375/19074 | Loss: 1.8792 | C-CE: 2.027 | I-CE: 2.573 | α=0.77 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.1 st/s |   422,624 tok/s | ETA: 106.2m
+2671.1s 387 [COROSRED-UNIFIED] Step   5400/19074 | Loss: 2.1435 | C-CE: 2.330 | I-CE: 2.073 | α=0.77 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   423,193 tok/s | ETA: 105.9m
+2679.1s 388 [COROSRED-UNIFIED] Step   5425/19074 | Loss: 2.3427 | C-CE: 2.540 | I-CE: 2.505 | α=0.77 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   423,797 tok/s | ETA: 105.5m
+2687.4s 389 [COROSRED-UNIFIED] Step   5450/19074 | Loss: 1.8265 | C-CE: 1.971 | I-CE: 2.422 | α=0.76 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   424,354 tok/s | ETA: 105.2m
+2695.5s 390 [COROSRED-UNIFIED] Step   5475/19074 | Loss: 2.1569 | C-CE: 2.335 | I-CE: 2.513 | α=0.76 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   424,947 tok/s | ETA: 104.9m
+2704.0s 391 [COROSRED-UNIFIED] Step   5500/19074 | Loss: 1.5055 | C-CE: 1.617 | I-CE: 2.428 | α=0.76 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   425,462 tok/s | ETA: 104.5m
+2712.5s 392 [COROSRED-UNIFIED] Step   5525/19074 | Loss: 1.9108 | C-CE: 2.069 | I-CE: 2.303 | α=0.76 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   425,964 tok/s | ETA: 104.2m
+2721.3s 393 [COROSRED-UNIFIED] Step   5550/19074 | Loss: 1.9565 | C-CE: 2.131 | I-CE: 1.817 | α=0.76 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   426,425 tok/s | ETA: 103.9m
+2729.6s 394 [COROSRED-UNIFIED] Step   5575/19074 | Loss: 2.0236 | C-CE: 2.186 | I-CE: 2.621 | α=0.76 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   426,961 tok/s | ETA: 103.6m
+2738.2s 395 [COROSRED-UNIFIED] Step   5600/19074 | Loss: 2.1785 | C-CE: 2.352 | I-CE: 2.975 | α=0.76 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   427,440 tok/s | ETA: 103.3m
+2746.4s 396 [COROSRED-UNIFIED] Step   5625/19074 | Loss: 1.9534 | C-CE: 2.114 | I-CE: 2.416 | α=0.76 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   427,978 tok/s | ETA: 103.0m
+2755.1s 397 [COROSRED-UNIFIED] Step   5650/19074 | Loss: 1.5939 | C-CE: 1.728 | I-CE: 1.801 | α=0.76 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   428,449 tok/s | ETA: 102.7m
+2763.5s 398 [COROSRED-UNIFIED] Step   5675/19074 | Loss: 2.0856 | C-CE: 2.238 | I-CE: 3.436 | α=0.75 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   428,956 tok/s | ETA: 102.4m
+2771.9s 399 [COROSRED-UNIFIED] Step   5700/19074 | Loss: 1.8724 | C-CE: 2.032 | I-CE: 2.148 | α=0.75 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   429,458 tok/s | ETA: 102.0m
+2780.0s 400 [COROSRED-UNIFIED] Step   5725/19074 | Loss: 2.0427 | C-CE: 2.215 | I-CE: 2.460 | α=0.75 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   430,004 tok/s | ETA: 101.7m
+2788.4s 401 [COROSRED-UNIFIED] Step   5750/19074 | Loss: 1.8530 | C-CE: 2.018 | I-CE: 1.789 | α=0.75 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   430,494 tok/s | ETA: 101.4m
+2796.8s 402 [COROSRED-UNIFIED] Step   5775/19074 | Loss: 2.5937 | C-CE: 2.818 | I-CE: 2.903 | α=0.75 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   430,989 tok/s | ETA: 101.1m
+2805.2s 403 [COROSRED-UNIFIED] Step   5800/19074 | Loss: 2.1090 | C-CE: 2.300 | I-CE: 1.884 | α=0.75 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   431,485 tok/s | ETA: 100.8m
+2813.4s 404 [COROSRED-UNIFIED] Step   5825/19074 | Loss: 2.0273 | C-CE: 2.212 | I-CE: 1.833 | α=0.75 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   432,001 tok/s | ETA: 100.5m
+2821.8s 405 [COROSRED-UNIFIED] Step   5850/19074 | Loss: 1.7725 | C-CE: 1.917 | I-CE: 2.420 | α=0.75 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   432,485 tok/s | ETA: 100.2m
+2829.9s 406 [COROSRED-UNIFIED] Step   5875/19074 | Loss: 2.0679 | C-CE: 2.265 | I-CE: 1.521 | α=0.74 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   433,021 tok/s | ETA: 99.9m
+2838.4s 407 [COROSRED-UNIFIED] Step   5900/19074 | Loss: 1.9391 | C-CE: 2.110 | I-CE: 1.975 | α=0.74 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   433,470 tok/s | ETA: 99.6m
+2847.0s 408 [COROSRED-UNIFIED] Step   5925/19074 | Loss: 2.1048 | C-CE: 2.298 | I-CE: 1.935 | α=0.74 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   433,911 tok/s | ETA: 99.3m
+2855.7s 409 [COROSRED-UNIFIED] Step   5950/19074 | Loss: 2.0267 | C-CE: 2.195 | I-CE: 2.570 | α=0.74 β=0.15 γ=0.00 | Acc=0.51 AUC=0.50 |   2.2 st/s |   434,349 tok/s | ETA: 99.0m
+2863.9s 410 [COROSRED-UNIFIED] Step   5975/19074 | Loss: 2.0972 | C-CE: 2.297 | I-CE: 1.601 | α=0.74 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   434,839 tok/s | ETA: 98.7m
+2872.4s 411 [COROSRED-UNIFIED] Step   6000/19074 | Loss: 2.6025 | C-CE: 2.843 | I-CE: 2.347 | α=0.74 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   435,292 tok/s | ETA: 98.4m
+2880.5s 412 [COROSRED-UNIFIED] Step   6025/19074 | Loss: 1.6804 | C-CE: 1.822 | I-CE: 2.155 | α=0.74 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   435,804 tok/s | ETA: 98.1m
+2888.9s 413 [COROSRED-UNIFIED] Step   6050/19074 | Loss: 2.3772 | C-CE: 2.589 | I-CE: 2.540 | α=0.74 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   436,270 tok/s | ETA: 97.8m
+2896.9s 414 [COROSRED-UNIFIED] Step   6075/19074 | Loss: 2.0147 | C-CE: 2.201 | I-CE: 1.837 | α=0.74 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   436,775 tok/s | ETA: 97.5m
+2905.3s 415 [COROSRED-UNIFIED] Step   6100/19074 | Loss: 2.0540 | C-CE: 2.235 | I-CE: 2.283 | α=0.73 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   437,237 tok/s | ETA: 97.2m
+2913.4s 416 [COROSRED-UNIFIED] Step   6125/19074 | Loss: 2.1646 | C-CE: 2.334 | I-CE: 3.296 | α=0.73 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   437,737 tok/s | ETA: 96.9m
+2921.8s 417 [COROSRED-UNIFIED] Step   6150/19074 | Loss: 2.3838 | C-CE: 2.598 | I-CE: 2.563 | α=0.73 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   438,191 tok/s | ETA: 96.6m
+2929.9s 418 [COROSRED-UNIFIED] Step   6175/19074 | Loss: 2.2070 | C-CE: 2.412 | I-CE: 1.946 | α=0.73 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   438,681 tok/s | ETA: 96.4m
+2938.2s 419 [COROSRED-UNIFIED] Step   6200/19074 | Loss: 0.4932 | C-CE: 0.526 | I-CE: 1.030 | α=0.73 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   439,137 tok/s | ETA: 96.1m
+2946.2s 420 [COROSRED-UNIFIED] Step   6225/19074 | Loss: 1.9944 | C-CE: 2.169 | I-CE: 2.224 | α=0.73 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   439,635 tok/s | ETA: 95.8m
+2954.6s 421 [COROSRED-UNIFIED] Step   6250/19074 | Loss: 2.1439 | C-CE: 2.349 | I-CE: 1.830 | α=0.73 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   440,079 tok/s | ETA: 95.5m
+2962.7s 422 [COROSRED-UNIFIED] Step   6275/19074 | Loss: 2.1647 | C-CE: 2.352 | I-CE: 2.812 | α=0.73 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   440,557 tok/s | ETA: 95.2m
+2971.0s 423 [COROSRED-UNIFIED] Step   6300/19074 | Loss: 2.0464 | C-CE: 2.226 | I-CE: 2.338 | α=0.73 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   441,002 tok/s | ETA: 94.9m
+2979.2s 424 [COROSRED-UNIFIED] Step   6325/19074 | Loss: 2.1421 | C-CE: 2.332 | I-CE: 2.480 | α=0.72 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   441,467 tok/s | ETA: 94.6m
+2987.7s 425 [COROSRED-UNIFIED] Step   6350/19074 | Loss: 1.9692 | C-CE: 2.141 | I-CE: 2.346 | α=0.72 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   441,889 tok/s | ETA: 94.4m
+2995.8s 426 [COROSRED-UNIFIED] Step   6375/19074 | Loss: 1.9314 | C-CE: 2.100 | I-CE: 2.256 | α=0.72 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.2 st/s |   442,359 tok/s | ETA: 94.1m
+3004.1s 427 [COROSRED-UNIFIED] Step   6400/19074 | Loss: 2.0747 | C-CE: 2.269 | I-CE: 2.049 | α=0.72 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   442,789 tok/s | ETA: 93.8m
+3012.3s 428 [COROSRED-UNIFIED] Step   6425/19074 | Loss: 2.2275 | C-CE: 2.429 | I-CE: 2.402 | α=0.72 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   443,249 tok/s | ETA: 93.5m
+3020.6s 429 [COROSRED-UNIFIED] Step   6450/19074 | Loss: 1.9646 | C-CE: 2.157 | I-CE: 1.560 | α=0.72 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   443,672 tok/s | ETA: 93.2m
+3028.7s 430 [COROSRED-UNIFIED] Step   6475/19074 | Loss: 1.7157 | C-CE: 1.870 | I-CE: 2.009 | α=0.72 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   444,135 tok/s | ETA: 93.0m
+3037.1s 431 [COROSRED-UNIFIED] Step   6500/19074 | Loss: 1.4406 | C-CE: 1.563 | I-CE: 1.943 | α=0.72 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   444,551 tok/s | ETA: 92.7m
+3045.2s 432 [COROSRED-UNIFIED] Step   6525/19074 | Loss: 1.9322 | C-CE: 2.124 | I-CE: 1.471 | α=0.72 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   445,001 tok/s | ETA: 92.4m
+3053.5s 433 [COROSRED-UNIFIED] Step   6550/19074 | Loss: 2.1416 | C-CE: 2.344 | I-CE: 2.061 | α=0.71 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   445,426 tok/s | ETA: 92.1m
+3061.6s 434 [COROSRED-UNIFIED] Step   6575/19074 | Loss: 1.8617 | C-CE: 2.025 | I-CE: 2.262 | α=0.71 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   445,880 tok/s | ETA: 91.9m
+3070.0s 435 [COROSRED-UNIFIED] Step   6600/19074 | Loss: 2.1057 | C-CE: 2.284 | I-CE: 2.912 | α=0.71 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   446,281 tok/s | ETA: 91.6m
+3078.1s 436 [COROSRED-UNIFIED] Step   6625/19074 | Loss: 1.6567 | C-CE: 1.801 | I-CE: 2.087 | α=0.71 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   446,732 tok/s | ETA: 91.3m
+3086.5s 437 [COROSRED-UNIFIED] Step   6650/19074 | Loss: 1.9924 | C-CE: 2.163 | I-CE: 2.727 | α=0.71 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   447,133 tok/s | ETA: 91.0m
+3094.5s 438 [COROSRED-UNIFIED] Step   6675/19074 | Loss: 2.0574 | C-CE: 2.261 | I-CE: 1.636 | α=0.71 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   447,574 tok/s | ETA: 90.8m
+3102.9s 439 [COROSRED-UNIFIED] Step   6700/19074 | Loss: 1.9974 | C-CE: 2.194 | I-CE: 1.667 | α=0.71 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   447,969 tok/s | ETA: 90.5m
+3111.0s 440 [COROSRED-UNIFIED] Step   6725/19074 | Loss: 1.5353 | C-CE: 1.672 | I-CE: 1.988 | α=0.71 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   448,406 tok/s | ETA: 90.2m
+3119.4s 441 [COROSRED-UNIFIED] Step   6750/19074 | Loss: 2.2656 | C-CE: 2.470 | I-CE: 2.675 | α=0.71 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   448,807 tok/s | ETA: 90.0m
+3127.4s 442 [COROSRED-UNIFIED] Step   6775/19074 | Loss: 2.1051 | C-CE: 2.303 | I-CE: 2.223 | α=0.71 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   449,237 tok/s | ETA: 89.7m
+3135.8s 443 [COROSRED-UNIFIED] Step   6800/19074 | Loss: 2.1681 | C-CE: 2.372 | I-CE: 2.262 | α=0.70 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   449,632 tok/s | ETA: 89.4m
+3143.9s 444 [COROSRED-UNIFIED] Step   6825/19074 | Loss: 2.0415 | C-CE: 2.236 | I-CE: 2.058 | α=0.70 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   450,058 tok/s | ETA: 89.2m
+3152.3s 445 [COROSRED-UNIFIED] Step   6850/19074 | Loss: 1.9828 | C-CE: 2.166 | I-CE: 2.274 | α=0.70 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   450,439 tok/s | ETA: 88.9m
+3160.4s 446 [COROSRED-UNIFIED] Step   6875/19074 | Loss: 1.9221 | C-CE: 2.104 | I-CE: 2.031 | α=0.70 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   450,855 tok/s | ETA: 88.7m
+3168.8s 447 [COROSRED-UNIFIED] Step   6900/19074 | Loss: 1.8574 | C-CE: 2.027 | I-CE: 2.209 | α=0.70 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   451,234 tok/s | ETA: 88.4m
+3176.9s 448 [COROSRED-UNIFIED] Step   6925/19074 | Loss: 1.9519 | C-CE: 2.141 | I-CE: 1.910 | α=0.70 β=0.15 γ=0.00 | Acc=0.52 AUC=0.50 |   2.3 st/s |   451,650 tok/s | ETA: 88.1m
+3185.4s 449 [COROSRED-UNIFIED] Step   6950/19074 | Loss: 2.0999 | C-CE: 2.304 | I-CE: 2.049 | α=0.70 β=0.15 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   452,016 tok/s | ETA: 87.9m
+3193.4s 450 [COROSRED-UNIFIED] Step   6975/19074 | Loss: 1.8329 | C-CE: 2.015 | I-CE: 1.646 | α=0.70 β=0.15 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   452,433 tok/s | ETA: 87.6m
+3201.7s 451 [COROSRED-UNIFIED] Step   7000/19074 | Loss: 2.0018 | C-CE: 2.204 | I-CE: 1.656 | α=0.70 β=0.15 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   452,812 tok/s | ETA: 87.4m
+3209.8s 452 [COROSRED-UNIFIED] Step   7025/19074 | Loss: 1.8441 | C-CE: 2.026 | I-CE: 1.682 | α=0.69 β=0.15 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   453,224 tok/s | ETA: 87.1m
+3218.2s 453 [COROSRED-UNIFIED] Step   7050/19074 | Loss: 2.0288 | C-CE: 2.234 | I-CE: 1.754 | α=0.69 β=0.15 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   453,593 tok/s | ETA: 86.9m
+3226.3s 454 [COROSRED-UNIFIED] Step   7075/19074 | Loss: 1.8786 | C-CE: 2.067 | I-CE: 1.602 | α=0.69 β=0.15 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   453,993 tok/s | ETA: 86.6m
+3234.6s 455 [COROSRED-UNIFIED] Step   7100/19074 | Loss: 1.9176 | C-CE: 2.099 | I-CE: 2.248 | α=0.69 β=0.15 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   454,371 tok/s | ETA: 86.4m
+3242.7s 456 [COROSRED-UNIFIED] Step   7125/19074 | Loss: 2.0380 | C-CE: 2.240 | I-CE: 1.922 | α=0.69 β=0.15 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   454,770 tok/s | ETA: 86.1m
+3251.1s 457 [COROSRED-UNIFIED] Step   7150/19074 | Loss: 1.9938 | C-CE: 2.189 | I-CE: 2.011 | α=0.69 β=0.15 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   455,128 tok/s | ETA: 85.8m
+3259.1s 458 [COROSRED-UNIFIED] Step   7175/19074 | Loss: 1.6891 | C-CE: 1.852 | I-CE: 1.867 | α=0.69 β=0.15 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   455,529 tok/s | ETA: 85.6m
+3267.5s 459 [COROSRED-UNIFIED] Step   7200/19074 | Loss: 1.9338 | C-CE: 2.122 | I-CE: 2.022 | α=0.69 β=0.15 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   455,884 tok/s | ETA: 85.3m
+3275.6s 460 [COROSRED-UNIFIED] Step   7225/19074 | Loss: 1.6191 | C-CE: 1.773 | I-CE: 1.900 | α=0.69 β=0.15 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   456,283 tok/s | ETA: 85.1m
+3283.9s 461 [COROSRED-UNIFIED] Step   7250/19074 | Loss: 1.9263 | C-CE: 2.123 | I-CE: 1.679 | α=0.69 β=0.15 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   456,635 tok/s | ETA: 84.8m
+3292.0s 462 [COROSRED-UNIFIED] Step   7275/19074 | Loss: 0.8649 | C-CE: 0.946 | I-CE: 1.078 | α=0.68 β=0.15 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   457,027 tok/s | ETA: 84.6m
+3300.3s 463 [COROSRED-UNIFIED] Step   7300/19074 | Loss: 2.0900 | C-CE: 2.293 | I-CE: 2.255 | α=0.68 β=0.15 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   457,388 tok/s | ETA: 84.4m
+3308.3s 464 [COROSRED-UNIFIED] Step   7325/19074 | Loss: 2.1391 | C-CE: 2.354 | I-CE: 2.023 | α=0.68 β=0.15 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   457,781 tok/s | ETA: 84.1m
+3316.7s 465 [COROSRED-UNIFIED] Step   7350/19074 | Loss: 1.4527 | C-CE: 1.590 | I-CE: 1.853 | α=0.68 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   458,123 tok/s | ETA: 83.9m
+3324.8s 466 [COROSRED-UNIFIED] Step   7375/19074 | Loss: 1.7496 | C-CE: 1.922 | I-CE: 1.818 | α=0.68 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   458,502 tok/s | ETA: 83.6m
+3333.2s 467 [COROSRED-UNIFIED] Step   7400/19074 | Loss: 2.4644 | C-CE: 2.735 | I-CE: 1.523 | α=0.68 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   458,845 tok/s | ETA: 83.4m
+3341.3s 468 [COROSRED-UNIFIED] Step   7425/19074 | Loss: 1.8395 | C-CE: 2.029 | I-CE: 1.596 | α=0.68 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   459,215 tok/s | ETA: 83.1m
+3349.8s 469 [COROSRED-UNIFIED] Step   7450/19074 | Loss: 2.0454 | C-CE: 2.245 | I-CE: 2.247 | α=0.68 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   459,544 tok/s | ETA: 82.9m
+3357.9s 470 [COROSRED-UNIFIED] Step   7475/19074 | Loss: 1.5621 | C-CE: 1.706 | I-CE: 2.129 | α=0.68 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   459,914 tok/s | ETA: 82.6m
+3366.2s 471 [COROSRED-UNIFIED] Step   7500/19074 | Loss: 2.1811 | C-CE: 2.415 | I-CE: 1.692 | α=0.68 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   460,244 tok/s | ETA: 82.4m
+3374.4s 472 [COROSRED-UNIFIED] Step   7525/19074 | Loss: 2.1461 | C-CE: 2.373 | I-CE: 1.796 | α=0.68 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   460,608 tok/s | ETA: 82.2m
+3382.8s 473 [COROSRED-UNIFIED] Step   7550/19074 | Loss: 1.8459 | C-CE: 2.034 | I-CE: 1.784 | α=0.67 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   460,930 tok/s | ETA: 81.9m
+3391.0s 474 [COROSRED-UNIFIED] Step   7575/19074 | Loss: 0.6708 | C-CE: 0.737 | I-CE: 0.733 | α=0.67 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   461,287 tok/s | ETA: 81.7m
+3399.4s 475 [COROSRED-UNIFIED] Step   7600/19074 | Loss: 1.5588 | C-CE: 1.715 | I-CE: 1.675 | α=0.67 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   461,609 tok/s | ETA: 81.4m
+3407.4s 476 [COROSRED-UNIFIED] Step   7625/19074 | Loss: 2.0392 | C-CE: 2.250 | I-CE: 1.978 | α=0.67 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.3 st/s |   461,975 tok/s | ETA: 81.2m
+3415.8s 477 [COROSRED-UNIFIED] Step   7650/19074 | Loss: 2.2670 | C-CE: 2.493 | I-CE: 2.485 | α=0.67 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   462,296 tok/s | ETA: 81.0m
+3424.0s 478 [COROSRED-UNIFIED] Step   7675/19074 | Loss: 1.4361 | C-CE: 1.585 | I-CE: 1.357 | α=0.67 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   462,647 tok/s | ETA: 80.7m
+3432.3s 479 [COROSRED-UNIFIED] Step   7700/19074 | Loss: 1.9025 | C-CE: 2.099 | I-CE: 1.854 | α=0.67 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   462,969 tok/s | ETA: 80.5m
+3440.5s 480 [COROSRED-UNIFIED] Step   7725/19074 | Loss: 1.9685 | C-CE: 2.182 | I-CE: 1.532 | α=0.67 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   463,313 tok/s | ETA: 80.3m
+3448.9s 481 [COROSRED-UNIFIED] Step   7750/19074 | Loss: 1.5733 | C-CE: 1.729 | I-CE: 1.838 | α=0.67 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   463,625 tok/s | ETA: 80.0m
+3457.1s 482 [COROSRED-UNIFIED] Step   7775/19074 | Loss: 2.0730 | C-CE: 2.292 | I-CE: 1.888 | α=0.67 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   463,964 tok/s | ETA: 79.8m
+3465.5s 483 [COROSRED-UNIFIED] Step   7800/19074 | Loss: 1.0249 | C-CE: 1.105 | I-CE: 2.030 | α=0.67 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   464,269 tok/s | ETA: 79.6m
+3473.6s 484 [COROSRED-UNIFIED] Step   7825/19074 | Loss: 2.2068 | C-CE: 2.435 | I-CE: 2.246 | α=0.66 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   464,616 tok/s | ETA: 79.3m
+3482.1s 485 [COROSRED-UNIFIED] Step   7850/19074 | Loss: 1.8656 | C-CE: 2.067 | I-CE: 1.627 | α=0.66 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   464,921 tok/s | ETA: 79.1m
+3490.2s 486 [COROSRED-UNIFIED] Step   7875/19074 | Loss: 1.8114 | C-CE: 2.007 | I-CE: 1.558 | α=0.66 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   465,261 tok/s | ETA: 78.9m
+3498.5s 487 [COROSRED-UNIFIED] Step   7900/19074 | Loss: 1.9297 | C-CE: 2.136 | I-CE: 1.830 | α=0.66 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   465,569 tok/s | ETA: 78.6m
+3506.7s 488 [COROSRED-UNIFIED] Step   7925/19074 | Loss: 2.0358 | C-CE: 2.257 | I-CE: 1.712 | α=0.66 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   465,906 tok/s | ETA: 78.4m
+3515.1s 489 [COROSRED-UNIFIED] Step   7950/19074 | Loss: 1.9972 | C-CE: 2.210 | I-CE: 1.894 | α=0.66 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   466,208 tok/s | ETA: 78.2m
+3523.3s 490 [COROSRED-UNIFIED] Step   7975/19074 | Loss: 1.5229 | C-CE: 1.664 | I-CE: 2.275 | α=0.66 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   466,529 tok/s | ETA: 78.0m
+3531.8s 491 [COROSRED-UNIFIED] Step   8000/19074 | Loss: 1.9721 | C-CE: 2.180 | I-CE: 1.948 | α=0.66 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   466,810 tok/s | ETA: 77.7m
+3531.8s 492 
+3531.8s 493 [Checkpoint Step   8000] Saving checkpoint weights to checkpoints/corosred/unified/75m_python/checkpoint_step_8000.pt...
+3532.4s 494 [Checkpoint Verified] Successfully saved checkpoints/corosred/unified/75m_python/checkpoint_step_8000.pt (321.3 MB)
+3532.4s 495 [Checkpoint Step   8000] Successfully saved weights to checkpoints/corosred/unified/75m_python/checkpoint_step_8000.pt
+3532.4s 496 
+3540.9s 497 [COROSRED-UNIFIED] Step   8025/19074 | Loss: 1.9567 | C-CE: 2.160 | I-CE: 2.072 | α=0.66 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   467,002 tok/s | ETA: 77.5m
+3549.5s 498 [COROSRED-UNIFIED] Step   8050/19074 | Loss: 1.4994 | C-CE: 1.657 | I-CE: 1.506 | α=0.66 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   467,275 tok/s | ETA: 77.3m
+3557.6s 499 [COROSRED-UNIFIED] Step   8075/19074 | Loss: 1.7811 | C-CE: 1.960 | I-CE: 2.189 | α=0.66 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   467,602 tok/s | ETA: 77.1m
+3566.0s 500 [COROSRED-UNIFIED] Step   8100/19074 | Loss: 2.1597 | C-CE: 2.403 | I-CE: 1.626 | α=0.65 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   467,890 tok/s | ETA: 76.9m
+3574.1s 501 [COROSRED-UNIFIED] Step   8125/19074 | Loss: 1.8346 | C-CE: 2.028 | I-CE: 1.873 | α=0.65 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   468,219 tok/s | ETA: 76.6m
+3582.5s 502 [COROSRED-UNIFIED] Step   8150/19074 | Loss: 1.3980 | C-CE: 1.536 | I-CE: 1.762 | α=0.65 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   468,505 tok/s | ETA: 76.4m
+3590.6s 503 [COROSRED-UNIFIED] Step   8175/19074 | Loss: 1.3749 | C-CE: 1.525 | I-CE: 1.293 | α=0.65 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   468,832 tok/s | ETA: 76.2m
+3599.0s 504 [COROSRED-UNIFIED] Step   8200/19074 | Loss: 1.9062 | C-CE: 2.093 | I-CE: 2.559 | α=0.65 β=0.16 γ=0.00 | Acc=0.52 AUC=0.51 |   2.4 st/s |   469,120 tok/s | ETA: 76.0m
+3607.1s 505 [COROSRED-UNIFIED] Step   8225/19074 | Loss: 1.6368 | C-CE: 1.802 | I-CE: 2.022 | α=0.65 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   469,442 tok/s | ETA: 75.7m
+3615.5s 506 [COROSRED-UNIFIED] Step   8250/19074 | Loss: 1.7661 | C-CE: 1.946 | I-CE: 2.101 | α=0.65 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   469,726 tok/s | ETA: 75.5m
+3623.6s 507 [COROSRED-UNIFIED] Step   8275/19074 | Loss: 1.9277 | C-CE: 2.139 | I-CE: 1.793 | α=0.65 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   470,044 tok/s | ETA: 75.3m
+3632.1s 508 [COROSRED-UNIFIED] Step   8300/19074 | Loss: 1.7188 | C-CE: 1.902 | I-CE: 1.879 | α=0.65 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   470,317 tok/s | ETA: 75.1m
+3640.4s 509 [COROSRED-UNIFIED] Step   8325/19074 | Loss: 1.7354 | C-CE: 1.926 | I-CE: 1.590 | α=0.65 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   470,598 tok/s | ETA: 74.8m
+3649.0s 510 [COROSRED-UNIFIED] Step   8350/19074 | Loss: 1.9936 | C-CE: 2.208 | I-CE: 1.974 | α=0.65 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   470,853 tok/s | ETA: 74.6m
+3657.3s 511 [COROSRED-UNIFIED] Step   8375/19074 | Loss: 1.9440 | C-CE: 2.168 | I-CE: 1.474 | α=0.64 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   471,131 tok/s | ETA: 74.4m
+3666.0s 512 [COROSRED-UNIFIED] Step   8400/19074 | Loss: 1.9803 | C-CE: 2.203 | I-CE: 1.709 | α=0.64 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   471,370 tok/s | ETA: 74.2m
+3674.4s 513 [COROSRED-UNIFIED] Step   8425/19074 | Loss: 1.6445 | C-CE: 1.825 | I-CE: 1.614 | α=0.64 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   471,637 tok/s | ETA: 74.0m
+3683.0s 514 [COROSRED-UNIFIED] Step   8450/19074 | Loss: 1.6609 | C-CE: 1.846 | I-CE: 1.523 | α=0.64 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   471,897 tok/s | ETA: 73.8m
+3691.1s 515 [COROSRED-UNIFIED] Step   8475/19074 | Loss: 1.5912 | C-CE: 1.758 | I-CE: 1.817 | α=0.64 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   472,195 tok/s | ETA: 73.6m
+3699.6s 516 [COROSRED-UNIFIED] Step   8500/19074 | Loss: 1.8289 | C-CE: 2.030 | I-CE: 1.852 | α=0.64 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   472,451 tok/s | ETA: 73.3m
+3707.8s 517 [COROSRED-UNIFIED] Step   8525/19074 | Loss: 1.8561 | C-CE: 2.061 | I-CE: 1.898 | α=0.64 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   472,749 tok/s | ETA: 73.1m
+3716.2s 518 [COROSRED-UNIFIED] Step   8550/19074 | Loss: 1.6923 | C-CE: 1.878 | I-CE: 1.697 | α=0.64 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   473,012 tok/s | ETA: 72.9m
+3724.3s 519 [COROSRED-UNIFIED] Step   8575/19074 | Loss: 1.9081 | C-CE: 2.127 | I-CE: 1.634 | α=0.64 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   473,317 tok/s | ETA: 72.7m
+3732.7s 520 [COROSRED-UNIFIED] Step   8600/19074 | Loss: 2.3801 | C-CE: 2.659 | I-CE: 1.830 | α=0.64 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   473,582 tok/s | ETA: 72.5m
+3740.7s 521 [COROSRED-UNIFIED] Step   8625/19074 | Loss: 1.7710 | C-CE: 1.964 | I-CE: 1.950 | α=0.64 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   473,888 tok/s | ETA: 72.3m
+3749.2s 522 [COROSRED-UNIFIED] Step   8650/19074 | Loss: 1.7864 | C-CE: 1.982 | I-CE: 1.833 | α=0.64 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   474,146 tok/s | ETA: 72.0m
+3757.3s 523 [COROSRED-UNIFIED] Step   8675/19074 | Loss: 1.8017 | C-CE: 2.002 | I-CE: 1.760 | α=0.63 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   474,442 tok/s | ETA: 71.8m
+3765.6s 524 [COROSRED-UNIFIED] Step   8700/19074 | Loss: 1.5861 | C-CE: 1.751 | I-CE: 1.970 | α=0.63 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   474,710 tok/s | ETA: 71.6m
+3773.7s 525 [COROSRED-UNIFIED] Step   8725/19074 | Loss: 2.1228 | C-CE: 2.368 | I-CE: 1.894 | α=0.63 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   475,007 tok/s | ETA: 71.4m
+3782.0s 526 [COROSRED-UNIFIED] Step   8750/19074 | Loss: 1.6604 | C-CE: 1.836 | I-CE: 2.004 | α=0.63 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   475,276 tok/s | ETA: 71.2m
+3790.1s 527 [COROSRED-UNIFIED] Step   8775/19074 | Loss: 1.7725 | C-CE: 1.986 | I-CE: 1.286 | α=0.63 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   475,570 tok/s | ETA: 71.0m
+3798.6s 528 [COROSRED-UNIFIED] Step   8800/19074 | Loss: 1.6876 | C-CE: 1.885 | I-CE: 1.459 | α=0.63 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   475,813 tok/s | ETA: 70.8m
+3806.6s 529 [COROSRED-UNIFIED] Step   8825/19074 | Loss: 2.1842 | C-CE: 2.434 | I-CE: 1.996 | α=0.63 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   476,111 tok/s | ETA: 70.5m
+3815.0s 530 [COROSRED-UNIFIED] Step   8850/19074 | Loss: 1.8033 | C-CE: 2.007 | I-CE: 1.879 | α=0.63 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   476,368 tok/s | ETA: 70.3m
+3823.1s 531 [COROSRED-UNIFIED] Step   8875/19074 | Loss: 2.0475 | C-CE: 2.279 | I-CE: 2.111 | α=0.63 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   476,659 tok/s | ETA: 70.1m
+3831.4s 532 [COROSRED-UNIFIED] Step   8900/19074 | Loss: 1.6397 | C-CE: 1.827 | I-CE: 1.592 | α=0.63 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   476,913 tok/s | ETA: 69.9m
+3839.6s 533 [COROSRED-UNIFIED] Step   8925/19074 | Loss: 1.3971 | C-CE: 1.551 | I-CE: 1.537 | α=0.63 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   477,192 tok/s | ETA: 69.7m
+3848.0s 534 [COROSRED-UNIFIED] Step   8950/19074 | Loss: 1.7514 | C-CE: 1.948 | I-CE: 1.910 | α=0.63 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   477,443 tok/s | ETA: 69.5m
+3856.1s 535 [COROSRED-UNIFIED] Step   8975/19074 | Loss: 1.7220 | C-CE: 1.913 | I-CE: 1.890 | α=0.63 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   477,713 tok/s | ETA: 69.3m
+3864.5s 536 [COROSRED-UNIFIED] Step   9000/19074 | Loss: 1.9542 | C-CE: 2.178 | I-CE: 1.940 | α=0.62 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   477,964 tok/s | ETA: 69.1m
+3872.7s 537 [COROSRED-UNIFIED] Step   9025/19074 | Loss: 1.4622 | C-CE: 1.614 | I-CE: 1.960 | α=0.62 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   478,227 tok/s | ETA: 68.9m
+3881.1s 538 [COROSRED-UNIFIED] Step   9050/19074 | Loss: 2.1061 | C-CE: 2.358 | I-CE: 1.821 | α=0.62 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   478,471 tok/s | ETA: 68.6m
+3889.2s 539 [COROSRED-UNIFIED] Step   9075/19074 | Loss: 1.6249 | C-CE: 1.824 | I-CE: 1.260 | α=0.62 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   478,750 tok/s | ETA: 68.4m
+3897.6s 540 [COROSRED-UNIFIED] Step   9100/19074 | Loss: 1.7599 | C-CE: 1.961 | I-CE: 1.783 | α=0.62 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   478,990 tok/s | ETA: 68.2m
+3905.8s 541 [COROSRED-UNIFIED] Step   9125/19074 | Loss: 1.4705 | C-CE: 1.644 | I-CE: 1.346 | α=0.62 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   479,260 tok/s | ETA: 68.0m
+3914.2s 542 [COROSRED-UNIFIED] Step   9150/19074 | Loss: 1.4810 | C-CE: 1.659 | I-CE: 1.244 | α=0.62 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   479,492 tok/s | ETA: 67.8m
+3922.3s 543 [COROSRED-UNIFIED] Step   9175/19074 | Loss: 0.2375 | C-CE: 0.259 | I-CE: 0.458 | α=0.62 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   479,762 tok/s | ETA: 67.6m
+3930.7s 544 [COROSRED-UNIFIED] Step   9200/19074 | Loss: 1.8528 | C-CE: 2.053 | I-CE: 2.434 | α=0.62 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   480,006 tok/s | ETA: 67.4m
+3938.9s 545 [COROSRED-UNIFIED] Step   9225/19074 | Loss: 1.8086 | C-CE: 2.003 | I-CE: 2.403 | α=0.62 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   480,265 tok/s | ETA: 67.2m
+3947.2s 546 [COROSRED-UNIFIED] Step   9250/19074 | Loss: 1.7856 | C-CE: 2.009 | I-CE: 1.326 | α=0.62 β=0.16 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   480,506 tok/s | ETA: 67.0m
+3955.3s 547 [COROSRED-UNIFIED] Step   9275/19074 | Loss: 1.9212 | C-CE: 2.161 | I-CE: 1.395 | α=0.62 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   480,768 tok/s | ETA: 66.8m
+3963.7s 548 [COROSRED-UNIFIED] Step   9300/19074 | Loss: 1.6693 | C-CE: 1.861 | I-CE: 1.808 | α=0.62 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   481,006 tok/s | ETA: 66.6m
+3972.0s 549 [COROSRED-UNIFIED] Step   9325/19074 | Loss: 2.2926 | C-CE: 2.587 | I-CE: 1.464 | α=0.61 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   481,248 tok/s | ETA: 66.4m
+3980.6s 550 [COROSRED-UNIFIED] Step   9350/19074 | Loss: 0.3527 | C-CE: 0.393 | I-CE: 0.405 | α=0.61 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.4 st/s |   481,452 tok/s | ETA: 66.2m
+3988.8s 551 [COROSRED-UNIFIED] Step   9375/19074 | Loss: 2.0436 | C-CE: 2.295 | I-CE: 1.766 | α=0.61 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   481,700 tok/s | ETA: 66.0m
+3997.4s 552 [COROSRED-UNIFIED] Step   9400/19074 | Loss: 1.6182 | C-CE: 1.810 | I-CE: 1.718 | α=0.61 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   481,900 tok/s | ETA: 65.8m
+4005.7s 553 [COROSRED-UNIFIED] Step   9425/19074 | Loss: 2.1159 | C-CE: 2.362 | I-CE: 2.356 | α=0.61 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   482,143 tok/s | ETA: 65.6m
+4014.1s 554 [COROSRED-UNIFIED] Step   9450/19074 | Loss: 1.4270 | C-CE: 1.587 | I-CE: 1.831 | α=0.61 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   482,367 tok/s | ETA: 65.4m
+4022.2s 555 [COROSRED-UNIFIED] Step   9475/19074 | Loss: 1.9925 | C-CE: 2.229 | I-CE: 2.074 | α=0.61 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   482,624 tok/s | ETA: 65.2m
+4030.6s 556 [COROSRED-UNIFIED] Step   9500/19074 | Loss: 1.9022 | C-CE: 2.121 | I-CE: 2.219 | α=0.61 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   482,847 tok/s | ETA: 65.0m
+4038.7s 557 [COROSRED-UNIFIED] Step   9525/19074 | Loss: 1.4498 | C-CE: 1.619 | I-CE: 1.551 | α=0.61 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   483,110 tok/s | ETA: 64.8m
+4047.1s 558 [COROSRED-UNIFIED] Step   9550/19074 | Loss: 1.6404 | C-CE: 1.800 | I-CE: 3.051 | α=0.61 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   483,330 tok/s | ETA: 64.6m
+4055.3s 559 [COROSRED-UNIFIED] Step   9575/19074 | Loss: 2.0333 | C-CE: 2.285 | I-CE: 1.866 | α=0.61 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   483,581 tok/s | ETA: 64.4m
+4063.6s 560 [COROSRED-UNIFIED] Step   9600/19074 | Loss: 1.8418 | C-CE: 2.064 | I-CE: 1.927 | α=0.61 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   483,801 tok/s | ETA: 64.2m
+4071.7s 561 [COROSRED-UNIFIED] Step   9625/19074 | Loss: 2.0441 | C-CE: 2.299 | I-CE: 1.834 | α=0.61 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   484,056 tok/s | ETA: 64.0m
+4080.1s 562 [COROSRED-UNIFIED] Step   9650/19074 | Loss: 1.8760 | C-CE: 2.108 | I-CE: 1.761 | α=0.61 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   484,278 tok/s | ETA: 63.8m
+4088.2s 563 [COROSRED-UNIFIED] Step   9675/19074 | Loss: 1.7166 | C-CE: 1.939 | I-CE: 1.297 | α=0.60 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   484,527 tok/s | ETA: 63.6m
+4096.7s 564 [COROSRED-UNIFIED] Step   9700/19074 | Loss: 1.5250 | C-CE: 1.695 | I-CE: 1.991 | α=0.60 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   484,734 tok/s | ETA: 63.4m
+4104.8s 565 [COROSRED-UNIFIED] Step   9725/19074 | Loss: 1.7452 | C-CE: 1.962 | I-CE: 1.695 | α=0.60 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   484,982 tok/s | ETA: 63.2m
+4113.3s 566 [COROSRED-UNIFIED] Step   9750/19074 | Loss: 1.7594 | C-CE: 1.953 | I-CE: 2.409 | α=0.60 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   485,195 tok/s | ETA: 63.0m
+4121.3s 567 [COROSRED-UNIFIED] Step   9775/19074 | Loss: 1.8220 | C-CE: 2.051 | I-CE: 1.739 | α=0.60 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   485,445 tok/s | ETA: 62.8m
+4129.7s 568 [COROSRED-UNIFIED] Step   9800/19074 | Loss: 1.4935 | C-CE: 1.673 | I-CE: 1.630 | α=0.60 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   485,656 tok/s | ETA: 62.6m
+4137.9s 569 [COROSRED-UNIFIED] Step   9825/19074 | Loss: 1.7254 | C-CE: 1.954 | I-CE: 1.201 | α=0.60 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   485,898 tok/s | ETA: 62.4m
+4146.2s 570 [COROSRED-UNIFIED] Step   9850/19074 | Loss: 1.8677 | C-CE: 2.114 | I-CE: 1.383 | α=0.60 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   486,112 tok/s | ETA: 62.2m
+4154.3s 571 [COROSRED-UNIFIED] Step   9875/19074 | Loss: 1.6144 | C-CE: 1.769 | I-CE: 3.016 | α=0.60 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   486,360 tok/s | ETA: 62.0m
+4162.6s 572 [COROSRED-UNIFIED] Step   9900/19074 | Loss: 1.4041 | C-CE: 1.585 | I-CE: 1.183 | α=0.60 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   486,572 tok/s | ETA: 61.8m
+4170.9s 573 [COROSRED-UNIFIED] Step   9925/19074 | Loss: 1.7077 | C-CE: 1.917 | I-CE: 1.816 | α=0.60 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   486,802 tok/s | ETA: 61.6m
+4179.3s 574 [COROSRED-UNIFIED] Step   9950/19074 | Loss: 1.8400 | C-CE: 2.071 | I-CE: 1.780 | α=0.60 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   487,001 tok/s | ETA: 61.4m
+4187.5s 575 [COROSRED-UNIFIED] Step   9975/19074 | Loss: 1.7661 | C-CE: 1.984 | I-CE: 1.808 | α=0.60 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   487,226 tok/s | ETA: 61.2m
+4195.9s 576 [COROSRED-UNIFIED] Step  10000/19074 | Loss: 1.5913 | C-CE: 1.770 | I-CE: 2.341 | α=0.60 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   487,437 tok/s | ETA: 61.0m
+4204.0s 577 [COROSRED-UNIFIED] Step  10025/19074 | Loss: 1.9170 | C-CE: 2.158 | I-CE: 1.912 | α=0.60 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   487,674 tok/s | ETA: 60.8m
+4212.5s 578 [COROSRED-UNIFIED] Step  10050/19074 | Loss: 1.7055 | C-CE: 1.923 | I-CE: 1.608 | α=0.59 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   487,870 tok/s | ETA: 60.6m
+4220.8s 579 [COROSRED-UNIFIED] Step  10075/19074 | Loss: 1.8884 | C-CE: 2.125 | I-CE: 1.934 | α=0.59 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   488,083 tok/s | ETA: 60.4m
+4229.2s 580 [COROSRED-UNIFIED] Step  10100/19074 | Loss: 1.5985 | C-CE: 1.787 | I-CE: 1.985 | α=0.59 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   488,282 tok/s | ETA: 60.2m
+4237.3s 581 [COROSRED-UNIFIED] Step  10125/19074 | Loss: 1.9379 | C-CE: 2.144 | I-CE: 3.279 | α=0.59 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   488,513 tok/s | ETA: 60.0m
+4245.8s 582 [COROSRED-UNIFIED] Step  10150/19074 | Loss: 1.7830 | C-CE: 2.021 | I-CE: 1.465 | α=0.59 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   488,701 tok/s | ETA: 59.8m
+4254.1s 583 [COROSRED-UNIFIED] Step  10175/19074 | Loss: 0.9930 | C-CE: 1.111 | I-CE: 1.222 | α=0.59 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   488,916 tok/s | ETA: 59.6m
+4262.5s 584 [COROSRED-UNIFIED] Step  10200/19074 | Loss: 1.5610 | C-CE: 1.758 | I-CE: 1.677 | α=0.59 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   489,105 tok/s | ETA: 59.5m
+4270.8s 585 [COROSRED-UNIFIED] Step  10225/19074 | Loss: 1.8438 | C-CE: 2.088 | I-CE: 1.542 | α=0.59 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   489,317 tok/s | ETA: 59.3m
+4279.6s 586 [COROSRED-UNIFIED] Step  10250/19074 | Loss: 1.8137 | C-CE: 2.057 | I-CE: 1.479 | α=0.59 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   489,470 tok/s | ETA: 59.1m
+4288.0s 587 [COROSRED-UNIFIED] Step  10275/19074 | Loss: 1.4318 | C-CE: 1.612 | I-CE: 1.550 | α=0.59 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   489,661 tok/s | ETA: 58.9m
+4296.7s 588 [COROSRED-UNIFIED] Step  10300/19074 | Loss: 2.0953 | C-CE: 2.378 | I-CE: 1.651 | α=0.59 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   489,816 tok/s | ETA: 58.7m
+4305.2s 589 [COROSRED-UNIFIED] Step  10325/19074 | Loss: 2.7949 | C-CE: 3.165 | I-CE: 2.446 | α=0.59 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   489,997 tok/s | ETA: 58.5m
+4314.1s 590 [COROSRED-UNIFIED] Step  10350/19074 | Loss: 1.7927 | C-CE: 2.018 | I-CE: 2.073 | α=0.59 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   490,136 tok/s | ETA: 58.3m
+4322.5s 591 [COROSRED-UNIFIED] Step  10375/19074 | Loss: 1.4930 | C-CE: 1.677 | I-CE: 1.807 | α=0.59 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   490,329 tok/s | ETA: 58.1m
+4331.2s 592 [COROSRED-UNIFIED] Step  10400/19074 | Loss: 1.6892 | C-CE: 1.911 | I-CE: 1.631 | α=0.59 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   490,476 tok/s | ETA: 57.9m
+4339.6s 593 [COROSRED-UNIFIED] Step  10425/19074 | Loss: 1.7704 | C-CE: 1.984 | I-CE: 2.219 | α=0.59 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   490,668 tok/s | ETA: 57.8m
+4348.3s 594 [COROSRED-UNIFIED] Step  10450/19074 | Loss: 1.2981 | C-CE: 1.479 | I-CE: 0.990 | α=0.58 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   490,826 tok/s | ETA: 57.6m
+4356.6s 595 [COROSRED-UNIFIED] Step  10475/19074 | Loss: 1.5747 | C-CE: 1.772 | I-CE: 1.892 | α=0.58 β=0.17 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   491,022 tok/s | ETA: 57.4m
+4365.0s 596 [COROSRED-UNIFIED] Step  10500/19074 | Loss: 1.6812 | C-CE: 1.911 | I-CE: 1.468 | α=0.58 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   491,217 tok/s | ETA: 57.2m
+4373.1s 597 [COROSRED-UNIFIED] Step  10525/19074 | Loss: 1.6711 | C-CE: 1.891 | I-CE: 1.715 | α=0.58 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   491,438 tok/s | ETA: 57.0m
+4381.7s 598 [COROSRED-UNIFIED] Step  10550/19074 | Loss: 1.9026 | C-CE: 2.162 | I-CE: 1.691 | α=0.58 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   491,603 tok/s | ETA: 56.8m
+4390.3s 599 [COROSRED-UNIFIED] Step  10575/19074 | Loss: 1.5378 | C-CE: 1.736 | I-CE: 1.726 | α=0.58 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   491,767 tok/s | ETA: 56.6m
+4398.9s 600 [COROSRED-UNIFIED] Step  10600/19074 | Loss: 1.6619 | C-CE: 1.886 | I-CE: 1.596 | α=0.58 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   491,927 tok/s | ETA: 56.4m
+4407.0s 601 [COROSRED-UNIFIED] Step  10625/19074 | Loss: 1.4007 | C-CE: 1.582 | I-CE: 1.573 | α=0.58 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   492,148 tok/s | ETA: 56.3m
+4415.4s 602 [COROSRED-UNIFIED] Step  10650/19074 | Loss: 1.2578 | C-CE: 1.425 | I-CE: 1.271 | α=0.58 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   492,335 tok/s | ETA: 56.1m
+4423.4s 603 [COROSRED-UNIFIED] Step  10675/19074 | Loss: 1.7629 | C-CE: 2.000 | I-CE: 1.807 | α=0.58 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   492,554 tok/s | ETA: 55.9m
+4431.7s 604 [COROSRED-UNIFIED] Step  10700/19074 | Loss: 1.5610 | C-CE: 1.773 | I-CE: 1.502 | α=0.58 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   492,744 tok/s | ETA: 55.7m
+4439.8s 605 [COROSRED-UNIFIED] Step  10725/19074 | Loss: 1.8233 | C-CE: 2.097 | I-CE: 0.958 | α=0.58 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   492,964 tok/s | ETA: 55.5m
+4448.2s 606 [COROSRED-UNIFIED] Step  10750/19074 | Loss: 1.5147 | C-CE: 1.736 | I-CE: 1.035 | α=0.58 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   493,149 tok/s | ETA: 55.3m
+4456.3s 607 [COROSRED-UNIFIED] Step  10775/19074 | Loss: 1.4582 | C-CE: 1.643 | I-CE: 1.866 | α=0.58 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   493,356 tok/s | ETA: 55.1m
+4464.7s 608 [COROSRED-UNIFIED] Step  10800/19074 | Loss: 1.6846 | C-CE: 1.924 | I-CE: 1.383 | α=0.58 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   493,540 tok/s | ETA: 54.9m
+4472.9s 609 [COROSRED-UNIFIED] Step  10825/19074 | Loss: 1.2968 | C-CE: 1.471 | I-CE: 1.366 | α=0.58 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   493,744 tok/s | ETA: 54.7m
+4481.3s 610 [COROSRED-UNIFIED] Step  10850/19074 | Loss: 1.8820 | C-CE: 2.142 | I-CE: 1.735 | α=0.58 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   493,928 tok/s | ETA: 54.6m
+4489.6s 611 [COROSRED-UNIFIED] Step  10875/19074 | Loss: 1.2625 | C-CE: 1.420 | I-CE: 1.720 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   494,111 tok/s | ETA: 54.4m
+4498.2s 612 [COROSRED-UNIFIED] Step  10900/19074 | Loss: 1.6501 | C-CE: 1.860 | I-CE: 2.087 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   494,259 tok/s | ETA: 54.2m
+4506.4s 613 [COROSRED-UNIFIED] Step  10925/19074 | Loss: 1.5958 | C-CE: 1.815 | I-CE: 1.583 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   494,454 tok/s | ETA: 54.0m
+4515.1s 614 [COROSRED-UNIFIED] Step  10950/19074 | Loss: 1.4120 | C-CE: 1.604 | I-CE: 1.432 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   494,603 tok/s | ETA: 53.8m
+4523.4s 615 [COROSRED-UNIFIED] Step  10975/19074 | Loss: 1.5536 | C-CE: 1.757 | I-CE: 1.866 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   494,788 tok/s | ETA: 53.6m
+4531.9s 616 [COROSRED-UNIFIED] Step  11000/19074 | Loss: 1.8786 | C-CE: 2.147 | I-CE: 1.646 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   494,945 tok/s | ETA: 53.5m
+4540.2s 617 [COROSRED-UNIFIED] Step  11025/19074 | Loss: 1.5203 | C-CE: 1.732 | I-CE: 1.572 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   495,133 tok/s | ETA: 53.3m
+4548.9s 618 [COROSRED-UNIFIED] Step  11050/19074 | Loss: 2.0879 | C-CE: 2.389 | I-CE: 1.779 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   495,281 tok/s | ETA: 53.1m
+4557.1s 619 [COROSRED-UNIFIED] Step  11075/19074 | Loss: 1.6036 | C-CE: 1.841 | I-CE: 1.216 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   495,466 tok/s | ETA: 52.9m
+4565.6s 620 [COROSRED-UNIFIED] Step  11100/19074 | Loss: 1.5885 | C-CE: 1.807 | I-CE: 1.628 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   495,620 tok/s | ETA: 52.7m
+4573.9s 621 [COROSRED-UNIFIED] Step  11125/19074 | Loss: 1.6016 | C-CE: 1.840 | I-CE: 1.232 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   495,810 tok/s | ETA: 52.5m
+4582.3s 622 [COROSRED-UNIFIED] Step  11150/19074 | Loss: 1.8684 | C-CE: 2.115 | I-CE: 2.250 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   495,978 tok/s | ETA: 52.4m
+4590.4s 623 [COROSRED-UNIFIED] Step  11175/19074 | Loss: 1.7114 | C-CE: 1.968 | I-CE: 1.279 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   496,178 tok/s | ETA: 52.2m
+4598.8s 624 [COROSRED-UNIFIED] Step  11200/19074 | Loss: 0.2739 | C-CE: 0.306 | I-CE: 0.460 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   496,352 tok/s | ETA: 52.0m
+4606.9s 625 [COROSRED-UNIFIED] Step  11225/19074 | Loss: 2.6210 | C-CE: 3.034 | I-CE: 1.433 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   496,551 tok/s | ETA: 51.8m
+4615.3s 626 [COROSRED-UNIFIED] Step  11250/19074 | Loss: 1.8822 | C-CE: 2.132 | I-CE: 2.370 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   496,721 tok/s | ETA: 51.6m
+4623.4s 627 [COROSRED-UNIFIED] Step  11275/19074 | Loss: 1.7116 | C-CE: 1.960 | I-CE: 1.506 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   496,911 tok/s | ETA: 51.4m
+4631.8s 628 [COROSRED-UNIFIED] Step  11300/19074 | Loss: 1.7713 | C-CE: 2.036 | I-CE: 1.410 | α=0.57 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   497,085 tok/s | ETA: 51.2m
+4639.8s 629 [COROSRED-UNIFIED] Step  11325/19074 | Loss: 1.1759 | C-CE: 1.323 | I-CE: 1.776 | α=0.56 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   497,289 tok/s | ETA: 51.1m
+4648.3s 630 [COROSRED-UNIFIED] Step  11350/19074 | Loss: 1.8479 | C-CE: 2.121 | I-CE: 1.605 | α=0.56 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   497,447 tok/s | ETA: 50.9m
+4656.7s 631 [COROSRED-UNIFIED] Step  11375/19074 | Loss: 1.4777 | C-CE: 1.684 | I-CE: 1.595 | α=0.56 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   497,610 tok/s | ETA: 50.7m
+4665.4s 632 [COROSRED-UNIFIED] Step  11400/19074 | Loss: 1.7523 | C-CE: 1.973 | I-CE: 2.660 | α=0.56 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   497,743 tok/s | ETA: 50.5m
+4673.8s 633 [COROSRED-UNIFIED] Step  11425/19074 | Loss: 1.7843 | C-CE: 2.067 | I-CE: 1.088 | α=0.56 β=0.18 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   497,907 tok/s | ETA: 50.3m
+4682.4s 634 [COROSRED-UNIFIED] Step  11450/19074 | Loss: 1.4987 | C-CE: 1.715 | I-CE: 1.479 | α=0.56 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   498,045 tok/s | ETA: 50.2m
+4690.9s 635 [COROSRED-UNIFIED] Step  11475/19074 | Loss: 2.0573 | C-CE: 2.371 | I-CE: 1.592 | α=0.56 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   498,188 tok/s | ETA: 50.0m
+4699.6s 636 [COROSRED-UNIFIED] Step  11500/19074 | Loss: 1.6534 | C-CE: 1.903 | I-CE: 1.380 | α=0.56 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   498,316 tok/s | ETA: 49.8m
+4707.9s 637 [COROSRED-UNIFIED] Step  11525/19074 | Loss: 1.7126 | C-CE: 1.972 | I-CE: 1.428 | α=0.56 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   498,493 tok/s | ETA: 49.6m
+4716.5s 638 [COROSRED-UNIFIED] Step  11550/19074 | Loss: 1.4173 | C-CE: 1.607 | I-CE: 1.994 | α=0.56 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   498,633 tok/s | ETA: 49.4m
+4724.8s 639 [COROSRED-UNIFIED] Step  11575/19074 | Loss: 1.7662 | C-CE: 2.033 | I-CE: 1.537 | α=0.56 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   498,803 tok/s | ETA: 49.3m
+4733.4s 640 [COROSRED-UNIFIED] Step  11600/19074 | Loss: 1.7203 | C-CE: 1.942 | I-CE: 2.547 | α=0.56 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   498,938 tok/s | ETA: 49.1m
+4741.7s 641 [COROSRED-UNIFIED] Step  11625/19074 | Loss: 1.6275 | C-CE: 1.874 | I-CE: 1.424 | α=0.56 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   499,102 tok/s | ETA: 48.9m
+4750.3s 642 [COROSRED-UNIFIED] Step  11650/19074 | Loss: 1.5323 | C-CE: 1.759 | I-CE: 1.512 | α=0.56 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   499,247 tok/s | ETA: 48.7m
+4758.5s 643 [COROSRED-UNIFIED] Step  11675/19074 | Loss: 1.8361 | C-CE: 2.122 | I-CE: 1.397 | α=0.56 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   499,419 tok/s | ETA: 48.5m
+4766.9s 644 [COROSRED-UNIFIED] Step  11700/19074 | Loss: 1.5730 | C-CE: 1.842 | I-CE: 0.618 | α=0.56 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   499,576 tok/s | ETA: 48.4m
+4775.1s 645 [COROSRED-UNIFIED] Step  11725/19074 | Loss: 2.1325 | C-CE: 2.417 | I-CE: 2.977 | α=0.56 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   499,757 tok/s | ETA: 48.2m
+4783.5s 646 [COROSRED-UNIFIED] Step  11750/19074 | Loss: 1.7444 | C-CE: 2.010 | I-CE: 1.552 | α=0.56 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   499,909 tok/s | ETA: 48.0m
+4791.7s 647 [COROSRED-UNIFIED] Step  11775/19074 | Loss: 1.6292 | C-CE: 1.885 | I-CE: 1.312 | α=0.56 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   500,082 tok/s | ETA: 47.8m
+4800.1s 648 [COROSRED-UNIFIED] Step  11800/19074 | Loss: 1.7885 | C-CE: 2.069 | I-CE: 1.515 | α=0.56 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   500,240 tok/s | ETA: 47.6m
+4808.3s 649 [COROSRED-UNIFIED] Step  11825/19074 | Loss: 1.6140 | C-CE: 1.871 | I-CE: 1.254 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   500,416 tok/s | ETA: 47.5m
+4816.8s 650 [COROSRED-UNIFIED] Step  11850/19074 | Loss: 1.4000 | C-CE: 1.597 | I-CE: 1.725 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   500,565 tok/s | ETA: 47.3m
+4824.8s 651 [COROSRED-UNIFIED] Step  11875/19074 | Loss: 2.1284 | C-CE: 2.459 | I-CE: 1.894 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   500,754 tok/s | ETA: 47.1m
+4833.1s 652 [COROSRED-UNIFIED] Step  11900/19074 | Loss: 1.5868 | C-CE: 1.836 | I-CE: 1.360 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   500,910 tok/s | ETA: 46.9m
+4841.2s 653 [COROSRED-UNIFIED] Step  11925/19074 | Loss: 1.6397 | C-CE: 1.897 | I-CE: 1.384 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   501,095 tok/s | ETA: 46.7m
+4849.6s 654 [COROSRED-UNIFIED] Step  11950/19074 | Loss: 2.1105 | C-CE: 2.466 | I-CE: 1.219 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.5 st/s |   501,251 tok/s | ETA: 46.6m
+4857.7s 655 [COROSRED-UNIFIED] Step  11975/19074 | Loss: 1.2881 | C-CE: 1.475 | I-CE: 1.524 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   501,429 tok/s | ETA: 46.4m
+4866.1s 656 [COROSRED-UNIFIED] Step  12000/19074 | Loss: 1.0584 | C-CE: 1.230 | I-CE: 0.812 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   501,583 tok/s | ETA: 46.2m
+4866.1s 657 
+4866.1s 658 [Checkpoint Step  12000] Saving checkpoint weights to checkpoints/corosred/unified/75m_python/checkpoint_step_12000.pt...
+4866.7s 659 [Checkpoint Verified] Successfully saved checkpoints/corosred/unified/75m_python/checkpoint_step_12000.pt (321.3 MB)
+4866.7s 660 [Checkpoint Step  12000] Successfully saved weights to checkpoints/corosred/unified/75m_python/checkpoint_step_12000.pt
+4866.7s 661 
+4875.1s 662 [COROSRED-UNIFIED] Step  12025/19074 | Loss: 1.4340 | C-CE: 1.644 | I-CE: 1.676 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   501,670 tok/s | ETA: 46.0m
+4883.6s 663 [COROSRED-UNIFIED] Step  12050/19074 | Loss: 1.4162 | C-CE: 1.632 | I-CE: 1.416 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   501,812 tok/s | ETA: 45.9m
+4891.7s 664 [COROSRED-UNIFIED] Step  12075/19074 | Loss: 1.3402 | C-CE: 1.547 | I-CE: 1.300 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   501,986 tok/s | ETA: 45.7m
+4900.0s 665 [COROSRED-UNIFIED] Step  12100/19074 | Loss: 1.6093 | C-CE: 1.862 | I-CE: 1.501 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   502,139 tok/s | ETA: 45.5m
+4908.2s 666 [COROSRED-UNIFIED] Step  12125/19074 | Loss: 2.5104 | C-CE: 2.948 | I-CE: 1.254 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   502,307 tok/s | ETA: 45.3m
+4916.7s 667 [COROSRED-UNIFIED] Step  12150/19074 | Loss: 1.7784 | C-CE: 2.081 | I-CE: 1.080 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   502,445 tok/s | ETA: 45.2m
+4924.9s 668 [COROSRED-UNIFIED] Step  12175/19074 | Loss: 1.2495 | C-CE: 1.439 | I-CE: 1.358 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   502,607 tok/s | ETA: 45.0m
+4933.5s 669 [COROSRED-UNIFIED] Step  12200/19074 | Loss: 1.4404 | C-CE: 1.652 | I-CE: 1.805 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   502,738 tok/s | ETA: 44.8m
+4941.7s 670 [COROSRED-UNIFIED] Step  12225/19074 | Loss: 1.6180 | C-CE: 1.879 | I-CE: 1.404 | α=0.55 β=0.19 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   502,905 tok/s | ETA: 44.6m
+4950.1s 671 [COROSRED-UNIFIED] Step  12250/19074 | Loss: 1.4017 | C-CE: 1.607 | I-CE: 1.729 | α=0.55 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   503,050 tok/s | ETA: 44.5m
+4958.2s 672 [COROSRED-UNIFIED] Step  12275/19074 | Loss: 1.5523 | C-CE: 1.788 | I-CE: 1.720 | α=0.55 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   503,223 tok/s | ETA: 44.3m
+4966.6s 673 [COROSRED-UNIFIED] Step  12300/19074 | Loss: 2.4196 | C-CE: 2.824 | I-CE: 1.824 | α=0.55 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   503,365 tok/s | ETA: 44.1m
+4974.8s 674 [COROSRED-UNIFIED] Step  12325/19074 | Loss: 1.4053 | C-CE: 1.624 | I-CE: 1.566 | α=0.55 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   503,531 tok/s | ETA: 43.9m
+4983.2s 675 [COROSRED-UNIFIED] Step  12350/19074 | Loss: 1.7845 | C-CE: 2.057 | I-CE: 2.064 | α=0.55 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   503,672 tok/s | ETA: 43.7m
+4991.3s 676 [COROSRED-UNIFIED] Step  12375/19074 | Loss: 1.1748 | C-CE: 1.357 | I-CE: 1.257 | α=0.55 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   503,842 tok/s | ETA: 43.6m
+4999.7s 677 [COROSRED-UNIFIED] Step  12400/19074 | Loss: 1.4109 | C-CE: 1.643 | I-CE: 1.200 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   503,988 tok/s | ETA: 43.4m
+5007.8s 678 [COROSRED-UNIFIED] Step  12425/19074 | Loss: 1.5400 | C-CE: 1.773 | I-CE: 1.826 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   504,161 tok/s | ETA: 43.2m
+5016.3s 679 [COROSRED-UNIFIED] Step  12450/19074 | Loss: 1.6302 | C-CE: 1.902 | I-CE: 1.350 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   504,286 tok/s | ETA: 43.0m
+5024.7s 680 [COROSRED-UNIFIED] Step  12475/19074 | Loss: 1.5608 | C-CE: 1.808 | I-CE: 1.640 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   504,423 tok/s | ETA: 42.9m
+5033.3s 681 [COROSRED-UNIFIED] Step  12500/19074 | Loss: 1.5777 | C-CE: 1.844 | I-CE: 1.280 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   504,545 tok/s | ETA: 42.7m
+5041.6s 682 [COROSRED-UNIFIED] Step  12525/19074 | Loss: 2.0138 | C-CE: 2.357 | I-CE: 1.514 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   504,693 tok/s | ETA: 42.5m
+5050.3s 683 [COROSRED-UNIFIED] Step  12550/19074 | Loss: 1.6452 | C-CE: 1.901 | I-CE: 1.779 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   504,809 tok/s | ETA: 42.3m
+5058.3s 684 [COROSRED-UNIFIED] Step  12575/19074 | Loss: 1.5008 | C-CE: 1.743 | I-CE: 1.518 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   504,979 tok/s | ETA: 42.2m
+5066.7s 685 [COROSRED-UNIFIED] Step  12600/19074 | Loss: 1.6677 | C-CE: 1.947 | I-CE: 1.449 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   505,114 tok/s | ETA: 42.0m
+5074.9s 686 [COROSRED-UNIFIED] Step  12625/19074 | Loss: 1.6629 | C-CE: 1.935 | I-CE: 1.591 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   505,278 tok/s | ETA: 41.8m
+5083.3s 687 [COROSRED-UNIFIED] Step  12650/19074 | Loss: 1.1251 | C-CE: 1.290 | I-CE: 1.552 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   505,417 tok/s | ETA: 41.6m
+5091.3s 688 [COROSRED-UNIFIED] Step  12675/19074 | Loss: 1.6182 | C-CE: 1.884 | I-CE: 1.585 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   505,590 tok/s | ETA: 41.5m
+5099.7s 689 [COROSRED-UNIFIED] Step  12700/19074 | Loss: 1.7872 | C-CE: 2.087 | I-CE: 1.631 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   505,725 tok/s | ETA: 41.3m
+5107.9s 690 [COROSRED-UNIFIED] Step  12725/19074 | Loss: 1.4447 | C-CE: 1.670 | I-CE: 1.723 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   505,879 tok/s | ETA: 41.1m
+5116.6s 691 [COROSRED-UNIFIED] Step  12750/19074 | Loss: 1.8789 | C-CE: 2.187 | I-CE: 1.911 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   505,992 tok/s | ETA: 41.0m
+5124.9s 692 [COROSRED-UNIFIED] Step  12775/19074 | Loss: 1.5224 | C-CE: 1.784 | I-CE: 1.271 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   506,125 tok/s | ETA: 40.8m
+5133.2s 693 [COROSRED-UNIFIED] Step  12800/19074 | Loss: 1.2582 | C-CE: 1.456 | I-CE: 1.497 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   506,267 tok/s | ETA: 40.6m
+5141.4s 694 [COROSRED-UNIFIED] Step  12825/19074 | Loss: 1.5831 | C-CE: 1.869 | I-CE: 1.047 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   506,423 tok/s | ETA: 40.4m
+5149.8s 695 [COROSRED-UNIFIED] Step  12850/19074 | Loss: 2.0381 | C-CE: 2.387 | I-CE: 1.768 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   506,559 tok/s | ETA: 40.3m
+5157.9s 696 [COROSRED-UNIFIED] Step  12875/19074 | Loss: 1.9908 | C-CE: 2.339 | I-CE: 1.600 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   506,723 tok/s | ETA: 40.1m
+5166.3s 697 [COROSRED-UNIFIED] Step  12900/19074 | Loss: 0.4539 | C-CE: 0.536 | I-CE: 0.298 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   506,854 tok/s | ETA: 39.9m
+5174.4s 698 [COROSRED-UNIFIED] Step  12925/19074 | Loss: 1.6332 | C-CE: 1.944 | I-CE: 0.708 | α=0.54 β=0.20 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   507,013 tok/s | ETA: 39.7m
+5182.8s 699 [COROSRED-UNIFIED] Step  12950/19074 | Loss: 1.4014 | C-CE: 1.636 | I-CE: 1.482 | α=0.54 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   507,150 tok/s | ETA: 39.6m
+5190.8s 700 [COROSRED-UNIFIED] Step  12975/19074 | Loss: 1.7209 | C-CE: 2.020 | I-CE: 1.520 | α=0.54 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   507,315 tok/s | ETA: 39.4m
+5199.1s 701 [COROSRED-UNIFIED] Step  13000/19074 | Loss: 1.4599 | C-CE: 1.708 | I-CE: 1.387 | α=0.54 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   507,451 tok/s | ETA: 39.2m
+5207.3s 702 [COROSRED-UNIFIED] Step  13025/19074 | Loss: 1.7403 | C-CE: 2.028 | I-CE: 1.781 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   507,604 tok/s | ETA: 39.0m
+5215.7s 703 [COROSRED-UNIFIED] Step  13050/19074 | Loss: 1.4452 | C-CE: 1.687 | I-CE: 1.491 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   507,738 tok/s | ETA: 38.9m
+5223.7s 704 [COROSRED-UNIFIED] Step  13075/19074 | Loss: 1.7906 | C-CE: 2.115 | I-CE: 1.299 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   507,901 tok/s | ETA: 38.7m
+5232.1s 705 [COROSRED-UNIFIED] Step  13100/19074 | Loss: 1.2521 | C-CE: 1.463 | I-CE: 1.273 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   508,031 tok/s | ETA: 38.5m
+5240.2s 706 [COROSRED-UNIFIED] Step  13125/19074 | Loss: 2.2477 | C-CE: 2.656 | I-CE: 1.661 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   508,184 tok/s | ETA: 38.4m
+5248.8s 707 [COROSRED-UNIFIED] Step  13150/19074 | Loss: 1.6254 | C-CE: 1.901 | I-CE: 1.755 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   508,302 tok/s | ETA: 38.2m
+5256.9s 708 [COROSRED-UNIFIED] Step  13175/19074 | Loss: 1.7163 | C-CE: 2.027 | I-CE: 1.363 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   508,453 tok/s | ETA: 38.0m
+5265.3s 709 [COROSRED-UNIFIED] Step  13200/19074 | Loss: 1.4329 | C-CE: 1.687 | I-CE: 1.256 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   508,579 tok/s | ETA: 37.8m
+5273.4s 710 [COROSRED-UNIFIED] Step  13225/19074 | Loss: 1.5633 | C-CE: 1.846 | I-CE: 1.307 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   508,729 tok/s | ETA: 37.7m
+5281.9s 711 [COROSRED-UNIFIED] Step  13250/19074 | Loss: 1.0510 | C-CE: 1.221 | I-CE: 1.325 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   508,856 tok/s | ETA: 37.5m
+5290.3s 712 [COROSRED-UNIFIED] Step  13275/19074 | Loss: 1.7660 | C-CE: 2.080 | I-CE: 1.549 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   508,976 tok/s | ETA: 37.3m
+5299.0s 713 [COROSRED-UNIFIED] Step  13300/19074 | Loss: 1.6768 | C-CE: 1.985 | I-CE: 1.310 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   509,064 tok/s | ETA: 37.2m
+5307.4s 714 [COROSRED-UNIFIED] Step  13325/19074 | Loss: 1.5901 | C-CE: 1.879 | I-CE: 1.302 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   509,188 tok/s | ETA: 37.0m
+5315.8s 715 [COROSRED-UNIFIED] Step  13350/19074 | Loss: 1.4152 | C-CE: 1.650 | I-CE: 1.661 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   509,315 tok/s | ETA: 36.8m
+5324.0s 716 [COROSRED-UNIFIED] Step  13375/19074 | Loss: 1.4222 | C-CE: 1.669 | I-CE: 1.498 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   509,461 tok/s | ETA: 36.7m
+5332.4s 717 [COROSRED-UNIFIED] Step  13400/19074 | Loss: 1.5035 | C-CE: 1.776 | I-CE: 1.267 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   509,585 tok/s | ETA: 36.5m
+5340.5s 718 [COROSRED-UNIFIED] Step  13425/19074 | Loss: 1.3552 | C-CE: 1.595 | I-CE: 1.348 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   509,729 tok/s | ETA: 36.3m
+5349.0s 719 [COROSRED-UNIFIED] Step  13450/19074 | Loss: 1.7472 | C-CE: 2.068 | I-CE: 1.513 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   509,848 tok/s | ETA: 36.1m
+5357.1s 720 [COROSRED-UNIFIED] Step  13475/19074 | Loss: 1.5850 | C-CE: 1.835 | I-CE: 2.226 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   510,002 tok/s | ETA: 36.0m
+5365.4s 721 [COROSRED-UNIFIED] Step  13500/19074 | Loss: 1.6089 | C-CE: 1.890 | I-CE: 1.696 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   510,123 tok/s | ETA: 35.8m
+5373.6s 722 [COROSRED-UNIFIED] Step  13525/19074 | Loss: 1.6132 | C-CE: 1.903 | I-CE: 1.550 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   510,272 tok/s | ETA: 35.6m
+5381.9s 723 [COROSRED-UNIFIED] Step  13550/19074 | Loss: 1.4246 | C-CE: 1.675 | I-CE: 1.474 | α=0.53 β=0.21 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   510,401 tok/s | ETA: 35.5m
+5390.1s 724 [COROSRED-UNIFIED] Step  13575/19074 | Loss: 1.4694 | C-CE: 1.733 | I-CE: 1.421 | α=0.53 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   510,540 tok/s | ETA: 35.3m
+5398.4s 725 [COROSRED-UNIFIED] Step  13600/19074 | Loss: 3.0999 | C-CE: 3.657 | I-CE: 3.109 | α=0.53 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   510,666 tok/s | ETA: 35.1m
+5406.6s 726 [COROSRED-UNIFIED] Step  13625/19074 | Loss: 1.4779 | C-CE: 1.747 | I-CE: 1.446 | α=0.53 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   510,808 tok/s | ETA: 35.0m
+5415.1s 727 [COROSRED-UNIFIED] Step  13650/19074 | Loss: 1.4920 | C-CE: 1.742 | I-CE: 1.919 | α=0.53 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   510,920 tok/s | ETA: 34.8m
+5423.3s 728 [COROSRED-UNIFIED] Step  13675/19074 | Loss: 1.4712 | C-CE: 1.737 | I-CE: 1.448 | α=0.53 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   511,058 tok/s | ETA: 34.6m
+5431.7s 729 [COROSRED-UNIFIED] Step  13700/19074 | Loss: 1.7261 | C-CE: 2.045 | I-CE: 1.594 | α=0.53 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   511,173 tok/s | ETA: 34.4m
+5440.0s 730 [COROSRED-UNIFIED] Step  13725/19074 | Loss: 1.7034 | C-CE: 2.035 | I-CE: 1.206 | α=0.53 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   511,301 tok/s | ETA: 34.3m
+5448.4s 731 [COROSRED-UNIFIED] Step  13750/19074 | Loss: 1.5010 | C-CE: 1.788 | I-CE: 1.188 | α=0.53 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   511,421 tok/s | ETA: 34.1m
+5456.5s 732 [COROSRED-UNIFIED] Step  13775/19074 | Loss: 1.5261 | C-CE: 1.794 | I-CE: 1.718 | α=0.53 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   511,560 tok/s | ETA: 33.9m
+5465.1s 733 [COROSRED-UNIFIED] Step  13800/19074 | Loss: 1.5779 | C-CE: 1.862 | I-CE: 1.662 | α=0.52 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   511,662 tok/s | ETA: 33.8m
+5473.4s 734 [COROSRED-UNIFIED] Step  13825/19074 | Loss: 1.7841 | C-CE: 2.137 | I-CE: 1.219 | α=0.52 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   511,783 tok/s | ETA: 33.6m
+5482.0s 735 [COROSRED-UNIFIED] Step  13850/19074 | Loss: 1.1773 | C-CE: 1.386 | I-CE: 1.324 | α=0.52 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   511,883 tok/s | ETA: 33.4m
+5490.2s 736 [COROSRED-UNIFIED] Step  13875/19074 | Loss: 1.6831 | C-CE: 1.993 | I-CE: 1.658 | α=0.52 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   512,021 tok/s | ETA: 33.3m
+5498.6s 737 [COROSRED-UNIFIED] Step  13900/19074 | Loss: 1.5611 | C-CE: 1.873 | I-CE: 1.098 | α=0.52 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   512,132 tok/s | ETA: 33.1m
+5506.8s 738 [COROSRED-UNIFIED] Step  13925/19074 | Loss: 1.0782 | C-CE: 1.252 | I-CE: 1.573 | α=0.52 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   512,270 tok/s | ETA: 32.9m
+5515.2s 739 [COROSRED-UNIFIED] Step  13950/19074 | Loss: 0.3648 | C-CE: 0.434 | I-CE: 0.335 | α=0.52 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   512,386 tok/s | ETA: 32.8m
+5523.2s 740 [COROSRED-UNIFIED] Step  13975/19074 | Loss: 1.7566 | C-CE: 2.097 | I-CE: 1.446 | α=0.52 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   512,530 tok/s | ETA: 32.6m
+5531.5s 741 [COROSRED-UNIFIED] Step  14000/19074 | Loss: 1.6737 | C-CE: 1.993 | I-CE: 1.539 | α=0.52 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   512,654 tok/s | ETA: 32.4m
+5539.8s 742 [COROSRED-UNIFIED] Step  14025/19074 | Loss: 1.8118 | C-CE: 2.179 | I-CE: 1.209 | α=0.52 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   512,780 tok/s | ETA: 32.3m
+5548.2s 743 [COROSRED-UNIFIED] Step  14050/19074 | Loss: 1.5325 | C-CE: 1.835 | I-CE: 1.244 | α=0.52 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   512,895 tok/s | ETA: 32.1m
+5556.3s 744 [COROSRED-UNIFIED] Step  14075/19074 | Loss: 1.5048 | C-CE: 1.783 | I-CE: 1.651 | α=0.52 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   513,033 tok/s | ETA: 31.9m
+5564.7s 745 [COROSRED-UNIFIED] Step  14100/19074 | Loss: 1.5580 | C-CE: 1.855 | I-CE: 1.508 | α=0.52 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   513,147 tok/s | ETA: 31.8m
+5572.8s 746 [COROSRED-UNIFIED] Step  14125/19074 | Loss: 2.8751 | C-CE: 3.423 | I-CE: 2.757 | α=0.52 β=0.22 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   513,280 tok/s | ETA: 31.6m
+5581.3s 747 [COROSRED-UNIFIED] Step  14150/19074 | Loss: 1.6164 | C-CE: 1.946 | I-CE: 1.138 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   513,392 tok/s | ETA: 31.4m
+5589.4s 748 [COROSRED-UNIFIED] Step  14175/19074 | Loss: 1.7830 | C-CE: 2.155 | I-CE: 1.117 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   513,528 tok/s | ETA: 31.3m
+5598.0s 749 [COROSRED-UNIFIED] Step  14200/19074 | Loss: 1.4036 | C-CE: 1.677 | I-CE: 1.256 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   513,615 tok/s | ETA: 31.1m
+5606.6s 750 [COROSRED-UNIFIED] Step  14225/19074 | Loss: 1.7381 | C-CE: 2.063 | I-CE: 1.827 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   513,706 tok/s | ETA: 30.9m
+5615.5s 751 [COROSRED-UNIFIED] Step  14250/19074 | Loss: 1.5438 | C-CE: 1.861 | I-CE: 1.112 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   513,780 tok/s | ETA: 30.8m
+5623.6s 752 [COROSRED-UNIFIED] Step  14275/19074 | Loss: 1.3495 | C-CE: 1.623 | I-CE: 1.030 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   513,912 tok/s | ETA: 30.6m
+5632.0s 753 [COROSRED-UNIFIED] Step  14300/19074 | Loss: 1.5027 | C-CE: 1.816 | I-CE: 0.988 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   514,020 tok/s | ETA: 30.4m
+5640.2s 754 [COROSRED-UNIFIED] Step  14325/19074 | Loss: 1.8995 | C-CE: 2.276 | I-CE: 1.723 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   514,149 tok/s | ETA: 30.3m
+5648.7s 755 [COROSRED-UNIFIED] Step  14350/19074 | Loss: 1.2375 | C-CE: 1.466 | I-CE: 1.475 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   514,256 tok/s | ETA: 30.1m
+5656.8s 756 [COROSRED-UNIFIED] Step  14375/19074 | Loss: 1.4863 | C-CE: 1.771 | I-CE: 1.566 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   514,385 tok/s | ETA: 29.9m
+5665.2s 757 [COROSRED-UNIFIED] Step  14400/19074 | Loss: 1.5201 | C-CE: 1.817 | I-CE: 1.449 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   514,491 tok/s | ETA: 29.8m
+5673.4s 758 [COROSRED-UNIFIED] Step  14425/19074 | Loss: 1.5570 | C-CE: 1.891 | I-CE: 0.954 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   514,618 tok/s | ETA: 29.6m
+5681.9s 759 [COROSRED-UNIFIED] Step  14450/19074 | Loss: 1.2474 | C-CE: 1.485 | I-CE: 1.357 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   514,723 tok/s | ETA: 29.4m
+5690.0s 760 [COROSRED-UNIFIED] Step  14475/19074 | Loss: 1.4478 | C-CE: 1.725 | I-CE: 1.577 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   514,848 tok/s | ETA: 29.3m
+5698.4s 761 [COROSRED-UNIFIED] Step  14500/19074 | Loss: 3.7097 | C-CE: 4.562 | I-CE: 1.210 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   514,954 tok/s | ETA: 29.1m
+5706.7s 762 [COROSRED-UNIFIED] Step  14525/19074 | Loss: 1.6514 | C-CE: 1.984 | I-CE: 1.434 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   515,077 tok/s | ETA: 28.9m
+5715.1s 763 [COROSRED-UNIFIED] Step  14550/19074 | Loss: 1.6145 | C-CE: 1.938 | I-CE: 1.568 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   515,182 tok/s | ETA: 28.8m
+5723.3s 764 [COROSRED-UNIFIED] Step  14575/19074 | Loss: 1.4593 | C-CE: 1.756 | I-CE: 1.256 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   515,301 tok/s | ETA: 28.6m
+5731.8s 765 [COROSRED-UNIFIED] Step  14600/19074 | Loss: 1.8742 | C-CE: 2.245 | I-CE: 1.872 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   515,400 tok/s | ETA: 28.4m
+5740.0s 766 [COROSRED-UNIFIED] Step  14625/19074 | Loss: 1.4789 | C-CE: 1.771 | I-CE: 1.499 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   515,521 tok/s | ETA: 28.3m
+5748.7s 767 [COROSRED-UNIFIED] Step  14650/19074 | Loss: 1.5636 | C-CE: 1.880 | I-CE: 1.478 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   515,601 tok/s | ETA: 28.1m
+5757.1s 768 [COROSRED-UNIFIED] Step  14675/19074 | Loss: 1.4470 | C-CE: 1.717 | I-CE: 1.780 | α=0.52 β=0.23 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   515,708 tok/s | ETA: 28.0m
+5765.8s 769 [COROSRED-UNIFIED] Step  14700/19074 | Loss: 1.4434 | C-CE: 1.747 | I-CE: 1.129 | α=0.52 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   515,783 tok/s | ETA: 27.8m
+5774.1s 770 [COROSRED-UNIFIED] Step  14725/19074 | Loss: 1.0629 | C-CE: 1.246 | I-CE: 1.642 | α=0.52 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   515,892 tok/s | ETA: 27.6m
+5782.8s 771 [COROSRED-UNIFIED] Step  14750/19074 | Loss: 0.2339 | C-CE: 0.279 | I-CE: 0.273 | α=0.52 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   515,974 tok/s | ETA: 27.5m
+5791.1s 772 [COROSRED-UNIFIED] Step  14775/19074 | Loss: 1.3662 | C-CE: 1.623 | I-CE: 1.704 | α=0.51 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   516,080 tok/s | ETA: 27.3m
+5799.8s 773 [COROSRED-UNIFIED] Step  14800/19074 | Loss: 1.1835 | C-CE: 1.406 | I-CE: 1.549 | α=0.51 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   516,157 tok/s | ETA: 27.1m
+5808.2s 774 [COROSRED-UNIFIED] Step  14825/19074 | Loss: 1.4320 | C-CE: 1.752 | I-CE: 0.876 | α=0.51 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   516,264 tok/s | ETA: 27.0m
+5817.0s 775 [COROSRED-UNIFIED] Step  14850/19074 | Loss: 1.5055 | C-CE: 1.828 | I-CE: 1.224 | α=0.51 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   516,333 tok/s | ETA: 26.8m
+5825.3s 776 [COROSRED-UNIFIED] Step  14875/19074 | Loss: 1.6967 | C-CE: 2.064 | I-CE: 1.312 | α=0.51 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   516,435 tok/s | ETA: 26.6m
+5834.0s 777 [COROSRED-UNIFIED] Step  14900/19074 | Loss: 1.4873 | C-CE: 1.758 | I-CE: 2.157 | α=0.51 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   516,515 tok/s | ETA: 26.5m
+5842.2s 778 [COROSRED-UNIFIED] Step  14925/19074 | Loss: 1.4987 | C-CE: 1.833 | I-CE: 0.968 | α=0.51 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   516,629 tok/s | ETA: 26.3m
+5850.8s 779 [COROSRED-UNIFIED] Step  14950/19074 | Loss: 1.2362 | C-CE: 1.504 | I-CE: 0.990 | α=0.51 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   516,717 tok/s | ETA: 26.2m
+5859.1s 780 [COROSRED-UNIFIED] Step  14975/19074 | Loss: 1.6224 | C-CE: 1.972 | I-CE: 1.343 | α=0.51 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   516,823 tok/s | ETA: 26.0m
+5867.8s 781 [COROSRED-UNIFIED] Step  15000/19074 | Loss: 1.4322 | C-CE: 1.743 | I-CE: 1.157 | α=0.51 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   516,900 tok/s | ETA: 25.8m
+5876.2s 782 [COROSRED-UNIFIED] Step  15025/19074 | Loss: 1.5436 | C-CE: 1.866 | I-CE: 1.478 | α=0.51 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   517,001 tok/s | ETA: 25.7m
+5884.9s 783 [COROSRED-UNIFIED] Step  15050/19074 | Loss: 1.6955 | C-CE: 2.050 | I-CE: 1.658 | α=0.51 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   517,074 tok/s | ETA: 25.5m
+5893.2s 784 [COROSRED-UNIFIED] Step  15075/19074 | Loss: 1.7403 | C-CE: 2.116 | I-CE: 1.489 | α=0.51 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   517,175 tok/s | ETA: 25.3m
+5902.0s 785 [COROSRED-UNIFIED] Step  15100/19074 | Loss: 1.3354 | C-CE: 1.604 | I-CE: 1.542 | α=0.51 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   517,240 tok/s | ETA: 25.2m
+5910.5s 786 [COROSRED-UNIFIED] Step  15125/19074 | Loss: 1.4494 | C-CE: 1.775 | I-CE: 1.037 | α=0.51 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   517,337 tok/s | ETA: 25.0m
+5919.2s 787 [COROSRED-UNIFIED] Step  15150/19074 | Loss: 1.4584 | C-CE: 1.757 | I-CE: 1.539 | α=0.51 β=0.24 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   517,410 tok/s | ETA: 24.9m
+5927.6s 788 [COROSRED-UNIFIED] Step  15175/19074 | Loss: 1.3937 | C-CE: 1.699 | I-CE: 1.182 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   517,501 tok/s | ETA: 24.7m
+5936.3s 789 [COROSRED-UNIFIED] Step  15200/19074 | Loss: 1.5263 | C-CE: 1.854 | I-CE: 1.320 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   517,576 tok/s | ETA: 24.5m
+5944.8s 790 [COROSRED-UNIFIED] Step  15225/19074 | Loss: 0.8108 | C-CE: 0.993 | I-CE: 0.597 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   517,666 tok/s | ETA: 24.4m
+5953.5s 791 [COROSRED-UNIFIED] Step  15250/19074 | Loss: 1.6271 | C-CE: 1.998 | I-CE: 1.057 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   517,736 tok/s | ETA: 24.2m
+5962.0s 792 [COROSRED-UNIFIED] Step  15275/19074 | Loss: 1.4689 | C-CE: 1.776 | I-CE: 1.593 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   517,828 tok/s | ETA: 24.0m
+5970.6s 793 [COROSRED-UNIFIED] Step  15300/19074 | Loss: 1.2287 | C-CE: 1.489 | I-CE: 1.294 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   517,901 tok/s | ETA: 23.9m
+5979.1s 794 [COROSRED-UNIFIED] Step  15325/19074 | Loss: 1.4541 | C-CE: 1.757 | I-CE: 1.569 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   517,989 tok/s | ETA: 23.7m
+5987.9s 795 [COROSRED-UNIFIED] Step  15350/19074 | Loss: 4.1317 | C-CE: 4.968 | I-CE: 4.888 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   518,062 tok/s | ETA: 23.6m
+5996.3s 796 [COROSRED-UNIFIED] Step  15375/19074 | Loss: 1.5510 | C-CE: 1.889 | I-CE: 1.415 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   518,152 tok/s | ETA: 23.4m
+6005.0s 797 [COROSRED-UNIFIED] Step  15400/19074 | Loss: 1.7075 | C-CE: 2.094 | I-CE: 1.296 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   518,220 tok/s | ETA: 23.2m
+6013.5s 798 [COROSRED-UNIFIED] Step  15425/19074 | Loss: 1.4957 | C-CE: 1.821 | I-CE: 1.397 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   518,311 tok/s | ETA: 23.1m
+6022.3s 799 [COROSRED-UNIFIED] Step  15450/19074 | Loss: 1.4684 | C-CE: 1.805 | I-CE: 1.096 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   518,374 tok/s | ETA: 22.9m
+6030.7s 800 [COROSRED-UNIFIED] Step  15475/19074 | Loss: 1.3748 | C-CE: 1.659 | I-CE: 1.632 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   518,466 tok/s | ETA: 22.7m
+6039.4s 801 [COROSRED-UNIFIED] Step  15500/19074 | Loss: 1.5983 | C-CE: 1.952 | I-CE: 1.488 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   518,532 tok/s | ETA: 22.6m
+6048.0s 802 [COROSRED-UNIFIED] Step  15525/19074 | Loss: 1.6232 | C-CE: 1.988 | I-CE: 1.419 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   518,605 tok/s | ETA: 22.4m
+6057.2s 803 [COROSRED-UNIFIED] Step  15550/19074 | Loss: 1.9249 | C-CE: 2.350 | I-CE: 1.870 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   518,639 tok/s | ETA: 22.3m
+6065.9s 804 [COROSRED-UNIFIED] Step  15575/19074 | Loss: 1.4481 | C-CE: 1.775 | I-CE: 1.267 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   518,705 tok/s | ETA: 22.1m
+6074.8s 805 [COROSRED-UNIFIED] Step  15600/19074 | Loss: 1.4199 | C-CE: 1.734 | I-CE: 1.396 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   518,755 tok/s | ETA: 21.9m
+6083.6s 806 [COROSRED-UNIFIED] Step  15625/19074 | Loss: 1.3561 | C-CE: 1.603 | I-CE: 2.315 | α=0.51 β=0.25 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   518,808 tok/s | ETA: 21.8m
+6092.7s 807 [COROSRED-UNIFIED] Step  15650/19074 | Loss: 1.6824 | C-CE: 2.059 | I-CE: 1.550 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   518,851 tok/s | ETA: 21.6m
+6101.4s 808 [COROSRED-UNIFIED] Step  15675/19074 | Loss: 1.4545 | C-CE: 1.763 | I-CE: 1.697 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   518,914 tok/s | ETA: 21.5m
+6110.3s 809 [COROSRED-UNIFIED] Step  15700/19074 | Loss: 1.5340 | C-CE: 1.874 | I-CE: 1.575 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   518,958 tok/s | ETA: 21.3m
+6119.1s 810 [COROSRED-UNIFIED] Step  15725/19074 | Loss: 0.8853 | C-CE: 1.065 | I-CE: 1.149 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   519,023 tok/s | ETA: 21.1m
+6128.0s 811 [COROSRED-UNIFIED] Step  15750/19074 | Loss: 1.5199 | C-CE: 1.875 | I-CE: 1.204 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   519,077 tok/s | ETA: 21.0m
+6136.4s 812 [COROSRED-UNIFIED] Step  15775/19074 | Loss: 1.5139 | C-CE: 1.857 | I-CE: 1.431 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   519,165 tok/s | ETA: 20.8m
+6145.0s 813 [COROSRED-UNIFIED] Step  15800/19074 | Loss: 1.4822 | C-CE: 1.799 | I-CE: 1.668 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   519,236 tok/s | ETA: 20.7m
+6153.5s 814 [COROSRED-UNIFIED] Step  15825/19074 | Loss: 1.6172 | C-CE: 1.971 | I-CE: 1.828 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   519,323 tok/s | ETA: 20.5m
+6162.4s 815 [COROSRED-UNIFIED] Step  15850/19074 | Loss: 1.6239 | C-CE: 2.007 | I-CE: 1.347 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   519,379 tok/s | ETA: 20.3m
+6170.7s 816 [COROSRED-UNIFIED] Step  15875/19074 | Loss: 1.4953 | C-CE: 1.841 | I-CE: 1.362 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   519,469 tok/s | ETA: 20.2m
+6179.6s 817 [COROSRED-UNIFIED] Step  15900/19074 | Loss: 4.0519 | C-CE: 4.928 | I-CE: 4.777 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   519,522 tok/s | ETA: 20.0m
+6188.2s 818 [COROSRED-UNIFIED] Step  15925/19074 | Loss: 1.5871 | C-CE: 1.960 | I-CE: 1.354 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   519,594 tok/s | ETA: 19.9m
+6196.9s 819 [COROSRED-UNIFIED] Step  15950/19074 | Loss: 1.6368 | C-CE: 2.008 | I-CE: 1.630 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   519,664 tok/s | ETA: 19.7m
+6205.1s 820 [COROSRED-UNIFIED] Step  15975/19074 | Loss: 1.2818 | C-CE: 1.588 | I-CE: 0.996 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   519,769 tok/s | ETA: 19.5m
+6213.6s 821 [COROSRED-UNIFIED] Step  16000/19074 | Loss: 1.2324 | C-CE: 1.505 | I-CE: 1.388 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   519,849 tok/s | ETA: 19.4m
+6213.6s 822 
+6213.6s 823 [Checkpoint Step  16000] Saving checkpoint weights to checkpoints/corosred/unified/75m_python/checkpoint_step_16000.pt...
+6214.2s 824 [Checkpoint Verified] Successfully saved checkpoints/corosred/unified/75m_python/checkpoint_step_16000.pt (321.3 MB)
+6214.2s 825 [Checkpoint Step  16000] Successfully saved weights to checkpoints/corosred/unified/75m_python/checkpoint_step_16000.pt
+6214.2s 826 
+6223.0s 827 [COROSRED-UNIFIED] Step  16025/19074 | Loss: 1.6287 | C-CE: 2.035 | I-CE: 1.039 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.51 |   2.6 st/s |   519,852 tok/s | ETA: 19.2m
+6231.8s 828 [COROSRED-UNIFIED] Step  16050/19074 | Loss: 1.7463 | C-CE: 2.145 | I-CE: 1.781 | α=0.51 β=0.26 γ=0.00 | Acc=0.53 AUC=0.50 |   2.6 st/s |   519,917 tok/s | ETA: 19.1m
+6240.0s 829 [COROSRED-UNIFIED] Step  16075/19074 | Loss: 2.4695 | C-CE: 3.029 | I-CE: 2.626 | α=0.51 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.6 st/s |   520,019 tok/s | ETA: 18.9m
+6248.7s 830 [COROSRED-UNIFIED] Step  16100/19074 | Loss: 1.7022 | C-CE: 2.105 | I-CE: 1.478 | α=0.51 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.6 st/s |   520,086 tok/s | ETA: 18.7m
+6256.9s 831 [COROSRED-UNIFIED] Step  16125/19074 | Loss: 1.5305 | C-CE: 1.819 | I-CE: 2.768 | α=0.51 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.6 st/s |   520,191 tok/s | ETA: 18.6m
+6265.5s 832 [COROSRED-UNIFIED] Step  16150/19074 | Loss: 1.6467 | C-CE: 2.017 | I-CE: 1.759 | α=0.51 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.6 st/s |   520,264 tok/s | ETA: 18.4m
+6273.7s 833 [COROSRED-UNIFIED] Step  16175/19074 | Loss: 1.3974 | C-CE: 1.744 | I-CE: 1.026 | α=0.51 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.6 st/s |   520,371 tok/s | ETA: 18.3m
+6282.2s 834 [COROSRED-UNIFIED] Step  16200/19074 | Loss: 1.5945 | C-CE: 1.962 | I-CE: 1.600 | α=0.51 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.6 st/s |   520,448 tok/s | ETA: 18.1m
+6290.3s 835 [COROSRED-UNIFIED] Step  16225/19074 | Loss: 1.4898 | C-CE: 1.842 | I-CE: 1.420 | α=0.51 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.6 st/s |   520,558 tok/s | ETA: 17.9m
+6298.9s 836 [COROSRED-UNIFIED] Step  16250/19074 | Loss: 1.3076 | C-CE: 1.613 | I-CE: 1.330 | α=0.51 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.6 st/s |   520,637 tok/s | ETA: 17.8m
+6307.3s 837 [COROSRED-UNIFIED] Step  16275/19074 | Loss: 1.2295 | C-CE: 1.520 | I-CE: 1.193 | α=0.51 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.6 st/s |   520,725 tok/s | ETA: 17.6m
+6316.3s 838 [COROSRED-UNIFIED] Step  16300/19074 | Loss: 1.3174 | C-CE: 1.630 | I-CE: 1.313 | α=0.51 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.6 st/s |   520,762 tok/s | ETA: 17.5m
+6324.9s 839 [COROSRED-UNIFIED] Step  16325/19074 | Loss: 1.2969 | C-CE: 1.591 | I-CE: 1.511 | α=0.50 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.6 st/s |   520,831 tok/s | ETA: 17.3m
+6333.8s 840 [COROSRED-UNIFIED] Step  16350/19074 | Loss: 1.2731 | C-CE: 1.577 | I-CE: 1.265 | α=0.50 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.6 st/s |   520,881 tok/s | ETA: 17.1m
+6342.2s 841 [COROSRED-UNIFIED] Step  16375/19074 | Loss: 1.3287 | C-CE: 1.621 | I-CE: 1.647 | α=0.50 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.6 st/s |   520,959 tok/s | ETA: 17.0m
+6351.2s 842 [COROSRED-UNIFIED] Step  16400/19074 | Loss: 1.8260 | C-CE: 2.269 | I-CE: 1.668 | α=0.50 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.6 st/s |   520,999 tok/s | ETA: 16.8m
+6359.9s 843 [COROSRED-UNIFIED] Step  16425/19074 | Loss: 1.5780 | C-CE: 1.966 | I-CE: 1.372 | α=0.50 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   521,063 tok/s | ETA: 16.7m
+6368.7s 844 [COROSRED-UNIFIED] Step  16450/19074 | Loss: 1.5544 | C-CE: 1.924 | I-CE: 1.532 | α=0.50 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   521,119 tok/s | ETA: 16.5m
+6377.3s 845 [COROSRED-UNIFIED] Step  16475/19074 | Loss: 1.4804 | C-CE: 1.846 | I-CE: 1.285 | α=0.50 β=0.27 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   521,187 tok/s | ETA: 16.3m
+6386.1s 846 [COROSRED-UNIFIED] Step  16500/19074 | Loss: 1.3172 | C-CE: 1.672 | I-CE: 0.647 | α=0.50 β=0.28 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   521,241 tok/s | ETA: 16.2m
+6394.8s 847 [COROSRED-UNIFIED] Step  16525/19074 | Loss: 1.4506 | C-CE: 1.807 | I-CE: 1.382 | α=0.50 β=0.28 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   521,300 tok/s | ETA: 16.0m
+6403.6s 848 [COROSRED-UNIFIED] Step  16550/19074 | Loss: 1.4887 | C-CE: 1.860 | I-CE: 1.315 | α=0.50 β=0.28 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   521,358 tok/s | ETA: 15.9m
+6412.1s 849 [COROSRED-UNIFIED] Step  16575/19074 | Loss: 1.7174 | C-CE: 2.145 | I-CE: 1.514 | α=0.50 β=0.28 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   521,425 tok/s | ETA: 15.7m
+6420.9s 850 [COROSRED-UNIFIED] Step  16600/19074 | Loss: 1.4932 | C-CE: 1.851 | I-CE: 1.601 | α=0.50 β=0.28 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   521,477 tok/s | ETA: 15.5m
+6429.4s 851 [COROSRED-UNIFIED] Step  16625/19074 | Loss: 1.3491 | C-CE: 1.660 | I-CE: 1.586 | α=0.50 β=0.28 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   521,554 tok/s | ETA: 15.4m
+6438.2s 852 [COROSRED-UNIFIED] Step  16650/19074 | Loss: 1.5354 | C-CE: 1.853 | I-CE: 2.421 | α=0.50 β=0.28 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   521,613 tok/s | ETA: 15.2m
+6446.5s 853 [COROSRED-UNIFIED] Step  16675/19074 | Loss: 1.4576 | C-CE: 1.821 | I-CE: 1.302 | α=0.50 β=0.28 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   521,699 tok/s | ETA: 15.1m
+6455.0s 854 [COROSRED-UNIFIED] Step  16700/19074 | Loss: 1.6303 | C-CE: 2.043 | I-CE: 1.453 | α=0.50 β=0.28 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   521,778 tok/s | ETA: 14.9m
+6463.2s 855 [COROSRED-UNIFIED] Step  16725/19074 | Loss: 1.3947 | C-CE: 1.746 | I-CE: 1.213 | α=0.50 β=0.28 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   521,882 tok/s | ETA: 14.7m
+6471.7s 856 [COROSRED-UNIFIED] Step  16750/19074 | Loss: 1.3614 | C-CE: 1.718 | I-CE: 0.975 | α=0.50 β=0.28 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   521,957 tok/s | ETA: 14.6m
+6480.1s 857 [COROSRED-UNIFIED] Step  16775/19074 | Loss: 1.5736 | C-CE: 1.962 | I-CE: 1.526 | α=0.50 β=0.28 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,040 tok/s | ETA: 14.4m
+6488.9s 858 [COROSRED-UNIFIED] Step  16800/19074 | Loss: 1.5382 | C-CE: 1.914 | I-CE: 1.633 | α=0.50 β=0.28 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,094 tok/s | ETA: 14.3m
+6497.4s 859 [COROSRED-UNIFIED] Step  16825/19074 | Loss: 1.2531 | C-CE: 1.587 | I-CE: 0.869 | α=0.50 β=0.28 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,168 tok/s | ETA: 14.1m
+6506.1s 860 [COROSRED-UNIFIED] Step  16850/19074 | Loss: 1.3281 | C-CE: 1.669 | I-CE: 1.124 | α=0.50 β=0.28 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,226 tok/s | ETA: 14.0m
+6514.5s 861 [COROSRED-UNIFIED] Step  16875/19074 | Loss: 1.2773 | C-CE: 1.590 | I-CE: 1.389 | α=0.50 β=0.28 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,310 tok/s | ETA: 13.8m
+6522.9s 862 [COROSRED-UNIFIED] Step  16900/19074 | Loss: 1.4785 | C-CE: 1.841 | I-CE: 1.597 | α=0.50 β=0.29 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,390 tok/s | ETA: 13.6m
+6531.5s 863 [COROSRED-UNIFIED] Step  16925/19074 | Loss: 1.4861 | C-CE: 1.848 | I-CE: 1.615 | α=0.50 β=0.29 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,456 tok/s | ETA: 13.5m
+6540.6s 864 [COROSRED-UNIFIED] Step  16950/19074 | Loss: 1.6453 | C-CE: 2.024 | I-CE: 2.149 | α=0.50 β=0.29 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,488 tok/s | ETA: 13.3m
+6549.2s 865 [COROSRED-UNIFIED] Step  16975/19074 | Loss: 1.1002 | C-CE: 1.352 | I-CE: 1.450 | α=0.50 β=0.29 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,546 tok/s | ETA: 13.2m
+6558.0s 866 [COROSRED-UNIFIED] Step  17000/19074 | Loss: 1.7092 | C-CE: 2.147 | I-CE: 1.543 | α=0.50 β=0.29 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,594 tok/s | ETA: 13.0m
+6566.7s 867 [COROSRED-UNIFIED] Step  17025/19074 | Loss: 1.4393 | C-CE: 1.824 | I-CE: 1.116 | α=0.50 β=0.29 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,658 tok/s | ETA: 12.8m
+6575.6s 868 [COROSRED-UNIFIED] Step  17050/19074 | Loss: 1.2180 | C-CE: 1.544 | I-CE: 0.936 | α=0.50 β=0.29 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,702 tok/s | ETA: 12.7m
+6584.0s 869 [COROSRED-UNIFIED] Step  17075/19074 | Loss: 1.3970 | C-CE: 1.744 | I-CE: 1.505 | α=0.50 β=0.29 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,777 tok/s | ETA: 12.5m
+6592.8s 870 [COROSRED-UNIFIED] Step  17100/19074 | Loss: 1.4802 | C-CE: 1.847 | I-CE: 1.643 | α=0.50 β=0.29 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,823 tok/s | ETA: 12.4m
+6601.4s 871 [COROSRED-UNIFIED] Step  17125/19074 | Loss: 1.0637 | C-CE: 1.333 | I-CE: 1.101 | α=0.50 β=0.29 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,890 tok/s | ETA: 12.2m
+6610.4s 872 [COROSRED-UNIFIED] Step  17150/19074 | Loss: 1.4314 | C-CE: 1.816 | I-CE: 1.148 | α=0.50 β=0.29 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,931 tok/s | ETA: 12.1m
+6618.9s 873 [COROSRED-UNIFIED] Step  17175/19074 | Loss: 1.5017 | C-CE: 1.918 | I-CE: 1.042 | α=0.50 β=0.29 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   522,994 tok/s | ETA: 11.9m
+6627.9s 874 [COROSRED-UNIFIED] Step  17200/19074 | Loss: 1.4968 | C-CE: 1.894 | I-CE: 1.321 | α=0.50 β=0.29 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   523,026 tok/s | ETA: 11.7m
+6636.3s 875 [COROSRED-UNIFIED] Step  17225/19074 | Loss: 0.2646 | C-CE: 0.324 | I-CE: 0.395 | α=0.50 β=0.29 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   523,108 tok/s | ETA: 11.6m
+6644.9s 876 [COROSRED-UNIFIED] Step  17250/19074 | Loss: 1.6358 | C-CE: 2.059 | I-CE: 1.574 | α=0.50 β=0.29 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   523,182 tok/s | ETA: 11.4m
+6653.3s 877 [COROSRED-UNIFIED] Step  17275/19074 | Loss: 1.5827 | C-CE: 1.990 | I-CE: 1.560 | α=0.50 β=0.30 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   523,255 tok/s | ETA: 11.3m
+6661.8s 878 [COROSRED-UNIFIED] Step  17300/19074 | Loss: 1.4600 | C-CE: 1.825 | I-CE: 1.637 | α=0.50 β=0.30 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   523,329 tok/s | ETA: 11.1m
+6669.9s 879 [COROSRED-UNIFIED] Step  17325/19074 | Loss: 1.4209 | C-CE: 1.796 | I-CE: 1.335 | α=0.50 β=0.30 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   523,430 tok/s | ETA: 10.9m
+6678.4s 880 [COROSRED-UNIFIED] Step  17350/19074 | Loss: 1.2322 | C-CE: 1.550 | I-CE: 1.246 | α=0.50 β=0.30 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   523,506 tok/s | ETA: 10.8m
+6686.6s 881 [COROSRED-UNIFIED] Step  17375/19074 | Loss: 1.1151 | C-CE: 1.446 | I-CE: 0.489 | α=0.50 β=0.30 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   523,599 tok/s | ETA: 10.6m
+6695.1s 882 [COROSRED-UNIFIED] Step  17400/19074 | Loss: 0.1980 | C-CE: 0.244 | I-CE: 0.301 | α=0.50 β=0.30 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   523,669 tok/s | ETA: 10.5m
+6703.4s 883 [COROSRED-UNIFIED] Step  17425/19074 | Loss: 1.4378 | C-CE: 1.794 | I-CE: 1.770 | α=0.50 β=0.30 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   523,758 tok/s | ETA: 10.3m
+6711.9s 884 [COROSRED-UNIFIED] Step  17450/19074 | Loss: 1.3814 | C-CE: 1.752 | I-CE: 1.234 | α=0.50 β=0.30 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   523,834 tok/s | ETA: 10.2m
+6720.4s 885 [COROSRED-UNIFIED] Step  17475/19074 | Loss: 1.4690 | C-CE: 1.862 | I-CE: 1.406 | α=0.50 β=0.30 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   523,899 tok/s | ETA: 10.0m
+6729.2s 886 [COROSRED-UNIFIED] Step  17500/19074 | Loss: 0.9976 | C-CE: 1.258 | I-CE: 1.045 | α=0.50 β=0.30 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   523,942 tok/s | ETA:  9.8m
+6737.6s 887 [COROSRED-UNIFIED] Step  17525/19074 | Loss: 1.5807 | C-CE: 2.039 | I-CE: 1.003 | α=0.50 β=0.30 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,020 tok/s | ETA:  9.7m
+6746.4s 888 [COROSRED-UNIFIED] Step  17550/19074 | Loss: 1.3224 | C-CE: 1.646 | I-CE: 1.735 | α=0.50 β=0.30 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,073 tok/s | ETA:  9.5m
+6754.7s 889 [COROSRED-UNIFIED] Step  17575/19074 | Loss: 1.1640 | C-CE: 1.439 | I-CE: 1.675 | α=0.50 β=0.30 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,150 tok/s | ETA:  9.4m
+6763.5s 890 [COROSRED-UNIFIED] Step  17600/19074 | Loss: 1.4722 | C-CE: 1.897 | I-CE: 0.985 | α=0.50 β=0.30 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,201 tok/s | ETA:  9.2m
+6771.9s 891 [COROSRED-UNIFIED] Step  17625/19074 | Loss: 1.4169 | C-CE: 1.789 | I-CE: 1.475 | α=0.50 β=0.31 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,278 tok/s | ETA:  9.1m
+6780.7s 892 [COROSRED-UNIFIED] Step  17650/19074 | Loss: 1.2815 | C-CE: 1.601 | I-CE: 1.639 | α=0.50 β=0.31 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,326 tok/s | ETA:  8.9m
+6789.0s 893 [COROSRED-UNIFIED] Step  17675/19074 | Loss: 1.4838 | C-CE: 1.911 | I-CE: 1.066 | α=0.50 β=0.31 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,404 tok/s | ETA:  8.7m
+6797.8s 894 [COROSRED-UNIFIED] Step  17700/19074 | Loss: 1.3983 | C-CE: 1.794 | I-CE: 1.148 | α=0.50 β=0.31 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,453 tok/s | ETA:  8.6m
+6806.4s 895 [COROSRED-UNIFIED] Step  17725/19074 | Loss: 1.6019 | C-CE: 2.027 | I-CE: 1.704 | α=0.50 β=0.31 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,515 tok/s | ETA:  8.4m
+6815.2s 896 [COROSRED-UNIFIED] Step  17750/19074 | Loss: 1.4879 | C-CE: 1.882 | I-CE: 1.648 | α=0.50 β=0.31 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,561 tok/s | ETA:  8.3m
+6823.6s 897 [COROSRED-UNIFIED] Step  17775/19074 | Loss: 1.3335 | C-CE: 1.695 | I-CE: 1.319 | α=0.50 β=0.31 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,635 tok/s | ETA:  8.1m
+6832.3s 898 [COROSRED-UNIFIED] Step  17800/19074 | Loss: 1.5491 | C-CE: 1.966 | I-CE: 1.581 | α=0.50 β=0.31 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,689 tok/s | ETA:  8.0m
+6840.7s 899 [COROSRED-UNIFIED] Step  17825/19074 | Loss: 0.6923 | C-CE: 0.842 | I-CE: 1.235 | α=0.50 β=0.31 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,766 tok/s | ETA:  7.8m
+6849.6s 900 [COROSRED-UNIFIED] Step  17850/19074 | Loss: 1.4661 | C-CE: 1.876 | I-CE: 1.308 | α=0.50 β=0.31 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,806 tok/s | ETA:  7.6m
+6858.3s 901 [COROSRED-UNIFIED] Step  17875/19074 | Loss: 1.2210 | C-CE: 1.558 | I-CE: 1.211 | α=0.50 β=0.31 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,851 tok/s | ETA:  7.5m
+6867.3s 902 [COROSRED-UNIFIED] Step  17900/19074 | Loss: 1.2186 | C-CE: 1.550 | I-CE: 1.282 | α=0.50 β=0.31 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,882 tok/s | ETA:  7.3m
+6875.9s 903 [COROSRED-UNIFIED] Step  17925/19074 | Loss: 1.2608 | C-CE: 1.584 | I-CE: 1.608 | α=0.50 β=0.31 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,937 tok/s | ETA:  7.2m
+6884.9s 904 [COROSRED-UNIFIED] Step  17950/19074 | Loss: 1.5449 | C-CE: 1.993 | I-CE: 1.237 | α=0.50 β=0.31 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   524,976 tok/s | ETA:  7.0m
+6893.7s 905 [COROSRED-UNIFIED] Step  17975/19074 | Loss: 0.9771 | C-CE: 1.248 | I-CE: 0.945 | α=0.50 β=0.32 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,013 tok/s | ETA:  6.9m
+6902.9s 906 [COROSRED-UNIFIED] Step  18000/19074 | Loss: 1.5304 | C-CE: 1.961 | I-CE: 1.411 | α=0.50 β=0.32 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,029 tok/s | ETA:  6.7m
+6911.9s 907 [COROSRED-UNIFIED] Step  18025/19074 | Loss: 1.0856 | C-CE: 1.370 | I-CE: 1.352 | α=0.50 β=0.32 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,054 tok/s | ETA:  6.5m
+6921.1s 908 [COROSRED-UNIFIED] Step  18050/19074 | Loss: 1.3099 | C-CE: 1.670 | I-CE: 1.415 | α=0.50 β=0.32 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,068 tok/s | ETA:  6.4m
+6929.9s 909 [COROSRED-UNIFIED] Step  18075/19074 | Loss: 1.5040 | C-CE: 1.913 | I-CE: 1.686 | α=0.50 β=0.32 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,109 tok/s | ETA:  6.2m
+6938.9s 910 [COROSRED-UNIFIED] Step  18100/19074 | Loss: 1.4462 | C-CE: 1.848 | I-CE: 1.444 | α=0.50 β=0.32 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,138 tok/s | ETA:  6.1m
+6947.5s 911 [COROSRED-UNIFIED] Step  18125/19074 | Loss: 1.7003 | C-CE: 2.215 | I-CE: 1.170 | α=0.50 β=0.32 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,194 tok/s | ETA:  5.9m
+6956.6s 912 [COROSRED-UNIFIED] Step  18150/19074 | Loss: 1.6055 | C-CE: 2.085 | I-CE: 1.240 | α=0.50 β=0.32 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,224 tok/s | ETA:  5.8m
+6965.1s 913 [COROSRED-UNIFIED] Step  18175/19074 | Loss: 1.1814 | C-CE: 1.540 | I-CE: 0.794 | α=0.50 β=0.32 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,284 tok/s | ETA:  5.6m
+6974.0s 914 [COROSRED-UNIFIED] Step  18200/19074 | Loss: 1.5433 | C-CE: 1.959 | I-CE: 1.739 | α=0.50 β=0.32 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,315 tok/s | ETA:  5.5m
+6982.6s 915 [COROSRED-UNIFIED] Step  18225/19074 | Loss: 1.3494 | C-CE: 1.703 | I-CE: 1.770 | α=0.50 β=0.32 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,379 tok/s | ETA:  5.3m
+6991.6s 916 [COROSRED-UNIFIED] Step  18250/19074 | Loss: 1.4123 | C-CE: 1.799 | I-CE: 1.630 | α=0.50 β=0.32 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,416 tok/s | ETA:  5.1m
+7000.0s 917 [COROSRED-UNIFIED] Step  18275/19074 | Loss: 0.8402 | C-CE: 1.109 | I-CE: 0.419 | α=0.50 β=0.32 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,474 tok/s | ETA:  5.0m
+7009.2s 918 [COROSRED-UNIFIED] Step  18300/19074 | Loss: 1.3109 | C-CE: 1.709 | I-CE: 0.994 | α=0.50 β=0.32 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,487 tok/s | ETA:  4.8m
+7018.2s 919 [COROSRED-UNIFIED] Step  18325/19074 | Loss: 1.3607 | C-CE: 1.758 | I-CE: 1.226 | α=0.50 β=0.33 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,516 tok/s | ETA:  4.7m
+7027.2s 920 [COROSRED-UNIFIED] Step  18350/19074 | Loss: 1.6287 | C-CE: 2.084 | I-CE: 1.712 | α=0.50 β=0.33 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,546 tok/s | ETA:  4.5m
+7035.8s 921 [COROSRED-UNIFIED] Step  18375/19074 | Loss: 2.4601 | C-CE: 3.184 | I-CE: 2.195 | α=0.50 β=0.33 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,602 tok/s | ETA:  4.4m
+7044.6s 922 [COROSRED-UNIFIED] Step  18400/19074 | Loss: 1.5286 | C-CE: 2.004 | I-CE: 0.987 | α=0.50 β=0.33 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,639 tok/s | ETA:  4.2m
+7053.3s 923 [COROSRED-UNIFIED] Step  18425/19074 | Loss: 1.0858 | C-CE: 1.386 | I-CE: 1.291 | α=0.50 β=0.33 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,691 tok/s | ETA:  4.0m
+7062.3s 924 [COROSRED-UNIFIED] Step  18450/19074 | Loss: 0.2876 | C-CE: 0.366 | I-CE: 0.348 | α=0.50 β=0.33 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,721 tok/s | ETA:  3.9m
+7071.0s 925 [COROSRED-UNIFIED] Step  18475/19074 | Loss: 1.6284 | C-CE: 2.077 | I-CE: 1.975 | α=0.50 β=0.33 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,766 tok/s | ETA:  3.7m
+7080.0s 926 [COROSRED-UNIFIED] Step  18500/19074 | Loss: 1.1603 | C-CE: 1.485 | I-CE: 1.367 | α=0.50 β=0.33 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,797 tok/s | ETA:  3.6m
+7088.9s 927 [COROSRED-UNIFIED] Step  18525/19074 | Loss: 1.4591 | C-CE: 1.885 | I-CE: 1.431 | α=0.50 β=0.33 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,830 tok/s | ETA:  3.4m
+7097.9s 928 [COROSRED-UNIFIED] Step  18550/19074 | Loss: 1.2930 | C-CE: 1.689 | I-CE: 1.042 | α=0.50 β=0.33 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,863 tok/s | ETA:  3.3m
+7106.3s 929 [COROSRED-UNIFIED] Step  18575/19074 | Loss: 1.6163 | C-CE: 2.092 | I-CE: 1.574 | α=0.50 β=0.33 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,929 tok/s | ETA:  3.1m
+7115.1s 930 [COROSRED-UNIFIED] Step  18600/19074 | Loss: 1.6756 | C-CE: 2.172 | I-CE: 1.596 | α=0.50 β=0.33 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   525,966 tok/s | ETA:  3.0m
+7123.7s 931 [COROSRED-UNIFIED] Step  18625/19074 | Loss: 1.1557 | C-CE: 1.524 | I-CE: 0.754 | α=0.50 β=0.33 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   526,025 tok/s | ETA:  2.8m
+7132.4s 932 [COROSRED-UNIFIED] Step  18650/19074 | Loss: 1.6116 | C-CE: 2.061 | I-CE: 1.950 | α=0.50 β=0.34 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   526,075 tok/s | ETA:  2.6m
+7140.8s 933 [COROSRED-UNIFIED] Step  18675/19074 | Loss: 1.4312 | C-CE: 1.847 | I-CE: 1.534 | α=0.50 β=0.34 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   526,143 tok/s | ETA:  2.5m
+7149.7s 934 [COROSRED-UNIFIED] Step  18700/19074 | Loss: 1.1716 | C-CE: 1.490 | I-CE: 1.532 | α=0.50 β=0.34 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   526,180 tok/s | ETA:  2.3m
+7158.1s 935 [COROSRED-UNIFIED] Step  18725/19074 | Loss: 1.6948 | C-CE: 2.211 | I-CE: 1.465 | α=0.50 β=0.34 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   526,248 tok/s | ETA:  2.2m
+7166.9s 936 [COROSRED-UNIFIED] Step  18750/19074 | Loss: 1.7803 | C-CE: 2.359 | I-CE: 1.089 | α=0.50 β=0.34 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   526,292 tok/s | ETA:  2.0m
+7175.2s 937 [COROSRED-UNIFIED] Step  18775/19074 | Loss: 1.6485 | C-CE: 2.165 | I-CE: 1.342 | α=0.50 β=0.34 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   526,368 tok/s | ETA:  1.9m
+7183.8s 938 [COROSRED-UNIFIED] Step  18800/19074 | Loss: 1.4640 | C-CE: 1.895 | I-CE: 1.503 | α=0.50 β=0.34 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   526,425 tok/s | ETA:  1.7m
+7192.0s 939 [COROSRED-UNIFIED] Step  18825/19074 | Loss: 1.5305 | C-CE: 1.998 | I-CE: 1.407 | α=0.50 β=0.34 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   526,507 tok/s | ETA:  1.5m
+7200.6s 940 [COROSRED-UNIFIED] Step  18850/19074 | Loss: 1.3662 | C-CE: 1.763 | I-CE: 1.526 | α=0.50 β=0.34 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   526,567 tok/s | ETA:  1.4m
+7208.8s 941 [COROSRED-UNIFIED] Step  18875/19074 | Loss: 2.0155 | C-CE: 2.623 | I-CE: 1.893 | α=0.50 β=0.34 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   526,646 tok/s | ETA:  1.2m
+7217.5s 942 [COROSRED-UNIFIED] Step  18900/19074 | Loss: 1.5065 | C-CE: 1.961 | I-CE: 1.488 | α=0.50 β=0.34 γ=0.00 | Acc=0.52 AUC=0.50 |   2.7 st/s |   526,697 tok/s | ETA:  1.1m
+7225.8s 943 [COROSRED-UNIFIED] Step  18925/19074 | Loss: 1.4669 | C-CE: 1.933 | I-CE: 1.185 | α=0.50 β=0.34 γ=0.00 | Acc=0.52 AUC=0.50 |   2.7 st/s |   526,771 tok/s | ETA:  0.9m
+7234.4s 944 [COROSRED-UNIFIED] Step  18950/19074 | Loss: 1.4590 | C-CE: 1.919 | I-CE: 1.186 | α=0.50 β=0.35 γ=0.00 | Acc=0.52 AUC=0.50 |   2.7 st/s |   526,828 tok/s | ETA:  0.8m
+7242.6s 945 [COROSRED-UNIFIED] Step  18975/19074 | Loss: 1.2392 | C-CE: 1.609 | I-CE: 1.395 | α=0.50 β=0.35 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   526,908 tok/s | ETA:  0.6m
+7251.2s 946 [COROSRED-UNIFIED] Step  19000/19074 | Loss: 1.1924 | C-CE: 1.547 | I-CE: 1.305 | α=0.50 β=0.35 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   526,962 tok/s | ETA:  0.5m
+7259.5s 947 [COROSRED-UNIFIED] Step  19025/19074 | Loss: 1.1531 | C-CE: 1.502 | I-CE: 1.176 | α=0.50 β=0.35 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   527,038 tok/s | ETA:  0.3m
+7268.6s 948 [COROSRED-UNIFIED] Step  19050/19074 | Loss: 1.4450 | C-CE: 1.880 | I-CE: 1.555 | α=0.50 β=0.35 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   527,058 tok/s | ETA:  0.1m
+7276.8s 949 [COROSRED-UNIFIED] Step  19074/19074 | Loss: 1.3618 | C-CE: 1.785 | I-CE: 1.260 | α=0.50 β=0.35 γ=0.00 | Acc=0.53 AUC=0.50 |   2.7 st/s |   527,236 tok/s | ETA:  0.0m
+7277.4s 950 [Checkpoint Verified] Successfully saved checkpoints/corosred/unified/75m_python/checkpoint_final.pt (321.2 MB)
+7277.6s 951 ======================================================================
+7277.6s 952 COROSRED PyTorch Training Complete! Total time: 118.57 minutes.
+7277.6s 953 Saved standalone model artifact to checkpoints/corosred/unified/75m_python/
+7277.6s 954 ======================================================================
+7277.6s 955 [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+7277.6s 956 [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+7277.6s 957 [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+7277.6s 958 [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+7277.6s 959 [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+7277.6s 960 [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+7277.6s 961 [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+7277.6s 962 [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+7277.6s 963 [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+7277.6s 964 [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+7277.6s 965 [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+7277.6s 966 [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+7277.6s 967 [Hardware] Detected PyTorch-XLA TPU Topology (8 Cores, Rank 0).
+7277.6s 968 [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+7293.9s 969 Found 6 files to upload (1531.8 MB total):
+7293.9s 970 - checkpoint_final.pt (306.4 MB)
+7293.9s 971 - checkpoint_step_12000.pt (306.4 MB)
+7293.9s 972 - checkpoint_step_16000.pt (306.4 MB)
+7293.9s 973 - checkpoint_step_4000.pt (306.4 MB)
+7293.9s 974 - checkpoint_step_8000.pt (306.4 MB)
+7293.9s 975 - config.json (0.0 MB)
+7293.9s 976 
+7293.9s 977 Uploading to https://huggingface.co/Kazenowoko/telos/tree/main/checkpoints/corosred/unified/75m_python ...
+7304.1s 978 ✓ Upload successful in 10.2s (149.9 MB/s)!
+7304.1s 979 Reclaiming local disk space...
+7304.2s 980 ✓ Deleted local /kaggle/working/telos/checkpoints/corosred/unified/75m_python
+7304.2s 981 ✓ English 50M training pipeline complete. Free Kaggle Disk: 10.1 GB
+7309.6s 982 [NbConvertApp] Converting notebook __notebook__.ipynb to notebook
+7310.4s 983 [NbConvertApp] Writing 327644 bytes to __notebook__.ipynb
+7312.7s 984 [NbConvertApp] Converting notebook __notebook__.ipynb to html
+7314.6s 985 [NbConvertApp] Writing 699627 bytes to __results__.html
