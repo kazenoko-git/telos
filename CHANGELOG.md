@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-20
+
+### Fixed
+- TPU replica rank detection now uses `torch_xla.runtime.global_ordinal()`.
+  Rank lookup failures abort training instead of silently treating every worker
+  as rank zero and duplicating input slices. Invalid replicated ranks are rejected.
+- Added regression coverage for distinct eight-worker ranks and data slices,
+  rank lookup failures, and out-of-range replica identities.
+
+### Added
+- Interleaved COROSred decoding.
+- Research tooling and evidence documenting historical TPU rank collapse and
+  matched evaluation of the corrected TPU and CUDA checkpoints.
+
 ## [1.0.0] - 2026-09-23
 
 First public release on PyPI as `telos-ml` (`pip install telos-ml`).
@@ -43,5 +57,6 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
   virtualized, or sandboxed macOS sessions): `telos train`, `telos bench` and
   `telos test` fall back to the PyTorch CPU path instead of aborting the process.
 
-[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/kazenoko-git/telos/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/kazenoko-git/telos/releases/tag/v1.0.0

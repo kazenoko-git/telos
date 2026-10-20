@@ -112,10 +112,17 @@ class UnifiedPyTorchTrainer:
                 self.world_size = get_xla_world_size()
                 self.is_master = is_xla_master()
                 try:
-                    import torch_xla.core.xla_model as xm
-                    self.rank = xm.get_ordinal()
-                except Exception:
-                    self.rank = 0
+                    import torch_xla.runtime as xr
+                    self.rank = int(xr.global_ordinal())
+                except Exception as e:
+                    raise RuntimeError(
+                        "Unable to determine TPU global rank; refusing to train "
+                        "with potentially duplicated worker data slices."
+                    ) from e
+                if not self.is_spmd and not 0 <= self.rank < self.world_size:
+                    raise RuntimeError(
+                        f"TPU global rank {self.rank} is outside world size {self.world_size}."
+                    )
                 if self.is_spmd:
                     print(f"  [Hardware] Detected PyTorch-XLA SPMD Topology ({self.world_size} Cores).")
                 else:
