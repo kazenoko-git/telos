@@ -1,0 +1,36 @@
+name: Docs
+
+on:
+  pull_request:
+
+jobs:
+  changelog-gate:
+    name: Changelog updated
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require CHANGELOG.md update when source changes
+        run: |
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          SOURCE_CHANGED=$(echo "$CHANGED" | grep -E '^telos/' || true)
+
+          if [ -n "$SOURCE_CHANGED" ]; then
+            if ! echo "$CHANGED" | grep -q '^CHANGELOG.md$'; then
+              echo "::error::Source files changed but CHANGELOG.md was not updated."
+              exit 1
+            fi
+          fi
+
+  link-check:
+    name: Markdown link check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          args: --no-progress --exclude-path node_modules README.md DEPLOYMENT.md CHANGELOG.md
+          fail: true
