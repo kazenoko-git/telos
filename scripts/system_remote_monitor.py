@@ -39,8 +39,8 @@ LMS_BIN = Path.home() / ".lmstudio" / "bin" / "lms"
 def get_gpu_utilization() -> str:
     """Reads Apple Silicon Metal GPU device utilization via ioreg."""
     try:
-        cmd = "ioreg -r -d 1 -w 0 -c IOAccelerator"
-        out = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5).stdout
+        cmd = ["ioreg", "-r", "-d", "1", "-w", "0", "-c", "IOAccelerator"]
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=5).stdout
         matches = re.findall(r'"Device Utilization %"=(\d+)', out)
         if matches:
             return f"{matches[0]}%"
