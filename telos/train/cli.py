@@ -72,7 +72,7 @@ def _load_checkpoint_into_mlx(model, ckpt_path: str | Path):
     # PyTorch (.pt / .bin) checkpoint translation
     import torch
     print(f"  [Init] Loading PyTorch weights into MLX model from {ckpt_path}...")
-    ckpt_state = torch.load(ckpt_path, map_location="cpu")
+    ckpt_state = torch.load(ckpt_path, map_location="cpu", weights_only=True)
     sd = ckpt_state.get("model_state_dict", ckpt_state)
 
     mlx_weights = {}
@@ -349,7 +349,7 @@ def train(
                 )
             import torch
             print(f"  [Init] Loading model weights from {init_ckpt_path}...")
-            ckpt_state = torch.load(init_ckpt_path, map_location="cpu")
+            ckpt_state = torch.load(init_ckpt_path, map_location="cpu", weights_only=True)
             sd = ckpt_state.get("model_state_dict", ckpt_state)
             sd = {k.removeprefix("module."): v for k, v in sd.items()}
             model.load_state_dict(sd, strict=False)
