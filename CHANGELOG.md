@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-21
+
+### Security
+- Replaced unsafe `eval()` in tool-use evaluation math parser with an explicit AST arithmetic evaluator (`_eval_ast_math`), eliminating sandbox escape vectors.
+- Enforced `weights_only=True` across `torch.load()` checkpoint deserialization in trainer, CLI, and evaluation runners.
+- Defaulted `trust_remote_code=False` in HuggingFace model adapter to prevent automatic execution of unreviewed Hub code.
+- Passed Google Gemini API keys via `x-goog-api-key` HTTP request headers instead of query parameters.
+- Replaced `shell=True` in remote system monitor subprocess invocation.
+
+### Added
+- Dedicated PyPI package documentation (`README_PYPI.md`) focusing on installation, hardware acceleration, CLI, and Python API usage.
+- Unit regression tests verifying safe arithmetic parsing and rejection of sandbox escape payloads.
+
 ## [1.1.0] - 2026-10-20
 
 ### Fixed
