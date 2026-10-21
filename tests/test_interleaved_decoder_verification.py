@@ -127,6 +127,7 @@ def test_token_position_mapping_and_lexical_filter():
         assert '"""' not in t_str, f"Docstring token {idx} marked eligible: {t_str}"
 
 
+@pytest.mark.skipif(not _has_qwen_weights(), reason="Qwen2.5-Coder weights not present in local HF cache")
 def test_kv_cache_correctness_after_intentional_edit():
     """Assert incremental generation with rebuilt cache matches full prefix forward pass."""
     device = "mps" if torch.backends.mps.is_available() else "cpu"
