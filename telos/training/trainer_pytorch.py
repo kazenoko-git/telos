@@ -473,7 +473,7 @@ class UnifiedPyTorchTrainer:
 
     def load_checkpoint(self, path: str | Path):
         path = Path(path)
-        checkpoint = torch.load(path, map_location=self.device)
+        checkpoint = torch.load(path, map_location=self.device, weights_only=True)
         # Unwrap DataParallel if state_dict keys match
         state_dict = checkpoint["model_state_dict"]
         if hasattr(self.model, "module"):
