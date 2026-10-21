@@ -21,7 +21,7 @@ class HuggingFaceAdapter(BaseModelAdapter):
         device: str = "auto",
         torch_dtype: str = "bfloat16",
         quantization: Optional[str] = None,  # '4bit', '8bit', None
-        trust_remote_code: bool = True,
+        trust_remote_code: bool = False,
         **kwargs
     ):
         super().__init__(model_name=model_name_or_path, backend_name="huggingface")
