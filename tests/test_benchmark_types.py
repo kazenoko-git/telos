@@ -124,6 +124,17 @@ class TestToolUseSuite:
         mismatched = {"expression": "100 + 200"}
         assert _compare_arguments(expected, mismatched) is False
 
+    def test_math_eval_security_rejection(self):
+        from telos.eval.tooluse.evaluator import _try_eval_math
+        # Safe math
+        assert _try_eval_math("2 + 3 * 4") == 14.0
+        assert _try_eval_math("sqrt(25)") == 5.0
+        assert _try_eval_math("abs(-42)") == 42.0
+        # Malicious expressions must return None
+        assert _try_eval_math("__import__('os').system('ls')") is None
+        assert _try_eval_math("abs.__globals__") is None
+        assert _try_eval_math("open('/etc/passwd')") is None
+
 
 class TestDispatcherRouting:
     """Validates dispatcher logic and CLI argument options."""
