@@ -82,7 +82,7 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
     elif cp.suffix in [".pt", ".bin"]:
         try:
             import torch
-            ckpt_data = torch.load(str(cp), map_location="cpu")
+            ckpt_data = torch.load(str(cp), map_location="cpu", weights_only=True)
             if isinstance(ckpt_data, dict) and "config" in ckpt_data:
                 full_cfg = ckpt_data.get("config", {})
                 m_cfg = full_cfg.get("model", full_cfg)
@@ -177,7 +177,7 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
     elif cp.suffix in [".pt", ".bin"]:
         import torch
         import torch.nn as nn
-        state = torch.load(str(cp), map_location="cpu")
+        state = torch.load(str(cp), map_location="cpu", weights_only=True)
         sd = state.get("model_state_dict", state)
         sd = {k.removeprefix("module.").removeprefix("_orig_mod."): v for k, v in sd.items()}
 
