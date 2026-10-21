@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://telos.research.wingit.tech"><strong>Research Portal: telos.research.wingit.tech</strong></a>
+  <a href="https://telos.wingit.tech"><strong>Telos: telos.wingit.tech</strong></a>
   <br>
   <em>Note: The research portal is currently under active construction and is not finished yet.</em>
 </p>
@@ -170,7 +170,7 @@ See [`cli/README.md`](cli/README.md) for all CLI flags and options.
   author  = {Ivan Samuel},
   journal = {Wing It Research},
   year    = {2026},
-  url     = {https://telos.research.wingit.tech}
+  url     = {https://telos.wingit.tech}
 }
 ```
 
