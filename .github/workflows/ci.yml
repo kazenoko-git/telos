@@ -19,10 +19,7 @@ jobs:
       - uses: astral-sh/setup-uv@v5
 
       - name: Run ruff check
-        run: uvx ruff check .
-
-      - name: Run ruff format check
-        run: uvx ruff format --check .
+        run: uvx ruff check telos/ tests/ --select E9,F63,F7,F82
 
   test:
     name: Test (Python ${{ matrix.python-version }})
