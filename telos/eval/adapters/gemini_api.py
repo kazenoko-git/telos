@@ -37,7 +37,7 @@ class GeminiAPIAdapter(BaseModelAdapter):
 
     def _call_gemini_api(self, prompt: str, max_new_tokens: int, temperature: float, stop: Optional[List[str]]) -> str:
         """Sends a generateContent request to Google Gemini API."""
-        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent?key={self.api_key}"
+        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent"
 
         gen_config: Dict[str, Any] = {
             "temperature": temperature,
@@ -60,6 +60,7 @@ class GeminiAPIAdapter(BaseModelAdapter):
         body_bytes = json.dumps(payload).encode("utf-8")
         headers = {
             "Content-Type": "application/json",
+            "x-goog-api-key": self.api_key,
             "User-Agent": "Telos-Universal-Eval/2.0",
         }
 
