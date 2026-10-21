@@ -12,6 +12,7 @@ import re
 import ast
 import json
 import math
+import operator
 import time
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
@@ -104,17 +105,58 @@ def parse_tool_call(completion_text: str) -> Tuple[Optional[str], Optional[Dict[
     return None, None, "syntax_parse_error"
 
 
+_SAFE_BINARY_OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+}
+
+_SAFE_UNARY_OPS = {
+    ast.USub: operator.neg,
+    ast.UAdd: operator.pos,
+}
+
+_SAFE_MATH_CALLS = {
+    "abs": abs,
+    "sqrt": math.sqrt,
+    "math.sqrt": math.sqrt,
+}
+
+
+def _eval_ast_math(node: ast.AST) -> float:
+    """Recursively evaluates safe mathematical AST expressions."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return float(node.value)
+    if isinstance(node, ast.BinOp) and type(node.op) in _SAFE_BINARY_OPS:
+        left = _eval_ast_math(node.left)
+        right = _eval_ast_math(node.right)
+        return float(_SAFE_BINARY_OPS[type(node.op)](left, right))
+    if isinstance(node, ast.UnaryOp) and type(node.op) in _SAFE_UNARY_OPS:
+        return float(_SAFE_UNARY_OPS[type(node.op)](_eval_ast_math(node.operand)))
+    if isinstance(node, ast.Call):
+        func_name = ""
+        if isinstance(node.func, ast.Name):
+            func_name = node.func.id
+        elif isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
+            func_name = f"{node.func.value.id}.{node.func.attr}"
+        if func_name in _SAFE_MATH_CALLS and len(node.args) == 1 and not node.keywords:
+            arg_val = _eval_ast_math(node.args[0])
+            return float(_SAFE_MATH_CALLS[func_name](arg_val))
+    raise ValueError("Disallowed expression construct")
+
+
 def _try_eval_math(expr: Any) -> Optional[float]:
-    """Safely evaluates basic arithmetic expressions to float for equivalence checking."""
+    """Safely evaluates basic arithmetic expressions to float for equivalence checking without eval()."""
     try:
         clean = str(expr).strip().replace("^", "**")
-        allowed_names = {"math": math, "sqrt": math.sqrt, "abs": abs}
-        val = eval(clean, {"__builtins__": {}}, allowed_names)
-        if isinstance(val, (int, float)):
-            return float(val)
+        tree = ast.parse(clean, mode="eval")
+        return _eval_ast_math(tree.body)
     except Exception:
-        pass
-    return None
+        return None
 
 
 def _compare_values(expected_val: Any, actual_val: Any) -> bool:
