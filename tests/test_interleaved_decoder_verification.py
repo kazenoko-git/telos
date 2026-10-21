@@ -37,6 +37,16 @@ from telos.decoding.interleaved_corosred import (
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
+def _has_qwen_weights() -> bool:
+    """Checks whether local Hugging Face cache has Qwen2.5-Coder model weights."""
+    try:
+        get_diff_weights_path()
+        get_ar_weights_path()
+        return True
+    except FileNotFoundError:
+        return False
+
+
 def test_call_graph_audit_no_eval_leakage():
     """Audit AST of telos/decoding/interleaved_corosred.py for zero eval leakage."""
     decoder_file = PROJECT_ROOT / "telos/decoding/interleaved_corosred.py"
@@ -78,6 +88,7 @@ def test_call_graph_audit_no_eval_leakage():
     assert not leaked_calls, f"Forbidden calls detected in decoder: {leaked_calls}"
 
 
+@pytest.mark.skipif(not _has_qwen_weights(), reason="Qwen2.5-Coder weights not present in local HF cache")
 def test_token_position_mapping_and_lexical_filter():
     """Verify lexical token filtering cleanly isolates executable code tokens."""
     diff_path = get_diff_weights_path()
@@ -157,6 +168,7 @@ def test_kv_cache_correctness_after_intentional_edit():
     assert torch.argmax(gt_next_logits).item() == torch.argmax(inc_next_logits).item(), "Argmax token mismatch!"
 
 
+@pytest.mark.skipif(not _has_qwen_weights(), reason="Qwen2.5-Coder weights not present in local HF cache")
 def test_interleaved_decoder_smoke_and_invariants():
     """Smoke test running interleaved decoder for a short prompt and asserting invariants."""
     device = "mps" if torch.backends.mps.is_available() else "cpu"
