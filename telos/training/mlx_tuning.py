@@ -79,8 +79,13 @@ def tune_mlx_batch(trainer, dataset_matrix):
     # Always measure the configured baseline, including non-power-of-two sizes.
     baseline = BatchPlan(current, effective // current, checkpointing)
     plans = [baseline] + [p for p in plans if p != baseline]
-    if training.get("autotune_checkpointing", True) and not checkpointing:
-        plans += [BatchPlan(p.batch_size, p.grad_accum, True) for p in plans if p.batch_size >= current]
+    if training.get("autotune_checkpointing", True):
+        if not checkpointing:
+            plans += [BatchPlan(p.batch_size, p.grad_accum, True) for p in plans if p.batch_size >= current]
+        elif trainer.auto_enabled_checkpointing:
+            # The trainer estimated activations at the original microbatch.
+            # Smaller trials may fit without recomputing every block.
+            plans += [BatchPlan(p.batch_size, p.grad_accum, False) for p in plans if p.batch_size < current]
     info = mx.device_info()
     budget = int(training.get("autotune_memory_gb", 0) * 1024**3)
     if not budget:

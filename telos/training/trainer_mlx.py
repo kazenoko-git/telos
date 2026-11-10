@@ -133,9 +133,13 @@ class UnifiedMLXTrainer:
 
         auto_chkpt = working_set_gb > mem_budget_gb
 
-        if self.t_cfg.get("gradient_checkpointing", False) or self.m_cfg.get("use_grad_checkpoint", False) or auto_chkpt:
+        requested_chkpt = (self.t_cfg.get("gradient_checkpointing", False)
+                           or self.m_cfg.get("use_grad_checkpoint", False)
+                           or getattr(self.model, "use_grad_checkpoint", False))
+        self.auto_enabled_checkpointing = auto_chkpt and not requested_chkpt
+        if requested_chkpt or auto_chkpt:
             self.model.use_grad_checkpoint = True
-            if auto_chkpt and not (self.t_cfg.get("gradient_checkpointing", False) or self.m_cfg.get("use_grad_checkpoint", False)):
+            if self.auto_enabled_checkpointing:
                 print(f"  [Memory] Auto-enabled gradient checkpointing (Estimated: {working_set_gb:.2f}GB > Budget: {mem_budget_gb:.2f}GB).")
             else:
                 print("  [Memory] Gradient Checkpointing Enabled.")

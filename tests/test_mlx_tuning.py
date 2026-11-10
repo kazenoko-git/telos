@@ -64,3 +64,38 @@ def test_isolated_trials_do_not_mutate_model_or_rng():
         np.testing.assert_array_equal(a, np.array(p.astype(mx.float32)))
     for a, p in zip(rng_before, mx.random.state):
         np.testing.assert_array_equal(a, np.array(p))
+
+
+@pytest.mark.parametrize("auto_enabled,tune_checkpoints,expected", [
+    (True, True, [2]),
+    (False, True, []),
+    (True, False, []),
+])
+def test_smaller_batches_can_drop_automatic_checkpointing(monkeypatch, auto_enabled, tune_checkpoints, expected):
+    from types import SimpleNamespace
+    import numpy as np
+    mx = pytest.importorskip("mlx.core")
+    if not mx.metal.is_available():
+        pytest.skip("Metal required")
+    from telos.training import mlx_tuning
+
+    model = SimpleNamespace(use_grad_checkpoint=True, parameters=lambda: {}, save_weights=lambda path: None)
+    cfg = {
+        "model": {},
+        "training": {
+            "batch_size": 4, "gradient_accumulation": 2,
+            "autotune_candidates": [2, 4, 8], "autotune_checkpointing": tune_checkpoints,
+        },
+    }
+    trainer = SimpleNamespace(cfg=cfg, model=model, auto_enabled_checkpointing=auto_enabled,
+                              seq_len=4, paradigm="ar")
+    seen = []
+
+    def capture(plans, runner, **kwargs):
+        seen.extend(plans)
+        return {}
+
+    monkeypatch.setattr(mlx_tuning, "measure_plans", capture)
+    mlx_tuning.tune_mlx_batch(trainer, np.zeros((8, 4), dtype=np.int32))
+    assert [p.batch_size for p in seen if not p.checkpointing] == expected
+    assert all(p.effective_batch == 8 for p in seen)
