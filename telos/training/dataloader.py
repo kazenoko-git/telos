@@ -11,18 +11,22 @@ def get_global_targets_contiguous(dataset_matrix: np.ndarray, idx_ptr: int, tota
     Fetches contiguous batches from the memory-mapped token array with wraparound.
     Returns standard numpy array.
     """
+    if dataset_matrix.ndim != 2 or not 0 < seq_len <= dataset_matrix.shape[1]:
+        raise ValueError("dataset_matrix must be 2D and contain seq_len columns")
     n_rows = dataset_matrix.shape[0]
+    if n_rows == 0 or total_batch < 1:
+        raise ValueError("dataset must be nonempty and total_batch must be positive")
+    idx_ptr %= n_rows
     end_ptr = idx_ptr + total_batch
     
     if end_ptr <= n_rows:
         batch = dataset_matrix[idx_ptr:end_ptr, :seq_len]
         next_ptr = end_ptr % n_rows
     else:
-        first = dataset_matrix[idx_ptr:n_rows, :seq_len]
-        remainder = end_ptr - n_rows
-        second = dataset_matrix[:remainder, :seq_len]
-        batch = np.concatenate((first, second), axis=0)
-        next_ptr = remainder
+        # A large tuned batch may span the dataset more than once.
+        rows = (idx_ptr + np.arange(total_batch)) % n_rows
+        batch = dataset_matrix[rows, :seq_len]
+        next_ptr = end_ptr % n_rows
         
     return batch, next_ptr
 
