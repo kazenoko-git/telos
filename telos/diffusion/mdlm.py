@@ -17,6 +17,7 @@ try:
     MLX_AVAILABLE = metal_usable()
     if MLX_AVAILABLE:
         import mlx.nn as mx_nn
+        from telos.training.mlx_losses import cross_entropy
 except ImportError:
     MLX_AVAILABLE = False
 
@@ -39,11 +40,11 @@ if MLX_AVAILABLE:
     def mdlm_loss_mlx(model, masked_input_ids, targets, mask_positions, t_values, vocab_size):
         logits = model(masked_input_ids)
         B, T, V = logits.shape
-        # Upcast logits to float32 for numerically stable log-softmax in cross entropy
+        # The Metal loss reduces in FP32 without upcasting the logits matrix.
         logits_flat = logits.reshape(-1, V)
         targets_flat = targets.reshape(-1)
 
-        ce_per_token = mx_nn.losses.cross_entropy(logits_flat, targets_flat, reduction="none").reshape(B, T)
+        ce_per_token = cross_entropy(logits_flat, targets_flat, reduction="none").reshape(B, T)
         masked_ce = ce_per_token * mask_positions
 
         masked_count = mx.clip(mx.sum(mask_positions, axis=1), 1.0, float(T))

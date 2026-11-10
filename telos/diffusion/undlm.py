@@ -13,6 +13,7 @@ try:
     MLX_AVAILABLE = metal_usable()
     if MLX_AVAILABLE:
         import mlx.nn as mx_nn
+        from telos.training.mlx_losses import cross_entropy
 except ImportError:
     MLX_AVAILABLE = False
 
@@ -40,7 +41,7 @@ if MLX_AVAILABLE:
         logits_flat = logits.reshape(-1, V)
         targets_flat = clean_targets.reshape(-1)
 
-        ce_per_token = mx_nn.losses.cross_entropy(logits_flat, targets_flat, reduction="none").reshape(B, T)
+        ce_per_token = cross_entropy(logits_flat, targets_flat, reduction="none").reshape(B, T)
 
         if special_token_lut is not None:
             content_mask = ~special_token_lut[clean_targets]
