@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-10
+
+### Added
+- Fused Metal cross entropy with a custom first-order backward pass for MLX language-model objectives.
+- Compiled MLX optimizer updates and isolated microbatch tuning that preserves the configured effective batch.
+- Experimental packed SwiGLU gate/up projection with automatic loading of legacy split checkpoints.
+- Experimental tiled tied-embedding AR vocabulary loss, disabled by default.
+
+### Fixed
+- Preserve transformer-layer gradients when MLX gradient checkpointing is enabled.
+- Bound gradient-accumulation memory by evaluating each microbatch before constructing the next graph.
+- Wrap data batches correctly when the requested batch exceeds the token dataset.
+
 ## [1.2.0] - 2026-10-21
 
 ### Security
