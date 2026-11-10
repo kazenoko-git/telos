@@ -38,12 +38,13 @@ class MLXSwiGLU(nn.Module):
         super().__init__()
         hidden = int(d_model * 8 / 3)
         hidden = ((hidden + 63) // 64) * 64
-        self.w1 = nn.Linear(d_model, hidden, bias=False)
-        self.w2 = nn.Linear(d_model, hidden, bias=False)
+        # One wider GEMM replaces separate gate and up projections.
+        self.gate_up = nn.Linear(d_model, 2 * hidden, bias=False)
         self.w3 = nn.Linear(hidden, d_model, bias=False)
 
     def __call__(self, x):
-        return self.w3(nn.silu(self.w1(x)) * self.w2(x))
+        gate, up = mx.split(self.gate_up(x), 2, axis=-1)
+        return self.w3(nn.silu(gate) * up)
 
 
 class MLXBlock(nn.Module):

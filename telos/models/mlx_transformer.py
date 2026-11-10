@@ -66,6 +66,29 @@ class MLXTelosTransformer(nn.Module):
         self.update(tree_map(lambda p: p.astype(mx.bfloat16) if isinstance(p, mx.array) and p.dtype == mx.float32 else p, self.parameters()))
         return self
 
+    def load_weights(self, file_or_weights, strict: bool = True):
+        """Load both current weights and legacy split SwiGLU checkpoints."""
+        weights = file_or_weights
+        if isinstance(weights, str):
+            weights = list(mx.load(weights).items())
+        else:
+            weights = list(weights)
+
+        packed = {}
+        remaining = []
+        for name, value in weights:
+            if ".mlp.w1.weight" in name:
+                packed[name.replace(".mlp.w1.weight", ".mlp.gate_up.weight")] = [value, None]
+            elif ".mlp.w2.weight" in name:
+                packed.setdefault(name.replace(".mlp.w2.weight", ".mlp.gate_up.weight"), [None, None])[1] = value
+            else:
+                remaining.append((name, value))
+        for name, (gate, up) in packed.items():
+            if gate is not None and up is not None:
+                remaining.append((name, mx.concatenate((gate, up), axis=0)))
+
+        return super().load_weights(remaining, strict=strict)
+
     def hidden_states(self, x, mask_override=None, is_causal: bool | None = None):
         effective_mask = mask_override
         if is_causal is not None:
