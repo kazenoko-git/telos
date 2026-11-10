@@ -74,7 +74,13 @@ class MLXTelosTransformer(nn.Module):
         x = self.emb(x)
         for layer in self.layers:
             if self.use_grad_checkpoint:
-                x = mx.checkpoint(layer)(x, effective_mask)
+                # Parameters must be explicit checkpoint inputs. Capturing the
+                # module alone disconnects its parameters from autodiff.
+                def checkpointed(parameters, inputs, layer=layer):
+                    layer.update(parameters)
+                    return layer(inputs, effective_mask)
+
+                x = mx.checkpoint(checkpointed)(layer.trainable_parameters(), x)
             else:
                 x = layer(x, effective_mask)
         return self.norm(x)
