@@ -10,14 +10,36 @@
   · <a href="https://pypi.org/project/telos-ml/">PyPI</a>
 </p>
 
-**Build, train, and evaluate language models with one Python toolkit.** Télos helps developers and researchers prepare text data, run autoregressive or discrete-diffusion experiments, compare model behavior, and use Apple’s on-device Foundation Models from Python.
+**Build, train, and evaluate language models with one Python toolkit.** Télos helps developers and researchers prepare text data, run autoregressive or discrete-diffusion experiments, and compare model behavior across hardware backends.
+
+## Why choose Télos?
+
+Use Télos when the goal is to **run controlled language-model experiments**, especially when you want the same project to handle data preparation, training, and evaluation. Set a parameter budget, token budget, and hardware target from the CLI; then compare autoregressive training with discrete-diffusion approaches and evaluate checkpoints with the included suites.
+
+Télos is most useful when you want to:
+
+- **Study training choices, not just consume pretrained models:** the codebase includes autoregressive, masked-diffusion, and uniform-noise-diffusion training paths, with AR as the current research mainline.
+- **Keep experiments in one workflow:** prepare corpora, train, benchmark throughput, and evaluate checkpoints through the same Python package and CLI.
+- **Use different compute you already have:** target Apple Silicon (MLX), NVIDIA GPUs (CUDA), or Google Cloud TPUs (XLA), with CPU available for compatible workflows.
+- **Compare more than loss:** combine contextual probes with functional code execution and task-specific suites, then save reports for inspection.
+
+### How it compares
+
+These tools overlap in model training, but serve different priorities. Télos is a good fit when the experiment itself—training objective, data budget, backend, and evaluation—is the product.
+
+| Tool | Strong fit | Choose Télos when… |
+| :--- | :--- | :--- |
+| [Hugging Face Transformers](https://huggingface.co/docs/transformers) | A broad library of pretrained models and architectures for inference and training across text, vision, audio, video, and multimodal tasks. | You want a focused research workflow for training small language models across AR and discrete-diffusion objectives, with data prep and evaluation in the same package. |
+| [LitGPT](https://github.com/Lightning-AI/litgpt) | Recipes to pretrain, fine-tune, and deploy a range of high-performance LLMs. | Your question is about comparing training paradigms and scaling choices across MLX, CUDA, or TPU, rather than adapting a catalog of existing LLMs. |
+| [nanoGPT](https://github.com/karpathy/nanoGPT) | A compact, hackable implementation for training and fine-tuning GPT models. | You want a more integrated CLI for data preparation, dimensional model setup, multi-backend training, and multi-domain evaluation. |
+
+If your main task is fine-tuning a popular pretrained model, a model-hub or fine-tuning focused tool may fit better. Télos is aimed at people who want to inspect and compare how training choices affect their own small-model experiments.
 
 ## What you can do with Télos
 
 - **Get from corpus to training run:** prepare text, code, JSONL, or Hugging Face datasets as token streams, then train with a parameter budget and token target instead of assembling a training stack by hand.
 - **Run on the hardware you have:** use Apple Silicon through MLX, NVIDIA GPUs through PyTorch/CUDA, Google Cloud TPUs through PyTorch-XLA, or CPU for compatible workflows.
 - **Compare model behavior:** run contextual probes, code execution, reasoning, tool-use, cybersecurity, and other evaluation suites; save reports for later analysis.
-- **Use Apple’s on-device model:** check availability and generate text through the native Foundation Models framework on supported Macs.
 
 ## Get started
 
@@ -57,15 +79,6 @@ config = TelosConfig(
     is_causal=True,
 )
 model = TelosTransformer(config)
-```
-
-For native Apple Foundation Models access on a supported Mac:
-
-```python
-from telos import afm
-
-if afm.probe().available:
-    print(afm.generate("Explain binary search in two sentences."))
 ```
 
 ## Research with Télos
