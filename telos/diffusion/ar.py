@@ -28,9 +28,15 @@ if MLX_AVAILABLE:
                 chunk_size=getattr(model, "fused_vocab_chunk_size", 256),
             )
         else:
-            logits = model(batch_seqs)  # [B, T, V]
+            # Skip the final vocabulary projection: its logits have no
+            # next-token target and slicing after projection materializes a
+            # large non-contiguous reshape on MLX.
+            if hasattr(model, "next_token_logits"):
+                logits = model.next_token_logits(batch_seqs)  # [B, T - 1, V]
+            else:
+                logits = model(batch_seqs)[:, :-1, :]  # [B, T - 1, V]
             V = logits.shape[-1]
-            shift_logits = logits[:, :-1, :].reshape(-1, V)
+            shift_logits = logits.reshape(-1, V)
             shift_targets = shift_targets_2d.reshape(-1)
             ce_per_token = cross_entropy(shift_logits, shift_targets, reduction="none").reshape(B, T - 1)
         

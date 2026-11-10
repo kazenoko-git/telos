@@ -113,6 +113,11 @@ class MLXTelosTransformer(nn.Module):
             return self.emb.as_linear(hidden)
         return self.head(hidden)
 
+    def next_token_logits(self, input_ids):
+        """Project only positions that have a next-token target."""
+        hidden = self.hidden_states(input_ids)
+        return self.logits_from_hidden(hidden[:, :-1, :])
+
     def output_cross_entropy(self, input_ids, targets, *, chunk_size=256):
         """Exact tied-head CE without building the full token-by-vocabulary matrix.
 
