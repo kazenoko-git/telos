@@ -106,11 +106,6 @@ def execute_mlx_training_step(
     accum_loss = mx.array(0.0, dtype=mx.float32)
     accum_ce = mx.array(0.0, dtype=mx.float32)
 
-    # Double-buffering state: tracks previous microbatch targets to overlap CPU eval with GPU compute
-    prev_accum_grads = None
-    prev_accum_loss = None
-    prev_accum_ce = None
-
     for i in range(grad_accum):
         batch_data = next(batch_iterator)
         if isinstance(batch_data, tuple):
@@ -126,17 +121,11 @@ def execute_mlx_training_step(
         accum_loss = accum_loss + loss
         accum_ce = accum_ce + ce
         
-        # Double-buffer microbatch evaluation to overlap Metal execution with CPU handling
-        if eval_every_microbatch:
-            if prev_accum_grads is not None:
-                mx.eval(prev_accum_grads, prev_accum_loss, prev_accum_ce)
-            prev_accum_grads = accum_grads
-            prev_accum_loss = accum_loss
-            prev_accum_ce = accum_ce
-
-    # Evaluate the final microbatch if lagged evaluation was active
-    if eval_every_microbatch and prev_accum_grads is not None:
-        mx.eval(accum_grads, accum_loss, accum_ce)
+        # Never retain an accumulation window of activation graphs. RAM-tier
+        # heuristics cannot predict that window's size. Materialize each
+        # microbatch's accumulated gradients before building the next graph.
+        if eval_every_microbatch or grad_accum > 1:
+            mx.eval(accum_grads, accum_loss, accum_ce)
 
     use_master_weights = getattr(model, "use_master_weights", False)
     if use_master_weights and not hasattr(optimizer, "master_params"):
