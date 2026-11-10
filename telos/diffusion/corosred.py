@@ -13,6 +13,7 @@ try:
     MLX_AVAILABLE = metal_usable()
     if MLX_AVAILABLE:
         import mlx.nn as mx_nn
+        from telos.training.mlx_losses import cross_entropy
 except ImportError:
     MLX_AVAILABLE = False
 
@@ -54,7 +55,7 @@ if MLX_AVAILABLE:
 
         shift_logits_f32 = shift_logits.reshape(-1, vocab_size)
         shift_targets_flat = shift_targets.reshape(-1)
-        ar_loss = mx.mean(mx_nn.losses.cross_entropy(shift_logits_f32, shift_targets_flat, reduction="none"))
+        ar_loss = mx.mean(cross_entropy(shift_logits_f32, shift_targets_flat, reduction="none"))
 
         valid_count = mx.clip(mx.sum(valid_mask_f32, axis=1), 1.0, float(T - 1))
         per_example_loss = mx.sum(masked_bce, axis=1) / valid_count
@@ -79,7 +80,7 @@ if MLX_AVAILABLE:
         logits_f32 = logits.reshape(-1, vocab_size)
         targets_flat = batch_seqs.reshape(-1)
 
-        ce_all = mx_nn.losses.cross_entropy(logits_f32, targets_flat, reduction="none").reshape(B, T)
+        ce_all = cross_entropy(logits_f32, targets_flat, reduction="none").reshape(B, T)
         masked_ce = ce_all * mask_positions
 
         denom = mx.clip(mx.sum(mask_positions, axis=1), 1.0, float(T))
@@ -108,7 +109,7 @@ if MLX_AVAILABLE:
         shift_targets = batch_seqs[:, 1:].reshape(-1)
 
         # Compute causal cross entropy loss before refinement
-        ce_before_flat = mx_nn.losses.cross_entropy(shift_causal, shift_targets, reduction="none")
+        ce_before_flat = cross_entropy(shift_causal, shift_targets, reduction="none")
         ce_before = ce_before_flat.reshape(B, T - 1)
 
         # Step 2: Bidirectional pass on masked sequence
@@ -120,7 +121,7 @@ if MLX_AVAILABLE:
         denoise_logits = model(corrupted, mask_override=False, return_reliability=False)
         shift_denoise = denoise_logits[:, 1:, :].reshape(-1, vocab_size)
 
-        ce_after_flat = mx_nn.losses.cross_entropy(shift_denoise, shift_targets, reduction="none")
+        ce_after_flat = cross_entropy(shift_denoise, shift_targets, reduction="none")
         ce_after = ce_after_flat.reshape(B, T - 1)
 
         # Step 3: Compute actual cross-entropy reduction (empirical gain) on masked positions
@@ -208,7 +209,7 @@ if MLX_AVAILABLE:
         logits_f32 = logits.reshape(-1, vocab_size)
         targets_flat = batch_seqs.reshape(-1)
 
-        ce_all = mx_nn.losses.cross_entropy(logits_f32, targets_flat, reduction="none").reshape(B, T)
+        ce_all = cross_entropy(logits_f32, targets_flat, reduction="none").reshape(B, T)
         masked_ce = ce_all * mask_positions
 
         denom = mx.clip(mx.sum(mask_positions, axis=1), 1.0, float(T))
@@ -268,7 +269,7 @@ if MLX_AVAILABLE:
         shift_targets_c = batch_causal[:, 1:]
 
         # Compute per-token cross entropy loss on causal slice
-        ce_c_all = mx_nn.losses.cross_entropy(
+        ce_c_all = cross_entropy(
             shift_logits_c.reshape(-1, vocab_size),
             shift_targets_c.reshape(-1),
             reduction="none"
@@ -322,7 +323,7 @@ if MLX_AVAILABLE:
             logits_m = model(corrupted_m, mask_override=False, return_reliability=False)
 
             # Compute cross entropy on all tokens and select only masked positions
-            ce_m_all = mx_nn.losses.cross_entropy(
+            ce_m_all = cross_entropy(
                 logits_m.reshape(-1, vocab_size),
                 batch_infill.reshape(-1),
                 reduction="none"
