@@ -14,26 +14,21 @@
 
 ## Why choose Télos?
 
-Use Télos when the goal is to **run controlled language-model experiments**, especially when you want the same project to handle data preparation, training, and evaluation. Set a parameter budget, token budget, and hardware target from the CLI; then compare autoregressive training with discrete-diffusion approaches and evaluate checkpoints with the included suites.
+Télos is for people who want to **study how language models are trained**, rather than primarily adapt an existing chat model. Set a model-size and token budget, choose a training objective and hardware backend, then prepare data, train, benchmark, and evaluate from one toolkit. Its parameter-budget solver fills in a compatible transformer shape, so experiments can start from the research question instead of hand-calculating layer dimensions.
 
-Télos is most useful when you want to:
-
-- **Study training choices, not just consume pretrained models:** the codebase includes autoregressive, masked-diffusion, and uniform-noise-diffusion training paths, with AR as the current research mainline.
-- **Keep experiments in one workflow:** prepare corpora, train, benchmark throughput, and evaluate checkpoints through the same Python package and CLI.
-- **Use different compute you already have:** target Apple Silicon (MLX), NVIDIA GPUs (CUDA), or Google Cloud TPUs (XLA), with CPU available for compatible workflows.
-- **Compare more than loss:** combine contextual probes with functional code execution and task-specific suites, then save reports for inspection.
+The distinct research angle is comparing autoregressive training with masked- and uniform-noise-diffusion objectives in the same codebase. Training targets include Apple Silicon (MLX), NVIDIA GPUs (CUDA), and Google Cloud TPUs (XLA); the current research mainline is autoregressive modeling. Télos also includes contextual probes and task evaluations so experiments can measure more than training loss.
 
 ### How it compares
 
-These tools overlap in model training, but serve different priorities. Télos is a good fit when the experiment itself—training objective, data budget, backend, and evaluation—is the product.
+These tools are often easier choices when the job is adapting a capable model that already exists. Télos fits a different job: building small models from a controlled configuration and testing training-objective or scaling questions.
 
-| Tool | Strong fit | Choose Télos when… |
+| Tool | Reach for it when… | Télos is a better fit when… |
 | :--- | :--- | :--- |
-| [Hugging Face Transformers](https://huggingface.co/docs/transformers) | A broad library of pretrained models and architectures for inference and training across text, vision, audio, video, and multimodal tasks. | You want a focused research workflow for training small language models across AR and discrete-diffusion objectives, with data prep and evaluation in the same package. |
-| [LitGPT](https://github.com/Lightning-AI/litgpt) | Recipes to pretrain, fine-tune, and deploy a range of high-performance LLMs. | Your question is about comparing training paradigms and scaling choices across MLX, CUDA, or TPU, rather than adapting a catalog of existing LLMs. |
-| [nanoGPT](https://github.com/karpathy/nanoGPT) | A compact, hackable implementation for training and fine-tuning GPT models. | You want a more integrated CLI for data preparation, dimensional model setup, multi-backend training, and multi-domain evaluation. |
+| [Unsloth](https://unsloth.ai/docs) | You want a guided, memory-efficient way to fine-tune or continue-pretrain supported open models, use RL workflows, or export and run the result. Unsloth also supports full pretraining. | You want parameter and token budgets to drive a compact from-scratch model setup, and want to compare AR with discrete-diffusion objectives. |
+| [Axolotl](https://docs.axolotl.ai/) | You want configurable post-training recipes such as SFT, LoRA/QLoRA, preference optimization, or RL across supported models. | You want model-size/token budgets and pretraining-objective comparisons at the center of the research workflow, with Télos's evaluation suites alongside it. |
+| [MLX-LM](https://github.com/ml-explore/mlx-lm) | You want to run or fine-tune language models locally on Apple Silicon. | You want one research codebase spanning MLX, CUDA, and TPU training, or you want to study both autoregressive and discrete-diffusion objectives. |
 
-If your main task is fine-tuning a popular pretrained model, a model-hub or fine-tuning focused tool may fit better. Télos is aimed at people who want to inspect and compare how training choices affect their own small-model experiments.
+For the common “fine-tune this existing model on my data” task, start with Unsloth or Axolotl. Choose Télos when the question is “what happens if I change the model size, token budget, or training objective?”
 
 ## What you can do with Télos
 
