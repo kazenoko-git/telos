@@ -113,6 +113,39 @@ class MLXTelosTransformer(nn.Module):
             return self.emb.as_linear(hidden)
         return self.head(hidden)
 
+    def output_cross_entropy(self, input_ids, targets, *, chunk_size=256):
+        """Exact tied-head CE without building the full token-by-vocabulary matrix.
+
+        The output projection is evaluated in vocabulary tiles. Checkpointed
+        tile reductions recompute their logits in backward, keeping activation
+        memory proportional to ``tokens * chunk_size``. This is experimental:
+        it currently supports tied embeddings, class-index targets and
+        first-order training only.
+        """
+        if not self.tied_embeddings:
+            raise ValueError("Tiled output cross entropy currently requires tied embeddings")
+        if chunk_size < 1:
+            raise ValueError("chunk_size must be positive")
+
+        hidden = self.hidden_states(input_ids, is_causal=True)
+        hidden = hidden.reshape(-1, self.d_model)
+        targets = targets.reshape(-1)
+        weight = self.emb.weight
+
+        def tile_logsumexp(x, w):
+            tile_logits = mx.matmul(x, w.T)
+            return mx.logsumexp(tile_logits.astype(mx.float32), axis=-1)
+
+        log_partition = None
+        for start in range(0, self.vocab_size, chunk_size):
+            tile = weight[start : start + chunk_size]
+            tile_lse = mx.checkpoint(tile_logsumexp)(hidden, tile)
+            log_partition = tile_lse if log_partition is None else mx.logaddexp(log_partition, tile_lse)
+
+        target_weight = mx.take(weight, targets, axis=0).astype(mx.float32)
+        target_logits = mx.sum(hidden.astype(mx.float32) * target_weight, axis=-1)
+        return (log_partition - target_logits).reshape(input_ids.shape)
+
     def __call__(self, x, return_reliability: bool = False, mask_override=None, is_causal: bool | None = None):
         h = self.hidden_states(x, mask_override=mask_override, is_causal=is_causal)
         logits = self.logits_from_hidden(h)

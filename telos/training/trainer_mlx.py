@@ -56,6 +56,12 @@ class UnifiedMLXTrainer:
         self.m_cfg = cfg.setdefault("model", {})
         self.t_cfg = cfg.setdefault("training", {})
         self.c_cfg = cfg.setdefault("checkpoint", {})
+        self.model.fused_vocab_loss_enabled = bool(self.t_cfg.get("fused_vocab_loss", False))
+        self.model.fused_vocab_chunk_size = int(self.t_cfg.get("fused_vocab_chunk_size", 256))
+        if self.model.fused_vocab_chunk_size < 1:
+            raise ValueError("fused_vocab_chunk_size must be positive")
+        if self.model.fused_vocab_loss_enabled and self.paradigm != "ar":
+            raise ValueError("fused_vocab_loss is currently supported only for AR training")
 
         self.seed = int(self.t_cfg.get("seed", cfg.get("seed", 42)))
         from .core import set_global_seed

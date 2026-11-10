@@ -20,17 +20,22 @@ except ImportError:
 
 if MLX_AVAILABLE:
     def ar_loss_fn_mlx(model, batch_seqs, vocab_size, special_token_lut=None):
-        logits = model(batch_seqs)  # [B, T, V]
-        B, T, V = logits.shape
-
-        shift_logits = logits[:, :-1, :].reshape(-1, V)
-        shift_targets = batch_seqs[:, 1:].reshape(-1)
-
-        ce_per_token = cross_entropy(shift_logits, shift_targets, reduction="none").reshape(B, T - 1)
+        B, T = batch_seqs.shape
+        shift_targets_2d = batch_seqs[:, 1:]
+        if getattr(model, "fused_vocab_loss_enabled", False):
+            ce_per_token = model.output_cross_entropy(
+                batch_seqs[:, :-1], shift_targets_2d,
+                chunk_size=getattr(model, "fused_vocab_chunk_size", 256),
+            )
+        else:
+            logits = model(batch_seqs)  # [B, T, V]
+            V = logits.shape[-1]
+            shift_logits = logits[:, :-1, :].reshape(-1, V)
+            shift_targets = shift_targets_2d.reshape(-1)
+            ce_per_token = cross_entropy(shift_logits, shift_targets, reduction="none").reshape(B, T - 1)
         
         if special_token_lut is not None:
-            shift_target_2d = batch_seqs[:, 1:]
-            content_mask = ~special_token_lut[shift_target_2d]
+            content_mask = ~special_token_lut[shift_targets_2d]
             ce_per_token = ce_per_token * content_mask
             content_count = mx.clip(mx.sum(content_mask, axis=1), 1.0, float(T - 1))
             per_example_ce = mx.sum(ce_per_token, axis=1) / content_count

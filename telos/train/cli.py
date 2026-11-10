@@ -418,6 +418,10 @@ def main():
                         help="MLX tuning allocation budget in GiB")
     parser.add_argument("--fused-step", action=argparse.BooleanOptionalAction, default=None,
                         help="Compile the full MLX update for accumulation=1 (default: enabled)")
+    parser.add_argument("--fused-vocab-loss", action=argparse.BooleanOptionalAction, default=None,
+                        help="Experimental tiled tied-embedding output projection and AR loss (default: disabled)")
+    parser.add_argument("--fused-vocab-chunk-size", type=int, default=None,
+                        help="Vocabulary tile width for --fused-vocab-loss (default: 256)")
     parser.add_argument("--tokenizer", type=str, default=None, help="Path to custom BPE tokenizer JSON or HF model")
     parser.add_argument("--vocab-size", type=int, default=None, help="Vocabulary size override")
     parser.add_argument("--hardware", type=str, default="auto", choices=["auto", "mlx", "cuda", "mps", "xla", "cpu", "pytorch"], help="Hardware backend")
@@ -474,6 +478,8 @@ def main():
             autotune=args.autotune,
             autotune_memory_gb=args.autotune_memory_gb,
             fused_step=args.fused_step,
+            fused_vocab_loss=args.fused_vocab_loss,
+            fused_vocab_chunk_size=args.fused_vocab_chunk_size,
             seq_len=args.seq_len,
             d_model=args.d_model,
             n_layers=args.n_layers,
