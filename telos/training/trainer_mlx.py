@@ -24,7 +24,6 @@ from .core import (
     clip_grad_norm_mlx,
     build_special_token_lut,
     get_sys_mem_str,
-    execute_mlx_training_step,
 )
 from .dataloader import get_global_targets_contiguous_mlx, get_global_targets_contiguous
 
@@ -41,6 +40,7 @@ from .schedule import COROSredSchedule
 
 
 from .hardware import detect_apple_silicon_profile
+from .mlx_step import MLXTrainingStep
 
 
 class UnifiedMLXTrainer:
@@ -407,8 +407,12 @@ class UnifiedMLXTrainer:
         )
 
         uncompiled_step_fn, compilation_targets = self._setup_training_functions()
-        self._warmup_trace(uncompiled_step_fn, bs)
+        compilation_targets.append(mx.random.state)
         compiled_step = mx.compile(uncompiled_step_fn, inputs=compilation_targets, outputs=compilation_targets)
+        training_step = MLXTrainingStep(
+            self.model, optimizer, compiled_step, grad_clip=self.grad_clip,
+            fused=bool(self.t_cfg.get("fused_step", True)),
+        )
 
         ckpt_dir_name = f"checkpoints/{self.paradigm}"
         if self.paradigm == "corosred":
@@ -476,15 +480,11 @@ class UnifiedMLXTrainer:
                     else:
                         yield batch_seqs
 
-            accum_loss, accum_ce = execute_mlx_training_step(
-                model=self.model,
-                optimizer=optimizer,
-                compiled_step_fn=compiled_step,
-                batch_iterator=batch_gen(),
+            accum_loss, accum_ce = training_step(
+                batch_gen(),
                 grad_accum=grad_accum,
-                grad_clip=self.grad_clip,
-                is_first_step=(step == resume_step + 1),
-                eval_every_microbatch=eval_micro
+                eval_every_microbatch=eval_micro,
+                asynchronous=not benchmark and bool(self.t_cfg.get("async_eval", True)),
             )
 
             step_time_ms = (time.perf_counter() - t_step_start) * 1000.0
@@ -505,6 +505,7 @@ class UnifiedMLXTrainer:
 
 
             if step % 50 == 0 or step == 1 or step == max_steps or (benchmark and step % 10 == 0):
+                training_step.synchronize()
                 avg_loss_val = accum_loss.item() / grad_accum
                 avg_ce_val = accum_ce.item() / grad_accum
                 elapsed = time.time() - start_time
@@ -525,10 +526,12 @@ class UnifiedMLXTrainer:
                 print(log_msg, flush=True)
 
             if not benchmark and step % self.c_cfg.get("save_every_steps", 1000) == 0:
+                training_step.synchronize()
                 ckpt_file = ckpt_dir / f"checkpoint_step_{step}.safetensors"
                 self.model.save_weights(str(ckpt_file))
                 print(f"  [Checkpoint] Saved weights to {ckpt_file}")
 
+        training_step.synchronize()
         total_time = time.time() - start_time
         if benchmark:
             bench_elapsed = time.time() - (bench_start_time if bench_start_time else start_time)
