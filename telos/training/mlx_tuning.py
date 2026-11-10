@@ -159,7 +159,9 @@ def _run_trial(spec):
     mx.set_memory_limit(spec["budget"])
     mx.set_cache_limit(min(spec["budget"] // 8, 512 * 1024**2))
     mx.random.seed(int(cfg["training"].get("seed", 42)))
-    model = MLXTelosTransformer(**cfg["model"], precision=cfg["training"].get("precision", "bfloat16"))
+    model_cfg = dict(cfg["model"])
+    precision = model_cfg.pop("precision", cfg["training"].get("precision", "bfloat16"))
+    model = MLXTelosTransformer(**model_cfg, precision=precision)
     model.load_weights(spec["weights"])
     trainer = UnifiedMLXTrainer(spec["paradigm"], model, cfg)
     # The coordinator has already chosen checkpointing for this measurement.
