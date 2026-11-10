@@ -202,6 +202,17 @@ def build_config(
         t_cfg["compile"] = bool(kwargs["compile"])
 
     # 6. Batch Size & Gradient Accumulation Resolution (Hardware Tier Aware)
+    # Tuning preserves the resolved effective batch. Explicit microbatch or
+    # accumulation choices opt out unless tuning is explicitly requested.
+    if kwargs.get("autotune") is not None:
+        t_cfg["autotune"] = bool(kwargs["autotune"])
+    else:
+        t_cfg.setdefault("autotune", final_backend == "mlx" and batch_size is None and grad_accum is None)
+    for option in ("autotune_candidates", "autotune_memory_gb", "autotune_checkpointing",
+                   "autotune_warmup_steps", "autotune_measure_steps", "autotune_trial_timeout",
+                   "fused_step", "async_eval"):
+        if kwargs.get(option) is not None:
+            t_cfg[option] = kwargs[option]
     d_model = m_cfg["d_model"]
     
     if final_device == "xla":

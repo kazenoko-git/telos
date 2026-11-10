@@ -412,6 +412,12 @@ def main():
     parser.add_argument("--effective-batch", type=str, default=None, help="Target effective batch size in sequences or tokens (e.g. 32, 64, 32k)")
     parser.add_argument("--batch-size", type=int, default=None, help="Microbatch size override")
     parser.add_argument("--grad-accum", type=int, default=None, help="Gradient accumulation steps override")
+    parser.add_argument("--autotune", action=argparse.BooleanOptionalAction, default=None,
+                        help="Measure MLX microbatches while preserving the effective batch (automatic when batching is unspecified)")
+    parser.add_argument("--autotune-memory-gb", type=float, default=None,
+                        help="MLX tuning allocation budget in GiB")
+    parser.add_argument("--fused-step", action=argparse.BooleanOptionalAction, default=None,
+                        help="Compile the full MLX update for accumulation=1 (default: enabled)")
     parser.add_argument("--tokenizer", type=str, default=None, help="Path to custom BPE tokenizer JSON or HF model")
     parser.add_argument("--vocab-size", type=int, default=None, help="Vocabulary size override")
     parser.add_argument("--hardware", type=str, default="auto", choices=["auto", "mlx", "cuda", "mps", "xla", "cpu", "pytorch"], help="Hardware backend")
@@ -465,6 +471,9 @@ def main():
             effective_batch=args.effective_batch,
             batch_size=args.batch_size,
             grad_accum=args.grad_accum,
+            autotune=args.autotune,
+            autotune_memory_gb=args.autotune_memory_gb,
+            fused_step=args.fused_step,
             seq_len=args.seq_len,
             d_model=args.d_model,
             n_layers=args.n_layers,

@@ -60,6 +60,9 @@ def main():
     parser.add_argument("--effective-batch", type=str, default=None, help="Effective batch size")
     parser.add_argument("--batch-size", type=int, default=None, help="Microbatch size")
     parser.add_argument("--grad-accum", type=int, default=None, help="Gradient accumulation steps")
+    parser.add_argument("--seq-len", type=int, default=512, help="Context sequence length")
+    parser.add_argument("--autotune", action=argparse.BooleanOptionalAction, default=None,
+                        help="Measure microbatch choices without changing the effective batch")
     parser.add_argument("--config", type=str, default=None, help="Optional YAML config file bypass")
 
     args = parser.parse_args()
@@ -73,6 +76,8 @@ def main():
         effective_batch=args.effective_batch,
         batch_size=args.batch_size,
         grad_accum=args.grad_accum,
+        seq_len=args.seq_len,
+        autotune=args.autotune,
         config_path=args.config
     )
 

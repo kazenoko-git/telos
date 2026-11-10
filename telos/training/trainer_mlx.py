@@ -388,6 +388,21 @@ class UnifiedMLXTrainer:
         max_lr = float(self.t_cfg.get("max_lr", 3e-4))
         min_lr = float(self.t_cfg.get("min_lr", 3e-5))
         weight_decay = float(self.t_cfg.get("weight_decay", 0.1))
+        if self.t_cfg.get("autotune", False):
+            from .mlx_tuning import tune_mlx_batch
+            report = tune_mlx_batch(self, dataset_matrix)
+            plan = report["selected"]["plan"]
+            self.t_cfg["batch_size"] = plan["batch_size"]
+            self.t_cfg["gradient_accumulation"] = plan["grad_accum"]
+            self.t_cfg["gradient_checkpointing"] = plan["checkpointing"]
+            self.m_cfg["use_grad_checkpoint"] = plan["checkpointing"]
+            self.model.use_grad_checkpoint = plan["checkpointing"]
+            self.autotune_report = report
+            report_dir = Path("logs")
+            report_dir.mkdir(exist_ok=True)
+            report_path = report_dir / f"autotune_mlx_{time.time_ns()}.json"
+            report_path.write_text(json.dumps(report, indent=2))
+            print(f"  [Autotune] Selected BS={plan['batch_size']}, accum={plan['grad_accum']}, checkpoint={plan['checkpointing']}; report: {report_path}", flush=True)
         bs = int(self.t_cfg.get("batch_size", 16))
         grad_accum = int(self.t_cfg.get("gradient_accumulation", 1))
 
@@ -484,7 +499,7 @@ class UnifiedMLXTrainer:
                 batch_gen(),
                 grad_accum=grad_accum,
                 eval_every_microbatch=eval_micro,
-                asynchronous=not benchmark and bool(self.t_cfg.get("async_eval", True)),
+                asynchronous=not benchmark and bool(self.t_cfg.get("async_eval", False)),
             )
 
             step_time_ms = (time.perf_counter() - t_step_start) * 1000.0
