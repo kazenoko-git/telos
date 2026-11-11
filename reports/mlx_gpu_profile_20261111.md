@@ -41,6 +41,12 @@ Forward/backward completion accounted for about 94% of the measured update time.
 
 The diagnostic is opt-in (`--stage-profile`); without it, training follows the existing execution path. It forces completed outputs between microbatches to keep the memory bound while timing each stage.
 
+## Bandwidth hypothesis follow-up
+
+The saved shader trace includes MLX `steel_gemm_fused_nax` and `steel_gemm_splitk_nax` BF16 kernels, confirming that this training run dispatched NAX GEMM work. It also contains fused elementwise and cross-entropy gradient shaders. The Instruments GPU Counters view for this trace exposes only M5 Pro state; it does not show read/write bandwidth, occupancy, or memory-limiter values. The capture therefore cannot establish whether unified-memory bandwidth is limiting training.
+
+The 50M geometry is 512 hidden width, 14 layers, and 8 heads. At sequence length 256 and microbatch 8, each dense layer operates over 2,048 token rows. That shape and the sampled GEMM-heavy shader mix make compute throughput or kernel efficiency plausible alternatives to an external-memory-bandwidth ceiling, but this remains an inference. A targeted short capture must expose per-kernel read/write bandwidth and limiter/occupancy counters before classifying the bottleneck.
+
 ## Follow-up tooling
 
 An Instruments user template named `Telos MLX GPU Profile` is now saved with the `Performance Limiters` counter set, Shader Timeline enabled, and a five-second capture window. The macOS `metalperftrace` lookback for the same period contained only `Arc` and `stable`, not the Python training process, so its always-on graphics metrics cannot answer this MLX compute-kernel question.
