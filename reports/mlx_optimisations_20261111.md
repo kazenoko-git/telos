@@ -32,3 +32,11 @@ The detailed measurements, full run logs, stage timings, counters, memory limits
 ## Training options exposed from the report
 
 Final-gradient materialization deferral remains active in the normal accumulated training path. The compiled-backward accumulation option is available as `--compiled-accumulation`; it remains opt-in because its measured 0.8% retry difference is within run variation. Forced fused SDPA is available as `--force-fused-attention`, also off by default: it was faster in a block benchmark, but full-model pairs were inconsistent, so its throughput benefit is unconfirmed. Neither option changes checkpoint parameter shapes. Forced SDPA and packed SwiGLU can produce small floating-point differences.
+
+## Combined options benchmark (2026-11-12)
+
+Ran two reversed-order pairs on the same 49.2M AR model, corpus, seed, MBS 8, accumulation 8, and sequence length 256. Each run processed 393,216 tokens over 24 updates. The baseline used the current default path; the candidate also enabled compiled accumulation, forced fused SDPA, and experimental packed SwiGLU. Runs were on AC power with `powermode 2`; the profiler used a 2.1 GiB MLX cap and stopped below 50% free system memory or 512 MiB free swap.
+
+Warmed throughput (updates 5–24) was 36,825 and 36,185 tokens/s for baseline, versus 41,677 and 42,323 tokens/s with all options. The pairwise gains were **13.2% and 17.0%**; the average warmed rates were **36.5k versus 42.0k tokens/s (+15.1%)**. Peak observed MLX allocation averaged **1.73 GiB baseline versus 1.59 GiB all-options**. Free swap remained stable at 838 MiB, and all four runs completed without triggering the memory guard.
+
+This is promising combined evidence, not a long-run or convergence result: each run had only 20 warmed updates, and the candidate changes floating-point execution in attention and SwiGLU. Individual options have not been isolated again in this paired run, so the combined gain cannot be attributed to one feature. Run data are in `logs/mlx_combined_20261112_{baseline,all,all2,baseline2}/`.
