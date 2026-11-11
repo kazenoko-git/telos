@@ -14,6 +14,7 @@ Reference workload: 50M autoregressive model, real corpus, MBS 8, accumulation 8
 | Keep the per-microbatch loss/gradient function compiled | **about +9.3%** vs bypassing compilation (compiled 36.9–37.2k; uncompiled 33.9k tok/s) | Peak was about 80–87 MiB lower with compilation. Keep compiled. `fused_step` itself does not change the accumulated MBS8 path. |
 | Compile backward together with gradient accumulation | Short retry: **+0.8%** (38.82k → 39.13k), within run variation. A longer candidate run stopped at update 22 when swap fell below its guard. | Retry peak 1.69–1.70 GiB, effectively equal. Six parity tests passed (FP32/BF16, GA2/8, optimizer/master state, LR changes, RNG). Opt-in only; no confirmed speedup. |
 | Force MLX fused SDPA attention | Full-model pairs disagreed: **+12%** in one, **−1%** in the other. Four-run means: 36.29k vs 34.58k tok/s, inconclusive. | Full-model peak 1.64 vs 1.67 GiB. Block benchmark at batch 8 was ~24% faster, with 0.314 → 0.248 GiB allocation and tiny output/gradient differences. No default change. |
+| Skip unused final hidden position in causal AR | **−5.8%** in one short run (37.59k → 35.40k tok/s). | Peak −0.023 GiB. No performance win; remains diagnostic-only. |
 | Use Core ML / Neural Engine for a transformer block | **4–9× slower** than resident MLX forward at batches 1/4/8; refreshed-weight batch 8 was 10.06 ms vs MLX 1.03 ms. | Not integrated. Placement is estimated; numerical parity was unstable. |
 
 ## What this says
