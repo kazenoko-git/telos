@@ -107,11 +107,11 @@ Short runs on the same 49,166,848-parameter AR model used the real corpus, seed 
 | ---: | ---: | ---: | ---: | ---: | ---: |
 | 4 | 16 | 256 | 34,769 | 1.205 | 7.765 |
 | 8 | 8 | 256 | 37,107 / 38,184 | 1.722 | 7.363 / 6.983 |
-| 16 | 4 | 256 | Guard stopped at update 2 | 2.503 | — |
+| 16 | 4 | 256 | 37,433 on a 2.75 GiB retry | 2.625 MLX (trainer display 2.82 GB) | 5.772 |
 | 16 | 8 | 128 | 40,232 / 40,302 | 1.656 | 6.723 / 6.773 |
 | 4 | 8 | 512 | 32,576 | 1.882 | 8.370 |
 
-At sequence length 256, microbatch 8 was about 7–10% faster than microbatch 4 while using about 0.52 GiB more peak MLX memory. Microbatch 16 exceeded this experiment's cap before warmup completed; it has no valid steady throughput result here. The guard threshold is an update-boundary check and was exceeded slightly, not a hard allocation limit.
+At sequence length 256, microbatch 8 was about 7–10% faster than microbatch 4 while using about 0.52 GiB more peak MLX memory. Microbatch 16 first exceeded the 2.5 GiB cap before warmup, then completed under a 2.75 GiB cap at 37.4k tokens/s—about the same as MBS8—while MLX peak rose to 2.63 GiB and free swap ended at 527 MiB. The trainer display reported 2.82 GB. This does not justify the larger memory cost. The guard is checked at update boundaries, not a hard real-time allocation limit.
 
 For the sequence comparison, tokens per microbatch were also held at 2,048 and accumulation remained 8. Sequence 128 consistently reached about 40.3k tokens/s, roughly 5–9% faster than the two sequence-256 baselines. Sequence 512 was about 12–15% slower than those baselines. Changing sequence length changes the available context and training examples; the shorter sequence is not a behavior-preserving speed optimization. These shape experiments establish no path near 100k tokens/s at this parameter count. For sequence 256 under the chosen memory cap, microbatch 8 remains the fastest measured option in this sweep; microbatch 4 offers a modest speed tradeoff for lower memory. Final system free-memory readings were 37–40%, and free swap stayed above 1.25 GiB at run completion. The short runs do not establish sustained thermal performance or convergence.
 

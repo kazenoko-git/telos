@@ -8,7 +8,7 @@ Reference workload: 50M autoregressive model, real corpus, MBS 8, accumulation 8
 | One-microbatch lookahead during accumulation | **−13.60%** (29,021 → 25,074 tok/s) | No peak change (1.925 GiB). Baseline drift was high; no win established. |
 | Compile gradient additions alone | **−2.36%** (37,598 → 36,710 tok/s) | No peak change (1.724 GiB). Not adopted. |
 | Tiled/fused vocabulary projection plus loss, chunks 256/1,024/8,192 | **−12% to −17%** vs standard projection + Metal CE (38.1k baseline; candidates 31.7k–33.6k) | Peak 1.78–1.86 GiB vs 1.72 GiB. Remains experimental/off. |
-| Increase microbatch 4 → 8 at fixed 16,384 tokens/update, sequence 256 | **+7–10%** (34.8k → 37.1–38.2k tok/s) | Peak +0.52 GiB (1.20 → 1.72). MBS16 exceeded the 2.5 GiB guard before warmup. |
+| Increase microbatch 4 → 8 at fixed 16,384 tokens/update, sequence 256 | **+7–10%** (34.8k → 37.1–38.2k tok/s) | Peak +0.52 GiB (1.20 → 1.72). MBS16 at 2.75 GiB cap reached 37.4k tok/s, no win, at 2.63 GiB MLX peak (trainer displayed 2.82 GB). |
 | Shorten sequence 256 → 128 at fixed tokens/update and 2,048 tokens/microbatch | **+5–9%** (37.1–38.2k → 40.2–40.3k tok/s) | Peak 1.66 GiB. Changes model context/training examples, so not behavior-preserving. |
 | Lengthen sequence 256 → 512 at same token shapes | **−12–15%** (to 32.6k tok/s) | Peak 1.88 GiB. Preserves token count per update but changes context. |
 | Keep the per-microbatch loss/gradient function compiled | **about +9.3%** vs bypassing compilation (compiled 36.9–37.2k; uncompiled 33.9k tok/s) | Peak was about 80–87 MiB lower with compilation. Keep compiled. `fused_step` itself does not change the accumulated MBS8 path. |
