@@ -18,7 +18,11 @@ import time
 def system_sample():
     """Read macOS telemetry without requiring administrator privileges."""
     swap = subprocess.run(["sysctl", "vm.swapusage"], capture_output=True, text=True, check=True).stdout
+    total = float(re.search(r"total = ([\d.]+)M", swap).group(1))
     used = float(re.search(r"used = ([\d.]+)M", swap).group(1))
+    pressure = subprocess.run(["memory_pressure"], capture_output=True, text=True, check=True)
+    pressure_text = pressure.stdout + pressure.stderr
+    free_percent = int(re.search(r"System-wide memory free percentage: (\d+)%", pressure_text).group(1))
     result = subprocess.run(["ioreg", "-r", "-c", "AGXAccelerator", "-l"],
                             capture_output=True, text=True, check=True).stdout
     stats = {}
@@ -26,7 +30,8 @@ def system_sample():
         match = re.search(r'"' + re.escape(key) + r'"=(\d+)', result)
         if match:
             stats[key] = int(match.group(1))
-    return {"time": time.time(), "swap_used_mb": used, "gpu_system": stats}
+    return {"time": time.time(), "swap_used_mb": used, "swap_free_mb": total - used,
+            "memory_free_percent": free_percent, "gpu_system": stats}
 
 
 def main():
@@ -39,7 +44,8 @@ def main():
     parser.add_argument("--data", default="data/english_corpus_5b.bin")
     parser.add_argument("--output", required=True)
     parser.add_argument("--max-mlx-gib", type=float, default=4.0)
-    parser.add_argument("--max-swap-growth-mib", type=float, default=512.0)
+    parser.add_argument("--critical-memory-free-percent", type=int, default=12)
+    parser.add_argument("--critical-swap-free-mib", type=float, default=512.0)
     args = parser.parse_args()
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -57,7 +63,7 @@ def main():
         "initial_system": initial, "pid": os.getpid(),
         "limitations": ["GPU utilization is system-wide, including other applications.",
                         "No dedicated Neural Accelerator occupancy counter exposed in this session.",
-                        "MLX memory limit is advisory; live peak and swap guards stop at update boundaries."],
+                        "MLX memory limit is advisory; memory-pressure and swap-headroom guards stop at update boundaries."],
     }
     (output / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     stop = threading.Event()
@@ -65,16 +71,18 @@ def main():
     errors = []
 
     def monitor():
-        high_swap_samples = 0
+        critical_memory_samples = 0
         with (output / "system.jsonl").open("w", buffering=1) as stream:
             while not stop.is_set():
                 try:
                     sample = system_sample()
                     stream.write(json.dumps(sample) + "\n")
-                    high_swap_samples = high_swap_samples + 1 if (
-                        sample["swap_used_mb"] - initial["swap_used_mb"] > args.max_swap_growth_mib
-                    ) else 0
-                    if high_swap_samples >= 3:
+                    critical = (
+                        sample["memory_free_percent"] <= args.critical_memory_free_percent
+                        or sample["swap_free_mb"] <= args.critical_swap_free_mib
+                    )
+                    critical_memory_samples = critical_memory_samples + 1 if critical else 0
+                    if critical_memory_samples >= 3:
                         memory_stop.set()
                 except Exception as error:
                     errors.append(str(error))
