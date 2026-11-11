@@ -31,6 +31,16 @@ The brief per-process Compute activity compared with multi-hundred-millisecond u
 
 Processing the shader trace temporarily drove Instruments to roughly 7 GB RSS and increased swap use substantially; system memory later recovered to 56% free. Keep the 755 MB trace and summary for reference, but avoid more trace exports or training captures until there is ample memory headroom.
 
+## Synchronized stage timing
+
+To break down the update without another Instruments trace, an opt-in stage profiler synchronized at each boundary and ran 8 updates of the same workload. It measured the corpus batch slice plus per-microbatch conversion, forward/backward completion, gradient accumulation/materialization, and optimizer update. The first two updates were excluded from steady-state averages because they include initial compilation and optimizer setup.
+
+Across updates 3–8, mean times per optimizer update were 0.42 ms for batch preparation, 415.81 ms for forward/backward, 11.57 ms for gradient materialization, and 12.96 ms for the optimizer update. End-to-end update time averaged 441.79 ms. Peak MLX allocation was 1.90 GiB; system memory ended at 60% free with about 1.20 GiB swap free.
+
+Forward/backward completion accounted for about 94% of the measured update time. Batch preparation, materialization, and optimizer work are comparatively small; eliminating or overlapping accumulation materialization alone is unlikely to close the speed gap. This directs optimization toward the model's forward/backward kernels and shapes. The explicit synchronization changes scheduling and can affect timings, so these stage numbers diagnose cost distribution rather than serve as an uninstrumented throughput benchmark. This run does not explain why the earlier Instruments Compute-channel accounting reported only 112 ms; that measurement appears incomplete for total device work in this workload.
+
+The diagnostic is opt-in (`--stage-profile`); without it, training follows the existing execution path. It forces completed outputs between microbatches to keep the memory bound while timing each stage.
+
 ## Follow-up tooling
 
 An Instruments user template named `Telos MLX GPU Profile` is now saved with the `Performance Limiters` counter set, Shader Timeline enabled, and a five-second capture window. The macOS `metalperftrace` lookback for the same period contained only `Arc` and `stable`, not the Python training process, so its always-on graphics metrics cannot answer this MLX compute-kernel question.
