@@ -40,7 +40,7 @@ from .schedule import COROSredSchedule
 
 
 from .hardware import detect_apple_silicon_profile
-from .mlx_step import MLXTrainingStep
+from .mlx_step import MLXTrainingStep, build_mlx_accumulation_step
 
 
 class UnifiedMLXTrainer:
@@ -434,9 +434,13 @@ class UnifiedMLXTrainer:
         uncompiled_step_fn, compilation_targets = self._setup_training_functions()
         compilation_targets.append(mx.random.state)
         compiled_step = mx.compile(uncompiled_step_fn, inputs=compilation_targets, outputs=compilation_targets)
+        accumulation_step = None
+        if self.t_cfg.get("compiled_accumulation", False):
+            accumulation_step = build_mlx_accumulation_step(uncompiled_step_fn, compilation_targets)
         training_step = MLXTrainingStep(
             self.model, optimizer, compiled_step, grad_clip=self.grad_clip,
             fused=bool(self.t_cfg.get("fused_step", True)),
+            accumulation_step=accumulation_step,
         )
 
         ckpt_dir_name = f"checkpoints/{self.paradigm}"

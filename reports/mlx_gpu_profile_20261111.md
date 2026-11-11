@@ -139,4 +139,12 @@ The vocabulary review also found a numerical concern in the disabled experimenta
 
 ## Follow-up tooling
 
+## Experimental compiled backward accumulation
+
+An opt-in `compiled_accumulation` path now compiles each later microbatch's backward pass together with its left-to-right addition into accumulated gradients, loss, and CE. The first microbatch still uses the existing compiled function and initializes the accumulated gradient tree directly. Existing per-microbatch materialization boundaries, clipping/scaling, optimizer update, and master-weight handling remain in the same locations. Stage-profile runs intentionally use the reference accumulation path. The default remains off.
+
+Six Metal tests pass: direct gradient/loss/metric comparison for FP32 and BF16 at accumulation 2 and 8, plus three-update training-state comparisons at both accumulation factors. The state comparison includes model and FP32 master weights, optimizer moments, changing learning rates, losses, and the next RNG samples. These tests use numerical tolerances; BF16 graph fusion is not guaranteed bitwise identical.
+
+A short 50M AR throughput check began at MBS8 / accumulation8 / sequence256 with a 2.5 GiB MLX cap and 768 MiB free-swap stop threshold. The baseline completed 24 updates at 35.5k warmed tokens/s and 1.70 GiB peak MLX memory. The compiled candidate reached update 22 before the system crossed the swap threshold; its partial warmed rate was 36.6k tokens/s at 1.69 GiB peak. At that point free swap was 591 MiB. Since the candidate run stopped early and there was only one completed baseline, this is not a confirmed speedup; retain the feature as opt-in pending a repeat once the machine has more swap headroom. Run logs are in `logs/mlx_compiled_accumulation_20261111/`.
+
 An Instruments user template named `Telos MLX GPU Profile` is saved with the `Performance Limiters` counter set, Shader Timeline enabled, and a five-second capture window. The macOS `metalperftrace` lookback for the same period contained only `Arc` and `stable`, not the Python training process, so its always-on graphics metrics cannot answer this MLX compute-kernel question. The second capture's counter summary was read in Instruments; its full GPU counter-value table was not exported, to avoid unnecessary memory use.

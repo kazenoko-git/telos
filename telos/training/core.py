@@ -103,6 +103,7 @@ def execute_mlx_training_step(
     is_first_step: bool,
     eval_every_microbatch: bool = False,
     stage_profile: dict | None = None,
+    accumulation_step_fn=None,
 ):
     if stage_profile is not None:
         async_stage_eval = bool(stage_profile.get("async_stage_eval", False))
@@ -133,7 +134,16 @@ def execute_mlx_training_step(
             stage_profile["batch_prepare_seconds"] += time.perf_counter() - stage_start
             stage_start = time.perf_counter()
         dispatch_start = time.perf_counter() if stage_profile is not None else None
-        if isinstance(batch_data, tuple):
+        use_compiled_accumulation = (
+            accumulation_step_fn is not None and i > 0 and stage_profile is None
+        )
+        if use_compiled_accumulation:
+            accum_grads, accum_loss, accum_ce = accumulation_step_fn(
+                accum_grads, accum_loss, accum_ce,
+                *(batch_data if isinstance(batch_data, tuple) else (batch_data,)),
+            )
+            loss, ce, grads = None, None, None
+        elif isinstance(batch_data, tuple):
             loss, ce, grads = compiled_step_fn(*batch_data)
         else:
             loss, ce, grads = compiled_step_fn(batch_data)
@@ -154,13 +164,13 @@ def execute_mlx_training_step(
             stage_profile["forward_backward_seconds"] += time.perf_counter() - stage_start
             stage_start = time.perf_counter()
         
-        if accum_grads is None:
-            accum_grads = grads
-        else:
-            accum_grads = tree_map(lambda a, b: a + b, accum_grads, grads)
-        
-        accum_loss = accum_loss + loss
-        accum_ce = accum_ce + ce
+        if not use_compiled_accumulation:
+            if accum_grads is None:
+                accum_grads = grads
+            else:
+                accum_grads = tree_map(lambda a, b: a + b, accum_grads, grads)
+            accum_loss = accum_loss + loss
+            accum_ce = accum_ce + ce
         
         # Never retain an accumulation window of activation graphs. RAM-tier
         # heuristics cannot predict that window's size. Materialize each

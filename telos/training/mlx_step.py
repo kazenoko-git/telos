@@ -6,6 +6,16 @@ from mlx.utils import tree_flatten, tree_map
 from .core import clip_grad_norm_mlx, execute_mlx_training_step
 
 
+def build_mlx_accumulation_step(microbatch_step, compilation_targets):
+    """Compile one loss/gradient evaluation together with left-to-right accumulation."""
+    def accumulate(prior_grads, prior_loss, prior_metric, *batch):
+        loss, metric, grads = microbatch_step(*batch)
+        grads = tree_map(lambda prior, current: prior + current, prior_grads, grads)
+        return grads, prior_loss + loss, prior_metric + metric
+
+    return mx.compile(accumulate, inputs=compilation_targets, outputs=compilation_targets)
+
+
 class MLXTrainingStep:
     """Fuse forward, backward, clipping and Adam update for one microbatch.
 
@@ -15,12 +25,14 @@ class MLXTrainingStep:
     call ``synchronize`` before measuring elapsed time or saving checkpoints.
     """
 
-    def __init__(self, model, optimizer, microbatch_step, *, grad_clip=1.0, fused=True):
+    def __init__(self, model, optimizer, microbatch_step, *, grad_clip=1.0, fused=True,
+                 accumulation_step=None):
         self.model = model
         self.optimizer = optimizer
         self.microbatch_step = microbatch_step
         self.grad_clip = grad_clip
         self.fused = fused
+        self.accumulation_step = accumulation_step
         self._initialized = False
         self._full_step = None
         self._pending = None
@@ -55,6 +67,7 @@ class MLXTrainingStep:
                 self.model, self.optimizer, self.microbatch_step, batches,
                 grad_accum, self.grad_clip, not self._initialized, eval_every_microbatch,
                 stage_profile=getattr(self, "stage_profile", None),
+                accumulation_step_fn=self.accumulation_step,
             )
             self._initialized = True
             return result
