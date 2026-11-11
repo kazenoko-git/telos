@@ -424,6 +424,10 @@ def main():
                         help="Vocabulary tile width for --fused-vocab-loss (default: 256)")
     parser.add_argument("--experimental-packed-swiglu", action=argparse.BooleanOptionalAction, default=None,
                         help="Experimental packed SwiGLU Metal VJP; may change BF16 rounding (default: disabled)")
+    parser.add_argument("--compiled-accumulation", action=argparse.BooleanOptionalAction, default=None,
+                        help="Compile backward with gradient accumulation (experimental; default: disabled)")
+    parser.add_argument("--force-fused-attention", action=argparse.BooleanOptionalAction, default=None,
+                        help="Force fused MLX SDPA (experimental; full-model gain is unconfirmed)")
     parser.add_argument("--tokenizer", type=str, default=None, help="Path to custom BPE tokenizer JSON or HF model")
     parser.add_argument("--vocab-size", type=int, default=None, help="Vocabulary size override")
     parser.add_argument("--hardware", type=str, default="auto", choices=["auto", "mlx", "cuda", "mps", "xla", "cpu", "pytorch"], help="Hardware backend")
@@ -483,6 +487,8 @@ def main():
             fused_vocab_loss=args.fused_vocab_loss,
             fused_vocab_chunk_size=args.fused_vocab_chunk_size,
             experimental_packed_swiglu=args.experimental_packed_swiglu,
+            compiled_accumulation=args.compiled_accumulation,
+            force_fused_attention=args.force_fused_attention,
             seq_len=args.seq_len,
             d_model=args.d_model,
             n_layers=args.n_layers,

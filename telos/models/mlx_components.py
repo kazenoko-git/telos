@@ -147,6 +147,7 @@ class MLXBlock(nn.Module):
         self.n_kv_heads = n_kv_heads
         self.kv_groups = n_heads // n_kv_heads
         self.is_causal = is_causal
+        self.force_fused_attention = False
 
         self.qkv_proj = nn.Linear(d_model, (n_heads + 2 * n_kv_heads) * self.head_dim, bias=False)
         self.out = nn.Linear(d_model, d_model, bias=False)
@@ -183,10 +184,12 @@ class MLXBlock(nn.Module):
         else:
             mask_arg = mask_override
 
+        attention_kwargs = {"scale": scale}
         if mask_arg is not None:
-            out = mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask_arg)
-        else:
-            out = mx.fast.scaled_dot_product_attention(q, k, v, scale=scale)
+            attention_kwargs["mask"] = mask_arg
+        if self.force_fused_attention:
+            attention_kwargs["force_fused"] = True
+        out = mx.fast.scaled_dot_product_attention(q, k, v, **attention_kwargs)
 
         out = out.transpose(0, 2, 1, 3).reshape(B, T, D)
 

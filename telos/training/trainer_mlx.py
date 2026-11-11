@@ -67,6 +67,16 @@ class UnifiedMLXTrainer:
             if enabled_modules == 0:
                 raise ValueError("experimental_packed_swiglu requires an MLX transformer with SwiGLU layers")
             print("  [Experimental] Packed SwiGLU Metal VJP enabled; BF16 rounding may differ slightly.")
+        self.force_fused_attention = bool(self.t_cfg.get("force_fused_attention", False))
+        if self.force_fused_attention:
+            enabled_layers = 0
+            for layer in getattr(self.model, "layers", ()):
+                if hasattr(layer, "force_fused_attention"):
+                    layer.force_fused_attention = True
+                    enabled_layers += 1
+            if enabled_layers == 0:
+                raise ValueError("force_fused_attention requires an MLX transformer with SDPA layers")
+            print("  [Experimental] Forced fused SDPA enabled; full-model throughput gain is unconfirmed.")
         self.model.fused_vocab_loss_enabled = bool(self.t_cfg.get("fused_vocab_loss", False))
         self.model.fused_vocab_chunk_size = int(self.t_cfg.get("fused_vocab_chunk_size", 256))
         if self.model.fused_vocab_chunk_size < 1:

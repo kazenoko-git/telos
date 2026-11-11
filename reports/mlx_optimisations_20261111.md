@@ -28,3 +28,7 @@ Profiling also found about **236 encoded command buffers per optimizer update**.
 ## Evidence and limitations
 
 The detailed measurements, full run logs, stage timings, counters, memory limits, and caveats are in [the GPU profile](mlx_gpu_profile_20261111.md), [accumulation report](mlx_accumulation_20261111.md), [shape data](mlx_shapes_20261111.json), [compiled accumulation retry data](mlx_compiled_accumulation_retry_20261111.json), and [forced-attention data](mlx_forced_fused_attention_20261111.json). Most end-to-end candidates used short runs; they do not establish convergence equivalence or sustained thermal performance. Small floating-point differences can alter later training trajectories even when loss and gradient checks are close.
+
+## Training options exposed from the report
+
+Final-gradient materialization deferral remains active in the normal accumulated training path. The compiled-backward accumulation option is available as `--compiled-accumulation`; it remains opt-in because its measured 0.8% retry difference is within run variation. Forced fused SDPA is available as `--force-fused-attention`, also off by default: it was faster in a block benchmark, but full-model pairs were inconsistent, so its throughput benefit is unconfirmed. Neither option changes checkpoint parameter shapes. Forced SDPA and packed SwiGLU can produce small floating-point differences.
