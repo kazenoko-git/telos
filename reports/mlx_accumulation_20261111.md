@@ -16,7 +16,7 @@ Throughput is total measured tokens divided by total measured update time across
 - Each trial: fresh process, seed42, four warmup updates, sixteen measured updates. Order baseline/candidate/candidate/baseline.
 - Earlier exploratory trials 0-5 excluded: different lookahead variant and potential overlap with GPU correctness tests.
 - Trials6-17 ran without simultaneous GPU tests; desktop applications remained active. Lookahead comparison experienced substantial timing drift.
-- Independent baseline runs have different final hashes and small loss differences, so full-transformer bitwise parity is not established. The worst lookahead loss difference against trial6 was0.01755; a later baseline differed by0.02302. Cause of run-to-run variation is not isolated.
+- Independent baseline runs have different final hashes and small loss differences, so full-transformer bitwise parity is not established. The worst lookahead loss difference against trial6 was 0.01755; a later baseline differed by 0.02302. Cause of run-to-run variation is not isolated.
 - Deterministic small-model tests show exact equality of loss, parameters, optimizer states, FP32 masters, and subsequent random samples for all three variants, FP32/BF16, accumulation2/8, changing learning rates.
 - Production accumulation code restored. Experiments remain in scripts/mlx_accumulation_experiments.py and are used only by benchmark/tests.
 - The four-GiB MLX limit is advisory; benchmarks additionally check observed MLX peak, memory headroom, and swap headroom each update.

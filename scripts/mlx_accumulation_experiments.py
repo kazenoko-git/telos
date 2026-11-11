@@ -35,7 +35,7 @@ def execute_mlx_training_step(
             loss, ce, grads = compiled_step_fn(*batch_data)
         else:
             loss, ce, grads = compiled_step_fn(batch_data)
-        
+
         if accum_grads is None:
             accum_grads = grads
             accum_loss = accum_loss + loss
@@ -48,7 +48,7 @@ def execute_mlx_training_step(
             accum_grads = tree_map(lambda a, b: a + b, accum_grads, grads)
             accum_loss = accum_loss + loss
             accum_ce = accum_ce + ce
-        
+
         # Never retain an accumulation window of activation graphs. RAM-tier
         # heuristics cannot predict that window's size. Materialize each
         # microbatch's accumulated gradients before building the next graph.
