@@ -105,6 +105,7 @@ def execute_mlx_training_step(
     stage_profile: dict | None = None,
 ):
     if stage_profile is not None:
+        async_stage_eval = bool(stage_profile.get("async_stage_eval", False))
         outer_batch_prepare = stage_profile.pop("outer_batch_prepare_seconds", 0.0)
         stage_profile.clear()
         stage_profile.update({
@@ -112,7 +113,13 @@ def execute_mlx_training_step(
             "forward_backward_seconds": 0.0,
             "materialization_seconds": 0.0,
             "optimizer_update_seconds": 0.0,
+            "compiled_call_seconds": 0.0,
+            "eval_call_seconds": 0.0,
+            "synchronization_wait_seconds": 0.0,
+            "accumulation_eval_call_seconds": 0.0,
+            "accumulation_sync_wait_seconds": 0.0,
             "microbatches": grad_accum,
+            "async_stage_eval": async_stage_eval,
             "synchronized_stage_timing": True,
         })
     accum_grads = None
@@ -125,13 +132,25 @@ def execute_mlx_training_step(
         if stage_profile is not None:
             stage_profile["batch_prepare_seconds"] += time.perf_counter() - stage_start
             stage_start = time.perf_counter()
+        dispatch_start = time.perf_counter() if stage_profile is not None else None
         if isinstance(batch_data, tuple):
             loss, ce, grads = compiled_step_fn(*batch_data)
         else:
             loss, ce, grads = compiled_step_fn(batch_data)
         if stage_profile is not None:
-            mx.eval(loss, ce, grads)
+            stage_profile["compiled_call_seconds"] += time.perf_counter() - dispatch_start
+            eval_start = time.perf_counter()
+            if stage_profile["async_stage_eval"]:
+                grad_arrays = [value for _, value in tree_flatten(grads)]
+                mx.async_eval(loss, ce, *grad_arrays)
+            else:
+                mx.eval(loss, ce, grads)
+            eval_call_elapsed = time.perf_counter() - eval_start
+            sync_start = time.perf_counter()
             mx.synchronize()
+            sync_elapsed = time.perf_counter() - sync_start
+            stage_profile["eval_call_seconds"] += eval_call_elapsed
+            stage_profile["synchronization_wait_seconds"] += sync_elapsed
             stage_profile["forward_backward_seconds"] += time.perf_counter() - stage_start
             stage_start = time.perf_counter()
         
@@ -152,10 +171,22 @@ def execute_mlx_training_step(
             if (grad_accum > 1 and i == grad_accum - 1 and not eval_every_microbatch
                     and stage_profile is None):
                 continue
-            mx.eval(accum_grads, accum_loss, accum_ce)
             if stage_profile is not None:
+                eval_start = time.perf_counter()
+                if stage_profile["async_stage_eval"]:
+                    grad_arrays = [value for _, value in tree_flatten(accum_grads)]
+                    mx.async_eval(accum_loss, accum_ce, *grad_arrays)
+                else:
+                    mx.eval(accum_grads, accum_loss, accum_ce)
+                eval_call_elapsed = time.perf_counter() - eval_start
+                sync_start = time.perf_counter()
                 mx.synchronize()
+                sync_elapsed = time.perf_counter() - sync_start
+                stage_profile["accumulation_eval_call_seconds"] += eval_call_elapsed
+                stage_profile["accumulation_sync_wait_seconds"] += sync_elapsed
                 stage_profile["materialization_seconds"] += time.perf_counter() - stage_start
+            else:
+                mx.eval(accum_grads, accum_loss, accum_ce)
 
     optimizer_start = time.perf_counter() if stage_profile is not None else None
     use_master_weights = getattr(model, "use_master_weights", False)

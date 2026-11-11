@@ -48,6 +48,8 @@ def main():
     parser.add_argument("--critical-swap-free-mib", type=float, default=512.0)
     parser.add_argument("--stage-profile", action="store_true",
                         help="Synchronize between stages to measure update work separately")
+    parser.add_argument("--async-stage-eval", action="store_true",
+                        help="Use async MLX evaluation before the stage synchronization")
     parser.add_argument("--fused-vocab-loss", action="store_true",
                         help="Use tiled tied-embedding output projection and cross-entropy")
     parser.add_argument("--fused-vocab-chunk-size", type=int, default=256)
@@ -79,7 +81,7 @@ def main():
     if args.stage_profile:
         def profiled_init(step, *positional, **keywords):
             original_init(step, *positional, **keywords)
-            step.stage_profile = {}
+            step.stage_profile = {"async_stage_eval": args.async_stage_eval}
             active_stage_profile[0] = step.stage_profile
         MLXTrainingStep.__init__ = profiled_init
 
