@@ -41,6 +41,12 @@ Forward/backward completion accounted for about 94% of the measured update time.
 
 The diagnostic is opt-in (`--stage-profile`); without it, training follows the existing execution path. It forces completed outputs between microbatches to keep the memory bound while timing each stage.
 
+## Sustained one-minute profile
+
+A low-overhead profile ran the same 50M AR model on the real corpus for 128 optimizer updates (MBS 8, accumulation 8, sequence length 256), processing 2,097,152 tokens. It completed in 55.07 s wall time, about 38.08k input tokens/s end-to-end. Per-update training calls averaged 429.57 ms (median 426.59 ms; p95 442.85 ms), equivalent to about 38.14k tokens/s during those calls. This sustains the speed seen in the warmed-up portion of the earlier short run; it does not show 100k tokens/s for this 50M model.
+
+Peak MLX allocation was 1.79 GiB and process peak RSS was about 0.25 GB. System-wide free memory stayed between 60% and 69%, while free swap stayed at 1,279 MiB during the run and ended at 1,295 MiB. The low-overhead monitor sampled system telemetry every five seconds. During active training, device utilization samples were 91–94% for most of the run and renderer samples ranged from 52–70%; these are whole-system readings, not per-process utilization or NAX-specific activity. This run used no Instruments trace, avoiding the high memory and trace-size cost of collecting GPU counters continuously for a minute. Raw timing and telemetry are in `logs/mlx_sustained_profile_20261111_retry/`.
+
 ## Bandwidth hypothesis follow-up
 
 The shader trace includes MLX `steel_gemm_fused_nax` and `steel_gemm_splitk_nax` BF16 kernels, confirming that this training run dispatched NAX GEMM work. Two corrected counter captures enabled the `Performance Limiters` counter set for the same 8-update, 131,072-token 50M AR workload (MBS 8, accumulation 8, sequence length 256). The runs completed in 4.93 s and 4.23 s, with peak MLX allocations of 1.68 GiB and 1.81 GiB. The first run ended at 45% free system memory and 878 MiB free swap.
