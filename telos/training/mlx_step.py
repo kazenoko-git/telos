@@ -54,6 +54,7 @@ class MLXTrainingStep:
             result = execute_mlx_training_step(
                 self.model, self.optimizer, self.microbatch_step, batches,
                 grad_accum, self.grad_clip, not self._initialized, eval_every_microbatch,
+                stage_profile=getattr(self, "stage_profile", None),
             )
             self._initialized = True
             return result

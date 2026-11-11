@@ -46,6 +46,8 @@ def main():
     parser.add_argument("--max-mlx-gib", type=float, default=4.0)
     parser.add_argument("--critical-memory-free-percent", type=int, default=12)
     parser.add_argument("--critical-swap-free-mib", type=float, default=512.0)
+    parser.add_argument("--stage-profile", action="store_true",
+                        help="Synchronize between stages to measure update work separately")
     args = parser.parse_args()
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -53,6 +55,7 @@ def main():
     import mlx.core as mx
     from telos.train.cli import train
     from telos.training.mlx_step import MLXTrainingStep
+    from telos.training import trainer_mlx
 
     mx.set_memory_limit(int(args.max_mlx_gib * 1024**3))
     mx.set_cache_limit(128 * 1024**2)
@@ -66,6 +69,29 @@ def main():
                         "MLX memory limit is advisory; memory-pressure and swap-headroom guards stop at update boundaries."],
     }
     (output / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+
+    original_init = MLXTrainingStep.__init__
+    original_batch_fetch = trainer_mlx.get_global_targets_contiguous
+    active_stage_profile = [None]
+    if args.stage_profile:
+        def profiled_init(step, *positional, **keywords):
+            original_init(step, *positional, **keywords)
+            step.stage_profile = {}
+            active_stage_profile[0] = step.stage_profile
+        MLXTrainingStep.__init__ = profiled_init
+
+        def profiled_batch_fetch(*positional, **keywords):
+            begin = time.perf_counter()
+            result = original_batch_fetch(*positional, **keywords)
+            elapsed = time.perf_counter() - begin
+            if active_stage_profile[0] is not None:
+                profile = active_stage_profile[0]
+                profile["outer_batch_prepare_seconds"] = (
+                    profile.get("outer_batch_prepare_seconds", 0.0) + elapsed
+                )
+            return result
+
+        trainer_mlx.get_global_targets_contiguous = profiled_batch_fetch
     stop = threading.Event()
     memory_stop = threading.Event()
     errors = []
@@ -111,6 +137,8 @@ def main():
                       "mlx_active_bytes": mx.get_active_memory(), "mlx_peak_bytes": mx.get_peak_memory(),
                       "mlx_cache_bytes": mx.get_cache_memory(),
                       "process_peak_rss_bytes": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}
+            if args.stage_profile:
+                record.update(step.stage_profile)
             if count == 1 or count % 50 == 0:
                 record["loss"] = result[0].item() / args.grad_accum
             timings.write(json.dumps(record) + "\n")
@@ -133,6 +161,9 @@ def main():
             errors.append(str(error))
         finally:
             MLXTrainingStep.__call__ = original
+            if args.stage_profile:
+                MLXTrainingStep.__init__ = original_init
+                trainer_mlx.get_global_targets_contiguous = original_batch_fetch
             if last_step is not None:
                 last_step.synchronize()
             stop.set()

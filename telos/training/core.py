@@ -1,6 +1,7 @@
 import sys
 import math
 import subprocess
+import time
 
 
 def metal_usable() -> bool:
@@ -100,18 +101,39 @@ def execute_mlx_training_step(
     grad_accum: int,
     grad_clip: float,
     is_first_step: bool,
-    eval_every_microbatch: bool = False
+    eval_every_microbatch: bool = False,
+    stage_profile: dict | None = None,
 ):
+    if stage_profile is not None:
+        outer_batch_prepare = stage_profile.pop("outer_batch_prepare_seconds", 0.0)
+        stage_profile.clear()
+        stage_profile.update({
+            "batch_prepare_seconds": outer_batch_prepare,
+            "forward_backward_seconds": 0.0,
+            "materialization_seconds": 0.0,
+            "optimizer_update_seconds": 0.0,
+            "microbatches": grad_accum,
+            "synchronized_stage_timing": True,
+        })
     accum_grads = None
     accum_loss = mx.array(0.0, dtype=mx.float32)
     accum_ce = mx.array(0.0, dtype=mx.float32)
 
     for i in range(grad_accum):
+        stage_start = time.perf_counter() if stage_profile is not None else None
         batch_data = next(batch_iterator)
+        if stage_profile is not None:
+            stage_profile["batch_prepare_seconds"] += time.perf_counter() - stage_start
+            stage_start = time.perf_counter()
         if isinstance(batch_data, tuple):
             loss, ce, grads = compiled_step_fn(*batch_data)
         else:
             loss, ce, grads = compiled_step_fn(batch_data)
+        if stage_profile is not None:
+            mx.eval(loss, ce, grads)
+            mx.synchronize()
+            stage_profile["forward_backward_seconds"] += time.perf_counter() - stage_start
+            stage_start = time.perf_counter()
         
         if accum_grads is None:
             accum_grads = grads
@@ -127,10 +149,15 @@ def execute_mlx_training_step(
         if eval_every_microbatch or grad_accum > 1:
             # The optimizer eval also materializes the final microbatch. Keep
             # earlier microbatches eager so activation memory stays bounded.
-            if grad_accum > 1 and i == grad_accum - 1 and not eval_every_microbatch:
+            if (grad_accum > 1 and i == grad_accum - 1 and not eval_every_microbatch
+                    and stage_profile is None):
                 continue
             mx.eval(accum_grads, accum_loss, accum_ce)
+            if stage_profile is not None:
+                mx.synchronize()
+                stage_profile["materialization_seconds"] += time.perf_counter() - stage_start
 
+    optimizer_start = time.perf_counter() if stage_profile is not None else None
     use_master_weights = getattr(model, "use_master_weights", False)
     if use_master_weights and not hasattr(optimizer, "master_params"):
         # Initialize fp32 master weights on optimizer to prevent polluting model.parameters()
@@ -157,6 +184,9 @@ def execute_mlx_training_step(
         if use_master_weights:
             eval_targets.append(optimizer.master_params)
         mx.eval(*eval_targets)
+        if stage_profile is not None:
+            mx.synchronize()
+            stage_profile["optimizer_update_seconds"] = time.perf_counter() - optimizer_start
         return accum_loss, accum_ce
 
     # Fused accumulation scaling and norm clipping
@@ -190,6 +220,10 @@ def execute_mlx_training_step(
     else:
         compiled_opt(accum_grads)
         mx.eval(model.parameters(), optimizer.state, accum_loss, accum_ce)
+
+    if stage_profile is not None:
+        mx.synchronize()
+        stage_profile["optimizer_update_seconds"] = time.perf_counter() - optimizer_start
 
     return accum_loss, accum_ce
 
