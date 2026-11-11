@@ -60,6 +60,8 @@ def main():
                         help="Compile each later microbatch backward pass together with gradient accumulation")
     parser.add_argument("--force-fused-attention", action="store_true",
                         help="Force MLX fused SDPA for a diagnostic comparison")
+    parser.add_argument("--trim-ar-final-token", action="store_true",
+                        help="Skip the unused final hidden-state position in causal AR training")
     parser.add_argument("--fused-vocab-chunk-size", type=int, default=256)
     args = parser.parse_args()
     output = Path(args.output).resolve()
@@ -75,6 +77,17 @@ def main():
     from telos.train.cli import train
     from telos.training.mlx_step import MLXTrainingStep
     from telos.training import trainer_mlx
+
+    original_next_token_logits = None
+    if args.trim_ar_final_token:
+        from telos.models.mlx_transformer import MLXTelosTransformer
+        original_next_token_logits = MLXTelosTransformer.next_token_logits
+
+        def trimmed_next_token_logits(model, input_ids):
+            hidden = model.hidden_states(input_ids[:, :-1])
+            return model.logits_from_hidden(hidden)
+
+        MLXTelosTransformer.next_token_logits = trimmed_next_token_logits
 
     mx.set_memory_limit(int(args.max_mlx_gib * 1024**3))
     mx.set_cache_limit(128 * 1024**2)
@@ -190,6 +203,9 @@ def main():
             errors.append(str(error))
         finally:
             mx.fast.scaled_dot_product_attention = original_sdpa
+            if original_next_token_logits is not None:
+                from telos.models.mlx_transformer import MLXTelosTransformer
+                MLXTelosTransformer.next_token_logits = original_next_token_logits
             mx.compile = original_compile
             MLXTrainingStep.__call__ = original
             if args.stage_profile:
