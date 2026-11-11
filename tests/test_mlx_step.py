@@ -40,7 +40,7 @@ def test_step_parity_with_reference_and_learning_rate_changes(master, accumulati
     actual, opt = make(candidate, True)
     for step, lr in enumerate([1e-3, 2e-3, 0.0, 1e-4, 1e-3]):
         ref_opt.learning_rate = opt.learning_rate = lr
-        expected = ref([x] * accumulation, grad_accum=accumulation)
+        expected = ref([x] * accumulation, grad_accum=accumulation, eval_every_microbatch=True)
         observed = actual([x] * accumulation, grad_accum=accumulation, asynchronous=(step % 2 == 0))
         actual.synchronize()
         np.testing.assert_allclose(np.array(observed[0]), np.array(expected[0]), rtol=2e-5, atol=2e-5)

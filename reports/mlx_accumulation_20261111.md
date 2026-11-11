@@ -1,6 +1,6 @@
 # MLX accumulation experiments — 2026-11-11
 
-No candidate established a useful throughput gain. Production training remains on the existing bounded-memory path.
+No candidate established a statistically convincing throughput gain. Subsequently, the user accepted the final-wait reduction given its small measured gain and bounded memory increase; this variant is now enabled unless eager evaluation of every microbatch is explicitly requested. The other variants remain isolated experiments.
 
 | Variant | Baseline tok/s | Candidate tok/s | Change | Peak GiB, baseline / candidate |
 |---|---:|---:|---:|---:|
@@ -18,14 +18,14 @@ Throughput is total measured tokens divided by total measured update time across
 - Trials6-17 ran without simultaneous GPU tests; desktop applications remained active. Lookahead comparison experienced substantial timing drift.
 - Independent baseline runs have different final hashes and small loss differences, so full-transformer bitwise parity is not established. The worst lookahead loss difference against trial6 was 0.01755; a later baseline differed by 0.02302. Cause of run-to-run variation is not isolated.
 - Deterministic small-model tests show exact equality of loss, parameters, optimizer states, FP32 masters, and subsequent random samples for all three variants, FP32/BF16, accumulation2/8, changing learning rates.
-- Production accumulation code restored. Experiments remain in scripts/mlx_accumulation_experiments.py and are used only by benchmark/tests.
+- After measurement the production accumulation code was initially restored; the final-wait reduction was subsequently accepted and enabled. Other experiments remain in scripts/mlx_accumulation_experiments.py and are used only by benchmark/tests.
 - The four-GiB MLX limit is advisory; benchmarks additionally check observed MLX peak, memory headroom, and swap headroom each update.
 
 System swap did not increase during the retained trials (5,860.56 MiB at the first start; 5,852.56 MiB at the final end). All measured MLX peaks were below 1.93 GiB.
 
 ## Reproduction
 
-Run each command in a fresh process with `PYTHONPATH=.` and the project virtualenv. Use `--steps 16` and a different output path for every trial. The default selects the production baseline; select one experiment with `--pipeline`, `--compiled-add`, or `--defer-last`. For example:
+Run each command in a fresh process with `PYTHONPATH=.` and the project virtualenv. Use `--steps 16` and a different output path for every trial. The default selects a frozen reference baseline from before the final-wait reduction; select one experiment with `--pipeline`, `--compiled-add`, or `--defer-last`. For example:
 
 ```sh
 PYTHONPATH=. .venv/bin/python scripts/benchmark_mlx_accumulation.py --steps 16 --output /tmp/mlx-baseline.json

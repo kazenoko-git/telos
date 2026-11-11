@@ -125,6 +125,10 @@ def execute_mlx_training_step(
         # heuristics cannot predict that window's size. Materialize each
         # microbatch's accumulated gradients before building the next graph.
         if eval_every_microbatch or grad_accum > 1:
+            # The optimizer eval also materializes the final microbatch. Keep
+            # earlier microbatches eager so activation memory stays bounded.
+            if grad_accum > 1 and i == grad_accum - 1 and not eval_every_microbatch:
+                continue
             mx.eval(accum_grads, accum_loss, accum_ce)
 
     use_master_weights = getattr(model, "use_master_weights", False)

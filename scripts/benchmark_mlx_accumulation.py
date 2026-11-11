@@ -13,7 +13,6 @@ from mlx.utils import tree_flatten
 
 from telos.configs.solver import solve_transformer_geometry
 from telos.models.mlx_transformer import MLXTelosTransformer
-from telos.training.mlx_step import MLXTrainingStep
 from telos.training.trainer_mlx import UnifiedMLXTrainer
 from scripts.profile_mlx_training import system_sample
 from scripts.mlx_accumulation_experiments import ExperimentalAccumulationStep
@@ -41,12 +40,10 @@ def main():
     state.append(mx.random.state)
     fn = mx.compile(fn, inputs=state, outputs=state)
     opt = optim.AdamW(4e-4, weight_decay=.01, betas=[.9, .95], bias_correction=True)
-    if args.pipeline or args.compiled_add or args.defer_last:
-        step = ExperimentalAccumulationStep(model, opt, fn, pipeline_accumulation=args.pipeline,
-                                           compiled_accumulation=args.compiled_add,
-                                           defer_last_microbatch=args.defer_last)
-    else:
-        step = MLXTrainingStep(model, opt, fn)
+    # Freeze the pre-deferral reference so historical comparisons remain reproducible.
+    step = ExperimentalAccumulationStep(model, opt, fn, pipeline_accumulation=args.pipeline,
+                                       compiled_accumulation=args.compiled_add,
+                                       defer_last_microbatch=args.defer_last)
     corpus = np.memmap('data/english_corpus_5b.bin', dtype=np.uint16, mode='r')
     cursor = 0
 
