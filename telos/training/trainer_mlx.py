@@ -56,6 +56,17 @@ class UnifiedMLXTrainer:
         self.m_cfg = cfg.setdefault("model", {})
         self.t_cfg = cfg.setdefault("training", {})
         self.c_cfg = cfg.setdefault("checkpoint", {})
+        self.experimental_packed_swiglu = bool(self.t_cfg.get("experimental_packed_swiglu", False))
+        if self.experimental_packed_swiglu:
+            enabled_modules = 0
+            for layer in getattr(self.model, "layers", ()):
+                mlp = getattr(layer, "mlp", None)
+                if hasattr(mlp, "use_experimental_packed_kernel"):
+                    mlp.use_experimental_packed_kernel = True
+                    enabled_modules += 1
+            if enabled_modules == 0:
+                raise ValueError("experimental_packed_swiglu requires an MLX transformer with SwiGLU layers")
+            print("  [Experimental] Packed SwiGLU Metal VJP enabled; BF16 rounding may differ slightly.")
         self.model.fused_vocab_loss_enabled = bool(self.t_cfg.get("fused_vocab_loss", False))
         self.model.fused_vocab_chunk_size = int(self.t_cfg.get("fused_vocab_chunk_size", 256))
         if self.model.fused_vocab_chunk_size < 1:

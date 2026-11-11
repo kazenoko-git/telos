@@ -19,6 +19,84 @@ import mlx.core as mx
 import mlx.nn as nn
 
 
+_PACKED_SWIGLU_FORWARD = mx.fast.metal_kernel(
+    name="telos_packed_swiglu_forward",
+    input_names=["packed"],
+    output_names=["activated"],
+    source=r"""
+        uint i = thread_position_in_grid.x;
+        if (i >= N * F) return;
+        uint row = i / F;
+        uint col = i % F;
+        float gate = float(packed[row * (2 * F) + col]);
+        float up = float(packed[row * (2 * F) + F + col]);
+        T sigmoid = T(1.0f / (1.0f + exp(-gate)));
+        T silu = T(gate * float(sigmoid));
+        activated[i] = T(float(silu) * up);
+    """,
+)
+
+_PACKED_SWIGLU_BACKWARD = mx.fast.metal_kernel(
+    name="telos_packed_swiglu_backward",
+    input_names=["packed", "cotangent"],
+    output_names=["gradient"],
+    source=r"""
+        uint i = thread_position_in_grid.x;
+        if (i >= N * F) return;
+        uint row = i / F;
+        uint col = i % F;
+        float gate = float(packed[row * (2 * F) + col]);
+        float up = float(packed[row * (2 * F) + F + col]);
+        T sigmoid = T(1.0f / (1.0f + exp(-gate)));
+        T silu = T(gate * float(sigmoid));
+        T dy = T(cotangent[i]);
+
+        // Keep BF16 intermediate rounding close to MLX's split SwiGLU graph.
+        T grad_silu = T(float(dy) * up);
+        T grad_up = T(float(dy) * float(silu));
+        T grad_gate_direct = T(float(grad_silu) * float(sigmoid));
+        T grad_sigmoid = T(float(grad_silu) * gate);
+        T one_minus_sigmoid = T(1.0f - float(sigmoid));
+        T sigmoid_grad = T(float(sigmoid) * float(one_minus_sigmoid));
+        T grad_gate_sigmoid = T(float(grad_sigmoid) * float(sigmoid_grad));
+
+        gradient[row * (2 * F) + col] =
+            T(float(grad_gate_direct) + float(grad_gate_sigmoid));
+        gradient[row * (2 * F) + F + col] = grad_up;
+    """,
+)
+
+
+@mx.custom_function
+def _experimental_packed_swiglu(packed):
+    """Experimental packed SwiGLU activation; first-order gradients only."""
+    rows, twice_hidden = packed.shape
+    hidden = twice_hidden // 2
+    return _PACKED_SWIGLU_FORWARD(
+        inputs=[packed],
+        template=[("N", rows), ("F", hidden), ("T", packed.dtype)],
+        grid=(rows * hidden, 1, 1),
+        threadgroup=(256, 1, 1),
+        output_shapes=[(rows, hidden)],
+        output_dtypes=[packed.dtype],
+    )[0]
+
+
+@_experimental_packed_swiglu.vjp
+def _experimental_packed_swiglu_vjp(primals, cotangent, output):
+    packed = primals
+    rows, twice_hidden = packed.shape
+    hidden = twice_hidden // 2
+    return _PACKED_SWIGLU_BACKWARD(
+        inputs=[packed, cotangent],
+        template=[("N", rows), ("F", hidden), ("T", packed.dtype)],
+        grid=(rows * hidden, 1, 1),
+        threadgroup=(256, 1, 1),
+        output_shapes=[packed.shape],
+        output_dtypes=[packed.dtype],
+    )[0]
+
+
 class MLXRMSNorm(nn.Module):
     """Root Mean Square Layer Normalization."""
 
@@ -38,13 +116,23 @@ class MLXSwiGLU(nn.Module):
         super().__init__()
         hidden = int(d_model * 8 / 3)
         hidden = ((hidden + 63) // 64) * 64
+        self.hidden_dim = hidden
+        self.use_experimental_packed_kernel = False
         # One wider GEMM replaces separate gate and up projections.
         self.gate_up = nn.Linear(d_model, 2 * hidden, bias=False)
         self.w3 = nn.Linear(hidden, d_model, bias=False)
 
     def __call__(self, x):
-        gate, up = mx.split(self.gate_up(x), 2, axis=-1)
-        return self.w3(nn.silu(gate) * up)
+        packed = self.gate_up(x)
+        if self.use_experimental_packed_kernel:
+            leading_shape = packed.shape[:-1]
+            packed_2d = packed.reshape((-1, 2 * self.hidden_dim))
+            activated = _experimental_packed_swiglu(packed_2d)
+            activated = activated.reshape(leading_shape + (self.hidden_dim,))
+        else:
+            gate, up = mx.split(packed, 2, axis=-1)
+            activated = nn.silu(gate) * up
+        return self.w3(activated)
 
 
 class MLXBlock(nn.Module):
