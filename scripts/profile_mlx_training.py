@@ -58,12 +58,20 @@ def main():
                         help="Use tiled tied-embedding output projection and cross-entropy")
     parser.add_argument("--compiled-accumulation", action="store_true",
                         help="Compile each later microbatch backward pass together with gradient accumulation")
+    parser.add_argument("--force-fused-attention", action="store_true",
+                        help="Force MLX fused SDPA for a diagnostic comparison")
     parser.add_argument("--fused-vocab-chunk-size", type=int, default=256)
     args = parser.parse_args()
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=False)
 
     import mlx.core as mx
+    original_sdpa = mx.fast.scaled_dot_product_attention
+    if args.force_fused_attention:
+        def forced_sdpa(q, k, v, **keywords):
+            keywords["force_fused"] = True
+            return original_sdpa(q, k, v, **keywords)
+        mx.fast.scaled_dot_product_attention = forced_sdpa
     from telos.train.cli import train
     from telos.training.mlx_step import MLXTrainingStep
     from telos.training import trainer_mlx
@@ -181,6 +189,7 @@ def main():
             status = "memory_guard_stopped"
             errors.append(str(error))
         finally:
+            mx.fast.scaled_dot_product_attention = original_sdpa
             mx.compile = original_compile
             MLXTrainingStep.__call__ = original
             if args.stage_profile:
