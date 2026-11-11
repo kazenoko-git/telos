@@ -47,6 +47,21 @@ Two low-overhead profiles ran the same 50M AR model on the real corpus (MBS 8, a
 
 Peak MLX allocation in the 60-second run was 1.77 GiB and process peak RSS was about 0.25 GB. System-wide free memory ranged from 50% to 66%; free swap stayed between 1,303 and 1,391 MiB and ended at 1,391 MiB. The low-overhead monitor sampled system telemetry every five seconds. During active training, system-wide device utilization was usually 93–95% (median 94%); renderer utilization had a median of 58%. These are whole-system readings, not per-process utilization or NAX-specific activity. This run used no Instruments trace, avoiding the high memory and trace-size cost of collecting GPU counters continuously for a minute. Raw timings and telemetry are in `logs/mlx_sustained_profile_20261111_60s/`.
 
+## Kernel-level candidate check
+
+The existing experimental tiled vocabulary loss was compared with the standard output projection plus Metal cross-entropy on the real 50M AR corpus. Each run used the same seed, MBS 8, accumulation 8, sequence length 256, and 24 updates; throughput below excludes the first eight update calls. The existing parity test passed both loss and gradient checks on its small float32 model, within its documented reduction-order tolerances.
+
+| Path | Steady update throughput | Peak MLX allocation |
+| --- | ---: | ---: |
+| Standard projection + Metal CE | 38.1k tokens/s | 1.72 GiB |
+| Tiled loss, chunk 256 | 31.7k tokens/s | 1.86 GiB |
+| Tiled loss, chunk 1,024 | 33.6k tokens/s | 1.79 GiB |
+| Tiled loss, chunk 8,192 | 33.0k tokens/s | 1.78 GiB |
+
+The tiled path was 12–17% slower after warmup and did not reduce peak MLX allocation in these runs. Keep it experimental and disabled for throughput-oriented training. Short-run final losses were close, but this comparison is not a full convergence or 50M gradient-equivalence test.
+
+An isolated compiled BF16 block microbenchmark used the 50M block shape (batch 8, sequence 256, width 512). Parameter-gradient timings averaged 1.94 ms for attention, 1.99 ms for MLP, and 3.80 ms for the full block. The isolated branch timings omit gradients with respect to the incoming hidden state, so they are useful for relative kernel-shape triage, not end-to-end attribution. Attention and MLP were similar; neither emerged as a single obvious target. These measurements favor investigating lower-level kernel/launch behavior while preserving the current model math.
+
 ## Bandwidth hypothesis follow-up
 
 The shader trace includes MLX `steel_gemm_fused_nax` and `steel_gemm_splitk_nax` BF16 kernels, confirming that this training run dispatched NAX GEMM work. Two corrected counter captures enabled the `Performance Limiters` counter set for the same 8-update, 131,072-token 50M AR workload (MBS 8, accumulation 8, sequence length 256). The runs completed in 4.93 s and 4.23 s, with peak MLX allocations of 1.68 GiB and 1.81 GiB. The first run ended at 45% free system memory and 878 MiB free swap.

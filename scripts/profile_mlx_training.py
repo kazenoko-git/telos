@@ -48,6 +48,9 @@ def main():
     parser.add_argument("--critical-swap-free-mib", type=float, default=512.0)
     parser.add_argument("--stage-profile", action="store_true",
                         help="Synchronize between stages to measure update work separately")
+    parser.add_argument("--fused-vocab-loss", action="store_true",
+                        help="Use tiled tied-embedding output projection and cross-entropy")
+    parser.add_argument("--fused-vocab-chunk-size", type=int, default=256)
     args = parser.parse_args()
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -153,6 +156,8 @@ def main():
             train(paradigm="ar", params=args.params, tokens=args.tokens, hardware="mlx",
                   batch_size=args.microbatch, grad_accum=args.grad_accum, seq_len=args.seq_len,
                   data_path=args.data, synthetic=False, autotune=False, fused_step=True, async_eval=False,
+                  fused_vocab_loss=args.fused_vocab_loss,
+                  fused_vocab_chunk_size=args.fused_vocab_chunk_size,
                   max_lr=4e-4, min_lr=4e-5, weight_decay=0.01,
                   checkpoint_dir=str(output / "checkpoints"), save_every=1000, seed=42)
             status = "complete"
