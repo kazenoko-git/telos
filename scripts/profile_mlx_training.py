@@ -48,6 +48,10 @@ def main():
     parser.add_argument("--critical-swap-free-mib", type=float, default=512.0)
     parser.add_argument("--stage-profile", action="store_true",
                         help="Synchronize between stages to measure update work separately")
+    parser.add_argument("--fused-step", action=argparse.BooleanOptionalAction, default=True,
+                        help="Fuse the whole optimizer update when accumulation is one")
+    parser.add_argument("--compile-microbatch", action=argparse.BooleanOptionalAction, default=True,
+                        help="Compile the loss and gradient function (diagnostic comparison)")
     parser.add_argument("--async-stage-eval", action="store_true",
                         help="Use async MLX evaluation before the stage synchronization")
     parser.add_argument("--fused-vocab-loss", action="store_true",
@@ -122,6 +126,13 @@ def main():
     monitor_thread = threading.Thread(target=monitor, daemon=True)
     monitor_thread.start()
     original = MLXTrainingStep.__call__
+    original_compile = mx.compile
+    if not args.compile_microbatch:
+        def diagnostic_compile(function, *positional, **keywords):
+            if function.__name__ == "microbatch_step_uncompiled":
+                return function
+            return original_compile(function, *positional, **keywords)
+        mx.compile = diagnostic_compile
     count = 0
     last_step = None
     status = "running"
@@ -157,7 +168,7 @@ def main():
         try:
             train(paradigm="ar", params=args.params, tokens=args.tokens, hardware="mlx",
                   batch_size=args.microbatch, grad_accum=args.grad_accum, seq_len=args.seq_len,
-                  data_path=args.data, synthetic=False, autotune=False, fused_step=True, async_eval=False,
+                  data_path=args.data, synthetic=False, autotune=False, fused_step=args.fused_step, async_eval=False,
                   fused_vocab_loss=args.fused_vocab_loss,
                   fused_vocab_chunk_size=args.fused_vocab_chunk_size,
                   max_lr=4e-4, min_lr=4e-5, weight_decay=0.01,
@@ -167,6 +178,7 @@ def main():
             status = "memory_guard_stopped"
             errors.append(str(error))
         finally:
+            mx.compile = original_compile
             MLXTrainingStep.__call__ = original
             if args.stage_profile:
                 MLXTrainingStep.__init__ = original_init

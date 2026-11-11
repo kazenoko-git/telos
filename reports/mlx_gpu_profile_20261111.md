@@ -115,6 +115,28 @@ At sequence length 256, microbatch 8 was about 7–10% faster than microbatch 4 
 
 For the sequence comparison, tokens per microbatch were also held at 2,048 and accumulation remained 8. Sequence 128 consistently reached about 40.3k tokens/s, roughly 5–9% faster than the two sequence-256 baselines. Sequence 512 was about 12–15% slower than those baselines. Changing sequence length changes the available context and training examples; the shorter sequence is not a behavior-preserving speed optimization. These shape experiments establish no path near 100k tokens/s at this parameter count. For sequence 256 under the chosen memory cap, microbatch 8 remains the fastest measured option in this sweep; microbatch 4 offers a modest speed tradeoff for lower memory. Final system free-memory readings were 37–40%, and free swap stayed above 1.25 GiB at run completion. The short runs do not establish sustained thermal performance or convergence.
 
+## Compilation comparison and source review
+
+Source inspection corrected the proposed `fused_step` comparison: `MLXTrainingStep.__call__` routes every accumulated update through `execute_mlx_training_step`, regardless of that flag. Whole-update fusion applies only when accumulation is one. Microbatch loss/gradient compilation remains enabled independently in the trainer. Thus toggling `fused_step` at accumulation eight would not test different code paths.
+
+The profiling script now exposes the existing fused-step switch and a diagnostic switch to bypass only compilation of `microbatch_step_uncompiled`, retaining optimizer compilation. Four sequential runs used compiled/uncompiled/uncompiled/compiled order, the same 50M model, seed 42, MBS8, accumulation8, sequence256, 393,216 tokens and 24 updates each. Throughput excludes updates 1–4. No training default was changed.
+
+| Microbatch compilation | Steady tokens/s, two runs | Peak MLX GiB | Run wall seconds |
+| --- | --- | --- | --- |
+| Enabled | 36,860 / 37,191 | 1.702 / 1.700 | 10.813 / 10.660 |
+| Disabled | 33,893 / 33,857 | 1.785 / 1.785 | 11.743 / 11.724 |
+
+Compilation improved throughput by about 9.3% on mean rates, using about 80–87 MiB less peak MLX allocation. Retain compilation. The final BF16 model weights were not exactly equal even between repeats of the same mode: maximum absolute differences were 0.0009765625 for the compiled repeats and 0.00390625 for uncompiled repeats. Compiled versus uncompiled first runs differed by at most 0.0009765625. This is not a gradient/optimizer/RNG parity test or convergence result. Measurements and weight comparisons are in `reports/mlx_compile_ab_20261111.json`.
+
+Two independent Sol source reviews identified these next experiments, without running competing GPU workloads:
+
+- Compile backward and accumulation together so the compiler can see gradient production and its additions. This differs from the previously unsuccessful compiled-add-only experiment. Preserve left-to-right accumulation, random state, and materialization after each microbatch to bound memory.
+- Compare SDPA's existing `force_fused=True` option with its default selection on the real BF16 block shape. Validate incoming-hidden and parameter gradients, then benchmark end to end if promising; installed MLX documentation warns forced fusion can be slower despite saving memory.
+- Inspect QKV/RoPE/output layouts for actual materializing copies and inspect SwiGLU's compiled elementwise fusion before writing custom kernels. Packed gate/up projections already exist; changes to checkpoint layout or model dimensions are unnecessary for these investigations.
+- Scaling/clipping inside the compiled optimizer and CE threadgroup-size tuning are lower-priority options given the measured time distribution.
+
+The vocabulary review also found a numerical concern in the disabled experimental tiled loss: its target score uses an FP32 elementwise reduction while partition logits come from BF16 matmul, so target-score rounding can differ. Existing small FP32 tests do not establish BF16 parity. Its measured slowdown and this limitation reinforce keeping it disabled.
+
 ## Follow-up tooling
 
 An Instruments user template named `Telos MLX GPU Profile` is saved with the `Performance Limiters` counter set, Shader Timeline enabled, and a five-second capture window. The macOS `metalperftrace` lookback for the same period contained only `Arc` and `stable`, not the Python training process, so its always-on graphics metrics cannot answer this MLX compute-kernel question. The second capture's counter summary was read in Instruments; its full GPU counter-value table was not exported, to avoid unnecessary memory use.
