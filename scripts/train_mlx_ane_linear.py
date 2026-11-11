@@ -160,7 +160,8 @@ def main():
         "updates": update, "warm_updates_excluded": 2,
         "median_update_ms": 1000 * statistics.median(timings),
         "updates_per_second": 1 / statistics.median(timings),
-        "final_loss": losses[-1], "peak_mlx_gib": mx.get_peak_memory() / 1024**3,
+        "final_loss": losses[-1], "loss_history": losses,
+        "peak_mlx_gib": mx.get_peak_memory() / 1024**3,
         "compute_plan": placements,
         "limitation": "Single linear model only; no transformer integration or full optimizer-state parity comparison.",
     }
