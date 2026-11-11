@@ -1,0 +1,216 @@
+{
+  "coremltools": "9.0",
+  "mlx": "0.32.2",
+  "device": {
+    "device_name": "Apple M5 Pro",
+    "max_recommended_working_set_size": 19069665280,
+    "memory_size": 25769803776,
+    "architecture": "applegpu_g17s",
+    "max_buffer_length": 14302248960,
+    "resource_limit": 499000
+  },
+  "initial_system": {
+    "time": 1794384701.285281,
+    "swap_used_mb": 5708.56,
+    "swap_free_mb": 1459.4399999999996,
+    "memory_free_percent": 57,
+    "gpu_system": {
+      "Device Utilization %": 22,
+      "Renderer Utilization %": 22,
+      "Tiler Utilization %": 8,
+      "In use system memory": 1350680576
+    }
+  },
+  "final_system": {
+    "time": 1794384702.93723,
+    "swap_used_mb": 5708.56,
+    "swap_free_mb": 1459.4399999999996,
+    "memory_free_percent": 57,
+    "gpu_system": {
+      "Device Utilization %": 0,
+      "Renderer Utilization %": 0,
+      "Tiler Utilization %": 0,
+      "In use system memory": 1413627904
+    }
+  },
+  "mlx_peak_bytes": 12321836,
+  "trials": [
+    {
+      "dynamic_weights": false,
+      "shape": [
+        256,
+        512
+      ],
+      "conversion_load_seconds": 0.16411404201062396,
+      "coreml_predict_median_ms": 0.17841599765233696,
+      "mlx_resident_median_ms": 0.20864600082859397,
+      "mlx_host_roundtrip_median_ms": 0.23010399308986962,
+      "max_abs_error": 0.0006045103073120117,
+      "placement": [
+        {
+          "op": "const",
+          "preferred": null,
+          "supported": []
+        },
+        {
+          "op": "const",
+          "preferred": null,
+          "supported": []
+        },
+        {
+          "op": "const",
+          "preferred": null,
+          "supported": []
+        },
+        {
+          "op": "const",
+          "preferred": null,
+          "supported": []
+        },
+        {
+          "op": "const",
+          "preferred": null,
+          "supported": []
+        },
+        {
+          "op": "const",
+          "preferred": null,
+          "supported": []
+        },
+        {
+          "op": "const",
+          "preferred": null,
+          "supported": []
+        },
+        {
+          "op": "ios18.cast",
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.conv",
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "const",
+          "preferred": null,
+          "supported": []
+        },
+        {
+          "op": "ios18.cast",
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        }
+      ]
+    },
+    {
+      "dynamic_weights": true,
+      "shape": [
+        256,
+        512
+      ],
+      "conversion_load_seconds": 0.07412345800548792,
+      "coreml_predict_median_ms": 0.22581250232178718,
+      "mlx_resident_median_ms": 0.20497948571573943,
+      "mlx_host_roundtrip_median_ms": 0.2201455063186586,
+      "max_abs_error": 0.0006045103073120117,
+      "placement": [
+        {
+          "op": "const",
+          "preferred": null,
+          "supported": []
+        },
+        {
+          "op": "const",
+          "preferred": null,
+          "supported": []
+        },
+        {
+          "op": "const",
+          "preferred": null,
+          "supported": []
+        },
+        {
+          "op": "const",
+          "preferred": null,
+          "supported": []
+        },
+        {
+          "op": "ios18.cast",
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.matmul",
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "const",
+          "preferred": null,
+          "supported": []
+        },
+        {
+          "op": "ios18.cast",
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        }
+      ],
+      "updated_weight_max_abs_error": 0.000520750880241394,
+      "linear_training": {
+        "measured_updates": 1000,
+        "warmup_updates": 100,
+        "trial_order": [
+          "gpu",
+          "hybrid",
+          "hybrid",
+          "gpu"
+        ],
+        "trial_median_ms": [
+          0.22045901278033853,
+          0.372291513485834,
+          0.34579201019369066,
+          0.17327099340036511
+        ],
+        "mlx_median_ms": 0.19239600806031376,
+        "hybrid_median_ms": 0.3542085032677278,
+        "final_weight_max_abs_difference": 1.6391277313232422e-05,
+        "final_mlx_loss": 0.05127795785665512,
+        "final_hybrid_loss": 0.05128083378076553,
+        "scope": "FP16 linear forward, analytic FP32 GPU backward/update; includes weight refresh and host handoffs."
+      }
+    }
+  ],
+  "limitations": [
+    "Compute-plan placement is estimated, not measured ANE occupancy.",
+    "FP16 matrix probes are not a transformer training benchmark or BF16 parity proof.",
+    "Core ML predict includes host API overhead; MLX resident timing excludes transfers."
+  ]
+}
