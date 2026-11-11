@@ -1,0 +1,2415 @@
+{
+  "batch": 4,
+  "context": 256,
+  "d_model": 512,
+  "heads": 8,
+  "head_dim": 64,
+  "hidden": 1408,
+  "parameter_count": 3212288,
+  "warmup": 10,
+  "steps": 30,
+  "precision": "FP16 projections/MLP/RoPE; FP32 RMS/attention internals and I/O",
+  "source_commit": "ff0d3ec13563e3223c6824163025304c9ce149c6",
+  "scope": "Full block forward only; no transformer backward or optimizer",
+  "device": {
+    "device_name": "Apple M5 Pro",
+    "max_recommended_working_set_size": 19069665280,
+    "memory_size": 25769803776,
+    "architecture": "applegpu_g17s",
+    "max_buffer_length": 14302248960,
+    "resource_limit": 499000
+  },
+  "mlx": "0.32.2",
+  "coremltools": "9.0",
+  "initial_system": {
+    "time": 1794386095.3643441,
+    "swap_used_mb": 5428.56,
+    "swap_free_mb": 1739.4399999999996,
+    "memory_free_percent": 53,
+    "gpu_system": {
+      "Device Utilization %": 34,
+      "Renderer Utilization %": 34,
+      "Tiler Utilization %": 11,
+      "In use system memory": 1457520640
+    }
+  },
+  "trials": [
+    {
+      "dynamic_weights": false,
+      "conversion_load_seconds": 0.41168233298230916,
+      "placement": [
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "cast_0"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "rms1_float"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "rms1_square"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios16.reduce_mean",
+          "outputs": [
+            "rms1_mean"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.add",
+          "outputs": [
+            "rms1_epsilon"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.rsqrt",
+          "outputs": [
+            "rms1_rsqrt"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "rms1_normalize"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "rms1_half"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.linear",
+          "outputs": [
+            "linear_0"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "split",
+          "outputs": [
+            "split_0_0",
+            "split_0_1",
+            "split_0_2"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_0"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_2"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.transpose",
+          "outputs": [
+            "transpose_0"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_3"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "split",
+          "outputs": [
+            "split_1_0",
+            "split_1_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_0"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.sub",
+          "outputs": [
+            "sub_0"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_2"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_3"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.add",
+          "outputs": [
+            "add_0"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.concat",
+          "outputs": [
+            "concat_0"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_4"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.transpose",
+          "outputs": [
+            "transpose_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_5"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "split",
+          "outputs": [
+            "split_2_0",
+            "split_2_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_4"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_5"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.sub",
+          "outputs": [
+            "sub_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_6"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_7"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.add",
+          "outputs": [
+            "add_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.concat",
+          "outputs": [
+            "concat_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_6"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "attention_k"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "attention_q"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.matmul",
+          "outputs": [
+            "attention_scores"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "attention_scale"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.add",
+          "outputs": [
+            "attention_causal"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.softmax",
+          "outputs": [
+            "attention_probability"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.transpose",
+          "outputs": [
+            "transpose_2"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "attention_v"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.matmul",
+          "outputs": [
+            "attention_values"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "attention_half"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.transpose",
+          "outputs": [
+            "transpose_3"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_7"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.linear",
+          "outputs": [
+            "linear_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.add",
+          "outputs": [
+            "add_2"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "rms2_float"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "rms2_square"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios16.reduce_mean",
+          "outputs": [
+            "rms2_mean"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.add",
+          "outputs": [
+            "rms2_epsilon"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.rsqrt",
+          "outputs": [
+            "rms2_rsqrt"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "rms2_normalize"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "rms2_half"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.linear",
+          "outputs": [
+            "linear_2"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "split",
+          "outputs": [
+            "split_3_0",
+            "split_3_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.silu",
+          "outputs": [
+            "mul_8"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_9"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.linear",
+          "outputs": [
+            "linear_3"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.add",
+          "outputs": [
+            "add_3"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "output"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        }
+      ],
+      "preferred_operation_counts": {
+        "MLNeuralEngineComputeDevice": 40,
+        "MLCPUComputeDevice": 23
+      },
+      "max_abs_error": 0.0089111328125,
+      "relative_l2_error": 0.008282511495053768,
+      "cached_host_weights_bytes": 0,
+      "cpu_only_relative_l2_error": 0.13875988125801086,
+      "cpu_and_ne_vs_cpu_relative_l2_error": 0.14031675457954407,
+      "numerical_status": "Exploratory only: strict training parity not established",
+      "cpu_control_passes_1pct_screen": false,
+      "runs": [
+        {
+          "mode": "mlx_resident",
+          "median_ms": 0.6110209942562506,
+          "seconds": [
+            0.0009200420172419399,
+            0.0009510840172879398,
+            0.0009379579860251397,
+            0.0009565000073052943,
+            0.0009290839952882379,
+            0.0009733329934533685,
+            0.0009549999958835542,
+            0.0008970829949248582,
+            0.0006202500080689788,
+            0.0006169579864945263,
+            0.0007498750055674464,
+            0.0006572499987669289,
+            0.000569708994589746,
+            0.0008171669906005263,
+            0.0005902090051677078,
+            0.0005873329937458038,
+            0.0005949999904260039,
+            0.0006050840020179749,
+            0.0006779579853173345,
+            0.0005742920038755983,
+            0.000576916994759813,
+            0.0005753749865107238,
+            0.00057591701624915,
+            0.0006407079927157611,
+            0.0005768749979324639,
+            0.0005991669895593077,
+            0.0005877079966012388,
+            0.0005842079990543425,
+            0.0005693330022040755,
+            0.0005735409795306623
+          ]
+        },
+        {
+          "mode": "mlx_roundtrip",
+          "median_ms": 0.6376249802997336,
+          "seconds": [
+            0.001363124989438802,
+            0.0008382920059375465,
+            0.0008151659858413041,
+            0.0008034589991439134,
+            0.0007961250084917992,
+            0.0007918749761302024,
+            0.0007986660057213157,
+            0.0007102920208126307,
+            0.0006597499886993319,
+            0.0006325000140350312,
+            0.0006386249733623117,
+            0.0006608749972656369,
+            0.000643582985503599,
+            0.0006329999887384474,
+            0.0006281659880187362,
+            0.0006291250174399465,
+            0.0006342090200632811,
+            0.0006297080253716558,
+            0.0006254169857129455,
+            0.0006239170033950359,
+            0.0006348750030156225,
+            0.0006151249981485307,
+            0.0006220829964149743,
+            0.0008147910120896995,
+            0.0007568339933641255,
+            0.0006386669992934912,
+            0.0006366249872371554,
+            0.0006227910052984953,
+            0.0006332499906420708,
+            0.0006235000037122518
+          ]
+        },
+        {
+          "mode": "coreml_cached",
+          "median_ms": 5.050978987128474,
+          "seconds": [
+            0.004988166008843109,
+            0.00507279098383151,
+            0.005104000010760501,
+            0.005073957989225164,
+            0.005004042002838105,
+            0.005040999996708706,
+            0.00511299999197945,
+            0.005097040993859991,
+            0.0050427909882273525,
+            0.005085915996460244,
+            0.005046124977525324,
+            0.005028124985983595,
+            0.005003707978175953,
+            0.005096750013763085,
+            0.005002833000617102,
+            0.004986541985999793,
+            0.0052260000084061176,
+            0.00510779200703837,
+            0.005068583996035159,
+            0.004977833974407986,
+            0.0049950419925153255,
+            0.004881917004240677,
+            0.004966374981449917,
+            0.005068625003332272,
+            0.005073375010397285,
+            0.005055832996731624,
+            0.005325374979292974,
+            0.004995625000447035,
+            0.004976750002242625,
+            0.005072375002782792
+          ]
+        },
+        {
+          "mode": "coreml_refresh",
+          "median_ms": 5.0297715060878545,
+          "seconds": [
+            0.005177917017135769,
+            0.00495691699325107,
+            0.005102583992993459,
+            0.005190000025322661,
+            0.005091166007332504,
+            0.0049548329843673855,
+            0.005127624986926094,
+            0.0051087090105284005,
+            0.005091457976959646,
+            0.005009375017834827,
+            0.005104624986415729,
+            0.005034625006373972,
+            0.00487616698956117,
+            0.005047999991802499,
+            0.004969416011590511,
+            0.005018583993660286,
+            0.005108749988721684,
+            0.005128415999934077,
+            0.0049324169813189656,
+            0.005069000006187707,
+            0.005084540985990316,
+            0.004980124998837709,
+            0.0050174999923910946,
+            0.004999457974918187,
+            0.005031334003433585,
+            0.005028209008742124,
+            0.005015917005948722,
+            0.004880958003923297,
+            0.004985832987586036,
+            0.004984916013199836
+          ]
+        },
+        {
+          "mode": "coreml_refresh",
+          "median_ms": 4.994229006115347,
+          "seconds": [
+            0.004901167005300522,
+            0.005040040996391326,
+            0.005036249989643693,
+            0.005016250011976808,
+            0.004995499999495223,
+            0.004967040993506089,
+            0.004867874988121912,
+            0.004976666998118162,
+            0.005105290998471901,
+            0.005067874997621402,
+            0.004978541983291507,
+            0.005003041995223612,
+            0.005002416000934318,
+            0.004982041020411998,
+            0.004839624976739287,
+            0.004992958012735471,
+            0.004928457987261936,
+            0.004952166986186057,
+            0.004980625002644956,
+            0.0052260000084061176,
+            0.00525337498402223,
+            0.0053659999975934625,
+            0.005275166011415422,
+            0.005028624989790842,
+            0.0050138329970650375,
+            0.004950917005771771,
+            0.004938083991874009,
+            0.004952541989041492,
+            0.004982999991625547,
+            0.005000042001483962
+          ]
+        },
+        {
+          "mode": "coreml_cached",
+          "median_ms": 4.912436997983605,
+          "seconds": [
+            0.005052249995060265,
+            0.004842541005928069,
+            0.0051376670016907156,
+            0.005188875016756356,
+            0.004915166995488107,
+            0.00489633297547698,
+            0.004972499998984858,
+            0.004935042001307011,
+            0.004902209009742364,
+            0.004913290991680697,
+            0.004952834016876295,
+            0.004882250010268763,
+            0.004824375006137416,
+            0.005000000004656613,
+            0.004886125010671094,
+            0.00496737498906441,
+            0.004992750007659197,
+            0.00496141699841246,
+            0.004801750008482486,
+            0.004911583004286513,
+            0.0048825410194695,
+            0.004980375000741333,
+            0.004859042004682124,
+            0.005226875015068799,
+            0.004962334001902491,
+            0.004894499987130985,
+            0.004836292006075382,
+            0.0048367919807787985,
+            0.004795167013071477,
+            0.004889250005362555
+          ]
+        },
+        {
+          "mode": "mlx_roundtrip",
+          "median_ms": 0.6148745014797896,
+          "seconds": [
+            0.001981791021535173,
+            0.0012964159832336009,
+            0.0006926249770913273,
+            0.0006573749997187406,
+            0.0009731250174809247,
+            0.0006456250266637653,
+            0.0006142079946585,
+            0.0006108329980634153,
+            0.0006097079894971102,
+            0.0006019160209689289,
+            0.0006542499759234488,
+            0.0006675840122625232,
+            0.0006040419975761324,
+            0.0006632909935433418,
+            0.0006156250019557774,
+            0.000607708003371954,
+            0.0006027499912306666,
+            0.0006155410083010793,
+            0.0006087500078137964,
+            0.0006065829948056489,
+            0.000609958020504564,
+            0.0006124579813331366,
+            0.0006037909770384431,
+            0.0006140409968793392,
+            0.0006064579938538373,
+            0.0006107499939389527,
+            0.0006168750114738941,
+            0.0006169999833218753,
+            0.0006493330001831055,
+            0.0006279580120462924
+          ]
+        },
+        {
+          "mode": "mlx_resident",
+          "median_ms": 0.5752705183112994,
+          "seconds": [
+            0.0012131660187151283,
+            0.0012137089797761291,
+            0.0006302499969024211,
+            0.0005750000127591193,
+            0.0006025419861543924,
+            0.0005345419922377914,
+            0.0005450000171549618,
+            0.000585292000323534,
+            0.0005516670062206686,
+            0.0006020840082783252,
+            0.0006291250174399465,
+            0.0005413749895524234,
+            0.0005439160158857703,
+            0.0005474170029629022,
+            0.0005422919930424541,
+            0.0005471670010592788,
+            0.0005682079936377704,
+            0.0005755410238634795,
+            0.000716665992513299,
+            0.0006697080098092556,
+            0.0005907909944653511,
+            0.0005702500056941062,
+            0.0005323750083334744,
+            0.000558832980459556,
+            0.0005582500016316772,
+            0.0005822080129291862,
+            0.0006104589847382158,
+            0.0006534999993164092,
+            0.000628707988653332,
+            0.0005326249811332673
+          ]
+        }
+      ],
+      "coreml_cached_median_ms": 4.990458008251153,
+      "coreml_refresh_median_ms": 5.011604007449932,
+      "mlx_resident_median_ms": 0.5904999998165295,
+      "mlx_roundtrip_median_ms": 0.6327500013867393
+    },
+    {
+      "dynamic_weights": true,
+      "conversion_load_seconds": 0.3408818329917267,
+      "placement": [
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "cast_0"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "rms1_float"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "rms1_square"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios16.reduce_mean",
+          "outputs": [
+            "rms1_mean"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.add",
+          "outputs": [
+            "rms1_epsilon"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.rsqrt",
+          "outputs": [
+            "rms1_rsqrt"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "rms1_normalize"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "rms1_scale"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "rms1_half"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_0"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "cast_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.matmul",
+          "outputs": [
+            "matmul_0"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "split",
+          "outputs": [
+            "split_0_0",
+            "split_0_1",
+            "split_0_2"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_2"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_3"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_4"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.transpose",
+          "outputs": [
+            "transpose_0"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_5"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "split",
+          "outputs": [
+            "split_1_0",
+            "split_1_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_0"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.sub",
+          "outputs": [
+            "sub_0"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_2"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_3"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.add",
+          "outputs": [
+            "add_0"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.concat",
+          "outputs": [
+            "concat_0"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_6"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.transpose",
+          "outputs": [
+            "transpose_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_7"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "split",
+          "outputs": [
+            "split_2_0",
+            "split_2_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_4"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_5"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.sub",
+          "outputs": [
+            "sub_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_6"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_7"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.add",
+          "outputs": [
+            "add_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.concat",
+          "outputs": [
+            "concat_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_8"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "attention_k"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "attention_q"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.matmul",
+          "outputs": [
+            "attention_scores"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "attention_scale"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.add",
+          "outputs": [
+            "attention_causal"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.softmax",
+          "outputs": [
+            "attention_probability"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.transpose",
+          "outputs": [
+            "transpose_2"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "attention_v"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.matmul",
+          "outputs": [
+            "attention_values"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "attention_half"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.transpose",
+          "outputs": [
+            "transpose_3"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_10"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "cast_2"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.matmul",
+          "outputs": [
+            "matmul_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_11"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.add",
+          "outputs": [
+            "add_2"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "rms2_float"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "rms2_square"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios16.reduce_mean",
+          "outputs": [
+            "rms2_mean"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.add",
+          "outputs": [
+            "rms2_epsilon"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.rsqrt",
+          "outputs": [
+            "rms2_rsqrt"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "rms2_normalize"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "rms2_scale"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "rms2_half"
+          ],
+          "preferred": "MLCPUComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_12"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "cast_3"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.matmul",
+          "outputs": [
+            "matmul_2"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_13"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "split",
+          "outputs": [
+            "split_3_0",
+            "split_3_1"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.silu",
+          "outputs": [
+            "mul_8"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.mul",
+          "outputs": [
+            "mul_9"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_14"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "cast_4"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.matmul",
+          "outputs": [
+            "matmul_3"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.reshape",
+          "outputs": [
+            "reshape_15"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.add",
+          "outputs": [
+            "add_3"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        },
+        {
+          "op": "ios18.cast",
+          "outputs": [
+            "output"
+          ],
+          "preferred": "MLNeuralEngineComputeDevice",
+          "supported": [
+            "MLCPUComputeDevice",
+            "MLNeuralEngineComputeDevice"
+          ]
+        }
+      ],
+      "preferred_operation_counts": {
+        "MLNeuralEngineComputeDevice": 51,
+        "MLCPUComputeDevice": 25
+      },
+      "max_abs_error": 0.0089111328125,
+      "relative_l2_error": 0.008284222334623337,
+      "cached_host_weights_bytes": 12849152,
+      "cpu_only_relative_l2_error": 0.1365153044462204,
+      "cpu_and_ne_vs_cpu_relative_l2_error": 0.1380068063735962,
+      "numerical_status": "Exploratory only: strict training parity not established",
+      "cpu_control_passes_1pct_screen": false,
+      "changed_projection_output_max_difference": 0.11181640625,
+      "runs": [
+        {
+          "mode": "mlx_resident",
+          "median_ms": 0.6062289903638884,
+          "seconds": [
+            0.000772416009567678,
+            0.0006589999829884619,
+            0.0005871670146007091,
+            0.000611333001870662,
+            0.0006304590206127614,
+            0.000617874989984557,
+            0.0006048329814802855,
+            0.0007343329780269414,
+            0.0006082920008338988,
+            0.0005766249960288405,
+            0.0005764999950770289,
+            0.0005408749857451767,
+            0.0005379589856602252,
+            0.0005490420153364539,
+            0.0005527500179596245,
+            0.0007786249916534871,
+            0.0007543750107288361,
+            0.0006076249992474914,
+            0.0005681670154444873,
+            0.0006623329827561975,
+            0.0005924170254729688,
+            0.0006125829822849482,
+            0.000555584003450349,
+            0.0005822909879498184,
+            0.0005573749949689955,
+            0.0006977080192882568,
+            0.0006267499993555248,
+            0.0005480000108946115,
+            0.0005645420169457793,
+            0.0006168329855427146
+          ]
+        },
+        {
+          "mode": "mlx_roundtrip",
+          "median_ms": 0.6348539900500327,
+          "seconds": [
+            0.0010327500058338046,
+            0.0009796670055948198,
+            0.0008608330099377781,
+            0.0006354579818435013,
+            0.0006160420016385615,
+            0.0005778339982498437,
+            0.0006715419876854867,
+            0.0010368330113124102,
+            0.0006338749954011291,
+            0.0006250830192584544,
+            0.0006254159961827099,
+            0.0006453749956563115,
+            0.0006371250201482326,
+            0.0006528750236611813,
+            0.0006342499982565641,
+            0.0006263339892029762,
+            0.0007629589817952365,
+            0.0006281250098254532,
+            0.0006403749866876751,
+            0.0006414169911295176,
+            0.0006253329920582473,
+            0.0006260410009417683,
+            0.0006467089988291264,
+            0.0006285829877015203,
+            0.0006330830219667405,
+            0.0006307909789029509,
+            0.0006257920176722109,
+            0.00068299999111332,
+            0.0006997919990681112,
+            0.000610249990131706
+          ]
+        },
+        {
+          "mode": "coreml_cached",
+          "median_ms": 5.627979495329782,
+          "seconds": [
+            0.005487124988576397,
+            0.005643082986352965,
+            0.00567283300915733,
+            0.005632666987366974,
+            0.005588041007285938,
+            0.005778082995675504,
+            0.005605790996924043,
+            0.0055752920161467046,
+            0.005682916002115235,
+            0.005637166992528364,
+            0.005633082997519523,
+            0.005588083993643522,
+            0.005680083006154746,
+            0.005561332975048572,
+            0.005696875014109537,
+            0.005583708989433944,
+            0.005579084012424573,
+            0.005585792008787394,
+            0.005691625003237277,
+            0.00562329200329259,
+            0.005579084012424573,
+            0.005825583997648209,
+            0.00567229199805297,
+            0.005633958004182205,
+            0.005833083007019013,
+            0.005509167007403448,
+            0.005505709006683901,
+            0.005608834006125107,
+            0.0056169160234276205,
+            0.00567675000638701
+          ]
+        },
+        {
+          "mode": "coreml_refresh",
+          "median_ms": 6.223542004590854,
+          "seconds": [
+            0.00636875000782311,
+            0.006153207999886945,
+            0.0062639999960083514,
+            0.006140167010016739,
+            0.006263625022256747,
+            0.006264083000132814,
+            0.006222124997293577,
+            0.006172916997456923,
+            0.006238542002392933,
+            0.006228082987945527,
+            0.006212790991412476,
+            0.006222208001418039,
+            0.006166791979921982,
+            0.006029709009453654,
+            0.006153541995445266,
+            0.006150958011858165,
+            0.0062893749854993075,
+            0.006243125011678785,
+            0.006237125024199486,
+            0.006229165999684483,
+            0.006189666979480535,
+            0.006177750008646399,
+            0.006236082990653813,
+            0.006111416005296633,
+            0.006346333015244454,
+            0.006224042008398101,
+            0.006239875016035512,
+            0.006223042000783607,
+            0.006284792005317286,
+            0.006145958002889529
+          ]
+        },
+        {
+          "mode": "coreml_refresh",
+          "median_ms": 6.198833492817357,
+          "seconds": [
+            0.006165791011881083,
+            0.006230208004126325,
+            0.006171791988890618,
+            0.006193750014062971,
+            0.006145958002889529,
+            0.006181124976137653,
+            0.006214083026861772,
+            0.006274917017435655,
+            0.006200167001225054,
+            0.006330750009510666,
+            0.006216290988959372,
+            0.006178542011184618,
+            0.006299792003119364,
+            0.00619749998440966,
+            0.006250042002648115,
+            0.006300415989244357,
+            0.006170457985717803,
+            0.006195333000505343,
+            0.006271541002206504,
+            0.0063002090028021485,
+            0.00636199998552911,
+            0.006181833014125004,
+            0.006179166986839846,
+            0.0061941249878145754,
+            0.0062473750149365515,
+            0.00621545800822787,
+            0.006142624974017963,
+            0.006083582993596792,
+            0.0063277920125983655,
+            0.006104917003540322
+          ]
+        },
+        {
+          "mode": "coreml_cached",
+          "median_ms": 5.544270985410549,
+          "seconds": [
+            0.0054789579880889505,
+            0.005583249992923811,
+            0.00558383300085552,
+            0.005479999992530793,
+            0.005538499972317368,
+            0.005598584015388042,
+            0.005505625013029203,
+            0.005609415995422751,
+            0.00555004199850373,
+            0.0054760829953011125,
+            0.005562334001297131,
+            0.005713082995498553,
+            0.005489375005709007,
+            0.0055376249947585166,
+            0.005562541977269575,
+            0.0055042919993866235,
+            0.005538458994124085,
+            0.005624707991955802,
+            0.005670665996149182,
+            0.0056469170085620135,
+            0.0056219580001197755,
+            0.005495791992871091,
+            0.005655875022057444,
+            0.005534749972866848,
+            0.005572541995206848,
+            0.005486916023073718,
+            0.0054819579818286,
+            0.005453833000501618,
+            0.005700708017684519,
+            0.0055111249967012554
+          ]
+        },
+        {
+          "mode": "mlx_roundtrip",
+          "median_ms": 0.6339789979392663,
+          "seconds": [
+            0.0006395000091288239,
+            0.0006825830205343664,
+            0.0012048340286128223,
+            0.0006352500058710575,
+            0.000625790999038145,
+            0.0006198750052135438,
+            0.0006260410009417683,
+            0.0008777080220170319,
+            0.0007039170013740659,
+            0.0006129590037744492,
+            0.0006272089958656579,
+            0.0006257079949136823,
+            0.0006261670205276459,
+            0.0006238749774638563,
+            0.0006259999936446548,
+            0.0006350420007947832,
+            0.0006292079924605787,
+            0.0006301250250544399,
+            0.0006296659994404763,
+            0.0006242499803192914,
+            0.0006466249760705978,
+            0.0006363750144373626,
+            0.0006671249866485596,
+            0.0010527920094318688,
+            0.0006423330050893128,
+            0.0006357909878715873,
+            0.000662750011542812,
+            0.0006505420024041086,
+            0.0006329159950837493,
+            0.000628334004431963
+          ]
+        },
+        {
+          "mode": "mlx_resident",
+          "median_ms": 0.5898960080230609,
+          "seconds": [
+            0.0007727500051259995,
+            0.000616083008935675,
+            0.00070691600558348,
+            0.0006182910001371056,
+            0.000589250004850328,
+            0.0005819580110255629,
+            0.0005712909915018827,
+            0.0005905420111957937,
+            0.0006901659944560379,
+            0.000585292000323534,
+            0.000573708995943889,
+            0.0006020829896442592,
+            0.0006006250041536987,
+            0.0005882910045329481,
+            0.0007365409983322024,
+            0.0007895829912740737,
+            0.0006172080175019801,
+            0.0005702919734176248,
+            0.000578750012209639,
+            0.0007978329958859831,
+            0.0005999580025672913,
+            0.0005851669993717223,
+            0.0005742080102209002,
+            0.0005688749952241778,
+            0.0005810830043628812,
+            0.0006737920048180968,
+            0.0006722499965690076,
+            0.0005789169808849692,
+            0.0005627080099657178,
+            0.0005762919900007546
+          ]
+        }
+      ],
+      "coreml_cached_median_ms": 5.586916508036666,
+      "coreml_refresh_median_ms": 6.215874498593621,
+      "mlx_resident_median_ms": 0.59618751402013,
+      "mlx_roundtrip_median_ms": 0.6346459995256737
+    }
+  ],
+  "final_system": {
+    "time": 1794386099.8069918,
+    "swap_used_mb": 5428.56,
+    "swap_free_mb": 1739.4399999999996,
+    "memory_free_percent": 52,
+    "gpu_system": {
+      "Device Utilization %": 0,
+      "Renderer Utilization %": 0,
+      "Tiler Utilization %": 0,
+      "In use system memory": 1394180096
+    }
+  },
+  "system_checkpoints": [
+    {
+      "time": 1794386095.8571289,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 53,
+      "gpu_system": {
+        "Device Utilization %": 23,
+        "Renderer Utilization %": 22,
+        "Tiler Utilization %": 8,
+        "In use system memory": 1613971456
+      }
+    },
+    {
+      "time": 1794386096.2827148,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 53,
+      "gpu_system": {
+        "Device Utilization %": 35,
+        "Renderer Utilization %": 34,
+        "Tiler Utilization %": 11,
+        "In use system memory": 1490173952
+      }
+    },
+    {
+      "time": 1794386096.356819,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 53,
+      "gpu_system": {
+        "Device Utilization %": 0,
+        "Renderer Utilization %": 0,
+        "Tiler Utilization %": 0,
+        "In use system memory": 1494368256
+      }
+    },
+    {
+      "time": 1794386096.60829,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 52,
+      "gpu_system": {
+        "Device Utilization %": 25,
+        "Renderer Utilization %": 17,
+        "Tiler Utilization %": 7,
+        "In use system memory": 1595260928
+      }
+    },
+    {
+      "time": 1794386096.850487,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 52,
+      "gpu_system": {
+        "Device Utilization %": 21,
+        "Renderer Utilization %": 21,
+        "Tiler Utilization %": 8,
+        "In use system memory": 1576517632
+      }
+    },
+    {
+      "time": 1794386097.0930948,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 52,
+      "gpu_system": {
+        "Device Utilization %": 19,
+        "Renderer Utilization %": 19,
+        "Tiler Utilization %": 9,
+        "In use system memory": 1576255488
+      }
+    },
+    {
+      "time": 1794386097.3309581,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 52,
+      "gpu_system": {
+        "Device Utilization %": 20,
+        "Renderer Utilization %": 20,
+        "Tiler Utilization %": 9,
+        "In use system memory": 1579253760
+      }
+    },
+    {
+      "time": 1794386097.415443,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 52,
+      "gpu_system": {
+        "Device Utilization %": 61,
+        "Renderer Utilization %": 21,
+        "Tiler Utilization %": 6,
+        "In use system memory": 1576124416
+      }
+    },
+    {
+      "time": 1794386097.487115,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 52,
+      "gpu_system": {
+        "Device Utilization %": 44,
+        "Renderer Utilization %": 8,
+        "Tiler Utilization %": 3,
+        "In use system memory": 1476526080
+      }
+    },
+    {
+      "time": 1794386097.5711071,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 52,
+      "gpu_system": {
+        "Device Utilization %": 0,
+        "Renderer Utilization %": 0,
+        "Tiler Utilization %": 0,
+        "In use system memory": 1445855232
+      }
+    },
+    {
+      "time": 1794386097.954348,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 52,
+      "gpu_system": {
+        "Device Utilization %": 0,
+        "Renderer Utilization %": 0,
+        "Tiler Utilization %": 0,
+        "In use system memory": 1348616192
+      }
+    },
+    {
+      "time": 1794386098.361273,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 52,
+      "gpu_system": {
+        "Device Utilization %": 95,
+        "Renderer Utilization %": 37,
+        "Tiler Utilization %": 5,
+        "In use system memory": 1480851456
+      }
+    },
+    {
+      "time": 1794386098.431384,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 52,
+      "gpu_system": {
+        "Device Utilization %": 0,
+        "Renderer Utilization %": 0,
+        "Tiler Utilization %": 0,
+        "In use system memory": 1330331648
+      }
+    },
+    {
+      "time": 1794386098.6983,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 52,
+      "gpu_system": {
+        "Device Utilization %": 30,
+        "Renderer Utilization %": 17,
+        "Tiler Utilization %": 9,
+        "In use system memory": 1333460992
+      }
+    },
+    {
+      "time": 1794386098.989044,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 52,
+      "gpu_system": {
+        "Device Utilization %": 22,
+        "Renderer Utilization %": 22,
+        "Tiler Utilization %": 11,
+        "In use system memory": 1330298880
+      }
+    },
+    {
+      "time": 1794386099.277396,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 52,
+      "gpu_system": {
+        "Device Utilization %": 18,
+        "Renderer Utilization %": 18,
+        "Tiler Utilization %": 8,
+        "In use system memory": 1369112576
+      }
+    },
+    {
+      "time": 1794386099.5377228,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 53,
+      "gpu_system": {
+        "Device Utilization %": 14,
+        "Renderer Utilization %": 14,
+        "Tiler Utilization %": 5,
+        "In use system memory": 1192394752
+      }
+    },
+    {
+      "time": 1794386099.61857,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 52,
+      "gpu_system": {
+        "Device Utilization %": 28,
+        "Renderer Utilization %": 15,
+        "Tiler Utilization %": 4,
+        "In use system memory": 1417248768
+      }
+    },
+    {
+      "time": 1794386099.6914299,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 52,
+      "gpu_system": {
+        "Device Utilization %": 49,
+        "Renderer Utilization %": 12,
+        "Tiler Utilization %": 5,
+        "In use system memory": 1429028864
+      }
+    },
+    {
+      "time": 1794386099.773513,
+      "swap_used_mb": 5428.56,
+      "swap_free_mb": 1739.4399999999996,
+      "memory_free_percent": 52,
+      "gpu_system": {
+        "Device Utilization %": 0,
+        "Renderer Utilization %": 0,
+        "Tiler Utilization %": 0,
+        "In use system memory": 1394180096
+      }
+    }
+  ],
+  "mlx_peak_bytes": 52041748,
+  "process_peak_rss_bytes": 452657152,
+  "limitations": [
+    "Compute-plan placement is estimated; no direct ANE occupancy measurement.",
+    "The 1% relative-L2 screen only rejects gross export errors; it is not training parity.",
+    "Forward-only probe; no production backward bridge or training quality validation.",
+    "FP16 probe does not establish BF16 parity. Weight values fixed while refreshing API inputs.",
+    "RSS and MLX peaks exclude some driver/ANE allocations; monitor system pressure too."
+  ]
+}
