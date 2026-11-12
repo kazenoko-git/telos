@@ -1,0 +1,20 @@
+============================================================================
+  TÉLOS UNIFIED TRAINER  |  Paradigm: AR
+  Hardware Backend:     MLX (gpu)
+  Target Parameters:    49,166,848 (~50M)
+  Batch Config:         batch_size=8, grad_accum=8 (effective=64 seqs / 16,384 tok)
+  Training Steps:       32 steps | LR: 4.00e-04 -> 4.00e-05 (warmup=50)
+  Checkpoint Dir:       /Users/ivansamuel/Documents/Projects/telos/logs/mlx_round2_20261112/00_reference/checkpoints (every 1000 steps)
+  [Experimental] Packed SwiGLU Metal VJP enabled; BF16 rounding may differ slightly.
+  [Hardware] Detected Apple M5 Pro (24.0GB Unified Memory)
+  [Hardware] Evaluation Policy: STEP
+  [Precision] MLX weights cast to bfloat16 (maintaining fp32 master weights).
+  Loading pre-tokenized dataset from data/english_corpus_5b.bin...
+  Checkpoint Directory: /Users/ivansamuel/Documents/Projects/telos/logs/mlx_round2_20261112/00_reference/checkpoints (Paradigm: AR)
+  [AR] Step      1/32 | Loss: 9.5167 | CE: 9.517 | LR: 8.00e-06 |   1.7 st/s |    28,259 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.08GB) | Swap: 2368.88M | ETA:  0.3m
+  [AR] Step     32/32 | Loss: 7.1574 | CE: 7.157 | LR: 2.56e-04 |   2.7 st/s |    43,599 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.66GB) | Swap: 2368.88M | ETA:  0.0m
+======================================================================
+  AR Training Complete! Total time: 0.20 minutes.
+  Saved standalone model artifact to /Users/ivansamuel/Documents/Projects/telos/logs/mlx_round2_20261112/00_reference/checkpoints/
+======================================================================
+PROFILE_SUMMARY={"status": "complete", "updates": 32, "input_tokens_processed": 524288, "wall_seconds": 12.152770083019277, "errors": [], "final_system": {"time": 1794488229.670602, "swap_used_mb": 2521.0, "swap_free_mb": 1575.0, "memory_free_percent": 38, "gpu_system": {"Device Utilization %": 96, "Renderer Utilization %": 68, "Tiler Utilization %": 1, "In use system memory": 951484416}}}

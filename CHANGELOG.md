@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-11-12
+
+### Added
+- Reproducible, memory-guarded round-two MLX scheduling and microbatch benchmarks, with paired run evidence and a detailed report.
+
+### Performance
+- Optional Metal command-buffer limits of 16 operations / 16 MiB reduced measured peak MLX allocation by 19.3% (1.58 to 1.28 GiB) on the existing experimental 50M AR fast path, at similar throughput. The measured +2.8% throughput difference remains within run variation; training defaults are unchanged and long-run convergence is unverified.
+
 ## [1.3.1] - 2026-11-12
 
 ### Added

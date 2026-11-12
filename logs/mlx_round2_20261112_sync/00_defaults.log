@@ -1,0 +1,20 @@
+============================================================================
+  TÉLOS UNIFIED TRAINER  |  Paradigm: AR
+  Hardware Backend:     MLX (gpu)
+  Target Parameters:    49,166,848 (~50M)
+  Batch Config:         batch_size=8, grad_accum=8 (effective=64 seqs / 16,384 tok)
+  Training Steps:       64 steps | LR: 4.00e-04 -> 4.00e-05 (warmup=50)
+  Checkpoint Dir:       /Users/ivansamuel/Documents/Projects/telos/logs/mlx_round2_20261112_sync/00_defaults/checkpoints (every 1000 steps)
+  [Hardware] Detected Apple M5 Pro (24.0GB Unified Memory)
+  [Hardware] Evaluation Policy: STEP
+  [Precision] MLX weights cast to bfloat16 (maintaining fp32 master weights).
+  Loading pre-tokenized dataset from data/english_corpus_5b.bin...
+  Checkpoint Directory: /Users/ivansamuel/Documents/Projects/telos/logs/mlx_round2_20261112_sync/00_defaults/checkpoints (Paradigm: AR)
+  [AR] Step      1/64 | Loss: 9.5168 | CE: 9.517 | LR: 8.00e-06 |   1.8 st/s |    29,587 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.38GB) | Swap: 2521.00M | ETA:  0.6m
+  [AR] Step     50/64 | Loss: 6.7415 | CE: 6.741 | LR: 4.00e-04 |   2.4 st/s |    38,547 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.84GB) | Swap: 2521.00M | ETA:  0.1m
+  [AR] Step     64/64 | Loss: 6.8685 | CE: 6.868 | LR: 4.00e-05 |   2.4 st/s |    38,567 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.84GB) | Swap: 2521.00M | ETA:  0.0m
+======================================================================
+  AR Training Complete! Total time: 0.45 minutes.
+  Saved standalone model artifact to /Users/ivansamuel/Documents/Projects/telos/logs/mlx_round2_20261112_sync/00_defaults/checkpoints/
+======================================================================
+PROFILE_SUMMARY={"status": "complete", "updates": 64, "input_tokens_processed": 1048576, "wall_seconds": 27.274953332991572, "errors": [], "final_system": {"time": 1794488384.0519218, "swap_used_mb": 2521.0, "swap_free_mb": 1575.0, "memory_free_percent": 45, "gpu_system": {"Device Utilization %": 93, "Renderer Utilization %": 71, "Tiler Utilization %": 1, "In use system memory": 952156160}}}
