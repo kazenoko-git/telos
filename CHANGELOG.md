@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-12
+
+### Added
+- `telos pretrain` command with `telos train` retained as a compatibility alias.
+- Full-parameter SFT and DPO post-training for native Télos causal checkpoints.
+- MLX post-training for Apple Silicon, including PyTorch-to-MLX checkpoint weight conversion.
+- CUDA, CPU, and PyTorch-XLA post-training paths; XLA validates rank identity, partitions batches by ordinal, reduces gradients across replicas, and synchronizes checkpoint writes.
+
+### Fixed
+- XLA master-rank detection now fails closed instead of assuming the current process is rank zero when rank APIs fail.
+- Avoid re-importing the optional MLX runtime in diffusion modules when Metal is unavailable, preventing duplicate native-extension initialization in headless CPU/TPU environments.
+
 ## [1.3.2] - 2026-11-12
 
 ### Added

@@ -56,7 +56,11 @@ Télos ships with a unified command-line dispatcher:
 telos dataprep --source /path/to/code_corpus --output data/corpus.bin
 
 # Train a 12M parameter model on automatically detected hardware
-telos train --paradigm mdlm --params 12M --tokens 1B
+telos pretrain --paradigm mdlm --params 12M --tokens 1B
+
+# Post-train a causal checkpoint with prompt/response JSONL
+telos posttrain --method sft --checkpoint checkpoints/ar/checkpoint_final.pt \
+  --data data/instructions.jsonl --output checkpoints/ar-sft
 
 # Run hardware throughput benchmark (capped at 5 minutes)
 telos bench --hardware auto
@@ -67,6 +71,8 @@ telos eval --checkpoint checkpoints/mdlm/checkpoint_final.pt
 # Query on-device Apple Foundation Model status (macOS only)
 telos afm status
 ```
+
+For preference optimization, use `telos posttrain --method dpo` with JSONL records containing `prompt`, `chosen`, and `rejected` strings. Select `--hardware mlx`, `cuda`, `xla`, or `cpu`; Apple Silicon post-training uses MLX rather than PyTorch MPS. `telos train` remains an alias for `telos pretrain`.
 
 ---
 
