@@ -25,10 +25,9 @@ except ImportError:
     torch = _DummyTorch()
 
 try:
-    import mlx.core as mx
-    from telos.training.core import metal_usable
-    MLX_AVAILABLE = metal_usable()
+    from telos.training.core import MLX_AVAILABLE
     if MLX_AVAILABLE:
+        import mlx.core as mx
         import mlx.nn as mx_nn
 except ImportError:
     MLX_AVAILABLE = False

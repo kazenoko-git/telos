@@ -2,7 +2,9 @@
 Master CLI Dispatcher for Télos.
 Routes subcommands:
   telos dataprep ...  -> High-efficiency data preparation
-  telos train ...     -> Zero-config dimensional model training
+  telos pretrain ...  -> Pretrain models with supported objectives/backends
+  telos train ...     -> Compatibility alias for pretrain
+  telos posttrain ... -> Supervised and preference post-training
   telos eval ...      -> 100 contextual probes and model evaluation
   telos bench ...     -> 5-minute hardware throughput benchmark
   telos afm ...       -> Apple on-device Foundation Models (status, generate)
@@ -34,7 +36,9 @@ def main():
         print("Usage: telos <command> [options]\n")
         print("Available Commands:")
         print("  dataprep   Prepare raw text, code directories, JSONL, or HF datasets into binary token stream (.bin)")
-        print("  train      Unified zero-config model trainer (AR, MDLM, UNDLM, COROSred, custom)")
+        print("  pretrain   Unified model pretraining (AR, MDLM, UNDLM, COROSred, custom)")
+        print("  train      Alias for pretrain")
+        print("  posttrain  Post-train a causal Telos checkpoint (SFT or DPO)")
         print("  eval       High-end evaluation suite (100 contextual probes, code sampling, perplexity)")
         print("  bench      Hardware throughput & step latency benchmark (strictly capped at 5 minutes)")
         print("  afm        Apple on-device Foundation Models (availability status, generation)")
@@ -46,9 +50,12 @@ def main():
     # Strip the subcommand from argv so the sub-parser parses subsequent flags cleanly
     sys.argv.pop(1)
 
-    if cmd == "train":
+    if cmd in ["pretrain", "train"]:
         from telos.train.cli import main as train_main
         train_main()
+    elif cmd == "posttrain":
+        from telos.posttrain.cli import main as posttrain_main
+        posttrain_main()
     elif cmd in ["dataprep", "prep"]:
         from telos.dataprep.prepare import main as prep_main
         prep_main()
@@ -65,7 +72,7 @@ def main():
         from telos.testing.suite import main as test_main
         test_main()
     else:
-        print(f"Error: Unknown command '{cmd}'. Available: dataprep, train, eval, bench, afm, test.")
+        print(f"Error: Unknown command '{cmd}'. Available: dataprep, pretrain, posttrain, eval, bench, afm, test.")
         sys.exit(1)
 
 

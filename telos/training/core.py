@@ -3,15 +3,23 @@ import math
 import subprocess
 import time
 
+_METAL_PROBE_COMPLETE = False
+_METAL_PROBE_RESULT = False
+
 
 def metal_usable() -> bool:
     """Probes Metal with one trivial op; mlx imports fine without it."""
+    global _METAL_PROBE_COMPLETE, _METAL_PROBE_RESULT
+    if _METAL_PROBE_COMPLETE:
+        return _METAL_PROBE_RESULT
+    _METAL_PROBE_COMPLETE = True
     try:
         import mlx.core as mx
         mx.eval(mx.array(0.0))
-        return True
+        _METAL_PROBE_RESULT = True
     except Exception:
-        return False
+        _METAL_PROBE_RESULT = False
+    return _METAL_PROBE_RESULT
 
 
 try:
@@ -20,6 +28,8 @@ try:
     MLX_AVAILABLE = metal_usable()
 except ImportError:
     MLX_AVAILABLE = False
+    _METAL_PROBE_COMPLETE = True
+    _METAL_PROBE_RESULT = False
 
 _swap_cache = {"value": "0M", "counter": 0}
 

@@ -37,12 +37,13 @@ telos --help
 
 ## 2. Master CLI Commands Overview (`telos <command>`)
 
-Télos provides a unified command line interface with 6 primary subcommands:
+Télos provides a unified command line interface for data preparation, pretraining, post-training, evaluation, and utilities:
 
 | Command | Module | Description |
 | :--- | :--- | :--- |
 | **`telos dataprep`** | `telos.dataprep` | High-efficiency data processing for raw text, code directories, JSONL, or Hugging Face datasets into chunked binary memory-mapped arrays (`.bin`). |
-| **`telos train`** | `telos.train` | Zero-config dimensional model trainer (AR, MDLM, UNDLM, COROSred, custom). No YAML configuration required. |
+| **`telos pretrain`** | `telos.train` | Model pretraining across supported objectives (AR, MDLM, UNDLM, COROSred, custom). `telos train` remains an alias. |
+| **`telos posttrain`** | `telos.posttrain` | Full-parameter supervised fine-tuning (SFT) or direct preference optimization (DPO) for native causal Télos checkpoints. |
 | **`telos eval`** | `telos.eval` | Multi-domain evaluation suite across 100 contextual probes, 512 functional code execution tasks, anti-cheat span masking, linguistics, and tool-use. |
 | **`telos bench`** | `telos.bench` | Hardware throughput, step latency, and memory benchmark engine strictly capped at 5 minutes. |
 | **`telos afm`** | `telos.afm` | Apple on-device Foundation Models: availability status and text generation on Apple Silicon. |
@@ -50,7 +51,7 @@ Télos provides a unified command line interface with 6 primary subcommands:
 
 ---
 
-## 3. Zero-Config Dimensional Training (`telos train`)
+## 3. Model Pretraining (`telos pretrain`)
 
 User directly specifies the fundamental training dimensions from the command line:
 
@@ -80,21 +81,39 @@ User directly specifies the fundamental training dimensions from the command lin
 
 ```bash
 # 1. Train a 25M MDLM model on 300M tokens on Apple Silicon (MLX)
-telos train --paradigm mdlm --params 25M --tokens 300M --effective-batch 32
+telos pretrain --paradigm mdlm --params 25M --tokens 300M --effective-batch 32
 
 # 2. Train a 50M UNDLM model on 4x NVIDIA GPUs (CUDA) with torch.compile
-telos train --paradigm undlm --params 50M --tokens 500M --hardware cuda --devices 4 --compile
+telos pretrain --paradigm undlm --params 50M --tokens 500M --hardware cuda --devices 4 --compile
 
 # 3. Train Unified COROSred 50M on Cloud TPU (8 cores)
-telos train --paradigm corosred --params 50M --tokens 2.5B --causal-ratio 0.65 --mask-prob 0.20 --hardware xla --devices 8 --data data/python_corpus_5b.bin
+telos pretrain --paradigm corosred --params 50M --tokens 2.5B --causal-ratio 0.65 --mask-prob 0.20 --hardware xla --devices 8 --data data/python_corpus_5b.bin
 
 # 4. Train 100M AR Baseline on 5B Tokens on Cloud TPU
-telos train --paradigm ar --params 100M --tokens 5B --hardware xla --devices 8 --data data/python_corpus_5b.bin
+telos pretrain --paradigm ar --params 100M --tokens 5B --hardware xla --devices 8 --data data/python_corpus_5b.bin
 ```
 
 ---
 
-## 4. Multi-Domain Evaluation (`telos eval`)
+## 4. Post-training (`telos posttrain`)
+
+SFT records are JSONL objects with `prompt` and `response` strings. DPO records use `prompt`, `chosen`, and `rejected`. The command performs full-parameter updates and writes native checkpoints that can be evaluated with `telos eval`.
+
+```bash
+# Supervised fine-tuning
+telos posttrain --method sft --checkpoint checkpoints/ar/checkpoint_final.pt \
+  --data data/instructions.jsonl --output checkpoints/ar-sft
+
+# Direct preference optimization
+telos posttrain --method dpo --checkpoint checkpoints/ar-sft/checkpoint_final.pt \
+  --data data/preferences.jsonl --output checkpoints/ar-dpo
+```
+
+Choose `--hardware mlx`, `cuda`, `xla`, or `cpu` (default: `auto`). MLX runs natively on Apple Silicon; PyTorch MPS is not used. CUDA/XLA/CPU consume native PyTorch checkpoints, while MLX accepts native MLX or PyTorch checkpoints. DPO retains a frozen reference copy of the starting checkpoint during training. XLA launches all visible TPU devices, checks each worker's rank, partitions global batches by ordinal, and coordinates gradient reduction and checkpoint saves. A requested device count that differs from the runtime fails before training. For TPU post-training, use `--hardware xla --devices auto` to require the complete runtime topology.
+
+---
+
+## 5. Multi-Domain Evaluation (`telos eval`)
 
 ```bash
 # 1. Run Complete Multi-Domain Evaluation (Code + English Linguistics + Tool-Use)

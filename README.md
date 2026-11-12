@@ -16,7 +16,7 @@
 
 Télos is for people who want to run and study language-model training processes, rather than focus mainly on adapting an existing chat model. Prepare data, configure a training run, choose an objective and backend, then evaluate the resulting model in the same toolkit. Model-size and token budgets are useful controls; they are not the product's central purpose.
 
-Télos supports training workflows across its supported objectives and hardware backends; the current research mainline is autoregressive modeling, with masked- and uniform-noise-diffusion research also represented in the codebase. Its benchmark and evaluation suite tests model behavior—not just training loss—including contextual code probes, executable code tasks, anti-cheat checks, reasoning, tool-use, cybersecurity, and other task suites. Post-training workflows such as SFT, preference optimization, and RL are outside Télos's core focus.
+Télos covers the language-model training path from corpus preparation and pretraining through supervised fine-tuning (SFT) and direct preference optimization (DPO), followed by model evaluation. Pretraining supports autoregressive and discrete-diffusion objectives across MLX, CUDA, and TPU; post-training supports full-parameter SFT and DPO for native causal Télos checkpoints on MLX, CUDA, XLA, and CPU. TPU runs validate runtime topology, shard batches by global ordinal, reduce gradients across ranks, and synchronize checkpoint writes. Its benchmark and evaluation suite tests model behavior—not just training loss—including contextual code probes, executable code tasks, reasoning, tool use, cybersecurity, and other task suites.
 
 ### How it compares
 
@@ -36,6 +36,7 @@ Télos's evaluation suite is not limited to Télos-trained models. It can evalua
 ## What you can do with Télos
 
 - **Get from corpus to training run:** prepare text, code, JSONL, or Hugging Face datasets as token streams, then train with a parameter budget and token target instead of assembling a training stack by hand.
+- **Continue from pretraining to post-training:** fine-tune causal Télos checkpoints on prompt/response JSONL or preference pairs, with output checkpoints that work with Télos evaluation tools.
 - **Run on the hardware you have:** use Apple Silicon through MLX, NVIDIA GPUs through PyTorch/CUDA, Google Cloud TPUs through PyTorch-XLA, or CPU for compatible workflows.
 - **Benchmark trained and external models:** run custom and public task suites for contextual code behavior, sandboxed code execution, reasoning, tool-use, cybersecurity, and other domains; inspect and save per-task results. Some suites must first be generated or fetched with the benchmark builder.
 - **Measure training throughput:** use the separate `telos bench` command for short hardware-throughput measurements. This is distinct from evaluating model quality on benchmark tasks.
@@ -58,8 +59,19 @@ Prepare a corpus and start an autoregressive training run:
 
 ```bash
 telos dataprep --corpus ./my_text_or_code --output data/corpus.bin
-telos train --paradigm ar --params 50M --tokens 300M --data data/corpus.bin
+telos pretrain --paradigm ar --params 50M --tokens 300M --data data/corpus.bin
 ```
+
+Post-train a pretrained causal checkpoint with SFT or DPO:
+
+```bash
+telos posttrain --method sft --checkpoint checkpoints/ar/checkpoint_final.pt \
+  --data data/instructions.jsonl --output checkpoints/ar-sft
+telos posttrain --method dpo --checkpoint checkpoints/ar-sft/checkpoint_final.pt \
+  --data data/preferences.jsonl --output checkpoints/ar-dpo
+```
+
+SFT JSONL records use `prompt` and `response` string fields. DPO records use `prompt`, `chosen`, and `rejected`. Use a PyTorch `.pt` checkpoint for CUDA or XLA, and a native MLX or PyTorch checkpoint for MLX. PyTorch MPS is not used. `telos train` remains an alias for `telos pretrain`.
 
 Build or fetch the evaluation datasets as needed, then run an evaluation:
 

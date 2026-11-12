@@ -153,26 +153,32 @@ def get_xla_world_size() -> int:
 
 
 def is_xla_master() -> bool:
-    """Returns True if this process is the master ordinal (0)."""
+    """Returns True only for the verified XLA master; never guess on a TPU."""
     global _CACHED_IS_MASTER
     if _CACHED_IS_MASTER is not None:
         return _CACHED_IS_MASTER
 
+    errors = []
     try:
         import torch_xla.runtime as xr
         if hasattr(xr, "process_index"):
             _CACHED_IS_MASTER = (xr.process_index() == 0)
             return _CACHED_IS_MASTER
-    except Exception:
-        pass
+        errors.append("torch_xla.runtime.process_index is unavailable")
+    except Exception as exc:
+        errors.append(f"torch_xla.runtime.process_index failed: {exc}")
 
     try:
         import torch_xla.core.xla_model as xm
         if hasattr(xm, "is_master_ordinal"):
             _CACHED_IS_MASTER = xm.is_master_ordinal()
             return _CACHED_IS_MASTER
-    except Exception:
-        pass
+        errors.append("torch_xla.core.xla_model.is_master_ordinal is unavailable")
+    except Exception as exc:
+        errors.append(f"torch_xla.core.xla_model.is_master_ordinal failed: {exc}")
+
+    if is_tpu_environment() or is_xla_initialized():
+        raise RuntimeError("Unable to determine the PyTorch/XLA master rank: " + "; ".join(errors))
 
     _CACHED_IS_MASTER = True
     return _CACHED_IS_MASTER
