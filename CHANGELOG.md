@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-12
+
+### Added
+- Opt-in MLX compiled backward accumulation and forced fused SDPA attention.
+- Experimental packed SwiGLU Metal VJP, retaining existing checkpoint parameter shapes.
+- Bounded profiling tools and reports for MLX training throughput, memory use, and GPU execution.
+
+### Performance
+- Deferring final accumulated-gradient materialization improves measured throughput by 0.29% while keeping memory bounded.
+- A short paired 50M AR benchmark measured 42.0k tokens/s with all experimental options enabled versus 36.5k on defaults (+15.1%); measured peak MLX allocation was 1.59 versus 1.73 GiB. Experimental options remain disabled by default, and the short run does not establish long-run training equivalence.
+
 ## [1.3.0] - 2026-11-10
 
 ### Added
