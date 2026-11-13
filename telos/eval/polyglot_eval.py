@@ -18,6 +18,7 @@ Execution Strategy:
 """
 
 import os
+import re
 import sys
 import shutil
 import subprocess
@@ -26,11 +27,35 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
 from telos.eval.executor import ExecutionResult
+from telos.eval.sandbox import SandboxUnavailable, sandbox_command
 
 
 def check_runtime_available(cmd: str) -> bool:
     """Checks if a compiler/runtime executable exists in PATH."""
     return shutil.which(cmd) is not None
+
+
+def _wait_for_sandboxed_process(command, env, timeout_seconds: float) -> int:
+    proc = subprocess.Popen(
+        command,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=env,
+        start_new_session=(os.name == "posix"),
+    )
+    try:
+        return proc.wait(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
+        if os.name == "posix":
+            try:
+                os.killpg(proc.pid, 9)
+            except ProcessLookupError:
+                pass
+        else:
+            proc.kill()
+        proc.wait()
+        raise
 
 
 def clean_polyglot_completion(language: str, prompt: str, raw_completion: str) -> str:
@@ -121,38 +146,39 @@ def execute_javascript(full_code: str, timeout_seconds: float = 4.0) -> Tuple[Ex
     """Executes JavaScript / Node.js test harness in isolated subprocess."""
     if not check_runtime_available("node"):
         is_valid, msg = validate_code_structural_contract("javascript", full_code)
-        return (ExecutionResult.PASSED if is_valid else ExecutionResult.RUNTIME_EXCEPTION), f"[Static Contract Validation] {msg}"
+        return ExecutionResult.RUNTIME_EXCEPTION, f"[Not Executed: runtime unavailable] {msg}"
 
-    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as f:
-        f.write("const assert = require('assert');\n" + full_code)
-        tmp_path = f.name
-
-    try:
-        proc = subprocess.run(
-            ["node", tmp_path],
-            capture_output=True,
-            text=True,
-            timeout=timeout_seconds,
+    with tempfile.TemporaryDirectory(prefix="telos_node_eval_") as tmp_dir:
+        tmp_path = Path(tmp_dir) / "candidate.js"
+        tmp_path.write_text(
+            "const assert = require('assert');\n"
+            "for (const name of ['exit', 'reallyExit']) Object.defineProperty(process, name, { value: () => { throw new Error('process exit is disabled during evaluation') }, writable: false, configurable: false });\n"
+            + full_code,
+            encoding="utf-8",
         )
-        if proc.returncode == 0:
-            return ExecutionResult.PASSED, "Success"
-        return ExecutionResult.FAILED_ASSERTION, proc.stderr[:300]
-    except subprocess.TimeoutExpired:
-        return ExecutionResult.TIMEOUT, f"Timed out after {timeout_seconds}s"
-    except Exception as exc:
-        return ExecutionResult.RUNTIME_EXCEPTION, str(exc)
-    finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+        try:
+            command, env = sandbox_command([shutil.which("node") or "node", str(tmp_path)], tmp_dir)
+            return_code = _wait_for_sandboxed_process(command, env, timeout_seconds)
+            if return_code == 0:
+                return ExecutionResult.PASSED, "Success"
+            return ExecutionResult.FAILED_ASSERTION, "Candidate or test harness exited unsuccessfully"
+        except subprocess.TimeoutExpired:
+            return ExecutionResult.TIMEOUT, f"Timed out after {timeout_seconds}s"
+        except SandboxUnavailable as exc:
+            return ExecutionResult.RUNTIME_EXCEPTION, f"Secure code execution unavailable: {exc}"
+        except Exception as exc:
+            return ExecutionResult.RUNTIME_EXCEPTION, str(exc)
 
 
 def execute_rust(full_code: str, timeout_seconds: float = 6.0) -> Tuple[ExecutionResult, str]:
     """Compiles and executes Rust code snippet."""
     if not check_runtime_available("rustc"):
         is_valid, msg = validate_code_structural_contract("rust", full_code)
-        return (ExecutionResult.PASSED if is_valid else ExecutionResult.RUNTIME_EXCEPTION), f"[Static Contract Validation] {msg}"
+        return ExecutionResult.RUNTIME_EXCEPTION, f"[Not Executed: runtime unavailable] {msg}"
+    if re.search(r"\b(?:std::)?process::exit\s*\(|\b_exit\s*\(", full_code):
+        return ExecutionResult.RUNTIME_EXCEPTION, "Rust candidate may not terminate the test process"
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
+    with tempfile.TemporaryDirectory(prefix="telos_rust_eval_") as tmp_dir:
         src_path = os.path.join(tmp_dir, "solution.rs")
         bin_name = "solution_bin.exe" if sys.platform == "win32" else "solution_bin"
         bin_path = os.path.join(tmp_dir, bin_name)
@@ -160,26 +186,23 @@ def execute_rust(full_code: str, timeout_seconds: float = 6.0) -> Tuple[Executio
             f.write(full_code)
 
         try:
-            compile_proc = subprocess.run(
-                ["rustc", src_path, "-o", bin_path],
-                capture_output=True,
-                text=True,
-                timeout=timeout_seconds,
-            )
-            if compile_proc.returncode != 0:
-                return ExecutionResult.SYNTAX_ERROR, compile_proc.stderr[:300]
+            rustc = shutil.which("rustc") or "rustc"
+            extra = tuple(path for name in ("cc", "ld") if (path := shutil.which(name)))
+            command, env = sandbox_command([rustc, src_path, "-o", bin_path], tmp_dir,
+                                           extra_executables=extra)
+            compile_code = _wait_for_sandboxed_process(command, env, timeout_seconds)
+            if compile_code != 0:
+                return ExecutionResult.SYNTAX_ERROR, "Rust compilation failed inside the sandbox"
 
-            run_proc = subprocess.run(
-                [bin_path],
-                capture_output=True,
-                text=True,
-                timeout=timeout_seconds,
-            )
-            if run_proc.returncode == 0:
+            run_command, run_env = sandbox_command([bin_path], tmp_dir)
+            run_code = _wait_for_sandboxed_process(run_command, run_env, timeout_seconds)
+            if run_code == 0:
                 return ExecutionResult.PASSED, "Success"
-            return ExecutionResult.FAILED_ASSERTION, run_proc.stderr[:300]
+            return ExecutionResult.FAILED_ASSERTION, "Candidate or test harness exited unsuccessfully"
         except subprocess.TimeoutExpired:
             return ExecutionResult.TIMEOUT, f"Timed out after {timeout_seconds}s"
+        except SandboxUnavailable as exc:
+            return ExecutionResult.RUNTIME_EXCEPTION, f"Secure code execution unavailable: {exc}"
         except Exception as exc:
             return ExecutionResult.RUNTIME_EXCEPTION, str(exc)
 
@@ -203,5 +226,4 @@ def execute_polyglot_task(
     else:
         # Fall back to structural contract validation when native compiler is absent
         is_valid, msg = validate_code_structural_contract(language, full_code, required_keywords)
-        outcome = ExecutionResult.PASSED if is_valid else ExecutionResult.RUNTIME_EXCEPTION
-        return outcome, f"[{language.upper()} Contract Check] {msg}"
+        return ExecutionResult.RUNTIME_EXCEPTION, f"[Not Executed: runtime unavailable] {msg}"
