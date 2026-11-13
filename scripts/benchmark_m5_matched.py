@@ -166,7 +166,8 @@ def main():
                             weight_decay=0.01)
     master = tree_map(lambda v: v.astype(mx.float32), model.parameters())
     value_grad = nn.value_and_grad(model, loss_fn)
-    compiled = mx.compile(lambda batch: value_grad(model, batch), inputs=[model.state])
+    compiled = mx.compile(lambda batch: value_grad(model, batch),
+                          inputs=[model.state], outputs=[model.state])
     records = []
     mx.reset_peak_memory()
     with (args.output / "steps.jsonl").open("w", buffering=1) as stream:
