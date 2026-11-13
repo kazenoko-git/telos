@@ -1,0 +1,19 @@
+============================================================================
+  TÉLOS UNIFIED TRAINER  |  Paradigm: AR
+  Hardware Backend:     MLX (gpu)
+  Target Parameters:    49,166,848 (~50M)
+  Batch Config:         batch_size=8, grad_accum=1 (effective=8 seqs / 2,048 tok)
+  Training Steps:       8 steps | LR: 4.00e-04 -> 4.00e-05 (warmup=50)
+  Checkpoint Dir:       /private/tmp/telos-native-m5-smoke/checkpoints (every 1000 steps)
+  [Hardware] Detected Apple M5 Pro (24.0GB Unified Memory)
+  [Hardware] Evaluation Policy: STEP
+  [Precision] MLX weights cast to bfloat16 (maintaining fp32 master weights).
+  Loading pre-tokenized dataset from /Users/ivansamuel/Documents/Projects/telos/data/english_corpus_5b.bin...
+  Checkpoint Directory: /private/tmp/telos-native-m5-smoke/checkpoints (Paradigm: AR)
+  [AR] Step      1/8 | Loss: 9.4616 | CE: 9.462 | LR: 8.00e-06 |   1.1 st/s |     2,267 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.19GB) | Swap: 3025.31M | ETA:  0.1m
+  [AR] Step      8/8 | Loss: 9.1941 | CE: 9.194 | LR: 6.40e-05 |   2.1 st/s |     4,350 tok/s | Metal Unified GPU: 0.67GB (Peak: 1.92GB) | Swap: 3025.31M | ETA:  0.0m
+======================================================================
+  AR Training Complete! Total time: 0.06 minutes.
+  Saved standalone model artifact to /private/tmp/telos-native-m5-smoke/checkpoints/
+======================================================================
+PROFILE_SUMMARY={"status": "complete", "updates": 8, "input_tokens_processed": 16384, "wall_seconds": 15.6333070420078, "errors": [], "final_system": {"time": 1794595866.320779, "swap_used_mb": 3025.31, "swap_free_mb": 1070.69, "memory_free_percent": 59, "gpu_system": {"Device Utilization %": 84, "Renderer Utilization %": 80, "Tiler Utilization %": 7, "In use system memory": 2948497408}}}
