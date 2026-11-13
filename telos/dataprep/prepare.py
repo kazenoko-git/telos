@@ -189,6 +189,8 @@ def prepare_dataset(
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    if max_tokens is not None and max_tokens < 0:
+        raise ValueError("max_tokens must be non-negative")
 
     # Fast path: Synthetic data stream
     if synthetic:
@@ -252,7 +254,7 @@ def prepare_dataset(
     dtype_str = "uint16" if np_dtype == np.uint16 else "int32"
 
     print(f"  [DataPrep] Processing corpus into {output_path} (vocab_size={actual_vocab}, dtype={dtype_str})...")
-    if max_tokens:
+        if max_tokens is not None:
         print(f"  [DataPrep] Target token limit: {max_tokens:,} tokens (~{max_tokens * (2 if np_dtype == np.uint16 else 4) / (1024**3):.2f} GB)")
     total_tokens = 0
     buffer = []
@@ -268,6 +270,8 @@ def prepare_dataset(
                 flat_tokens = []
                 for enc in encodings:
                     flat_tokens.extend(enc.ids)
+                if max_tokens is not None:
+                    flat_tokens = flat_tokens[:max(0, max_tokens - total_tokens)]
                 if flat_tokens:
                     arr = np.array(flat_tokens, dtype=np_dtype)
                     out_f.write(arr.tobytes())
@@ -275,7 +279,7 @@ def prepare_dataset(
                     total_tokens += num_tok
                     pbar.update(num_tok)
                 buffer = []
-                if max_tokens and total_tokens >= max_tokens:
+                if max_tokens is not None and total_tokens >= max_tokens:
                     break
 
         # Flush remainder
@@ -285,7 +289,7 @@ def prepare_dataset(
             for enc in encodings:
                 flat_tokens.extend(enc.ids)
             if flat_tokens:
-                if max_tokens and (total_tokens + len(flat_tokens) > max_tokens):
+                if max_tokens is not None and (total_tokens + len(flat_tokens) > max_tokens):
                     flat_tokens = flat_tokens[:max_tokens - total_tokens]
                 arr = np.array(flat_tokens, dtype=np_dtype)
                 out_f.write(arr.tobytes())
