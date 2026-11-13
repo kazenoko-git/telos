@@ -40,10 +40,13 @@ def main():
         grouped[implementation] = {
             "pooled_input_tokens_per_second": 2 * 52 * 16384 / sum(t["warmed_seconds"] for t in rows),
             "mean_peak_mlx_gib": statistics.mean(t["peak_mlx_gib"] for t in rows),
-            "mean_final_heldout_loss": statistics.mean(t["final_heldout_loss"] for t in rows)}
+            "mean_final_heldout_loss": statistics.mean(t["final_heldout_loss"] for t in rows),
+            "repetition_max_min_throughput_ratio": max(t["input_tokens_per_second"] for t in rows) /
+                                                    min(t["input_tokens_per_second"] for t in rows)}
     summary = {"trials": trials, "pooled": grouped,
                "telos_throughput_change_pct": 100 * (grouped["telos"]["pooled_input_tokens_per_second"] /
                                                       grouped["mlx_lm"]["pooled_input_tokens_per_second"] - 1),
+               "interpretation": "Exploratory measurements. Inspect repetition drift and system telemetry before attributing a pooled speed difference to the implementation.",
                "limitations": ["Common backbone harness; not native trainer ranking",
                                "Short run; not time to quality or convergence evidence",
                                "Two repetitions per implementation; no statistical superiority claim"]}
