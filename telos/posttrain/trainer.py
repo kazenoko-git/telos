@@ -15,6 +15,12 @@ import torch.nn.functional as F
 
 from telos.data.tokenizer import load_tokenizer
 from telos.eval.runner import load_model_from_checkpoint
+from .resume import PosttrainResume
+from telos.training.checkpoint import atomic_write
+
+
+def _atomic_torch_save(state, path):
+    atomic_write(path, lambda temporary: torch.save(state, temporary))
 
 
 def _checkpoint_file(path: str | Path) -> Path:
@@ -244,7 +250,7 @@ def _mlx_loss(model, input_ids, labels):
 
 def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config, records, tokenizer,
                    out_dir, *, method, max_steps, batch_size, learning_rate, beta,
-                   max_length, save_every, seed):
+                   max_length, save_every, seed, resume=None):
     import mlx.core as mx
     import mlx.optimizers as optim
     from mlx.utils import tree_flatten, tree_map
@@ -284,14 +290,21 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         master_params = tree_map(lambda value: value.astype(mx.float32), model.parameters())
         optimizer.master_params = master_params
     randomizer = random.Random(seed)
+    session = PosttrainResume(resume, 'mlx', records, tokenizer,
+        dict(method=method, max_steps=max_steps, batch_size=batch_size, learning_rate=learning_rate,
+             beta=beta, max_length=max_length, seed=seed))
+    session.restore(model, optimizer, reference, randomizer)
+    master_params = getattr(optimizer, 'master_params', master_params)
     final_path = out_dir / "model.safetensors"
-    if final_path.exists() or any(out_dir.glob("checkpoint_step_*.safetensors")):
+    if resume is None and (final_path.exists() or any(out_dir.glob("checkpoint_step_*.safetensors"))):
         raise FileExistsError(f"Output directory already contains MLX checkpoints: {out_dir}")
 
     def save(step, final=False):
         path = final_path if final else out_dir / f"checkpoint_step_{step}.safetensors"
         mx.eval(model.parameters(), optimizer.state)
-        model.save_weights(str(path))
+        from telos.training.checkpoint import atomic_write
+        atomic_write(path, lambda tmp: model.save_weights(tmp))
+        session.save(path.with_suffix('.resume.npz'), model, optimizer, step, reference, randomizer)
         cfg = copy.deepcopy(source_config)
         cfg.setdefault("model", {}).update({
             "vocab_size": model.vocab_size, "d_model": model.d_model,
@@ -307,10 +320,10 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         return path
 
     value_and_grad = mx.value_and_grad(_mlx_loss)
-    for step in range(1, max_steps + 1):
+    for step in range(session.step + 1, max_steps + 1):
         batch = randomizer.choices(records, k=batch_size)
         if method == "sft":
-            ids, labels, _ = _collate(batch, tokenizer, max_length, torch.device("cpu"))
+            ids, labels = _collate(batch, tokenizer, max_length, torch.device("cpu"))
             ids, labels = mx.array(ids.numpy(), dtype=mx.int32), mx.array(labels.numpy(), dtype=mx.int32)
             loss, grads = value_and_grad(model, ids, labels)
         else:
@@ -403,10 +416,14 @@ def _xla_posttrain_worker(index, arguments):
     max_length = min(arguments["max_length"], model.config.max_seq_len)
     batch_size = arguments["batch_size"]
     out_dir = Path(arguments["output"])
+    session = PosttrainResume(arguments.get('resume'), 'xla', records, tokenizer,
+        {k: arguments[k] for k in ('method', 'max_steps', 'batch_size', 'learning_rate', 'beta', 'max_length', 'seed')},
+        rank=rank, world_size=world_size)
+    session.restore(model, optimizer, reference, randomizer)
     output_collision = False
     if rank == 0:
         out_dir.mkdir(parents=True, exist_ok=True)
-        output_collision = (out_dir / "checkpoint_final.pt").exists() or any(out_dir.glob("checkpoint_step_*.pt"))
+        output_collision = not arguments.get("resume") and ((out_dir / "checkpoint_final.pt").exists() or any(out_dir.glob("checkpoint_step_*.pt")))
     collision = xm.mesh_reduce("telos_posttrain_output_collision", output_collision, any)
     if collision:
         raise FileExistsError(f"Output directory already contains checkpoints: {out_dir}")
@@ -430,7 +447,7 @@ def _xla_posttrain_worker(index, arguments):
                 "process_world_size": process_world, "step": step,
             }
             path = out_dir / ("checkpoint_final.pt" if final else f"checkpoint_step_{step}.pt")
-            torch.save({
+            _atomic_torch_save({
                 "global_step": step,
                 "model_state_dict": _to_cpu(model.state_dict()),
                 "optimizer_state_dict": _to_cpu(optimizer.state_dict()),
@@ -438,9 +455,12 @@ def _xla_posttrain_worker(index, arguments):
             }, path)
             (out_dir / "config.json").write_text(json.dumps(config, indent=2, default=str), encoding="utf-8")
             print(f"Saved XLA post-trained checkpoint: {path}", flush=True)
+        resume_path = out_dir / ("checkpoint_final.resume.pt" if final else f"checkpoint_step_{step}.resume.pt")
+        session.save(resume_path, model, optimizer, step, reference, randomizer)
         xm.rendezvous(f"telos_posttrain_save_{step}_done")
 
-    for step in range(1, arguments["max_steps"] + 1):
+    for step in range(session.step + 1, arguments["max_steps"] + 1):
+        xm.set_rng_state(arguments["seed"] + step * world_size + rank)
         global_batch = randomizer.choices(records, k=batch_size * world_size)
         local_batch = global_batch[rank * batch_size:(rank + 1) * batch_size]
         optimizer.zero_grad(set_to_none=True)
@@ -500,6 +520,7 @@ def posttrain(
     max_length: int | None = None,
     save_every: int = 250,
     seed: int = 42,
+    resume: str | Path | None = None,
 ) -> Path:
     """Run full-parameter SFT or DPO and write a native Telos checkpoint."""
     method = method.lower()
@@ -530,7 +551,7 @@ def posttrain(
         _read_records(data, method)
         output_path = Path(output)
         output_path.mkdir(parents=True, exist_ok=True)
-        if (output_path / "checkpoint_final.pt").exists() or any(output_path.glob("checkpoint_step_*.pt")):
+        if resume is None and ((output_path / "checkpoint_final.pt").exists() or any(output_path.glob("checkpoint_step_*.pt"))):
             raise FileExistsError(f"Output directory already contains checkpoints: {output_path}")
         arguments = {
             "checkpoint": str(checkpoint_path), "data": str(data), "output": str(output_path),
@@ -538,7 +559,7 @@ def posttrain(
             "method": method, "devices": str(devices), "max_steps": max_steps,
             "batch_size": batch_size, "learning_rate": learning_rate, "beta": beta,
             "max_length": max_length or int(model_config.get("max_seq_len", model_config.get("seq_len", 512))),
-            "save_every": save_every, "seed": seed,
+            "save_every": save_every, "seed": seed, "resume": str(resume) if resume else None,
         }
         return _posttrain_xla(arguments)
 
@@ -580,7 +601,7 @@ def posttrain(
             model, backend, checkpoint_path, source_config, records, tokenizer, out_dir,
             method=method, max_steps=max_steps, batch_size=batch_size,
             learning_rate=learning_rate, beta=beta, max_length=max_length,
-            save_every=save_every, seed=seed,
+            save_every=save_every, seed=seed, resume=resume,
         )
 
     if backend != "pytorch":
@@ -628,8 +649,13 @@ def posttrain(
     final_path = out_dir / "checkpoint_final.pt"
     if final_path.resolve() == checkpoint_path.resolve():
         raise ValueError("Output checkpoint must not overwrite the starting checkpoint")
-    if final_path.exists() or any(out_dir.glob("checkpoint_step_*.pt")):
+    if resume is None and (final_path.exists() or any(out_dir.glob("checkpoint_step_*.pt"))):
         raise FileExistsError(f"Output directory already contains checkpoints: {out_dir}")
+
+    session = PosttrainResume(resume, backend_name, records, tokenizer,
+        dict(method=method, max_steps=max_steps, batch_size=batch_size, learning_rate=learning_rate,
+             beta=beta, max_length=max_length, seed=seed))
+    session.restore(model, optimizer, reference)
 
     def save(step: int, final: bool = False):
         output_path = out_dir / ("checkpoint_final.pt" if final else f"checkpoint_step_{step}.pt")
@@ -645,16 +671,17 @@ def posttrain(
             "use_reliability_head": model.reliability_head is not None,
         })
         saved_config["paradigm"] = "ar"
-        torch.save({
+        _atomic_torch_save({
             "global_step": step,
             "model_state_dict": {key: value.detach().cpu() for key, value in getattr(model, "module", model).state_dict().items()},
             "optimizer_state_dict": optimizer.state_dict(),
             "config": saved_config,
             "posttrain": {"method": method, "source_checkpoint": str(checkpoint_path), "step": step},
         }, output_path)
+        session.save(output_path.with_suffix('.resume.pt'), model, optimizer, step, reference)
         return output_path
 
-    for step in range(1, max_steps + 1):
+    for step in range(session.step + 1, max_steps + 1):
         batch = random.choices(records, k=batch_size)
         optimizer.zero_grad(set_to_none=True)
         if method == "sft":

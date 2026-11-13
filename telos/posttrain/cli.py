@@ -21,6 +21,7 @@ def main():
     parser.add_argument("--beta", type=float, default=0.1, help="DPO divergence scale")
     parser.add_argument("--max-length", type=int, default=None)
     parser.add_argument("--save-every", type=int, default=250, help="Checkpoint cadence; 0 disables intermediate checkpoints")
+    parser.add_argument("--resume", default=None, help="Full .resume.pt or .resume.npz checkpoint; repeat original run options")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
     posttrain(
@@ -28,7 +29,7 @@ def main():
         method=args.method, tokenizer_path=args.tokenizer, hardware=args.hardware, devices=args.devices,
         max_steps=args.max_steps, batch_size=args.batch_size,
         learning_rate=args.learning_rate, beta=args.beta,
-        max_length=args.max_length, save_every=args.save_every, seed=args.seed,
+        max_length=args.max_length, save_every=args.save_every, seed=args.seed, resume=args.resume,
     )
 
 
