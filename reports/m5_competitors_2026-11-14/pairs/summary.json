@@ -1,0 +1,69 @@
+{
+  "trials": [
+    {
+      "trial": "00_telos",
+      "implementation": "telos",
+      "input_tokens_per_second": 21351.739447553384,
+      "target_tokens_per_second": 21268.334215336377,
+      "warmed_seconds": 39.90157345694024,
+      "median_step_seconds": 0.7565499170159455,
+      "peak_mlx_gib": 2.410204980522394,
+      "initial_heldout_loss": 9.522920608520508,
+      "final_heldout_loss": 6.803462505340576
+    },
+    {
+      "trial": "01_mlx_lm",
+      "implementation": "mlx_lm",
+      "input_tokens_per_second": 7043.296933509057,
+      "target_tokens_per_second": 7015.784054862538,
+      "warmed_seconds": 120.96153378777672,
+      "median_step_seconds": 2.2916366874706,
+      "peak_mlx_gib": 2.2300252467393875,
+      "initial_heldout_loss": 9.522920608520508,
+      "final_heldout_loss": 6.802844047546387
+    },
+    {
+      "trial": "02_mlx_lm",
+      "implementation": "mlx_lm",
+      "input_tokens_per_second": 13735.22591199318,
+      "target_tokens_per_second": 13681.572685774456,
+      "warmed_seconds": 62.02795683586737,
+      "median_step_seconds": 1.1275908749958035,
+      "peak_mlx_gib": 2.2270641177892685,
+      "initial_heldout_loss": 9.522920608520508,
+      "final_heldout_loss": 6.802695274353027
+    },
+    {
+      "trial": "03_telos",
+      "implementation": "telos",
+      "input_tokens_per_second": 16722.20180062833,
+      "target_tokens_per_second": 16656.880699844623,
+      "warmed_seconds": 50.94831471104408,
+      "median_step_seconds": 0.9718129164830316,
+      "peak_mlx_gib": 2.410204842686653,
+      "initial_heldout_loss": 9.522920608520508,
+      "final_heldout_loss": 6.803438186645508
+    }
+  ],
+  "pooled": {
+    "telos": {
+      "pooled_input_tokens_per_second": 18755.510153731488,
+      "mean_peak_mlx_gib": 2.4102049116045237,
+      "mean_final_heldout_loss": 6.803450345993042,
+      "repetition_max_min_throughput_ratio": 1.2768497654866897
+    },
+    "mlx_lm": {
+      "pooled_input_tokens_per_second": 9311.66043575966,
+      "mean_peak_mlx_gib": 2.228544682264328,
+      "mean_final_heldout_loss": 6.802769660949707,
+      "repetition_max_min_throughput_ratio": 1.9501131418507613
+    }
+  },
+  "telos_throughput_change_pct": 101.41961020941568,
+  "interpretation": "Exploratory measurements. Inspect repetition drift and system telemetry before attributing a pooled speed difference to the implementation.",
+  "limitations": [
+    "Common backbone harness; not native trainer ranking",
+    "Short run; not time to quality or convergence evidence",
+    "Two repetitions per implementation; no statistical superiority claim"
+  ]
+}
