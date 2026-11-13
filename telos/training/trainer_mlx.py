@@ -264,7 +264,7 @@ class UnifiedMLXTrainer:
                 loss_and_grad_fn = mx_nn.value_and_grad(self.model, corosred_unified_loss_fn_mlx)
                 compilation_targets = [self.model.state]
 
-                def microbatch_step_uncompiled(batch_seqs, alpha, beta, gamma):
+                def microbatch_step_uncompiled(batch_seqs, alpha, beta, gamma, mask_blend):
                     (loss, ce), grads = loss_and_grad_fn(
                         self.model,
                         batch_seqs,
@@ -272,6 +272,7 @@ class UnifiedMLXTrainer:
                         alpha=alpha,
                         beta=beta,
                         gamma=gamma,
+                        mask_blend=mask_blend,
                         mask_token_id=mask_token_id,
                         mask_prob=mask_prob,
                         k_amb=k_amb,
@@ -339,6 +340,7 @@ class UnifiedMLXTrainer:
                 dummy_seqs,
                 mx.array(0.85, dtype=mx.float32),
                 mx.array(0.15, dtype=mx.float32),
+                mx.array(0.0, dtype=mx.float32),
                 mx.array(0.0, dtype=mx.float32)
             )
         else:
@@ -584,6 +586,7 @@ class UnifiedMLXTrainer:
                 alpha_mx = mx.array(w["alpha"], dtype=mx.float32)
                 beta_mx = mx.array(w["beta"], dtype=mx.float32)
                 gamma_mx = mx.array(w["gamma"], dtype=mx.float32)
+                blend_mx = mx.array(w["mask_blend"], dtype=mx.float32)
 
             def batch_gen():
                 # Slice lazily from the numpy array per microbatch to cut resident MLX batch memory ~grad_accum×
@@ -594,7 +597,7 @@ class UnifiedMLXTrainer:
                         t_vals = self._sample_beta_timesteps(bs)
                         yield (batch_seqs, t_vals)
                     elif self.paradigm == "corosred" and (getattr(self, "is_unified", False) or self.phase == "UNIFIED"):
-                        yield (batch_seqs, alpha_mx, beta_mx, gamma_mx)
+                        yield (batch_seqs, alpha_mx, beta_mx, gamma_mx, blend_mx)
                     else:
                         yield batch_seqs
 
