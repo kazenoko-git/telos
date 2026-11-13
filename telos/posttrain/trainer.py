@@ -654,7 +654,8 @@ def posttrain(
 
     session = PosttrainResume(resume, backend_name, records, tokenizer,
         dict(method=method, max_steps=max_steps, batch_size=batch_size, learning_rate=learning_rate,
-             beta=beta, max_length=max_length, seed=seed))
+             beta=beta, max_length=max_length, seed=seed),
+        world_size=len(device_ids) if backend_name == "cuda" else 1)
     session.restore(model, optimizer, reference)
 
     def save(step: int, final: bool = False):
