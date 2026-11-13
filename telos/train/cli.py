@@ -310,7 +310,7 @@ def train(
             return None
 
         except Exception as e:
-            print(f"  [Notice] Multi-core xmp.spawn skipped ({e}). Proceeding on single core.")
+            raise RuntimeError("Multi-core XLA training failed; refusing single-core fallback") from e
 
     from telos.training import set_global_seed
     resolved_seed = int(t_cfg.get("seed", kwargs.get("seed", seed)))

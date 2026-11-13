@@ -1048,17 +1048,7 @@ def _evaluate_single(
         # Local Télos Checkpoint
         model, backend, vocab_size = load_model_from_checkpoint(checkpoint)
         dev = kwargs.get("device", "auto")
-        if hasattr(model, "to"):
-            try:
-                import torch
-                if dev and dev != "auto":
-                    model = model.to(torch.device(dev))
-                elif torch.cuda.is_available():
-                    model = model.to(torch.device("cuda:0"))
-                elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-                    model = model.to(torch.device("mps"))
-            except Exception:
-                pass
+        model = _place_native_model(model, backend, dev)
 
     if tokenizer_path is None:
         if vocab_size == 8192 and (PROJECT_ROOT / "configs" / "tokenizer_mac.json").exists():
@@ -1347,6 +1337,25 @@ def print_multimodel_scorecard(multi_reports: Dict[str, Any], mode: str):
     print("=" * 115 + "\n")
 
 
+def _place_native_model(model, backend, device="auto"):
+    """Resolve native evaluation placement without hiding requested-device errors."""
+    if backend == "mlx":
+        if device not in (None, "auto", "mlx"):
+            raise ValueError("MLX checkpoints require MLX evaluation")
+        return model
+    import torch
+    from telos.training.xla_utils import get_xla_device, is_tpu_environment
+    if device in ("xla", "tpu") or (device in (None, "auto") and is_tpu_environment()):
+        target = get_xla_device()
+    elif device not in (None, "auto"):
+        target = torch.device(device)
+    elif torch.cuda.is_available():
+        target = torch.device("cuda:0")
+    else:
+        target = torch.device("cpu")
+    return model.to(target)
+
+
 def evaluate(
     checkpoint: str | Path | list[str | Path] | tuple[str | Path, ...],
     mode: str = "probes",
@@ -1469,7 +1478,7 @@ def main():
     parser.add_argument("--api-base", type=str, default=None, help="Base URL for OpenAI-compatible REST server (e.g. http://localhost:8000/v1)")
     parser.add_argument("--api-key", type=str, default=None, help="API key for OpenAI or Gemini")
     parser.add_argument("--concurrency", type=int, default=8, help="Number of concurrent worker threads for API models")
-    parser.add_argument("--device", type=str, default="auto", help="Torch device ('auto', 'cpu', 'cuda', 'mps')")
+    parser.add_argument("--device", type=str, default="auto", help="Native device ('auto', 'cpu', 'cuda', 'xla', 'mlx')")
     parser.add_argument("--torch-dtype", type=str, default="bfloat16", help="Precision for HuggingFace models ('bfloat16', 'float16', 'float32')")
     parser.add_argument("--quantization", type=str, default=None, choices=["4bit", "8bit", None], help="Quantization for HF models")
     parser.add_argument(
