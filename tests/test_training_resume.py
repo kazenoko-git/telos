@@ -144,7 +144,7 @@ def test_resume_rejects_changed_schedule_and_distributed_state(tmp_path):
     saved = read_resume(tmp_path / 'out/checkpoint_step_2.pt')
     saved['world_size'] = 8
     torch.save(saved, tmp_path / 'distributed.pt')
-    with pytest.raises(ValueError, match='single training'):
+    with pytest.raises(ValueError, match='world size and rank'):
         trainer(cfg, 'ar').load_checkpoint(tmp_path / 'distributed.pt')
 
 
@@ -182,3 +182,24 @@ def test_cli_resume_in_fresh_process_and_different_directory(tmp_path, hardware)
         for key in ('model', 'master_params', 'optimizer', 'mlx_rng'):
             for (_, x), (_, y) in zip(tree_flatten(a[key]), tree_flatten(b[key])):
                 assert mx.array_equal(x, y).item()
+
+
+@pytest.mark.parametrize('rank', [0, 1])
+def test_rank_specific_resume_replays_without_shared_cursor(tmp_path, rank):
+    from telos.posttrain.resume import rank_path
+    cfg = config(tmp_path, 'mdlm')
+    reference = trainer(cfg, 'mdlm')
+    reference.world_size = 2
+    reference.rank = rank
+    reference.is_master = rank == 0
+    reference.train()
+    expected = read_resume(rank_path(tmp_path/'out/checkpoint_final.pt',rank))
+    restored = trainer(cfg, 'mdlm')
+    restored.world_size = 2
+    restored.rank = rank
+    restored.is_master = rank == 0
+    restored.load_checkpoint(tmp_path/'out/checkpoint_step_2.pt')
+    restored.train()
+    actual = read_resume(rank_path(tmp_path/'out/checkpoint_final.pt',rank))
+    for key in ('model_state_dict','optimizer_state_dict','next_row','torch_rng'):
+        assert_tree_equal(expected[key],actual[key])

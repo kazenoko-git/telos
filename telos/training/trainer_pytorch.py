@@ -454,19 +454,23 @@ class UnifiedPyTorchTrainer:
         }
         if self.is_tpu:
             state["xla_rng"] = xm.get_rng_state(self.device)
+        state["rank"] = self.rank
+        state["step_rng"] = self.is_tpu
         state = cpu_copy(state)
         # Checkpoint errors propagate to the caller; atomic replacement preserves
         # the last good checkpoint even if serialization or disk writes fail.
-        atomic_write(path, lambda temporary: torch.save(state, temporary))
+        from telos.posttrain.resume import rank_path
+        atomic_write(rank_path(path, self.rank), lambda temporary: torch.save(state, temporary))
 
     def load_checkpoint(self, path: str | Path):
         from .checkpoint import read_resume, validate_resume
-        checkpoint = read_resume(path)
+        from telos.posttrain.resume import rank_path
+        checkpoint = read_resume(rank_path(path, self.rank))
         validate_resume(checkpoint, self.cfg, f"pytorch:{self.device.type}")
         if checkpoint["precision"] != self.precision:
             raise ValueError("Resume precision differs from the saved training run")
-        if checkpoint.get("world_size", 1) != 1 or self.world_size != 1:
-            raise ValueError("Complete resume currently requires a single training process/device")
+        if checkpoint.get("world_size", 1) != self.world_size or checkpoint.get("rank", 0) != self.rank:
+            raise ValueError("Resume requires the original world size and rank")
         raw_model = getattr(self.model, "_orig_mod", self.model)
         raw_model = getattr(raw_model, "module", raw_model)
         raw_model.load_state_dict(checkpoint["model_state_dict"], strict=True)
@@ -796,6 +800,10 @@ class UnifiedPyTorchTrainer:
             prefetch_thread.start()
 
         for step in range(resume_step + 1, self.max_steps + 1):
+            if self.is_tpu:
+                import torch_xla.core.xla_model as xm
+                # Stateless per-update seeding survives XLA graph retracing.
+                xm.set_rng_state(self.seed + step * max(1, self.world_size) + self.rank, self.device)
             t_step_start = time.perf_counter()
 
             if prefetch_queue is not None:
@@ -1033,7 +1041,7 @@ class UnifiedPyTorchTrainer:
                     import torch_xla.core.xla_model as xm
                     xm.rendezvous(f"checkpoint_save_{step}")
 
-                if self.is_master:
+                if self.is_master or self.world_size > 1:
                     self.save_checkpoint(ckpt_file)
                     print(f"  [Checkpoint Step {step:>6d}] Successfully saved weights to {ckpt_file}\n", flush=True)
 
@@ -1062,8 +1070,9 @@ class UnifiedPyTorchTrainer:
             xm.mark_step()
             xm.rendezvous("checkpoint_final_start")
 
-        if self.is_master:
+        if self.is_master or self.world_size > 1:
             self.save_checkpoint(ckpt_dir / "checkpoint_final.pt", sync=True)
+        if self.is_master:
             # Write standalone config.json for eval loader and downstream tools
             with open(ckpt_dir / "config.json", "w", encoding="utf-8") as f:
                 json.dump(self.cfg, f, indent=2, default=str)

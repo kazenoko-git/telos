@@ -222,8 +222,8 @@ def train(
         cfg = deepcopy(saved["config"])
         if hardware != "auto" and original_backend != (cfg["_backend"], cfg["_device"]):
             raise ValueError("Reliable resume requires the original backend/device")
-        if cfg.get("_device_count", 1) != 1 or devices not in ("auto", 1, "1"):
-            raise ValueError("Complete resume currently requires a single training process/device")
+        if devices != "auto" and int(devices) != cfg.get("_device_count", 1):
+            raise ValueError("Resume requires the original device count")
         if benchmark:
             raise ValueError("Resume cannot be combined with benchmark mode")
         paradigm = cfg["paradigm"]
@@ -293,7 +293,8 @@ def train(
                     config_path=config_path,
                     data_path=data_path,
                     synthetic=synthetic,
-                    resume_step=resume_step,
+                    resume_step=0 if resume_checkpoint is not None else resume_step,
+                    resume_checkpoint=resume_checkpoint,
                     eval_policy=eval_policy,
                     benchmark=benchmark,
                     benchmark_duration=benchmark_duration,
