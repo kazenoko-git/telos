@@ -14,5 +14,44 @@
   "corosred": {
     "resume_max_abs": 0.0017927661538124084,
     "evaluation_device": "xla:0"
+  },
+  "v1.5.5_retry": {
+    "runtime": {
+      "colab": "TPU v5e-1 (single worker)",
+      "python": "3.13.18",
+      "torch": "2.8.0+cu128",
+      "torch_xla": "2.8.1",
+      "telos_ml": "1.5.5"
+    },
+    "pretraining_resume": {
+      "ar": {
+        "max_abs_weight_delta": 0.0,
+        "exact_weight_match": true
+      },
+      "mdlm": {
+        "max_abs_weight_delta": 0.0,
+        "exact_weight_match": true
+      },
+      "undlm": {
+        "max_abs_weight_delta": 0.0,
+        "exact_weight_match": true
+      },
+      "corosred": {
+        "max_abs_weight_delta": 0.0,
+        "exact_weight_match": true
+      }
+    },
+    "posttraining_resume": {
+      "sft": {
+        "max_abs_weight_delta": 0.0,
+        "exact_weight_match": true
+      },
+      "dpo": {
+        "max_abs_weight_delta": 0.0,
+        "exact_weight_match": true
+      }
+    },
+    "method": "Four-step uninterrupted runs compared against step-2 full-state resume, single XLA rank.",
+    "limitation": "SFT/DPO worker and resume paths passed by direct single-worker dispatch, because torch_xla.launch failed in this Colab v5e-1 runtime: slice builder expected 4 worker addresses but received 1. The default launcher path remains unverified/failing on this runtime."
   }
 }
