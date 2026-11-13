@@ -5,6 +5,11 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.4] - 2026-11-13
+
+### Fixed
+- Enable multi-GPU CUDA SFT and DPO with device-count validation, per-device batching, and unwrapped portable model checkpoints.
+
 ## [1.5.3] - 2026-11-13
 
 ### Fixed
@@ -149,7 +154,8 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
   virtualized, or sandboxed macOS sessions): `telos train`, `telos bench` and
   `telos test` fall back to the PyTorch CPU path instead of aborting the process.
 
-[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.5.3...HEAD
+[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.5.4...HEAD
+[1.5.4]: https://github.com/kazenoko-git/telos/compare/v1.5.3...v1.5.4
 [1.5.3]: https://github.com/kazenoko-git/telos/compare/v1.5.2...v1.5.3
 [1.5.2]: https://github.com/kazenoko-git/telos/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/kazenoko-git/telos/compare/v1.5.0...v1.5.1
