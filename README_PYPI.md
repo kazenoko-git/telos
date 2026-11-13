@@ -159,3 +159,11 @@ model, backend, vocab_size = load_model_from_checkpoint("checkpoints/model.pt")
 ## License
 
 Télos is licensed under the [Apache 2.0 License](https://github.com/kazenoko-git/telos/blob/main/LICENSE).
+
+### Resume pretraining
+
+Use `telos pretrain --resume checkpoints/ar/checkpoint_step_1000.resume.npz` on MLX,
+or pass a complete `.pt` training checkpoint on PyTorch. v1.5.1 restores training
+state and the saved run configuration on one process/device, and rejects changed
+data or incompatible checkpoints. Older weights can start a new run through
+`--init-checkpoint`. See the [resume guide](https://github.com/kazenoko-git/telos/blob/main/cli/README.md#resuming-pretraining).

@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-11-13
+
+### Added
+- Complete pretraining resume checkpoints on MLX and single-process PyTorch: model, optimizer, master weights, scheduler, RNGs, data cursor, diffusion state, and PyTorch COROSred tracking/routing state.
+- `telos pretrain --resume PATH` restores the original run configuration and checks dataset and tokenizer fingerprints. Legacy numeric resume resolves an actual checkpoint instead of skipping steps.
+
+### Fixed
+- Write training checkpoints atomically and propagate save failures, preserving the previous complete checkpoint.
+- Restore PyTorch scheduler state without advancing it a second time; preserve MLX optimizer initialization and fp32 master weights.
+- Reject incomplete/legacy and distributed checkpoints for full resume; retain weights-only initialization through `--init-checkpoint`.
+- Create published GitHub releases with changelog notes and distribution assets after tagged PyPI publication.
+
 ## [1.5.0] - 2026-11-13
 
 ### Security
@@ -124,7 +136,8 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
   virtualized, or sandboxed macOS sessions): `telos train`, `telos bench` and
   `telos test` fall back to the PyTorch CPU path instead of aborting the process.
 
-[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/kazenoko-git/telos/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/kazenoko-git/telos/compare/v1.4.0...v1.5.0
 [1.1.0]: https://github.com/kazenoko-git/telos/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/kazenoko-git/telos/releases/tag/v1.0.0

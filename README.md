@@ -62,6 +62,16 @@ telos dataprep --corpus ./my_text_or_code --output data/corpus.bin
 telos pretrain --paradigm ar --params 50M --tokens 300M --data data/corpus.bin
 ```
 
+Resume pretraining from a complete checkpoint (v1.5.1+, one process/device):
+
+```bash
+telos pretrain --resume checkpoints/ar/checkpoint_step_1000.resume.npz  # MLX
+telos pretrain --resume checkpoints/ar/checkpoint_step_1000.pt          # PyTorch
+```
+
+The saved configuration, optimizer, randomness, and data cursor are restored.
+See the [resume guide](cli/README.md#resuming-pretraining) for compatibility and validation details.
+
 Post-train a pretrained causal checkpoint with SFT or DPO:
 
 ```bash

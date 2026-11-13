@@ -93,6 +93,45 @@ telos pretrain --paradigm corosred --params 50M --tokens 2.5B --causal-ratio 0.6
 telos pretrain --paradigm ar --params 100M --tokens 5B --hardware xla --devices 8 --data data/python_corpus_5b.bin
 ```
 
+### Resuming pretraining
+
+Resume from a complete checkpoint without repeating the original configuration:
+
+```bash
+# Apple Silicon / MLX
+telos pretrain --resume checkpoints/ar/checkpoint_step_1000.resume.npz
+
+# PyTorch CPU or a single CUDA device
+telos pretrain --resume checkpoints/ar/checkpoint_step_1000.pt
+```
+
+Télos restores the model, optimizer moments, fp32 master weights when used,
+learning-rate position, random generators, diffusion sampling state, and the next
+unconsumed data row. COROSred also restores its metric tracker and routing cache
+on PyTorch. Checkpoints are written atomically so a failed save preserves the
+previous complete file. MLX continues to export `.safetensors` weights for evaluation;
+its separate `.resume.npz` checkpoint contains the complete training state.
+
+Resume uses the saved architecture, objective, batching, seed, and original total
+step budget. `--checkpoint-dir` can select a new output directory. `--data` can
+relocate the same corpus; its token contents, shape, and dtype must match the saved
+fingerprint. Changed data, tokenizers, backends, and incompatible configurations
+are rejected. Custom tokenizer files must remain available at their recorded paths.
+Data fingerprints read the full corpus once when training starts.
+
+v1.5.1 resume supports one training process/device. Distributed resume and SFT/DPO
+resume are not supported. CPU interruption tests are bit-exact; native MLX tests
+verify state restoration and continuation, with rounding tolerance for parallel GPU
+reductions. Identical numerical results across hardware or runtime versions are not
+guaranteed. CUDA and single-device XLA paths require hardware validation.
+
+Only checkpoints written with complete v1.5.1 training state can resume. Older
+checkpoints and exported weights can initialize a new run with `--init-checkpoint`.
+The legacy `--resume-step N` syntax resolves a complete checkpoint in the selected
+checkpoint directory; it no longer skips updates with fresh training state.
+After an interruption, resume the most recent completed checkpoint; work after that
+checkpoint is repeated. `--save-every 0` disables intermediate saves.
+
 ---
 
 ## 4. Post-training (`telos posttrain`)
