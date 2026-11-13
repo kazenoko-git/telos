@@ -467,6 +467,8 @@ class UnifiedPyTorchTrainer:
         from telos.posttrain.resume import rank_path
         checkpoint = read_resume(rank_path(path, self.rank))
         validate_resume(checkpoint, self.cfg, f"pytorch:{self.device.type}")
+        if self.is_tpu and self.paradigm != "ar" and not checkpoint.get("step_rng", False):
+            raise ValueError("Stochastic XLA resume requires a checkpoint using step-indexed RNG")
         if checkpoint["precision"] != self.precision:
             raise ValueError("Resume precision differs from the saved training run")
         if checkpoint.get("world_size", 1) != self.world_size or checkpoint.get("rank", 0) != self.rank:

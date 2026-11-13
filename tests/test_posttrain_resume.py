@@ -23,7 +23,8 @@ def test_posttrain_resume_replays(tmp_path, method, hardware):
         dict(vocab_size=cfg.vocab_size,d_model=16,n_layers=1,n_heads=2,n_kv_heads=2,max_seq_len=16,is_causal=True)}}, source)
     row = {'prompt': '1+1?', 'response': '2'} if method == 'sft' else {'prompt': '1+1?', 'chosen': '2', 'rejected': '4'}
     data = tmp_path / 'data.jsonl'
-    data.write_text(json.dumps(row)+'\n')
+    rows = [row, dict(row, prompt='2+2?'), dict(row, prompt='3+3?')]
+    data.write_text(''.join(json.dumps(item)+'\n' for item in rows))
     options = dict(method=method,hardware=hardware,devices=1,max_steps=4,batch_size=1,max_length=8,save_every=2)
     first = posttrain(source,data,tmp_path/'first',**options)
     suffix = '.resume.npz' if hardware == 'mlx' else '.resume.pt'

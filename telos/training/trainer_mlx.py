@@ -268,7 +268,7 @@ class UnifiedMLXTrainer:
                 loss_and_grad_fn = mx_nn.value_and_grad(self.model, corosred_unified_loss_fn_mlx)
                 compilation_targets = [self.model.state]
 
-                def microbatch_step_uncompiled(batch_seqs, alpha, beta, gamma, mask_blend):
+                def microbatch_step_uncompiled(batch_seqs, alpha, beta, gamma, mask_blend=0.0):
                     (loss, ce), grads = loss_and_grad_fn(
                         self.model,
                         batch_seqs,
