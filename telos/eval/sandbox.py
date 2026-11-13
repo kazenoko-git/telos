@@ -27,9 +27,11 @@ def sandbox_command(
     """
     scratch = Path(scratch_dir).resolve()
     scratch.mkdir(parents=True, exist_ok=True)
-    executable_paths = tuple(
-        dict.fromkeys(str(Path(path).resolve()) for path in (command[0], *extra_executables))
-    )
+    executable_paths = tuple(dict.fromkeys(
+        executable
+        for path in (command[0], *extra_executables)
+        for executable in (str(Path(path).absolute()), str(Path(path).resolve()))
+    ))
     safe_env = {
         "PATH": os.pathsep.join(dict.fromkeys(str(Path(path).parent) for path in executable_paths)),
         "HOME": str(scratch),
@@ -58,7 +60,9 @@ def sandbox_command(
         for executable in executable_paths:
             read_roots.add(str(Path(executable).parent))
             read_roots.add(str(Path(executable).parent.parent))
-        rules = ["(version 1)", "(deny default)", "(allow process-fork)", "(deny network*)"]
+        rules = ["(version 1)", "(deny default)", "(deny network*)"]
+        if extra_executables:
+            rules.append("(allow process-fork)")
         rules.extend(f"(allow file-read* (subpath {json.dumps(root)}))" for root in sorted(read_roots))
         rules.extend([
             '(allow file-read* (literal "/dev/null"))',

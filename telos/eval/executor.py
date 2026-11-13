@@ -36,6 +36,7 @@ except (AttributeError, OSError, ValueError):
 try:
     resource.setrlimit(resource.RLIMIT_FSIZE, (16 * 1024 * 1024, 16 * 1024 * 1024))
     resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))
+    resource.setrlimit(resource.RLIMIT_NPROC, (64, 64))
 except (AttributeError, OSError, ValueError):
     pass
 os.chdir(payload["scratch_dir"])
