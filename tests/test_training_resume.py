@@ -146,3 +146,39 @@ def test_resume_rejects_changed_schedule_and_distributed_state(tmp_path):
     torch.save(saved, tmp_path / 'distributed.pt')
     with pytest.raises(ValueError, match='single training'):
         trainer(cfg, 'ar').load_checkpoint(tmp_path / 'distributed.pt')
+
+
+@pytest.mark.parametrize('hardware', ['cpu', 'mlx'])
+def test_cli_resume_in_fresh_process_and_different_directory(tmp_path, hardware):
+    import os
+    from pathlib import Path
+    import subprocess
+    import sys
+    if hardware == 'mlx':
+        from telos.training.core import metal_usable
+        if not metal_usable():
+            pytest.skip('Metal is required')
+    root = Path(__file__).resolve().parents[1]
+    env = dict(os.environ, PYTHONPATH=str(root))
+    first, resumed = tmp_path / 'first', tmp_path / 'resumed'
+    args = [sys.executable, '-m', 'telos.cli', 'pretrain', '--paradigm', 'ar',
+            '--d-model', '128', '--n-layers', '1', '--seq-len', '8', '--vocab-size', '32',
+            '--max-steps', '4', '--warmup-steps', '1', '--batch-size', '2', '--grad-accum', '1',
+            '--synthetic', '--hardware', hardware, '--devices', '1',
+            '--checkpoint-dir', str(first), '--save-every', '2']
+    subprocess.run(args, env=env, cwd=root, check=True, capture_output=True, text=True)
+    suffix = '.resume.npz' if hardware == 'mlx' else '.pt'
+    subprocess.run([sys.executable, '-m', 'telos.cli', 'pretrain', '--resume',
+                    str(first / ('checkpoint_step_2' + suffix)), '--checkpoint-dir', str(resumed)],
+                   env=env, cwd=tmp_path, check=True, capture_output=True, text=True)
+    a = read_resume(first / ('checkpoint_final' + suffix))
+    b = read_resume(resumed / ('checkpoint_final' + suffix))
+    if hardware == 'cpu':
+        for key in ('model_state_dict', 'optimizer_state_dict', 'scheduler_state_dict', 'torch_rng'):
+            assert_tree_equal(a[key], b[key])
+    else:
+        import mlx.core as mx
+        from mlx.utils import tree_flatten
+        for key in ('model', 'master_params', 'optimizer', 'mlx_rng'):
+            for (_, x), (_, y) in zip(tree_flatten(a[key]), tree_flatten(b[key])):
+                assert mx.array_equal(x, y).item()
