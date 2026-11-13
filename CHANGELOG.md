@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.5] - 2026-11-13
+
+### Fixed
+- Add complete SFT/DPO resume on CPU, CUDA, MLX and XLA, preserving frozen DPO references, optimizer state, RNGs and samplers.
+- Save and restore per-rank pretraining checkpoints with topology validation.
+- Seed XLA stochastic updates by global step and rank to avoid graph-tracing RNG drift; reject older stochastic checkpoints lacking this strategy. Physical TPU continuation retesting remains outstanding.
+- Preserve adaptive MLX COROSred loss tracking and correct MLX SFT collation.
+
 ## [1.5.4] - 2026-11-13
 
 ### Fixed
@@ -154,7 +162,8 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
   virtualized, or sandboxed macOS sessions): `telos train`, `telos bench` and
   `telos test` fall back to the PyTorch CPU path instead of aborting the process.
 
-[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.5.4...HEAD
+[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.5.5...HEAD
+[1.5.5]: https://github.com/kazenoko-git/telos/compare/v1.5.4...v1.5.5
 [1.5.4]: https://github.com/kazenoko-git/telos/compare/v1.5.3...v1.5.4
 [1.5.3]: https://github.com/kazenoko-git/telos/compare/v1.5.2...v1.5.3
 [1.5.2]: https://github.com/kazenoko-git/telos/compare/v1.5.1...v1.5.2
