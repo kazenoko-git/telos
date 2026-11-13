@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-11-13
+
+### Security
+- Run generated Python, JavaScript, and Rust evaluation code inside a network-denying OS sandbox on macOS and Linux; fail closed when the sandbox backend is unavailable.
+- Prevent JavaScript candidates from calling `process.exit` to skip the test harness.
+
+### Fixed
+- Do not count structural-only polyglot checks as functional execution passes when a runtime is unavailable.
+- Enforce `dataprep --tokens` exactly, including zero-token output.
+
 ## [Unreleased]
 
 ## [1.4.0] - 2026-11-12
@@ -114,6 +124,7 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
   virtualized, or sandboxed macOS sessions): `telos train`, `telos bench` and
   `telos test` fall back to the PyTorch CPU path instead of aborting the process.
 
-[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/kazenoko-git/telos/compare/v1.4.0...v1.5.0
 [1.1.0]: https://github.com/kazenoko-git/telos/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/kazenoko-git/telos/releases/tag/v1.0.0
