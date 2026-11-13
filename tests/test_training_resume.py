@@ -114,3 +114,35 @@ def test_rejects_legacy_weights_only_checkpoint(tmp_path):
     torch.save({'model_state_dict': {}}, path)
     with pytest.raises(ValueError, match='no complete training state'):
         read_resume(path)
+
+
+@pytest.mark.parametrize('backend', ['cpu'])
+def test_public_train_api_restores_saved_configuration(tmp_path, backend):
+    from telos.train.cli import train
+    result = train(paradigm='ar', d_model=128, n_layers=1, seq_len=8,
+                   vocab_size=32, max_steps=4, batch_size=2, grad_accum=1,
+                   warmup_steps=1, hardware=backend, devices=1, synthetic=True,
+                   checkpoint_dir=str(tmp_path / 'first'), save_every=2)
+    expected = read_resume(tmp_path / 'first/checkpoint_final.pt')
+    # Resume without restating any architecture, data, objective or LR options.
+    train(resume_checkpoint=tmp_path / 'first/checkpoint_step_2.pt',
+          checkpoint_dir=str(tmp_path / 'resumed'), hardware=backend)
+    actual = read_resume(tmp_path / 'resumed/checkpoint_final.pt')
+    assert_tree_equal(expected['model_state_dict'], actual['model_state_dict'])
+    assert_tree_equal(expected['optimizer_state_dict'], actual['optimizer_state_dict'])
+    assert_tree_equal(expected['scheduler_state_dict'], actual['scheduler_state_dict'])
+
+
+def test_resume_rejects_changed_schedule_and_distributed_state(tmp_path):
+    cfg = config(tmp_path, 'ar')
+    original = trainer(cfg, 'ar')
+    original.train()
+    changed = deepcopy(cfg)
+    changed['training']['max_steps'] = 100
+    with pytest.raises(ValueError, match='configuration mismatch'):
+        trainer(changed, 'ar').load_checkpoint(tmp_path / 'out/checkpoint_step_2.pt')
+    saved = read_resume(tmp_path / 'out/checkpoint_step_2.pt')
+    saved['world_size'] = 8
+    torch.save(saved, tmp_path / 'distributed.pt')
+    with pytest.raises(ValueError, match='single training'):
+        trainer(cfg, 'ar').load_checkpoint(tmp_path / 'distributed.pt')

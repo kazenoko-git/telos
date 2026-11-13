@@ -429,6 +429,7 @@ class UnifiedPyTorchTrainer:
             "resume_format": FORMAT_VERSION,
             "backend": f"pytorch:{self.device.type}",
             "world_size": self.world_size,
+            "precision": self.precision,
             "global_step": self.global_step,
             "model_state_dict": raw_model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
@@ -461,6 +462,8 @@ class UnifiedPyTorchTrainer:
         from .checkpoint import read_resume, validate_resume
         checkpoint = read_resume(path)
         validate_resume(checkpoint, self.cfg, f"pytorch:{self.device.type}")
+        if checkpoint["precision"] != self.precision:
+            raise ValueError("Resume precision differs from the saved training run")
         if checkpoint.get("world_size", 1) != 1 or self.world_size != 1:
             raise ValueError("Complete resume currently requires a single training process/device")
         raw_model = getattr(self.model, "_orig_mod", self.model)
@@ -664,6 +667,7 @@ class UnifiedPyTorchTrainer:
             if dtype is None:
                 dtype = np.int32 if "mac" in str(train_bin) or self.vocab_size > 65536 else np.uint16
 
+            d_cfg["train_path"] = str(train_bin.resolve())
             raw_data = np.memmap(train_bin, dtype=dtype, mode="r")
             n_seqs = len(raw_data) // self.seq_len
             dataset_matrix = raw_data[:n_seqs * self.seq_len].reshape(n_seqs, self.seq_len)
@@ -709,7 +713,10 @@ class UnifiedPyTorchTrainer:
         max_bench_duration = min(float(benchmark_duration), 300.0)
 
         from .checkpoint import dataset_signature, validate_resume, restore_host_rng
-        self._dataset_signature = dataset_signature(dataset_matrix)
+        self._dataset_signature = {"train": dataset_signature(dataset_matrix)}
+        if getattr(self, "dual_monitor", None) is not None:
+            self._dataset_signature["validation"] = dataset_signature(
+                self.dual_monitor.probe_tensor.cpu().numpy())
         saved = getattr(self, "_resume_state", None)
         if resume_step and saved is None:
             raise ValueError("A step number alone cannot resume training; load a complete checkpoint first")
