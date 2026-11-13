@@ -408,92 +408,80 @@ class UnifiedPyTorchTrainer:
         return self.beta_buffer[start : start + bs]
 
     def save_checkpoint(self, path: str | Path, sync: bool = False):
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
+        from .checkpoint import atomic_write, host_rng_state, tokenizer_signature, FORMAT_VERSION
+        import copy
 
-        # Join any prior background save thread to ensure two saves never overlap or race
-        if self._save_thread is not None and self._save_thread.is_alive():
-            self._save_thread.join()
+        def cpu_copy(value):
+            if isinstance(value, torch.Tensor):
+                return value.detach().cpu().clone()
+            if isinstance(value, dict):
+                return {k: cpu_copy(v) for k, v in value.items()}
+            if isinstance(value, (list, tuple)):
+                return type(value)(cpu_copy(v) for v in value)
+            return copy.deepcopy(value)
 
         if self.is_tpu:
             import torch_xla.core.xla_model as xm
             xm.mark_step()
-            str_path = str(path)
-
-            # Detach model parameters to host CPU on master rank without saving optimizer state
-            raw_model = getattr(self.model, "module", self.model)
-            cpu_model = {
-                k.removeprefix("module."): v.detach().cpu().clone()
-                for k, v in raw_model.state_dict().items()
-            }
-            checkpoint = {
-                "global_step": self.global_step,
-                "model_state_dict": cpu_model,
-                "scheduler_state_dict": self.scheduler.state_dict(),
-                "config": self.cfg,
-                "lrh_acc_ema": getattr(self, "metric_tracker", None).lrh_acc_ema if getattr(self, "metric_tracker", None) is not None else None,
-                "lrh_auc_ema": getattr(self, "metric_tracker", None).lrh_auc_ema if getattr(self, "metric_tracker", None) is not None else None,
-            }
-            torch.save(checkpoint, str_path)
-
-            if not path.exists() or path.stat().st_size == 0:
-                raise RuntimeError(f"FATAL: Checkpoint file could not be created at {str_path}!")
-
-            print(f"  [Checkpoint Verified] Successfully saved {str_path} ({path.stat().st_size / 1e6:.1f} MB)", flush=True)
-            return
-
-        # Clone state dicts to detached CPU tensors to prevent torn-state corruption from concurrent in-place mutations
-        cpu_model_state = {k: v.detach().cpu().clone() for k, v in self.model.state_dict().items()}
-        raw_opt_state = self.optimizer.state_dict()
-        cpu_opt_state = {
-            "state": {
-                k: {sk: sv.detach().cpu().clone() if isinstance(sv, torch.Tensor) else sv for sk, sv in v.items()}
-                for k, v in raw_opt_state.get("state", {}).items()
-            },
-            "param_groups": raw_opt_state.get("param_groups", [])
-        }
-
-        checkpoint = {
+        raw_model = getattr(self.model, "_orig_mod", self.model)
+        raw_model = getattr(raw_model, "module", raw_model)
+        state = {
+            "resume_format": FORMAT_VERSION,
+            "backend": f"pytorch:{self.device.type}",
+            "world_size": self.world_size,
             "global_step": self.global_step,
-            "model_state_dict": cpu_model_state,
-            "optimizer_state_dict": cpu_opt_state,
+            "model_state_dict": raw_model.state_dict(),
+            "optimizer_state_dict": self.optimizer.state_dict(),
             "scheduler_state_dict": self.scheduler.state_dict(),
+            "scaler": self.scaler.state_dict() if self.scaler is not None else None,
             "config": self.cfg,
+            "dataset": getattr(self, "_dataset_signature", None),
+            "tokenizer": tokenizer_signature(self.cfg),
+            "next_row": getattr(self, "_next_row", None),
+            "host_rng": host_rng_state(),
+            "torch_rng": torch.get_rng_state(),
+            "cuda_rng": torch.cuda.get_rng_state_all() if self.device.type == "cuda" else None,
+            "beta_idx": getattr(self, "beta_idx", None),
+            "beta_buffer": getattr(self, "beta_buffer", None),
+            "beta_counter": getattr(self, "beta_counter", None),
+            "metric_tracker": vars(self.metric_tracker) if hasattr(self, "metric_tracker") else None,
+            "routing_masks": list(self.routing_cache.cached_masks) if hasattr(self, "routing_cache") else None,
+            "routing_refresh": self.routing_cache.last_refresh_step if hasattr(self, "routing_cache") else None,
+            "head_ready": self.schedule.head_ready_override if hasattr(self, "schedule") else None,
+            "monitor_history": self.dual_monitor.history if getattr(self, "dual_monitor", None) is not None else None,
         }
-
-        if sync:
-            torch.save(checkpoint, path)
-        else:
-            # Asynchronous checkpoint saving on a background worker thread with cloned CPU tensors
-            def _async_save():
-                with self._save_lock:
-                    torch.save(checkpoint, path)
-            self._save_thread = threading.Thread(target=_async_save, daemon=True)
-            self._save_thread.start()
+        if self.is_tpu:
+            state["xla_rng"] = xm.get_rng_state(self.device)
+        state = cpu_copy(state)
+        # Checkpoint errors propagate to the caller; atomic replacement preserves
+        # the last good checkpoint even if serialization or disk writes fail.
+        atomic_write(path, lambda temporary: torch.save(state, temporary))
 
     def load_checkpoint(self, path: str | Path):
-        path = Path(path)
-        checkpoint = torch.load(path, map_location=self.device, weights_only=True)
-        # Unwrap DataParallel if state_dict keys match
-        state_dict = checkpoint["model_state_dict"]
-        if hasattr(self.model, "module"):
-            self.model.module.load_state_dict(state_dict)
-        else:
-            self.model.load_state_dict(state_dict)
-
-        # Re-tie weights after loading checkpoint state dict
-        if hasattr(self.model, "tie_weights"):
-            self.model.tie_weights()
-        elif hasattr(getattr(self.model, "module", None), "tie_weights"):
-            self.model.module.tie_weights()
+        from .checkpoint import read_resume, validate_resume
+        checkpoint = read_resume(path)
+        validate_resume(checkpoint, self.cfg, f"pytorch:{self.device.type}")
+        if checkpoint.get("world_size", 1) != 1 or self.world_size != 1:
+            raise ValueError("Complete resume currently requires a single training process/device")
+        raw_model = getattr(self.model, "_orig_mod", self.model)
+        raw_model = getattr(raw_model, "module", raw_model)
+        raw_model.load_state_dict(checkpoint["model_state_dict"], strict=True)
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
-        self.global_step = checkpoint.get("global_step", 0)
-
-        # Synchronize fp32 master weights from loaded model parameters to prevent overwriting with stale init values
-        if getattr(self, "use_master_weights", False):
-            for p, mp in self.param_to_master:
-                mp.data.copy_(p.data.float())
+        if self.scaler is not None:
+            self.scaler.load_state_dict(checkpoint["scaler"])
+        self.global_step = checkpoint["global_step"]
+        for name in ("beta_idx", "beta_buffer", "beta_counter"):
+            value = checkpoint[name]
+            if value is not None:
+                setattr(self, name, value.to(self.device) if isinstance(value, torch.Tensor) else value)
+        if checkpoint["metric_tracker"] is not None:
+            vars(self.metric_tracker).update(checkpoint["metric_tracker"])
+            from collections import deque
+            self.routing_cache.cached_masks = deque(v.to(self.device) for v in checkpoint["routing_masks"])
+            self.routing_cache.last_refresh_step = checkpoint["routing_refresh"]
+            self.schedule.head_ready_override = checkpoint["head_ready"]
+        self._resume_state = checkpoint
 
     def _execute_microbatch(self, batch_seqs, compute_metrics: bool = False):
         """Executes a single microbatch and returns loss and metrics."""
@@ -682,7 +670,9 @@ class UnifiedPyTorchTrainer:
         elif use_synthetic:
             if self.is_master:
                 print("  Notice: Using synthetic dataset stream...")
-            dataset_matrix = np.random.randint(0, self.vocab_size, (10000, self.seq_len), dtype=np.uint16)
+            dataset_matrix = np.random.RandomState(self.seed).randint(
+                0, self.vocab_size, (10000, self.seq_len),
+                dtype=np.int32 if self.vocab_size > 65536 else np.uint16)
         else:
             raise FileNotFoundError(
                 f"No training data found at '{train_bin}'. Run 'telos dataprep' to generate token data, "
@@ -718,16 +708,34 @@ class UnifiedPyTorchTrainer:
         # Benchmark duration strictly capped at 300.0 seconds (5 minutes)
         max_bench_duration = min(float(benchmark_duration), 300.0)
 
+        from .checkpoint import dataset_signature, validate_resume, restore_host_rng
+        self._dataset_signature = dataset_signature(dataset_matrix)
+        saved = getattr(self, "_resume_state", None)
+        if resume_step and saved is None:
+            raise ValueError("A step number alone cannot resume training; load a complete checkpoint first")
+        if saved is not None:
+            validate_resume(saved, self.cfg, f"pytorch:{self.device.type}", self._dataset_signature)
+            if resume_step not in (0, saved["global_step"]):
+                raise ValueError("Requested resume step differs from checkpoint")
+            resume_step = saved["global_step"]
+            restore_host_rng(saved["host_rng"])
+            torch.set_rng_state(saved["torch_rng"])
+            if saved["cuda_rng"] is not None:
+                torch.cuda.set_rng_state_all(saved["cuda_rng"])
+            if self.is_tpu:
+                import torch_xla.core.xla_model as xm
+                xm.set_rng_state(saved["xla_rng"], self.device)
+            if saved["monitor_history"] is not None and self.dual_monitor is not None:
+                self.dual_monitor.history = saved["monitor_history"]
         n_rows = len(dataset_matrix)
         self.global_step = resume_step
-        if resume_step > 0:
-            seqs_consumed = resume_step * cluster_step_seqs
-            idx_ptr = (seqs_consumed + rank * local_step_seqs) % n_rows
-            # Advance scheduler
-            for _ in range(resume_step):
-                self.scheduler.step()
+        if saved is not None:
+            idx_ptr = saved["next_row"]
+            if idx_ptr is None:
+                raise ValueError("Checkpoint has no training data cursor")
         else:
             idx_ptr = (rank * local_step_seqs) % n_rows
+        self._next_row = idx_ptr
 
         ckpt_dir_name = f"checkpoints/{self.paradigm}"
         if self.paradigm == "corosred":
@@ -785,6 +793,7 @@ class UnifiedPyTorchTrainer:
                     dataset_matrix, idx_ptr, local_step_seqs, self.seq_len, self.device, non_blocking=False
                 )
                 idx_ptr = (idx_ptr + cluster_step_seqs) % n_rows
+            self._next_row = (self._next_row + cluster_step_seqs) % n_rows
             # Periodically replenish routing cache only once confidence-routed masking is active (after hold phase)
             has_routing = getattr(self, "is_unified", False) and hasattr(self, "routing_cache")
             if has_routing and self.routing_cache.should_refresh(step):
@@ -982,7 +991,7 @@ class UnifiedPyTorchTrainer:
                 print(log_msg, flush=True)
 
             save_interval = self.c_cfg.get("save_every_steps", 1000)
-            if not benchmark and step % save_interval == 0:
+            if not benchmark and save_interval > 0 and step % save_interval == 0:
                 ckpt_file = ckpt_dir / f"checkpoint_step_{step}.pt"
                 if self.is_master:
                     print(f"\n  [Checkpoint Step {step:>6d}] Saving checkpoint weights to {ckpt_file}...", flush=True)
