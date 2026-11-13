@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2026-11-13
+
+### Fixed
+- Initialize the XLA runtime explicitly for native evaluation on requested or automatically detected TPU devices.
+- Propagate evaluation placement failures instead of silently continuing on CPU.
+- Abort on multi-core XLA launch or worker failure instead of falling back to single-core training.
+
 ## [1.5.1] - 2026-11-13
 
 ### Added
@@ -136,7 +143,8 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
   virtualized, or sandboxed macOS sessions): `telos train`, `telos bench` and
   `telos test` fall back to the PyTorch CPU path instead of aborting the process.
 
-[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.5.2...HEAD
+[1.5.2]: https://github.com/kazenoko-git/telos/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/kazenoko-git/telos/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/kazenoko-git/telos/compare/v1.4.0...v1.5.0
 [1.1.0]: https://github.com/kazenoko-git/telos/compare/v1.0.0...v1.1.0
