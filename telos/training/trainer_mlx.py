@@ -36,7 +36,7 @@ from telos.diffusion.corosred import (
     crsr_phase_b_self_conditioned_loss_fn_mlx,
     corosred_unified_loss_fn_mlx,
 )
-from .schedule import COROSredSchedule
+from .schedule import COROSredSchedule, DynamicMetricTracker
 
 
 from .hardware import detect_apple_silicon_profile
@@ -174,6 +174,9 @@ class UnifiedMLXTrainer:
 
         if self.paradigm == "corosred":
             self.crsr_cfg = cfg.get("crsr", cfg.get("corosred", {}))
+            self.metric_tracker = DynamicMetricTracker(
+                trust_region=float(self.crsr_cfg.get("trust_region", .20)),
+                rebalance_temp=float(self.crsr_cfg.get("rebalance_temp", .25)))
             self.is_unified = bool(self.crsr_cfg.get("unified", True))
             raw_phase = self.crsr_cfg.get("phase", "UNIFIED" if self.is_unified else "A")
             self.phase = str(raw_phase).upper()
@@ -204,6 +207,7 @@ class UnifiedMLXTrainer:
             "mlx_rng": list(mx.random.state),
             "host_rng": host_rng_state(),
             "reliability_metrics": getattr(self, "reliability_metrics", None),
+            "metric_tracker": vars(self.metric_tracker) if hasattr(self, "metric_tracker") else None,
             "beta_idx": getattr(self, "beta_idx", None),
             "beta_buffer": getattr(self, "beta_buffer", None),
         }
@@ -496,6 +500,8 @@ class UnifiedMLXTrainer:
 
         if saved is not None:
             self.reliability_metrics = saved.get("reliability_metrics")
+            if saved.get("metric_tracker") is not None:
+                vars(self.metric_tracker).update(saved["metric_tracker"])
             optimizer.state = saved["optimizer"]
             if saved["master_params"] is not None:
                 optimizer.master_params = saved["master_params"]
@@ -575,7 +581,7 @@ class UnifiedMLXTrainer:
 
             if self.paradigm == "corosred" and (getattr(self, "is_unified", False) or self.phase == "UNIFIED"):
                 from .mlx_reliability import reliability_metrics
-                measured_acc, measured_auc = reliability_metrics(
+                measured_acc, measured_auc, measured_causal, measured_infill = reliability_metrics(
                     self.model, mx.array(global_targets_np[:bs], dtype=mx.int32))
                 previous = getattr(self, "reliability_metrics", None)
                 self.reliability_metrics = (measured_acc, measured_auc) if previous is None else (
@@ -583,6 +589,9 @@ class UnifiedMLXTrainer:
                 w = self.schedule.get_weights(step, *self.reliability_metrics)
                 # The head must learn before its competence can gate routing.
                 w["gamma"] = self.schedule.gamma_max
+                self.metric_tracker.update_losses(measured_causal, measured_infill)
+                if self.crsr_cfg.get("adaptive_rebalance", False):
+                    w["alpha"], w["beta"], _ = self.metric_tracker.get_balanced_weights(w["alpha"], w["beta"])
                 alpha_mx = mx.array(w["alpha"], dtype=mx.float32)
                 beta_mx = mx.array(w["beta"], dtype=mx.float32)
                 gamma_mx = mx.array(w["gamma"], dtype=mx.float32)

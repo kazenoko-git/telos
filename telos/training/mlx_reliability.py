@@ -22,4 +22,12 @@ def reliability_metrics(model, tokens):
         positive_bins = inverse[labels]
         auc = float(np.sum(below[positive_bins] + .5 * negative_counts[positive_bins])
                     / (len(positives) * len(negatives)))
-    return accuracy, auc
+    targets = tokens[:, 1:]
+    causal_ce = mx.mean(mx.logsumexp(logits[:, :-1].astype(mx.float32), axis=-1)
+                        - mx.take_along_axis(logits[:, :-1].astype(mx.float32), targets[..., None], axis=-1)[..., 0])
+    positions = mx.broadcast_to((mx.arange(tokens.shape[1]) % 7 == 1)[None, :], tokens.shape)
+    masked = mx.where(positions, mx.ones_like(tokens), tokens)
+    infill = model(masked, mask_override=False).astype(mx.float32)
+    per_token = mx.logsumexp(infill, axis=-1) - mx.take_along_axis(infill, tokens[..., None], axis=-1)[..., 0]
+    infill_ce = mx.sum(per_token * positions) / mx.maximum(mx.sum(positions), 1)
+    return accuracy, auc, float(causal_ce.item()), float(infill_ce.item())
