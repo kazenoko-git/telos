@@ -1,0 +1,68 @@
+name: native-smoke
+overwrite: false
+data:
+  input_file: /private/tmp/telos-m5-native-pretrain/train.jsonl
+  validation_file: /private/tmp/telos-m5-native-pretrain/validation.jsonl
+  tokenizer_path: /private/tmp/telos-m5-native-pretrain/tokenizer
+  preprocessing:
+    max_context_size: 256
+    chunk_overlap: 0
+  tokenizer:
+    normal_vocab_size: 8192
+    special_tokens:
+      pad: '[PAD]'
+      bos: '[BOS]'
+      eos: '[EOS]'
+model:
+  architecture: llama
+  dimensions:
+    hidden_size: 512
+    intermediate_size: 1408
+    num_layers: 14
+  attention:
+    num_heads: 8
+    num_kv_heads: 8
+    head_dim: 64
+    max_position_embeddings: 256
+  normalization:
+    rms_norm_eps: 1.0e-05
+  rope:
+    theta: 10000
+    traditional: true
+    scaling: null
+  misc:
+    attention_bias: false
+    mlp_bias: false
+    tie_word_embeddings: true
+training:
+  hyperparameters:
+    batch_size: 8
+    learning_rate: 0.0004
+    weight_decay: 0.01
+    iters: 8
+  scheduler:
+    type: cosine
+    min_lr_ratio: 0.1
+  optimization:
+    optimizer: adamw
+    weight_decay: 0.01
+    betas:
+    - 0.9
+    - 0.999
+    eps: 1.0e-08
+logging:
+  log_dir: logs
+  checkpoint_dir: checkpoints
+  steps:
+    logging_interval: 1
+    checkpoint_interval: 1000
+    validation_interval: 0
+  metrics:
+    log_loss: true
+    log_perplexity: true
+    log_tokens_per_second: true
+    log_learning_rate: true
+    log_tokens_processed: true
+system:
+  seed: 42
+  device: gpu
