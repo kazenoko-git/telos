@@ -16,6 +16,7 @@ import subprocess
 import time
 
 import mlx.core as mx
+from mlx.utils import tree_flatten
 import numpy as np
 from tokenizers import Tokenizer
 import yaml
@@ -90,6 +91,11 @@ def main():
     os.chdir(scratch)
     started = time.perf_counter()
     trainer = module.Trainer(str(config_file))
+    tensors = tree_flatten(trainer.model.parameters())
+    metadata.update({"parameters": sum(v.size for _, v in tensors),
+                     "model_dtypes": sorted({str(v.dtype) for _, v in tensors}),
+                     "vocab_size": trainer.tokenizer.VOCAB_SIZE})
+    (args.output / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     initial = trainer.validate()
     trainer.train()
     mx.eval(trainer.model.parameters(), trainer.optimizer.state)
