@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.5.3] - 2026-11-13
 
 ### Fixed
-- Train the MLX COROSred reliability head before competence gating and track measured accuracy/AUC across resume.\n- Blend confidence-targeted and exploratory infilling masks; apply ambiguity exclusion to unreduced reliability loss.
+- Train the MLX COROSred reliability head before competence gating and track measured accuracy/AUC across resume.
+- Blend confidence-targeted and exploratory infilling masks; apply ambiguity exclusion to unreduced reliability loss.
 
 ## [1.5.2] - 2026-11-13
 

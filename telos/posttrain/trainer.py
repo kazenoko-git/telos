@@ -98,6 +98,22 @@ def _collate(rows, tokenizer, max_length: int, device: torch.device):
     return input_ids, labels
 
 
+class _CudaParallelModel(torch.nn.DataParallel):
+    """Expose native model metadata while scattering forward batches."""
+    def __getattr__(self, name):
+        try:
+            return super().__getattr__(name)
+        except AttributeError:
+            return getattr(self.module, name)
+
+
+def _cuda_device_ids(devices, available):
+    count = available if devices == "auto" else int(devices)
+    if count < 1 or count > available:
+        raise ValueError(f"Requested {count} CUDA devices but only {available} are available")
+    return list(range(count))
+
+
 def _sequence_logps(model, input_ids, labels):
     logits = model(input_ids, mask_override=True)[:, :-1].float()
     targets = labels[:, 1:]
@@ -498,7 +514,7 @@ def posttrain(
     print(f"[POSTTRAIN] method={method.upper()} backend={backend_name}", flush=True)
     if devices != "auto" and int(devices) < 1:
         raise ValueError("devices must be 'auto' or a positive integer")
-    if backend_name != "xla" and devices != "auto" and int(devices) != 1:
+    if backend_name not in {"xla", "cuda"} and devices != "auto" and int(devices) != 1:
         raise ValueError(f"{backend_name} post-training is single-device; use devices=1")
     if backend_name == "xla":
         if checkpoint_path.suffix == ".safetensors":
@@ -598,6 +614,13 @@ def posttrain(
         reference = copy.deepcopy(model).eval()
         for parameter in reference.parameters():
             parameter.requires_grad_(False)
+    if backend_name == "cuda":
+        device_ids = _cuda_device_ids(devices, torch.cuda.device_count())
+        if len(device_ids) > 1:
+            model = _CudaParallelModel(model, device_ids=device_ids)
+            if reference is not None:
+                reference = _CudaParallelModel(reference, device_ids=device_ids)
+            batch_size *= len(device_ids)
     model.train()
     optimizer = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad), lr=learning_rate)
     out_dir = Path(output)
@@ -624,7 +647,7 @@ def posttrain(
         saved_config["paradigm"] = "ar"
         torch.save({
             "global_step": step,
-            "model_state_dict": {key: value.detach().cpu() for key, value in model.state_dict().items()},
+            "model_state_dict": {key: value.detach().cpu() for key, value in getattr(model, "module", model).state_dict().items()},
             "optimizer_state_dict": optimizer.state_dict(),
             "config": saved_config,
             "posttrain": {"method": method, "source_checkpoint": str(checkpoint_path), "step": step},
