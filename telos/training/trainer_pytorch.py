@@ -429,6 +429,7 @@ class UnifiedPyTorchTrainer:
             "resume_format": FORMAT_VERSION,
             "backend": f"pytorch:{self.device.type}",
             "world_size": self.world_size,
+            "cuda_devices": getattr(self, "n_gpus", 0) if self.device.type == "cuda" else 0,
             "precision": self.precision,
             "global_step": self.global_step,
             "model_state_dict": raw_model.state_dict(),
@@ -469,6 +470,8 @@ class UnifiedPyTorchTrainer:
         validate_resume(checkpoint, self.cfg, f"pytorch:{self.device.type}")
         if self.is_tpu and self.paradigm != "ar" and not checkpoint.get("step_rng", False):
             raise ValueError("Stochastic XLA resume requires a checkpoint using step-indexed RNG")
+        if self.device.type == "cuda" and checkpoint.get("cuda_devices", getattr(self, "n_gpus", 0)) != getattr(self, "n_gpus", 0):
+            raise ValueError("Resume requires the original visible CUDA device topology")
         if checkpoint["precision"] != self.precision:
             raise ValueError("Resume precision differs from the saved training run")
         if checkpoint.get("world_size", 1) != self.world_size or checkpoint.get("rank", 0) != self.rank:
@@ -1036,6 +1039,13 @@ class UnifiedPyTorchTrainer:
                         print(f"  {div_warn}", flush=True)
                     if getattr(self, "metric_tracker", None) is not None:
                         self.metric_tracker.update_lrh(probe_res["lrh_acc"], probe_res["lrh_auc"])
+
+                if getattr(self, "is_ddp", False) and getattr(self, "metric_tracker", None) is not None:
+                    # Master-only validation must not leave curriculum gates
+                    # different on the other CUDA workers.
+                    payload = [vars(self.metric_tracker) if self.is_master else None]
+                    torch.distributed.broadcast_object_list(payload, src=0)
+                    vars(self.metric_tracker).update(payload[0])
 
                 # In PyTorch-XLA multi-processing, all workers must synchronize at step boundaries
                 # so master rank can serialize model weights without worker desynchronization
