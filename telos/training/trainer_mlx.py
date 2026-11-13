@@ -203,6 +203,7 @@ class UnifiedMLXTrainer:
             "master_params": getattr(optimizer, "master_params", None),
             "mlx_rng": list(mx.random.state),
             "host_rng": host_rng_state(),
+            "reliability_metrics": getattr(self, "reliability_metrics", None),
             "beta_idx": getattr(self, "beta_idx", None),
             "beta_buffer": getattr(self, "beta_buffer", None),
         }
@@ -492,6 +493,7 @@ class UnifiedMLXTrainer:
         )
 
         if saved is not None:
+            self.reliability_metrics = saved.get("reliability_metrics")
             optimizer.state = saved["optimizer"]
             if saved["master_params"] is not None:
                 optimizer.master_params = saved["master_params"]
@@ -570,7 +572,15 @@ class UnifiedMLXTrainer:
             global_targets_np, idx_ptr = get_global_targets_contiguous(dataset_matrix, idx_ptr, bs * grad_accum, self.seq_len)
 
             if self.paradigm == "corosred" and (getattr(self, "is_unified", False) or self.phase == "UNIFIED"):
-                w = self.schedule.get_weights(step)
+                from .mlx_reliability import reliability_metrics
+                measured_acc, measured_auc = reliability_metrics(
+                    self.model, mx.array(global_targets_np[:bs], dtype=mx.int32))
+                previous = getattr(self, "reliability_metrics", None)
+                self.reliability_metrics = (measured_acc, measured_auc) if previous is None else (
+                    .95 * previous[0] + .05 * measured_acc, .95 * previous[1] + .05 * measured_auc)
+                w = self.schedule.get_weights(step, *self.reliability_metrics)
+                # The head must learn before its competence can gate routing.
+                w["gamma"] = self.schedule.gamma_max
                 alpha_mx = mx.array(w["alpha"], dtype=mx.float32)
                 beta_mx = mx.array(w["beta"], dtype=mx.float32)
                 gamma_mx = mx.array(w["gamma"], dtype=mx.float32)
