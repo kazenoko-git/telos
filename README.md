@@ -62,7 +62,7 @@ telos dataprep --corpus ./my_text_or_code --output data/corpus.bin
 telos pretrain --paradigm ar --params 50M --tokens 300M --data data/corpus.bin
 ```
 
-Resume pretraining from a complete checkpoint (v1.5.1+, one process/device):
+Resume pretraining from a complete checkpoint (complete training state required):
 
 ```bash
 telos pretrain --resume checkpoints/ar/checkpoint_step_1000.resume.npz  # MLX
