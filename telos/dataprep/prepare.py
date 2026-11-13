@@ -254,7 +254,7 @@ def prepare_dataset(
     dtype_str = "uint16" if np_dtype == np.uint16 else "int32"
 
     print(f"  [DataPrep] Processing corpus into {output_path} (vocab_size={actual_vocab}, dtype={dtype_str})...")
-        if max_tokens is not None:
+    if max_tokens is not None:
         print(f"  [DataPrep] Target token limit: {max_tokens:,} tokens (~{max_tokens * (2 if np_dtype == np.uint16 else 4) / (1024**3):.2f} GB)")
     total_tokens = 0
     buffer = []
