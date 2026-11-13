@@ -434,6 +434,7 @@ class UnifiedPyTorchTrainer:
             "model_state_dict": raw_model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
             "scheduler_state_dict": self.scheduler.state_dict(),
+            "master_params": [mp for _, mp in self.param_to_master] if self.use_master_weights else None,
             "scaler": self.scaler.state_dict() if self.scaler is not None else None,
             "config": self.cfg,
             "dataset": getattr(self, "_dataset_signature", None),
@@ -474,6 +475,13 @@ class UnifiedPyTorchTrainer:
         if self.scaler is not None:
             self.scaler.load_state_dict(checkpoint["scaler"])
         self.global_step = checkpoint["global_step"]
+        if self.use_master_weights:
+            masters = checkpoint["master_params"]
+            if masters is None or len(masters) != len(self.param_to_master):
+                raise ValueError("Checkpoint is missing fp32 master weights")
+            with torch.no_grad():
+                for (_, master), saved_master in zip(self.param_to_master, masters):
+                    master.copy_(saved_master.to(master.device))
         for name in ("beta_idx", "beta_buffer", "beta_counter"):
             value = checkpoint[name]
             if value is not None:
