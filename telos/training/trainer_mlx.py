@@ -180,6 +180,34 @@ class UnifiedMLXTrainer:
             if self.phase == "UNIFIED":
                 self.is_unified = True
 
+    def load_checkpoint(self, path):
+        from .checkpoint import read_resume, validate_resume
+        saved = read_resume(path)
+        validate_resume(saved, self.cfg, "mlx")
+        from mlx.utils import tree_flatten
+        self.model.load_weights(tree_flatten(saved["model"]), strict=True)
+        self._resume_state = saved
+
+    def _save_training_checkpoint(self, path, optimizer, step, next_row, signature):
+        from .checkpoint import (save_mlx_state, host_rng_state, tokenizer_signature, FORMAT_VERSION)
+        state = {
+            "resume_format": FORMAT_VERSION,
+            "backend": "mlx",
+            "global_step": step,
+            "config": self.cfg,
+            "dataset": signature,
+            "tokenizer": tokenizer_signature(self.cfg),
+            "next_row": next_row,
+            "model": self.model.parameters(),
+            "optimizer": optimizer.state,
+            "master_params": getattr(optimizer, "master_params", None),
+            "mlx_rng": list(mx.random.state),
+            "host_rng": host_rng_state(),
+            "beta_idx": getattr(self, "beta_idx", None),
+            "beta_buffer": getattr(self, "beta_buffer", None),
+        }
+        save_mlx_state(path, state)
+
     def _sample_beta_timesteps(self, bs: int) -> mx.array:
         """Fetches bs timesteps directly from the pre-sampled device-resident Beta buffer without CPU copy."""
         if self.beta_idx + bs > self.beta_buffer_size:
@@ -402,12 +430,15 @@ class UnifiedMLXTrainer:
             if dtype is None:
                 dtype = np.int32 if "mac" in str(train_bin) or self.vocab_size > 65536 else np.uint16
 
+            d_cfg["train_path"] = str(train_bin.resolve())
             raw_data = np.memmap(train_bin, dtype=dtype, mode="r")
             n_seqs = len(raw_data) // self.seq_len
             dataset_matrix = raw_data[:n_seqs * self.seq_len].reshape(n_seqs, self.seq_len)
         elif use_synthetic:
             print("  Notice: Using synthetic dataset stream...")
-            dataset_matrix = np.random.randint(0, self.vocab_size, (10000, self.seq_len), dtype=np.uint16)
+            dataset_matrix = np.random.RandomState(self.seed).randint(
+                0, self.vocab_size, (10000, self.seq_len),
+                dtype=np.int32 if self.vocab_size > 65536 else np.uint16)
         else:
             raise FileNotFoundError(
                 f"No training data found at '{train_bin}'. Run 'telos dataprep' to generate token data, "
@@ -419,7 +450,8 @@ class UnifiedMLXTrainer:
         max_lr = float(self.t_cfg.get("max_lr", 3e-4))
         min_lr = float(self.t_cfg.get("min_lr", 3e-5))
         weight_decay = float(self.t_cfg.get("weight_decay", 0.1))
-        if self.t_cfg.get("autotune", False):
+        saved = getattr(self, "_resume_state", None)
+        if self.t_cfg.get("autotune", False) and saved is None:
             from .mlx_tuning import tune_mlx_batch
             report = tune_mlx_batch(self, dataset_matrix)
             plan = report["selected"]["plan"]
@@ -440,10 +472,17 @@ class UnifiedMLXTrainer:
         # Benchmark duration strictly capped at 300.0 seconds (5 minutes)
         max_bench_duration = min(float(benchmark_duration), 300.0)
 
+        from .checkpoint import dataset_signature, validate_resume, restore_host_rng, atomic_write
+        signature = dataset_signature(dataset_matrix)
+        if resume_step and saved is None:
+            raise ValueError("A step number alone cannot resume training; load a complete checkpoint first")
         idx_ptr = 0
-        if resume_step > 0:
-            seqs_consumed = resume_step * (bs * grad_accum)
-            idx_ptr = seqs_consumed % len(dataset_matrix)
+        if saved is not None:
+            validate_resume(saved, self.cfg, "mlx", signature)
+            if resume_step not in (0, saved["global_step"]):
+                raise ValueError("Requested resume step differs from checkpoint")
+            resume_step = saved["global_step"]
+            idx_ptr = saved["next_row"]
 
         optimizer = mx_optim.AdamW(
             learning_rate=max_lr,
@@ -451,6 +490,20 @@ class UnifiedMLXTrainer:
             betas=[0.9, 0.95],
             bias_correction=True
         )
+
+        if saved is not None:
+            optimizer.state = saved["optimizer"]
+            if saved["master_params"] is not None:
+                optimizer.master_params = saved["master_params"]
+            optimizer.init(getattr(optimizer, "master_params", self.model.trainable_parameters()))
+            if saved["beta_idx"] is not None:
+                self.beta_idx = saved["beta_idx"]
+                self.beta_buffer = saved["beta_buffer"]
+            restore_host_rng(saved["host_rng"])
+            # MLX 0.31+ exposes a read-only random-state sentinel. The two
+            # uint32 words are the high/low halves of the seed key.
+            high, low = saved["mlx_rng"][0].tolist()
+            mx.random.seed((int(high) << 32) | int(low))
 
         uncompiled_step_fn, compilation_targets = self._setup_training_functions()
         compilation_targets.append(mx.random.state)
@@ -463,6 +516,11 @@ class UnifiedMLXTrainer:
             fused=bool(self.t_cfg.get("fused_step", True)),
             accumulation_step=accumulation_step,
         )
+
+        # Restored Adam moments have already undergone their first-step cast.
+        # Repeating initialization would change the resumed optimizer trajectory.
+        if saved is not None and resume_step > 0:
+            training_step._initialized = True
 
         ckpt_dir_name = f"checkpoints/{self.paradigm}"
         if self.paradigm == "corosred":
@@ -575,10 +633,14 @@ class UnifiedMLXTrainer:
                     log_msg += f" | ETA: {eta_mins:>4.1f}m"
                 print(log_msg, flush=True)
 
-            if not benchmark and step % self.c_cfg.get("save_every_steps", 1000) == 0:
+            save_interval = self.c_cfg.get("save_every_steps", 1000)
+            if not benchmark and save_interval > 0 and step % save_interval == 0:
                 training_step.synchronize()
                 ckpt_file = ckpt_dir / f"checkpoint_step_{step}.safetensors"
-                self.model.save_weights(str(ckpt_file))
+                atomic_write(ckpt_file, lambda temporary: self.model.save_weights(temporary))
+                self._save_training_checkpoint(
+                    ckpt_dir / f"checkpoint_step_{step}.resume.npz", optimizer, step, idx_ptr, signature)
+
                 print(f"  [Checkpoint] Saved weights to {ckpt_file}")
 
         training_step.synchronize()
@@ -589,7 +651,9 @@ class UnifiedMLXTrainer:
             return
 
         final_weights = ckpt_dir / "model.safetensors"
-        self.model.save_weights(str(final_weights))
+        atomic_write(final_weights, lambda temporary: self.model.save_weights(temporary))
+        self._save_training_checkpoint(
+            ckpt_dir / "checkpoint_final.resume.npz", optimizer, max_steps, idx_ptr, signature)
 
         with open(ckpt_dir / "config.json", "w", encoding="utf-8") as f:
             json.dump(self.cfg, f, indent=2, default=str)
