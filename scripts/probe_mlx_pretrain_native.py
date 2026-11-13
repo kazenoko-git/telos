@@ -39,9 +39,9 @@ def main():
     shutil.copy2(tokenizer_file, token_dir / "tokenizer.json")
     tokenizer = Tokenizer.from_file(str(tokenizer_file))
     raw = np.memmap(args.data, mode="r", dtype=np.uint16)
-    prefix = np.array(raw[:66 * 256])
+    prefix = np.array(raw[:72 * 256])
     for name, rows in [("train", prefix[:64 * 256].reshape(64, 256)),
-                       ("validation", prefix[64 * 256:].reshape(2, 256))]:
+                       ("validation", prefix[64 * 256:].reshape(8, 256))]:
         with (scratch / f"{name}.jsonl").open("w") as f:
             for row in rows:
                 f.write(json.dumps({"text": tokenizer.decode(row.tolist())}) + "\n")
