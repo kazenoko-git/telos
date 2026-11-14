@@ -109,7 +109,7 @@ def normalize_date(val: Any) -> Any:
     ]
     for fmt in formats:
         try:
-            return datetime.strptime(s, fmt).date().isoformat()
+            return datetime.strptime(s, fmt).date().isoformat()  # noqa: DTZ007
         except ValueError:
             pass
     return s
