@@ -138,7 +138,7 @@ if __name__ == '__main__':
     (ROOT / 'extended_cases.json').write_text(raw)
     manifest = dict(case_count=len(cases), categories=dict(Counter(c['category'] for c in cases)),
                     sha256=hashlib.sha256(raw.encode()).hexdigest(),
-                    provenance='Deterministic, parameter-generated synthetic diagnostic suite. Human-authored after Agy generation timed out.',
+                    provenance='Deterministic, parameter-generated synthetic diagnostic suite. Authored in Codex after Agy CLI returned no generator before its timeout.',
                     selection='Extension chosen after pilot results, not a held-out population benchmark.',
                     oracle='Decimal arithmetic and datetime dates; table oracle selected from generated records; fixed absence/conflict semantics.')
     (ROOT / 'extended_manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
