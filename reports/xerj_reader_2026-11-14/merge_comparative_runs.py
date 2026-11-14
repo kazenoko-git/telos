@@ -73,7 +73,7 @@ def main():
         sys.path.insert(0, str(r_dir))
         from run_comparative_suite import generate_markdown_report
         generate_markdown_report(combined, output_path.with_suffix(".md"))
-    except Exception as err:
+    except (ImportError, RuntimeError, OSError, ValueError, KeyError, AttributeError) as err:
         print(f"Notice: markdown report generation skipped: {err}")
 
 
