@@ -1,0 +1,33 @@
+{
+  "competitor": "nanochat",
+  "source_commit": "92d63d4e8bb4df75c3b71618f31ddde2378b2bcd",
+  "runtime": {
+    "mlx_env_python": "3.13.14",
+    "torch": "2.15.0",
+    "mps_available": true
+  },
+  "model": {
+    "layers": 2,
+    "width": 128,
+    "heads": 4,
+    "vocab": 256,
+    "context": 64,
+    "parameters": null
+  },
+  "result": {
+    "logits_shape": [
+      2,
+      64,
+      256
+    ],
+    "device": "mps:0",
+    "forward": "passed",
+    "backward": "passed",
+    "loss": 0.008065957576036453,
+    "mps_synchronized": true
+  },
+  "limitations": [
+    "Tiny model execution smoke only; no native nanochat trainer or throughput comparison",
+    "Environment has PyTorch 2.15.0; upstream nanochat declares PyTorch 2.9.1"
+  ]
+}
