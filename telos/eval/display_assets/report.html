@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>{{TITLE}} · Télos</title>
+<style>{{STYLE}}</style>
+</head>
+<body>
+<header><a class="brand" href="#top" aria-label="Télos evaluation home"><img src="data:image/png;base64,{{LOGO}}" alt="Télos"><span>Evaluation<br><b>Research, made readable.</b></span></a><nav aria-label="Report actions"><button id="download">Export JSON</button><button id="print">Print report ↗</button></nav></header>
+<main id="top">
+<section class="intro"><p class="eyebrow">TÉLOS / EVALUATION NOTEBOOK</p><div class="title-line"><h1>{{TITLE}}</h1><span class="pill">Saved evaluation</span></div><p id="note" class="lede"></p><p id="source" class="source"></p></section>
+<section id="metrics" class="metrics" aria-label="Evaluation summary"></section>
+<div class="analysis-grid"><section class="panel"><div class="section-heading"><div><p class="eyebrow">01 / PERFORMANCE</p><h2>Where it holds up.</h2></div><span id="chart-label" class="muted">Correct / evaluated</span></div><div id="categories" class="bars"></div></section>
+<section class="panel assurance"><p class="eyebrow">02 / INSPECTION</p><h2>Beyond the score.</h2><div id="checks"></div><p class="fine">A reproducible formula can still select the wrong evidence. Offset checks measure text consistency; they do not establish that the answer is correct.</p></section></div>
+<section class="explorer"><div class="section-heading"><div><p class="eyebrow">03 / CASE EXPLORER</p><h2>Look at the evidence.</h2></div><button id="csv">Export visible CSV ↓</button></div>
+<div class="filters"><label class="search">Find a case<input id="search" type="search" placeholder="Question, category, model, result…"></label><label>Model<select id="model"><option value="">All models</option></select></label><label>Suite<select id="suite"><option value="">All suites</option></select></label><label>Outcome<select id="outcome"><option value="">All outcomes</option><option value="failed">Incorrect</option><option value="passed">Correct</option><option value="unknown">Unscored / errors</option></select></label><label>Category<select id="category"><option value="">All categories</option></select></label><button id="reset">Reset</button></div>
+<div class="table-caption"><span id="count" aria-live="polite"></span><span>Choose a case to inspect its source and result.</span></div>
+<div class="table-wrap"><table><thead><tr><th scope="col">Case / question</th><th scope="col">Category</th><th scope="col">Result</th><th scope="col">Confidence</th><th scope="col">Client time</th></tr></thead><tbody id="rows"></tbody></table></div><p id="empty" hidden>No cases match these filters. Try resetting the search.</p>
+<p id="summary-only" hidden>This report contains suite summaries without individual task records. Scores are shown above; no task outcomes have been invented.</p></section>
+<footer><span>TÉLOS · Evaluation Beautification Display</span><span>Portable. Offline. Every result inspectable.</span></footer>
+</main>
+<dialog id="detail" aria-labelledby="detail-title"><div class="dialog-head"><span class="eyebrow" id="detail-id"></span><button id="close" aria-label="Close case details">Close ×</button></div><h2 id="detail-title"></h2><div id="detail-content"></div></dialog>
+<script id="report-data" type="application/json">{{DATA}}</script>
+<script>{{SCRIPT}}</script>
+</body></html>
