@@ -109,45 +109,58 @@ def normalize_date(val: Any) -> Any:
     ]
     for fmt in formats:
         try:
-            return datetime.strptime(s, fmt).date().isoformat()  # noqa: DTZ007
+            return datetime.strptime(s, fmt).date().isoformat()
         except ValueError:
             pass
     return s
 
 
 def normalize_money(raw_val: Any) -> Any:
-    """Normalize money representation to standard dict with amount and currency."""
+    """Normalize money representation to standard dict with amount and currency without defaulting to USD."""
     if isinstance(raw_val, dict):
         amount = raw_val.get("amount")
-        currency = raw_val.get("currency") or "USD"
+        currency = raw_val.get("currency")
         if amount is not None:
             cleaned_amount = (
                 str(amount)
                 .replace("$", "")
                 .replace("€", "")
                 .replace("£", "")
+                .replace("¥", "")
                 .replace(",", "")
                 .strip()
             )
-            return {"amount": cleaned_amount, "currency": str(currency).upper()}
+            cleaned_currency = str(currency).upper().strip() if currency else None
+            return {"amount": cleaned_amount, "currency": cleaned_currency}
         return raw_val
     if isinstance(raw_val, str):
         s = raw_val.strip()
-        curr = "USD"
-        if "EUR" in s or "€" in s:
-            curr = "EUR"
-        elif "GBP" in s or "£" in s:
-            curr = "GBP"
-        elif "JPY" in s or "¥" in s:
-            curr = "JPY"
-        elif "USD" in s or "$" in s:
-            curr = "USD"
+        m_code = re.search(r"\b([A-Za-z]{3})\b", s)
+        currency = None
+        if m_code:
+            code = m_code.group(1).upper()
+            if code in {"USD", "CAD", "EUR", "GBP", "JPY", "AUD", "CHF", "CNY", "INR", "NZD", "SEK"}:
+                currency = code
+        if not currency:
+            if "€" in s:
+                currency = "EUR"
+            elif "£" in s:
+                currency = "GBP"
+            elif "¥" in s:
+                currency = "JPY"
+            elif "$" in s:
+                if "C$" in s or "CAD" in s:
+                    currency = "CAD"
+                elif "A$" in s or "AUD" in s:
+                    currency = "AUD"
+                else:
+                    currency = "USD"
         m = re.search(r"[-+]?\d*\.?\d+", s.replace(",", ""))
         if m:
-            return {"amount": m.group(0), "currency": curr}
+            return {"amount": m.group(0), "currency": currency}
         return raw_val
-    if isinstance(raw_val, (int, float)):
-        return {"amount": str(raw_val), "currency": "USD"}
+    if isinstance(raw_val, (int, float, Decimal)):
+        return {"amount": str(raw_val), "currency": None}
     return raw_val
 
 
