@@ -36,6 +36,7 @@ from .adapters import BaseModelAdapter, load_adapter
 from .polyglot_eval import execute_polyglot_task, clean_polyglot_completion
 from .reasoning_eval import evaluate_gsm8k_sample, evaluate_arc_sample, evaluate_competition_math_sample
 from .cyber_eval import evaluate_cybersecurity_challenge
+from .display import EvaluationProgress, display_mode, write_html_report
 from telos.data.tokenizer import load_tokenizer
 from telos.models import TelosConfig
 
@@ -669,6 +670,9 @@ def evaluate_functional(
     is_cyber = "cyber" in suite
     is_polyglot = any(x in suite for x in ["csharp", "cs", "java", "js", "javascript", "ts", "typescript", "rust", "react"])
 
+    progress = EvaluationProgress(suite + mode_label, len(tasks))
+    progress.update(0, 0)
+
     for idx, task in enumerate(tasks, 1):
         cat = task.get("category", task.get("subject", task.get("domain", "General")))
         if cat not in category_stats:
@@ -811,8 +815,7 @@ def evaluate_functional(
             "extended_metrics": comp_metrics,
         })
 
-        if idx % 10 == 0 or idx == len(tasks):
-            print(f"  [{idx}/{len(tasks)}] Completed... Current Pass@1: {round(outcome_counts[ExecutionResult.PASSED.value]/idx*100, 1)}%")
+        progress.update(idx, outcome_counts[ExecutionResult.PASSED.value], detail=cat)
 
     total_tasks = len(tasks)
     passed_total = outcome_counts[ExecutionResult.PASSED.value]
@@ -1459,6 +1462,9 @@ def evaluate(
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == 'report':
+        from .display import main as report_main
+        return report_main(sys.argv[2:])
     parser = argparse.ArgumentParser(description="Télos Next-Generation Universal Evaluation Suite")
     parser.add_argument(
         "--checkpoint", "--checkpoints", "--model", "--models",
@@ -1539,9 +1545,12 @@ def main():
     parser.add_argument("--timeout", type=float, default=3.0, help="Sandbox subprocess timeout in seconds")
     parser.add_argument("--tokenizer", type=str, default=None, help="Path to BPE tokenizer JSON")
     parser.add_argument("--output", type=str, default=None, help="Path to save output JSON report")
+    parser.add_argument("--html-report", type=Path, help="Also save a portable cream evaluation notebook")
+    parser.add_argument("--display", choices=['auto', 'plain', 'off'], default='auto', help="Live progress: adaptive terminal, plain log records, or off")
     args = parser.parse_args()
 
-    evaluate(
+    with display_mode(args.display):
+        result = evaluate(
         checkpoint=args.checkpoints,
         mode=args.mode,
         suite=args.suite,
@@ -1561,7 +1570,10 @@ def main():
         device=args.device,
         torch_dtype=args.torch_dtype,
         quantization=args.quantization,
-    )
+        )
+    if args.html_report:
+        write_html_report(result, args.html_report, title='Télos evaluation', source=Path(args.output).name if args.output else 'telos eval')
+        print(f"[OK] Saved evaluation display to {args.html_report}")
 
 
 if __name__ == "__main__":

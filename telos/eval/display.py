@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import argparse
 import base64
-from collections import Counter
+from contextlib import contextmanager
+from contextvars import ContextVar
 import html
 import json
 import math
@@ -16,6 +17,18 @@ import time
 
 ASSETS = Path(__file__).with_name('display_assets')
 ANSI = re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
+DISPLAY_MODE = ContextVar('telos_evaluation_display', default='auto')
+
+
+@contextmanager
+def display_mode(mode):
+    if mode not in ('auto', 'plain', 'off'):
+        raise ValueError('Display mode must be auto, plain or off.')
+    token = DISPLAY_MODE.set(mode)
+    try:
+        yield
+    finally:
+        DISPLAY_MODE.reset(token)
 
 
 def number(value):
@@ -40,7 +53,7 @@ def normalize_report(data, *, title='Evaluation report', cases=None, source=''):
     case_map = {str(c['id']): c for c in (cases or [])}
     rows, suites = [], []
 
-    def reader(node):
+    def reader(node, path):
         for item in node['results']:
             response = item.get('response', {})
             case = case_map.get(str(item.get('case_id')), {})
@@ -49,7 +62,7 @@ def normalize_report(data, *, title='Evaluation report', cases=None, source=''):
             rows.append({
                 'id': str(item.get('case_id', len(rows) + 1)),
                 'model': response.get('model', 'Reader-1'),
-                'suite': 'Document extraction', 'category': item.get('category', 'General'),
+                'suite': path or 'Document extraction', 'category': item.get('category', 'General'),
                 'question': response.get('question', case.get('question', '')),
                 'correct': correct if isinstance(correct, bool) else None,
                 'status': response.get('status', 'ERROR' if item.get('error') else 'UNKNOWN'),
@@ -69,7 +82,7 @@ def normalize_report(data, *, title='Evaluation report', cases=None, source=''):
             return
         model = str(node.get('model_checkpoint', node.get('model', model)))
         if isinstance(node.get('results'), list) and any('case_id' in r for r in node['results'] if isinstance(r, dict)):
-            reader(node)
+            reader(node, path)
             return
         if isinstance(node.get('no_hint'), dict) and isinstance(node.get('hint'), dict):
             visit(node['no_hint'], path + '/no_hint', model)
@@ -139,12 +152,12 @@ class EvaluationProgress:
     """One-line TTY progress; sparse, escape-free records in pipes and CI."""
     def __init__(self, label, total, *, stream=None, enabled=True):
         self.stream = stream or sys.stderr
-        self.enabled = enabled
+        self.enabled = enabled and DISPLAY_MODE.get() != 'off'
         self.label = clean_terminal(label)
         self.total = max(0, int(total))
         self.started = time.monotonic()
         self.last = -1
-        self.tty = bool(getattr(self.stream, 'isatty', lambda: False)())
+        self.tty = DISPLAY_MODE.get() != 'plain' and bool(getattr(self.stream, 'isatty', lambda: False)())
         self.color = self.tty and 'NO_COLOR' not in os.environ and os.environ.get('TERM') != 'dumb'
 
     def update(self, completed, passed, *, detail='', force=False):
