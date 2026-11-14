@@ -29,14 +29,15 @@ def test_money_normalization_from_dict():
 
 
 def test_money_normalization_from_string():
-    """Verify money strings with symbols or currency codes are converted to {amount, currency}."""
+    """Verify money strings with symbols or currency codes are converted to {amount, currency} without defaulting to USD."""
     assert normalize_value("money", "$15") == {"amount": "15", "currency": "USD"}
     assert normalize_value("money", "USD 15") == {"amount": "15", "currency": "USD"}
     assert normalize_value("money", "15 USD") == {"amount": "15", "currency": "USD"}
+    assert normalize_value("money", "CAD 15") == {"amount": "15", "currency": "CAD"}
     assert normalize_value("money", "€25.50") == {"amount": "25.50", "currency": "EUR"}
     assert normalize_value("money", "£50") == {"amount": "50", "currency": "GBP"}
-    assert normalize_value("money", "15") == {"amount": "15", "currency": "USD"}
-    assert normalize_value("money", 15) == {"amount": "15", "currency": "USD"}
+    assert normalize_value("money", "15") == {"amount": "15", "currency": None}
+    assert normalize_value("money", 15) == {"amount": "15", "currency": None}
 
 
 def test_percentage_normalization():
