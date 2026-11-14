@@ -10,6 +10,7 @@
       "extraction_grounded": 512,
       "pipeline_correct": 214,
       "direct_correct": 0,
+      "format_failures": 0,
       "executor_contract_errors": 97,
       "categories": {
         "arithmetic": {
@@ -102,16 +103,226 @@
       "errors": {}
     },
     {
+      "artifact": "nuextract_1_5_tiny_extraction.json",
+      "model_id": "numind/NuExtract-1.5-tiny",
+      "track": "extraction",
+      "records": 512,
+      "complete": true,
+      "extraction_exact": 88,
+      "extraction_grounded": 485,
+      "pipeline_correct": 89,
+      "direct_correct": 0,
+      "format_failures": 27,
+      "executor_contract_errors": 132,
+      "categories": {
+        "arithmetic": {
+          "total": 43,
+          "extraction_exact": 12,
+          "pipeline_correct": 12,
+          "direct_correct": 0
+        },
+        "conflicts": {
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 1,
+          "direct_correct": 0
+        },
+        "corrections": {
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "dates": {
+          "total": 43,
+          "extraction_exact": 14,
+          "pipeline_correct": 14,
+          "direct_correct": 0
+        },
+        "irrelevant_instructions": {
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "lists": {
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "missing": {
+          "total": 43,
+          "extraction_exact": 43,
+          "pipeline_correct": 43,
+          "direct_correct": 0
+        },
+        "percentages": {
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "scalar": {
+          "total": 42,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "table_lookup": {
+          "total": 42,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "unicode": {
+          "total": 42,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "units": {
+          "total": 42,
+          "extraction_exact": 19,
+          "pipeline_correct": 19,
+          "direct_correct": 0
+        }
+      },
+      "status_groups": {
+        "answer_present": {
+          "total": 426,
+          "extraction_exact": 45,
+          "pipeline_correct": 45,
+          "direct_correct": 0
+        },
+        "absence_or_conflict": {
+          "total": 86,
+          "extraction_exact": 43,
+          "pipeline_correct": 44,
+          "direct_correct": 0
+        }
+      },
+      "errors": {
+        "malformed_response": 27
+      }
+    },
+    {
+      "artifact": "smollm2_360m_instruct_direct_qa.json",
+      "model_id": "HuggingFaceTB/SmolLM2-360M-Instruct",
+      "track": "direct_qa",
+      "records": 512,
+      "complete": true,
+      "extraction_exact": 0,
+      "extraction_grounded": 0,
+      "pipeline_correct": 0,
+      "direct_correct": 1,
+      "format_failures": 415,
+      "executor_contract_errors": 0,
+      "categories": {
+        "arithmetic": {
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "conflicts": {
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "corrections": {
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "dates": {
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "irrelevant_instructions": {
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "lists": {
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "missing": {
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "percentages": {
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "scalar": {
+          "total": 42,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "table_lookup": {
+          "total": 42,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "unicode": {
+          "total": 42,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 1
+        },
+        "units": {
+          "total": 42,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        }
+      },
+      "status_groups": {
+        "answer_present": {
+          "total": 426,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 1
+        },
+        "absence_or_conflict": {
+          "total": 86,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        }
+      },
+      "errors": {
+        "malformed_response": 404,
+        "invalid_status": 11
+      }
+    },
+    {
       "artifact": "smollm2_360m_instruct_extraction.json",
       "model_id": "HuggingFaceTB/SmolLM2-360M-Instruct",
       "track": "extraction",
-      "records": 221,
-      "complete": false,
+      "records": 512,
+      "complete": true,
       "extraction_exact": 10,
-      "extraction_grounded": 13,
+      "extraction_grounded": 23,
       "pipeline_correct": 10,
       "direct_correct": 0,
-      "executor_contract_errors": 211,
+      "format_failures": 275,
+      "executor_contract_errors": 502,
       "categories": {
         "arithmetic": {
           "total": 43,
@@ -144,7 +355,43 @@
           "direct_correct": 0
         },
         "lists": {
-          "total": 6,
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "missing": {
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "percentages": {
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "scalar": {
+          "total": 42,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "table_lookup": {
+          "total": 42,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "unicode": {
+          "total": 42,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "units": {
+          "total": 42,
           "extraction_exact": 0,
           "pipeline_correct": 0,
           "direct_correct": 0
@@ -152,20 +399,20 @@
       },
       "status_groups": {
         "answer_present": {
-          "total": 178,
+          "total": 426,
           "extraction_exact": 10,
           "pipeline_correct": 10,
           "direct_correct": 0
         },
         "absence_or_conflict": {
-          "total": 43,
+          "total": 86,
           "extraction_exact": 0,
           "pipeline_correct": 0,
           "direct_correct": 0
         }
       },
       "errors": {
-        "malformed_response": 108
+        "malformed_response": 275
       }
     }
   ]
