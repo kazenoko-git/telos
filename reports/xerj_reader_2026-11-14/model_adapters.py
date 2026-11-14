@@ -935,7 +935,8 @@ ADAPTER_FACTORIES = {
     "ministral-3-8b-instruct-2512": lambda: LMStudioAdapter("ministral-3-8b-instruct-2512"),
     "google/gemma-4-e4b": lambda: LMStudioAdapter("google/gemma-4-e4b"),
     "lfm3-omni-2b": lambda: Lfm3OmniAdapter(),
-    "gemini-3.5-flash-lite": lambda: GeminiFlashLiteAdapter(),
+    "qwen3.5-0.8b-mlx": lambda: LMStudioAdapter("qwen3.5-0.8b-mlx"),
+    "qwen3.5-2b-optiq": lambda: LMStudioAdapter("qwen3.5-2b-optiq"),
 }
 
 
