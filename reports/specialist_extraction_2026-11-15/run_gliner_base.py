@@ -70,7 +70,7 @@ def main():
             with torch.inference_mode():raw=model.extract_json(case['document'],schema,threshold=0.5,include_confidence=True,include_spans=True)
             fields=normalize(raw,[f['name'] for f in pub['fields']])
             executor=execute(case['document'],pub,fields)
-            record.update(raw_completion=raw,parsed_fields=fields,extraction_grade=grade_extraction(case['document'],plan,fields),deterministic_executor=executor,executor_score={'answer_correct':classify_outcome(case,executor) in ('correct_answer','correct_abstention'),'outcome':classify_outcome(case,executor)})
+            record.update(raw_completion=raw,parsed_fields=fields,extraction_grade=grade_extraction(case['document'],plan,fields),deterministic_executor=executor,executor_score={'answer_correct':classify_outcome(case,executor) in ('correct_answer','correct_abstention'),'outcome':'contract_error' if executor.get('status')=='CONTRACT_ERROR' else classify_outcome(case,executor)})
         except Exception as err:
             record.update(raw_completion=raw,parsed_fields=None,extraction_grade={'exact_fields':False,'grounded':False},deterministic_executor={'status':'RUNTIME_ERROR','value':None},executor_score={'answer_correct':False},error={'kind':type(err).__name__,'message':str(err)})
         record['client_ms']=round((time.perf_counter()-timer)*1000,3);result['records'].append(record);save()
