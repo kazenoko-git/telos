@@ -14,12 +14,12 @@ def correct(score):
 
 def summarize(path,case_map):
     data=json.loads(path.read_text());records=data.get('records',[]);meta=data.get('run_metadata',{})
-    output_mode=meta.get('output_mode',path.stem)
+    output_mode=meta.get('track',meta.get('output_mode',path.stem))
     ids=[r['case_id'] for r in records]
     if len(set(ids))!=len(ids):raise ValueError(f'Duplicate task IDs: {path.name}')
     if set(ids)-case_map.keys():raise ValueError(f'Unknown task IDs: {path.name}')
     result={'artifact':path.name,'model_id':meta.get('model_id'),'track':output_mode,'records':len(records),'complete':len(records)==512,
-            'extraction_exact':0,'extraction_grounded':0,'pipeline_correct':0,'direct_correct':0,'categories':{},'status_groups':{},'errors':{}}
+            'extraction_exact':0,'extraction_grounded':0,'pipeline_correct':0,'direct_correct':0,'executor_contract_errors':0,'categories':{},'status_groups':{},'errors':{}}
     errs=collections.Counter()
     for record in records:
         case=case_map[record['case_id']];cat=case['category'];group='answer_present' if 'expected' in case else 'absence_or_conflict'
@@ -28,7 +28,11 @@ def summarize(path,case_map):
         for key,val in [('extraction_exact',ext),('extraction_grounded',grounded),('pipeline_correct',pipeline),('direct_correct',direct)]:result[key]+=val
         for container,bucket in [(result['categories'],cat),(result['status_groups'],group)]:
             row=container.setdefault(bucket,{'total':0,'extraction_exact':0,'pipeline_correct':0,'direct_correct':0});row['total']+=1;row['extraction_exact']+=ext;row['pipeline_correct']+=pipeline;row['direct_correct']+=direct
-        err=record.get('error')
+        executor=record.get('deterministic_executor',record.get('executor_result',{}))
+        result['executor_contract_errors']+=executor.get('status')=='CONTRACT_ERROR'
+        attempts=record.get('attempts')
+        attempt_error=(attempts[-1].get('error') if isinstance(attempts,list) and attempts else None)
+        err=record.get('error') or (record.get('response') or {}).get('error') or (record.get('inference_settings') or {}).get('error') or attempt_error
         if err:errs[str(err.get('kind','error') if isinstance(err,dict) else err)]+=1
     result['errors']=dict(errs)
     return result

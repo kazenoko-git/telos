@@ -10,6 +10,7 @@
       "extraction_grounded": 512,
       "pipeline_correct": 214,
       "direct_correct": 0,
+      "executor_contract_errors": 97,
       "categories": {
         "arithmetic": {
           "total": 43,
@@ -103,13 +104,14 @@
     {
       "artifact": "smollm2_360m_instruct_extraction.json",
       "model_id": "HuggingFaceTB/SmolLM2-360M-Instruct",
-      "track": "raw and normalized records; per-case outputs saved incrementally",
-      "records": 96,
+      "track": "extraction",
+      "records": 221,
       "complete": false,
-      "extraction_exact": 5,
-      "extraction_grounded": 8,
-      "pipeline_correct": 5,
+      "extraction_exact": 10,
+      "extraction_grounded": 13,
+      "pipeline_correct": 10,
       "direct_correct": 0,
+      "executor_contract_errors": 211,
       "categories": {
         "arithmetic": {
           "total": 43,
@@ -124,7 +126,25 @@
           "direct_correct": 0
         },
         "corrections": {
-          "total": 10,
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "dates": {
+          "total": 43,
+          "extraction_exact": 5,
+          "pipeline_correct": 5,
+          "direct_correct": 0
+        },
+        "irrelevant_instructions": {
+          "total": 43,
+          "extraction_exact": 0,
+          "pipeline_correct": 0,
+          "direct_correct": 0
+        },
+        "lists": {
+          "total": 6,
           "extraction_exact": 0,
           "pipeline_correct": 0,
           "direct_correct": 0
@@ -132,9 +152,9 @@
       },
       "status_groups": {
         "answer_present": {
-          "total": 53,
-          "extraction_exact": 5,
-          "pipeline_correct": 5,
+          "total": 178,
+          "extraction_exact": 10,
+          "pipeline_correct": 10,
           "direct_correct": 0
         },
         "absence_or_conflict": {
@@ -144,7 +164,9 @@
           "direct_correct": 0
         }
       },
-      "errors": {}
+      "errors": {
+        "malformed_response": 108
+      }
     }
   ]
 }
