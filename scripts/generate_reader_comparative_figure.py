@@ -12,13 +12,43 @@ from matplotlib.patches import FancyBboxPatch
 
 
 def load_comparative_data(root: Path, input_path: Path) -> dict:
-    """Load benchmark data from combined file or fallback files."""
+    """Load benchmark data from combined file or merge constituent run files."""
+    r_dir = root / "reports/xerj_reader_2026-11-14"
+    merged = {"benchmark_meta": {}, "model_runs": {}}
+
     if input_path.exists():
-        return json.loads(input_path.read_text())
-    fallback = root / "reports/xerj_reader_2026-11-14/comparative_512_v2_run.json"
-    if fallback.exists():
-        return json.loads(fallback.read_text())
-    raise FileNotFoundError(f"Could not find comparative run data at {input_path}")
+        try:
+            data = json.loads(input_path.read_text())
+            if "benchmark_meta" in data:
+                merged["benchmark_meta"] = data["benchmark_meta"]
+            for m_id, m_run in data.get("model_runs", {}).items():
+                if m_id != "gemini-3.5-flash-lite":
+                    merged["model_runs"][m_id] = m_run
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    # Merge individual constituent files if available
+    sources = [
+        "comparative_512_v2_xerj.json",
+        "comparative_512_v2_local.json",
+        "comparative_512_qwen08b.json",
+        "comparative_512_qwen2b.json",
+    ]
+    for src in sources:
+        p = r_dir / src
+        if not p.exists():
+            continue
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if "benchmark_meta" in data and not merged["benchmark_meta"]:
+            merged["benchmark_meta"] = data["benchmark_meta"]
+        for m_id, m_run in data.get("model_runs", {}).items():
+            if m_id != "gemini-3.5-flash-lite":
+                merged["model_runs"][m_id] = m_run
+
+    return merged
 
 
 def get_model_display_name(model_id: str) -> str:
@@ -29,7 +59,8 @@ def get_model_display_name(model_id: str) -> str:
         "google/gemma-4-e4b": "Gemma 4 E4B (Q4 Local)",
         "lfm3-omni-2b": "LFM3 Omni 2B (MLX Local)",
         "ternary-bonsai-4b-mlx": "Ternary Bonsai 4B (1.58b)",
-        "gemini-3.5-flash-lite": "Gemini 3.5 Flash-Lite (Incomplete)",
+        "qwen3.5-0.8b-mlx": "Qwen 3.5 0.8B MLX",
+        "qwen3.5-2b-optiq": "Qwen 3.5 2B OptiQ",
     }
     return names.get(model_id, model_id)
 
@@ -172,6 +203,8 @@ def main():
         "google/gemma-4-e4b": "#D35400",
         "lfm3-omni-2b": "#16A085",
         "ternary-bonsai-4b-mlx": rust,
+        "qwen3.5-0.8b-mlx": "#E74C3C",
+        "qwen3.5-2b-optiq": "#8E44AD",
     }
 
     for m in completed_models:
