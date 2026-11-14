@@ -23,18 +23,24 @@ def normalize(raw,names):
     rows=raw.get('requested_values',[])
     if isinstance(rows,dict):rows=[rows] if rows else []
     if not isinstance(rows,list):raise ValueError('Native requested_values must be a list')
-    fields={name:[] for name in names}
+    collected={name:[] for name in names}
     for row in rows:
         if not isinstance(row,dict):raise ValueError('Native row must be an object')
         for name in names:
             vals=row.get(name,[])
-            if isinstance(vals,str):vals=[vals]
-            if isinstance(vals,dict):vals=[vals]
+            if isinstance(vals,(str,dict)):vals=[vals]
             if not isinstance(vals,list):raise ValueError('Native field must be a list')
-            for value in vals:
-                text=value.get('text') if isinstance(value,dict) else value
-                if not isinstance(text,str):raise ValueError('Native span missing text')
-                if text not in fields[name]:fields[name].append(text)
+            collected[name].extend(vals)
+    fields={name:[] for name in names}
+    for name,vals in collected.items():
+        # The native API ranks spans by confidence; restore document order from
+        # native positions, without consulting the reference or gold answer.
+        if vals and all(isinstance(v,dict) and isinstance(v.get('start'),int) for v in vals):
+            vals=sorted(vals,key=lambda v:v['start'])
+        for value in vals:
+            text=value.get('text') if isinstance(value,dict) else value
+            if not isinstance(text,str):raise ValueError('Native span missing text')
+            if text not in fields[name]:fields[name].append(text)
     return fields
 
 
@@ -51,7 +57,7 @@ def main():
     def command(cmd):
         try:return subprocess.check_output(cmd,text=True,stderr=subprocess.DEVNULL).strip()
         except Exception:return None
-    metadata={'model_id':MODEL,'revision':REVISION,'weight_sha256':sha(local/'model.safetensors'),'suite_sha256':sha(CONTRACT/'suite_512_cases.json'),'taskplan_sha256':sha(CONTRACT/'pipeline_task_plans.json'),'output_mode':'extraction_and_pipeline','runtime':{k:importlib.metadata.version(k) for k in ['torch','transformers','gliner2','tokenizers']},'device':'cpu','dtype':str(next(model.parameters()).dtype),'timing_policy':'Per-case client wall time includes native inference, field parsing and local grading; model load excluded.','runner_sha256':sha(Path(__file__)),'threads':4,'threshold':0.5,'model_load_ms':load_ms,'hardware':{'platform':platform.platform(),'chip':command(['sysctl','-n','machdep.cpu.brand_string']),'ram_bytes':command(['sysctl','-n','hw.memsize']),'power_settings':command(['pmset','-g','custom'])},'started_utc':datetime.now(timezone.utc).isoformat(),'finished_utc':None,'expected_cases':len(cases),'source_implementation':'run_gliner_base.py','normalization':'Unwrap native span text; preserve native order; deduplicate identical span text per field. No gold-based completion.'}
+    metadata={'model_id':MODEL,'revision':REVISION,'weight_sha256':sha(local/'model.safetensors'),'suite_sha256':sha(CONTRACT/'suite_512_cases.json'),'taskplan_sha256':sha(CONTRACT/'pipeline_task_plans.json'),'output_mode':'extraction_and_pipeline','runtime':{k:importlib.metadata.version(k) for k in ['torch','transformers','gliner2','tokenizers']},'device':'cpu','dtype':str(next(model.parameters()).dtype),'timing_policy':'Per-case client wall time includes native inference, field parsing and local grading; model load excluded.','runner_sha256':sha(Path(__file__)),'threads':4,'threshold':0.5,'model_load_ms':load_ms,'hardware':{'platform':platform.platform(),'chip':command(['sysctl','-n','machdep.cpu.brand_string']),'ram_bytes':command(['sysctl','-n','hw.memsize']),'power_settings':command(['pmset','-g','custom'])},'started_utc':datetime.now(timezone.utc).isoformat(),'finished_utc':None,'expected_cases':len(cases),'source_implementation':'run_gliner_base.py','normalization':'Unwrap native span text; canonicalize source order using native character starts; deduplicate identical span text per field. No gold-based completion.'}
     result={'run_metadata':metadata,'records':[]}
     def save():
         tmp=args.output.with_suffix('.tmp');tmp.write_text(json.dumps(result,indent=2,ensure_ascii=False)+'\n');tmp.replace(args.output)

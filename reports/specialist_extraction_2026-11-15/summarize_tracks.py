@@ -36,7 +36,7 @@ def summarize(path,case_map):
 
 def main():
     cases=json.loads(SUITE.read_text());case_map={c['id']:c for c in cases}
-    paths=sorted(p for p in ROOT.glob('*.json') if p.name not in ('summary.json',) and 'smoke' not in p.name and 'preflight' not in p.name)
+    paths=sorted(p for p in ROOT.glob('*.json') if p.name not in ('summary.json',) and 'smoke' not in p.name and 'preflight' not in p.name and 'native_order' not in p.name)
     rows=[summarize(p,case_map) for p in paths if 'records' in json.loads(p.read_text())]
     (ROOT/'summary.json').write_text(json.dumps({'tracks':rows},indent=2)+'\n')
     lines=['# Tiny extraction models','', 'Direct QA, extraction-only, and calculator results are separate tracks. Pipeline operations and requested source fields are human-specified.','', '| Model / track | Tasks | Exact extraction | Calculator answer | Direct QA |','|---|---:|---:|---:|---:|']
