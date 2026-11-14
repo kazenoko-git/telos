@@ -1,0 +1,142 @@
+{
+  "run_metadata": {
+    "model_id": "fastino/gliner2-base-v1",
+    "revision": "f9634218e53580c56edf0de97ca1a7d3f1c2354e",
+    "weight_sha256": "845fc4bd93c525b86124c58ab4f56c9eacf8587953086b14c501fab25957c007",
+    "suite_sha256": "7aa446c23aa360a783b2ba5935e98e9305d67528ea55a7fea9a8f4cd30db529a",
+    "taskplan_sha256": "76cdd0600958e06aa02b6a9b499fa98a45e0daec5c027752b1481a57afc6ce15",
+    "output_mode": "extraction_and_pipeline",
+    "runtime": {
+      "torch": "2.13.0",
+      "transformers": "4.51.3",
+      "gliner2": "2.1.0",
+      "tokenizers": "0.21.1"
+    },
+    "device": "cpu",
+    "dtype": "torch.float32",
+    "timing_policy": "Per-case client wall time includes native inference, field parsing and local grading; model load excluded.",
+    "runner_sha256": "7b55b3cb4bcebb0de9f751a0204b88284f955c67502081abd4d17329516bcde8",
+    "threads": 4,
+    "threshold": 0.5,
+    "model_load_ms": 25346.448291966226,
+    "hardware": {
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "chip": "Apple M5 Pro",
+      "ram_bytes": "25769803776",
+      "power_settings": "Battery Power:\n Sleep On Power Button 1\n powermode            0\n standby              1\n ttyskeepawake        1\n hibernatemode        3\n powernap             1\n hibernatefile        /var/vm/sleepimage\n displaysleep         10\n womp                 0\n networkoversleep     0\n sleep                1\n lessbright           1\n tcpkeepalive         1\n disksleep            10\nAC Power:\n Sleep On Power Button 1\n powermode            2\n standby              1\n ttyskeepawake        1\n hibernatemode        3\n powernap             1\n hibernatefile        /var/vm/sleepimage\n displaysleep         60\n womp                 1\n networkoversleep     0\n sleep                0\n tcpkeepalive         1\n disksleep            10"
+    },
+    "started_utc": "2026-11-14T18:48:32.567101+00:00",
+    "finished_utc": null,
+    "expected_cases": 512,
+    "source_implementation": "run_gliner_base.py",
+    "normalization": "Unwrap native span text; preserve native order; deduplicate identical span text per field. No gold-based completion."
+  },
+  "records": [
+    {
+      "case_id": "arithmetic-01",
+      "category": "arithmetic",
+      "subset": "inspected_240",
+      "attempts": 1,
+      "native_schema": {
+        "requested_values": [
+          {
+            "name": "east",
+            "dtype": "list",
+            "description": "Number of tasks completed by east Original question: How many tasks did east and west complete in total? Copy literal numbers, dates, or names only; omit units from numeric literals. Do not calculate."
+          },
+          {
+            "name": "west",
+            "dtype": "list",
+            "description": "Number of tasks completed by west Original question: How many tasks did east and west complete in total? Copy literal numbers, dates, or names only; omit units from numeric literals. Do not calculate."
+          }
+        ]
+      },
+      "error": null,
+      "raw_completion": {
+        "requested_values": [
+          {
+            "east": [
+              {
+                "text": "14",
+                "confidence": 1.0,
+                "start": 55,
+                "end": 57
+              }
+            ],
+            "west": [
+              {
+                "text": "5",
+                "confidence": 1.0,
+                "start": 80,
+                "end": 81
+              }
+            ]
+          }
+        ]
+      },
+      "parsed_fields": {
+        "east": [
+          "14"
+        ],
+        "west": [
+          "5"
+        ]
+      },
+      "extraction_grade": {
+        "exact_fields": true,
+        "grounded": true,
+        "matching_fields": 2,
+        "total_fields": 2
+      },
+      "deterministic_executor": {
+        "status": "ANSWER",
+        "value": "19"
+      },
+      "executor_score": {
+        "answer_correct": true,
+        "outcome": "correct_answer"
+      },
+      "client_ms": 1263.487
+    },
+    {
+      "case_id": "arithmetic-02",
+      "category": "arithmetic",
+      "subset": "inspected_240",
+      "attempts": 1,
+      "native_schema": {
+        "requested_values": [
+          {
+            "name": "initial",
+            "dtype": "list",
+            "description": "Cache entries before cleanup Original question: How many entries remained after cleanup? Copy literal numbers, dates, or names only; omit units from numeric literals. Do not calculate."
+          },
+          {
+            "name": "removed",
+            "dtype": "list",
+            "description": "Cache entries removed during cleanup Original question: How many entries remained after cleanup? Copy literal numbers, dates, or names only; omit units from numeric literals. Do not calculate."
+          }
+        ]
+      },
+      "error": {
+        "kind": "ValueError",
+        "message": "Native requested_values must be a list"
+      },
+      "raw_completion": {
+        "requested_values": {}
+      },
+      "parsed_fields": null,
+      "extraction_grade": {
+        "exact_fields": false,
+        "grounded": false
+      },
+      "deterministic_executor": {
+        "status": "RUNTIME_ERROR",
+        "value": null
+      },
+      "executor_score": {
+        "answer_correct": false
+      },
+      "client_ms": 659.409
+    }
+  ]
+}

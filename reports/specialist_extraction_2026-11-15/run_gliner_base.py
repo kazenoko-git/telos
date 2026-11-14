@@ -21,6 +21,7 @@ def sha(path):
 def normalize(raw,names):
     if not isinstance(raw,dict):raise ValueError('Native result must be an object')
     rows=raw.get('requested_values',[])
+    if isinstance(rows,dict):rows=[rows] if rows else []
     if not isinstance(rows,list):raise ValueError('Native requested_values must be a list')
     fields={name:[] for name in names}
     for row in rows:
