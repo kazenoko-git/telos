@@ -1,0 +1,38 @@
+{
+  "model_id": "numind/NuExtract3-mlx-4bits",
+  "load_time_seconds": 1.471,
+  "tests": [
+    {
+      "name": "extraction_smoke",
+      "prompt_tokens": 179,
+      "completion_tokens": 41,
+      "latency_ms": 2019.9,
+      "raw_output": "{\"po_number\": \"PO-9921\", \"vendor\": \"Global Supplies Inc.\", \"total_amount\": 450, \"currency\": \"USD\", \"missing_field\": null}",
+      "parsed_output": {
+        "po_number": "PO-9921",
+        "vendor": "Global Supplies Inc.",
+        "total_amount": 450,
+        "currency": "USD",
+        "missing_field": null
+      },
+      "success": true
+    },
+    {
+      "name": "direct_qa_smoke",
+      "prompt_tokens": 230,
+      "completion_tokens": 77,
+      "latency_ms": 937.23,
+      "raw_output": "{\"status\": \"ANSWER\", \"value\": \"19\", \"evidence\": [\"East datacenter finished 14 tasks.\", \"West datacenter finished 5 tasks.\"], \"reason\": \"The total number of tasks is the sum of tasks completed by the East datacenter (14) and the West datacenter (5), which equals 19.\"}",
+      "parsed_output": {
+        "status": "ANSWER",
+        "value": "19",
+        "evidence": [
+          "East datacenter finished 14 tasks.",
+          "West datacenter finished 5 tasks."
+        ],
+        "reason": "The total number of tasks is the sum of tasks completed by the East datacenter (14) and the West datacenter (5), which equals 19."
+      },
+      "success": true
+    }
+  ]
+}
