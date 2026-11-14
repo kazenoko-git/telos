@@ -133,3 +133,55 @@ def test_no_color_disables_color_without_disabling_tty_progress(monkeypatch):
     assert progress.tty and not progress.color
     progress.update(1, 1)
     assert '\x1b[38;' not in out.getvalue()
+
+
+def test_functional_runner_emits_live_progress_without_changing_score(tmp_path, monkeypatch, capsys):
+    from telos.eval import runner
+    from telos.eval.adapters.base import BaseModelAdapter
+
+    class FixedAdapter(BaseModelAdapter):
+        def __init__(self):
+            super().__init__('fixed', 'fixture')
+
+        def generate(self, prompt, **kwargs):
+            return 'B'
+
+    directory = tmp_path / 'evals' / 'benchmarks'
+    directory.mkdir(parents=True)
+    (directory / 'arc_challenge_suite.json').write_text(json.dumps([
+        {'id': 'one', 'category': 'science', 'prompt': 'Select B.', 'answer_key': 'B'}]))
+    monkeypatch.setattr(runner, 'PROJECT_ROOT', tmp_path)
+    with display_mode('plain'):
+        report = runner.evaluate_functional(FixedAdapter(), None, 'fixture', suite='arc')
+    assert report['pass_at_1_pct'] == 100
+    assert report['tasks'][0]['outcome'] == 'PASSED'
+    assert '1/1' in capsys.readouterr().err
+
+
+def test_cli_can_export_saved_report_without_loading_a_model(tmp_path, monkeypatch):
+    import sys
+    from telos.eval import runner
+    source = tmp_path / 'source.json'
+    target = tmp_path / 'display.html'
+    source.write_text(json.dumps(native()))
+    monkeypatch.setattr(sys, 'argv', ['telos', 'report', str(source), '--output', str(target)])
+    monkeypatch.setattr(runner, 'load_adapter', lambda *a, **kw: pytest.fail('Must not load a model'))
+    runner.main()
+    assert 'humaneval' in target.read_text()
+
+
+def test_cli_html_export_preserves_evaluation_arguments(tmp_path, monkeypatch):
+    import sys
+    from telos.eval import runner
+    target = tmp_path / 'display.html'
+    captured = {}
+
+    def evaluate(**kwargs):
+        captured.update(kwargs)
+        return native()
+
+    monkeypatch.setattr(runner, 'evaluate', evaluate)
+    monkeypatch.setattr(sys, 'argv', ['telos', '--checkpoint', 'fixture', '--display', 'plain', '--html-report', str(target)])
+    runner.main()
+    assert captured['checkpoint'] == ['fixture']
+    assert target.exists()
