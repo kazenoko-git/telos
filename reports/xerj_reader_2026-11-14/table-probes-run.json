@@ -1,0 +1,1437 @@
+{
+  "cases_file": "table_probes.json",
+  "results": [
+    {
+      "case_id": "pipe-repeat-1",
+      "category": "table",
+      "response": {
+        "id": "ans_q0p5e27ts410hzvw6e94fhwz",
+        "object": "answer",
+        "created": 1794646094,
+        "model": "xerj-reader-1",
+        "question": "What is the validation loss for run B at step 200?",
+        "type": "number",
+        "status": "ANSWER",
+        "value": "2.90",
+        "value_text": "2.90",
+        "reason": null,
+        "confidence": 0.9842,
+        "evidence": [
+          {
+            "start": 116,
+            "end": 120,
+            "quote": "2.90"
+          }
+        ],
+        "answer": {
+          "type": "span",
+          "text": "2.90",
+          "start": 116,
+          "end": 120,
+          "confidence": 0.9842
+        },
+        "best_guess": null,
+        "symbolic": {
+          "program": [
+            "NUM",
+            [
+              "FIELD",
+              [
+                "NTH",
+                [
+                  "FILTER",
+                  [
+                    [
+                      "SPAN",
+                      "d1",
+                      21,
+                      149
+                    ],
+                    [
+                      "PARSE",
+                      "csv"
+                    ],
+                    [
+                      "ROWS"
+                    ]
+                  ],
+                  [
+                    "EQ",
+                    [
+                      "CELL",
+                      "_",
+                      null,
+                      "run"
+                    ],
+                    [
+                      "LIT",
+                      "Text",
+                      "B"
+                    ]
+                  ]
+                ],
+                1
+              ],
+              "val_loss"
+            ],
+            "auto"
+          ],
+          "program_compact": "NUM(FIELD(NTH(FILTER(ROWS(PARSE(“run | step | val_loss | tokens_per… 2.90 | 1000↵B | 200 | 2.20 | 1400”, \"csv\")), EQ(CELL(_, null, \"run\"), LIT(\"Text\", \"B\"))), 1), \"val_loss\"), \"auto\") = 2.90",
+          "spans": [
+            {
+              "doc": "d1",
+              "start": 21,
+              "end": 149,
+              "quote": "run | step | val_loss | tokens_per_second\nA | 100 | 3.10 | 900\nA | 200 | 2.50 | 1100\nB | 100 | 2.90 | 1000\nB | 200 | 2.20 | 1400"
+            }
+          ],
+          "status": "ANSWER",
+          "value": "2.90",
+          "value_text": "2.90",
+          "reason": null,
+          "evidence": [
+            {
+              "doc_id": "d1",
+              "char_start": 116,
+              "char_end": 120,
+              "quote": "2.90",
+              "exact": true,
+              "path": "row 3/val_loss",
+              "chain": [
+                "PARSE:csv"
+              ]
+            }
+          ],
+          "checks": [],
+          "coverage": null,
+          "withheld_value": null,
+          "candidates": null,
+          "typecheck": "Num",
+          "model": "xerj-reader-1",
+          "model_label": "XERJ Reader-1",
+          "field": {
+            "name": "answer",
+            "instruction": "What is the validation loss for run B at step 200?",
+            "spec": {
+              "type": "number"
+            }
+          },
+          "type": "number",
+          "type_inferred": false,
+          "confidence": {
+            "tok_min": 0.67,
+            "tok_mean": 0.9843,
+            "ptr_min": 1.0,
+            "ptr_mean": 1.0,
+            "n_tok": 48,
+            "n_ptr": 2,
+            "conf": 0.9842
+          },
+          "finished": true,
+          "decode_error": null,
+          "n_prompt_tokens": 92,
+          "n_gen_tokens": 49,
+          "ms": {
+            "total": 842,
+            "generate": 711,
+            "execute": 1
+          }
+        },
+        "usage": {
+          "input_tokens": 71,
+          "output_tokens": 49,
+          "total_tokens": 120
+        },
+        "latency_ms": 844
+      },
+      "client_ms": 1487.9,
+      "grade": {
+        "answer_correct": false,
+        "evidence_offsets_valid": true,
+        "answer_has_evidence": true
+      },
+      "replay": {
+        "id": "exe_5m490cwdzmg24by3hcqyt6g2",
+        "object": "execution",
+        "created": 1794646096,
+        "model": "xerj-reader-1",
+        "question": "What is the validation loss for run B at step 200?",
+        "type": "number",
+        "status": "ANSWER",
+        "value": "2.90",
+        "value_text": "2.90",
+        "reason": null,
+        "confidence": null,
+        "evidence": [
+          {
+            "start": 116,
+            "end": 120,
+            "quote": "2.90"
+          }
+        ],
+        "answer": {
+          "type": "span",
+          "text": "2.90",
+          "start": 116,
+          "end": 120,
+          "confidence": null
+        },
+        "best_guess": null,
+        "symbolic": {
+          "program": [
+            "NUM",
+            [
+              "FIELD",
+              [
+                "NTH",
+                [
+                  "FILTER",
+                  [
+                    [
+                      "SPAN",
+                      "d1",
+                      21,
+                      149
+                    ],
+                    [
+                      "PARSE",
+                      "csv"
+                    ],
+                    [
+                      "ROWS"
+                    ]
+                  ],
+                  [
+                    "EQ",
+                    [
+                      "CELL",
+                      "_",
+                      null,
+                      "run"
+                    ],
+                    [
+                      "LIT",
+                      "Text",
+                      "B"
+                    ]
+                  ]
+                ],
+                1
+              ],
+              "val_loss"
+            ],
+            "auto"
+          ],
+          "program_compact": "NUM(FIELD(NTH(FILTER(ROWS(PARSE(“run | step | val_loss | tokens_per… 2.90 | 1000↵B | 200 | 2.20 | 1400”, \"csv\")), EQ(CELL(_, null, \"run\"), LIT(\"Text\", \"B\"))), 1), \"val_loss\"), \"auto\") = 2.90",
+          "spans": [
+            {
+              "doc": "d1",
+              "start": 21,
+              "end": 149,
+              "quote": "run | step | val_loss | tokens_per_second\nA | 100 | 3.10 | 900\nA | 200 | 2.50 | 1100\nB | 100 | 2.90 | 1000\nB | 200 | 2.20 | 1400"
+            }
+          ],
+          "status": "ANSWER",
+          "value": "2.90",
+          "value_text": "2.90",
+          "reason": null,
+          "evidence": [
+            {
+              "doc_id": "d1",
+              "char_start": 116,
+              "char_end": 120,
+              "quote": "2.90",
+              "exact": true,
+              "path": "row 3/val_loss",
+              "chain": [
+                "PARSE:csv"
+              ]
+            }
+          ],
+          "checks": [],
+          "coverage": null,
+          "withheld_value": null,
+          "candidates": null,
+          "typecheck": "Num",
+          "field": {
+            "name": "answer",
+            "instruction": "What is the validation loss for run B at step 200?",
+            "spec": {
+              "type": "number"
+            }
+          },
+          "type": "number",
+          "type_inferred": false,
+          "ms": {
+            "execute": 1
+          }
+        },
+        "usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "total_tokens": 0
+        },
+        "latency_ms": 1
+      },
+      "replay_client_ms": 938.77,
+      "replay_matches": true
+    },
+    {
+      "case_id": "pipe-repeat-2",
+      "category": "table",
+      "response": {
+        "id": "ans_hzkr5wym278z8a9v27as7z7z",
+        "object": "answer",
+        "created": 1794646099,
+        "model": "xerj-reader-1",
+        "question": "What is the validation loss for run B at step 200?",
+        "type": "number",
+        "status": "ANSWER",
+        "value": "2.90",
+        "value_text": "2.90",
+        "reason": null,
+        "confidence": 0.9842,
+        "evidence": [
+          {
+            "start": 116,
+            "end": 120,
+            "quote": "2.90"
+          }
+        ],
+        "answer": {
+          "type": "span",
+          "text": "2.90",
+          "start": 116,
+          "end": 120,
+          "confidence": 0.9842
+        },
+        "best_guess": null,
+        "symbolic": {
+          "program": [
+            "NUM",
+            [
+              "FIELD",
+              [
+                "NTH",
+                [
+                  "FILTER",
+                  [
+                    [
+                      "SPAN",
+                      "d1",
+                      21,
+                      149
+                    ],
+                    [
+                      "PARSE",
+                      "csv"
+                    ],
+                    [
+                      "ROWS"
+                    ]
+                  ],
+                  [
+                    "EQ",
+                    [
+                      "CELL",
+                      "_",
+                      null,
+                      "run"
+                    ],
+                    [
+                      "LIT",
+                      "Text",
+                      "B"
+                    ]
+                  ]
+                ],
+                1
+              ],
+              "val_loss"
+            ],
+            "auto"
+          ],
+          "program_compact": "NUM(FIELD(NTH(FILTER(ROWS(PARSE(“run | step | val_loss | tokens_per… 2.90 | 1000↵B | 200 | 2.20 | 1400”, \"csv\")), EQ(CELL(_, null, \"run\"), LIT(\"Text\", \"B\"))), 1), \"val_loss\"), \"auto\") = 2.90",
+          "spans": [
+            {
+              "doc": "d1",
+              "start": 21,
+              "end": 149,
+              "quote": "run | step | val_loss | tokens_per_second\nA | 100 | 3.10 | 900\nA | 200 | 2.50 | 1100\nB | 100 | 2.90 | 1000\nB | 200 | 2.20 | 1400"
+            }
+          ],
+          "status": "ANSWER",
+          "value": "2.90",
+          "value_text": "2.90",
+          "reason": null,
+          "evidence": [
+            {
+              "doc_id": "d1",
+              "char_start": 116,
+              "char_end": 120,
+              "quote": "2.90",
+              "exact": true,
+              "path": "row 3/val_loss",
+              "chain": [
+                "PARSE:csv"
+              ]
+            }
+          ],
+          "checks": [],
+          "coverage": null,
+          "withheld_value": null,
+          "candidates": null,
+          "typecheck": "Num",
+          "model": "xerj-reader-1",
+          "model_label": "XERJ Reader-1",
+          "field": {
+            "name": "answer",
+            "instruction": "What is the validation loss for run B at step 200?",
+            "spec": {
+              "type": "number"
+            }
+          },
+          "type": "number",
+          "type_inferred": false,
+          "confidence": {
+            "tok_min": 0.67,
+            "tok_mean": 0.9843,
+            "ptr_min": 1.0,
+            "ptr_mean": 1.0,
+            "n_tok": 48,
+            "n_ptr": 2,
+            "conf": 0.9842
+          },
+          "finished": true,
+          "decode_error": null,
+          "n_prompt_tokens": 92,
+          "n_gen_tokens": 49,
+          "ms": {
+            "total": 804,
+            "generate": 712,
+            "execute": 1
+          }
+        },
+        "usage": {
+          "input_tokens": 71,
+          "output_tokens": 49,
+          "total_tokens": 120
+        },
+        "latency_ms": 806
+      },
+      "client_ms": 1445.25,
+      "grade": {
+        "answer_correct": false,
+        "evidence_offsets_valid": true,
+        "answer_has_evidence": true
+      },
+      "replay": {
+        "id": "exe_4xwe5rk753v1ryadytnd2stf",
+        "object": "execution",
+        "created": 1794646100,
+        "model": "xerj-reader-1",
+        "question": "What is the validation loss for run B at step 200?",
+        "type": "number",
+        "status": "ANSWER",
+        "value": "2.90",
+        "value_text": "2.90",
+        "reason": null,
+        "confidence": null,
+        "evidence": [
+          {
+            "start": 116,
+            "end": 120,
+            "quote": "2.90"
+          }
+        ],
+        "answer": {
+          "type": "span",
+          "text": "2.90",
+          "start": 116,
+          "end": 120,
+          "confidence": null
+        },
+        "best_guess": null,
+        "symbolic": {
+          "program": [
+            "NUM",
+            [
+              "FIELD",
+              [
+                "NTH",
+                [
+                  "FILTER",
+                  [
+                    [
+                      "SPAN",
+                      "d1",
+                      21,
+                      149
+                    ],
+                    [
+                      "PARSE",
+                      "csv"
+                    ],
+                    [
+                      "ROWS"
+                    ]
+                  ],
+                  [
+                    "EQ",
+                    [
+                      "CELL",
+                      "_",
+                      null,
+                      "run"
+                    ],
+                    [
+                      "LIT",
+                      "Text",
+                      "B"
+                    ]
+                  ]
+                ],
+                1
+              ],
+              "val_loss"
+            ],
+            "auto"
+          ],
+          "program_compact": "NUM(FIELD(NTH(FILTER(ROWS(PARSE(“run | step | val_loss | tokens_per… 2.90 | 1000↵B | 200 | 2.20 | 1400”, \"csv\")), EQ(CELL(_, null, \"run\"), LIT(\"Text\", \"B\"))), 1), \"val_loss\"), \"auto\") = 2.90",
+          "spans": [
+            {
+              "doc": "d1",
+              "start": 21,
+              "end": 149,
+              "quote": "run | step | val_loss | tokens_per_second\nA | 100 | 3.10 | 900\nA | 200 | 2.50 | 1100\nB | 100 | 2.90 | 1000\nB | 200 | 2.20 | 1400"
+            }
+          ],
+          "status": "ANSWER",
+          "value": "2.90",
+          "value_text": "2.90",
+          "reason": null,
+          "evidence": [
+            {
+              "doc_id": "d1",
+              "char_start": 116,
+              "char_end": 120,
+              "quote": "2.90",
+              "exact": true,
+              "path": "row 3/val_loss",
+              "chain": [
+                "PARSE:csv"
+              ]
+            }
+          ],
+          "checks": [],
+          "coverage": null,
+          "withheld_value": null,
+          "candidates": null,
+          "typecheck": "Num",
+          "field": {
+            "name": "answer",
+            "instruction": "What is the validation loss for run B at step 200?",
+            "spec": {
+              "type": "number"
+            }
+          },
+          "type": "number",
+          "type_inferred": false,
+          "ms": {
+            "execute": 2
+          }
+        },
+        "usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "total_tokens": 0
+        },
+        "latency_ms": 2
+      },
+      "replay_client_ms": 668.07,
+      "replay_matches": true
+    },
+    {
+      "case_id": "csv-table-11",
+      "category": "table-diagnostic",
+      "response": {
+        "id": "ans_aawfzzea39hw4a5mpv2m5kdb",
+        "object": "answer",
+        "created": 1794646103,
+        "model": "xerj-reader-1",
+        "question": "What is the validation loss for run B at step 200?",
+        "type": "number",
+        "status": "ANSWER",
+        "value": "2.90",
+        "value_text": "2.90",
+        "reason": null,
+        "confidence": 0.9828,
+        "evidence": [
+          {
+            "start": 94,
+            "end": 98,
+            "quote": "2.90"
+          }
+        ],
+        "answer": {
+          "type": "span",
+          "text": "2.90",
+          "start": 94,
+          "end": 98,
+          "confidence": 0.9828
+        },
+        "best_guess": null,
+        "symbolic": {
+          "program": [
+            "NUM",
+            [
+              "FIELD",
+              [
+                "NTH",
+                [
+                  "FILTER",
+                  [
+                    [
+                      "SPAN",
+                      "d1",
+                      21,
+                      119
+                    ],
+                    [
+                      "PARSE",
+                      "csv"
+                    ],
+                    [
+                      "ROWS"
+                    ]
+                  ],
+                  [
+                    "EQ",
+                    [
+                      "CELL",
+                      "_",
+                      null,
+                      "run"
+                    ],
+                    [
+                      "LIT",
+                      "Text",
+                      "B"
+                    ]
+                  ]
+                ],
+                1
+              ],
+              "val_loss"
+            ],
+            "auto"
+          ],
+          "program_compact": "NUM(FIELD(NTH(FILTER(ROWS(PARSE(“run,step,val_loss,tokens_per_secon…00↵B,100,2.90,1000↵B,200,2.20,1400”, \"csv\")), EQ(CELL(_, null, \"run\"), LIT(\"Text\", \"B\"))), 1), \"val_loss\"), \"auto\") = 2.90",
+          "spans": [
+            {
+              "doc": "d1",
+              "start": 21,
+              "end": 119,
+              "quote": "run,step,val_loss,tokens_per_second\nA,100,3.10,900\nA,200,2.50,1100\nB,100,2.90,1000\nB,200,2.20,1400"
+            }
+          ],
+          "status": "ANSWER",
+          "value": "2.90",
+          "value_text": "2.90",
+          "reason": null,
+          "evidence": [
+            {
+              "doc_id": "d1",
+              "char_start": 94,
+              "char_end": 98,
+              "quote": "2.90",
+              "exact": true,
+              "path": "row 3/val_loss",
+              "chain": [
+                "PARSE:csv"
+              ]
+            }
+          ],
+          "checks": [],
+          "coverage": null,
+          "withheld_value": null,
+          "candidates": null,
+          "typecheck": "Num",
+          "model": "xerj-reader-1",
+          "model_label": "XERJ Reader-1",
+          "field": {
+            "name": "answer",
+            "instruction": "What is the validation loss for run B at step 200?",
+            "spec": {
+              "type": "number"
+            }
+          },
+          "type": "number",
+          "type_inferred": false,
+          "confidence": {
+            "tok_min": 0.5538,
+            "tok_mean": 0.9828,
+            "ptr_min": 1.0,
+            "ptr_mean": 1.0,
+            "n_tok": 48,
+            "n_ptr": 2,
+            "conf": 0.9828
+          },
+          "finished": true,
+          "decode_error": null,
+          "n_prompt_tokens": 93,
+          "n_gen_tokens": 49,
+          "ms": {
+            "total": 784,
+            "generate": 387,
+            "execute": 1
+          }
+        },
+        "usage": {
+          "input_tokens": 72,
+          "output_tokens": 49,
+          "total_tokens": 121
+        },
+        "latency_ms": 786
+      },
+      "client_ms": 1663.39,
+      "grade": {
+        "answer_correct": false,
+        "evidence_offsets_valid": true,
+        "answer_has_evidence": true
+      },
+      "replay": {
+        "id": "exe_669tsr7e170hhp52qk4yyhkn",
+        "object": "execution",
+        "created": 1794646104,
+        "model": "xerj-reader-1",
+        "question": "What is the validation loss for run B at step 200?",
+        "type": "number",
+        "status": "ANSWER",
+        "value": "2.90",
+        "value_text": "2.90",
+        "reason": null,
+        "confidence": null,
+        "evidence": [
+          {
+            "start": 94,
+            "end": 98,
+            "quote": "2.90"
+          }
+        ],
+        "answer": {
+          "type": "span",
+          "text": "2.90",
+          "start": 94,
+          "end": 98,
+          "confidence": null
+        },
+        "best_guess": null,
+        "symbolic": {
+          "program": [
+            "NUM",
+            [
+              "FIELD",
+              [
+                "NTH",
+                [
+                  "FILTER",
+                  [
+                    [
+                      "SPAN",
+                      "d1",
+                      21,
+                      119
+                    ],
+                    [
+                      "PARSE",
+                      "csv"
+                    ],
+                    [
+                      "ROWS"
+                    ]
+                  ],
+                  [
+                    "EQ",
+                    [
+                      "CELL",
+                      "_",
+                      null,
+                      "run"
+                    ],
+                    [
+                      "LIT",
+                      "Text",
+                      "B"
+                    ]
+                  ]
+                ],
+                1
+              ],
+              "val_loss"
+            ],
+            "auto"
+          ],
+          "program_compact": "NUM(FIELD(NTH(FILTER(ROWS(PARSE(“run,step,val_loss,tokens_per_secon…00↵B,100,2.90,1000↵B,200,2.20,1400”, \"csv\")), EQ(CELL(_, null, \"run\"), LIT(\"Text\", \"B\"))), 1), \"val_loss\"), \"auto\") = 2.90",
+          "spans": [
+            {
+              "doc": "d1",
+              "start": 21,
+              "end": 119,
+              "quote": "run,step,val_loss,tokens_per_second\nA,100,3.10,900\nA,200,2.50,1100\nB,100,2.90,1000\nB,200,2.20,1400"
+            }
+          ],
+          "status": "ANSWER",
+          "value": "2.90",
+          "value_text": "2.90",
+          "reason": null,
+          "evidence": [
+            {
+              "doc_id": "d1",
+              "char_start": 94,
+              "char_end": 98,
+              "quote": "2.90",
+              "exact": true,
+              "path": "row 3/val_loss",
+              "chain": [
+                "PARSE:csv"
+              ]
+            }
+          ],
+          "checks": [],
+          "coverage": null,
+          "withheld_value": null,
+          "candidates": null,
+          "typecheck": "Num",
+          "field": {
+            "name": "answer",
+            "instruction": "What is the validation loss for run B at step 200?",
+            "spec": {
+              "type": "number"
+            }
+          },
+          "type": "number",
+          "type_inferred": false,
+          "ms": {
+            "execute": 1
+          }
+        },
+        "usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "total_tokens": 0
+        },
+        "latency_ms": 1
+      },
+      "replay_client_ms": 663.12,
+      "replay_matches": true
+    },
+    {
+      "case_id": "csv-table-12",
+      "category": "table-diagnostic",
+      "response": {
+        "id": "ans_f0790j03zr227y9grjwm5wkf",
+        "object": "answer",
+        "created": 1794646107,
+        "model": "xerj-reader-1",
+        "question": "What is the validation loss for run A at step 100?",
+        "type": "number",
+        "status": "ABSENT",
+        "value": null,
+        "value_text": null,
+        "reason": "no row 100",
+        "confidence": 0.946,
+        "evidence": [],
+        "answer": {
+          "type": "none",
+          "text": null,
+          "start": null,
+          "end": null,
+          "confidence": 0.946
+        },
+        "best_guess": null,
+        "symbolic": {
+          "program": [
+            [
+              "SPAN",
+              "d1",
+              21,
+              119
+            ],
+            [
+              "PARSE",
+              "csv"
+            ],
+            [
+              "CELL",
+              100,
+              "val_loss"
+            ],
+            [
+              "NUM",
+              "auto"
+            ]
+          ],
+          "program_compact": "NUM(CELL(PARSE(“run,step,val_loss,tokens_per_secon…00↵B,100,2.90,1000↵B,200,2.20,1400”, \"csv\"), 100, \"val_loss\"), \"auto\") → ABSENT (no row 100)",
+          "spans": [
+            {
+              "doc": "d1",
+              "start": 21,
+              "end": 119,
+              "quote": "run,step,val_loss,tokens_per_second\nA,100,3.10,900\nA,200,2.50,1100\nB,100,2.90,1000\nB,200,2.20,1400"
+            }
+          ],
+          "status": "ABSENT",
+          "value": null,
+          "value_text": null,
+          "reason": "no row 100",
+          "evidence": [],
+          "checks": [],
+          "coverage": null,
+          "withheld_value": null,
+          "candidates": null,
+          "typecheck": "Num",
+          "model": "xerj-reader-1",
+          "model_label": "XERJ Reader-1",
+          "field": {
+            "name": "answer",
+            "instruction": "What is the validation loss for run A at step 100?",
+            "spec": {
+              "type": "number"
+            }
+          },
+          "type": "number",
+          "type_inferred": false,
+          "confidence": {
+            "tok_min": 0.447,
+            "tok_mean": 0.948,
+            "ptr_min": 0.9978,
+            "ptr_mean": 0.9989,
+            "n_tok": 25,
+            "n_ptr": 2,
+            "conf": 0.946
+          },
+          "finished": true,
+          "decode_error": null,
+          "n_prompt_tokens": 93,
+          "n_gen_tokens": 26,
+          "ms": {
+            "total": 404,
+            "generate": 380,
+            "execute": 1
+          }
+        },
+        "usage": {
+          "input_tokens": 72,
+          "output_tokens": 26,
+          "total_tokens": 98
+        },
+        "latency_ms": 406
+      },
+      "client_ms": 1206.92,
+      "grade": {
+        "answer_correct": false,
+        "evidence_offsets_valid": true,
+        "answer_has_evidence": true
+      },
+      "replay": {
+        "id": "exe_4s19fapwe0ms9a8jzng50ep8",
+        "object": "execution",
+        "created": 1794646108,
+        "model": "xerj-reader-1",
+        "question": "What is the validation loss for run A at step 100?",
+        "type": "number",
+        "status": "ABSENT",
+        "value": null,
+        "value_text": null,
+        "reason": "no row 100",
+        "confidence": null,
+        "evidence": [],
+        "answer": {
+          "type": "none",
+          "text": null,
+          "start": null,
+          "end": null,
+          "confidence": null
+        },
+        "best_guess": null,
+        "symbolic": {
+          "program": [
+            [
+              "SPAN",
+              "d1",
+              21,
+              119
+            ],
+            [
+              "PARSE",
+              "csv"
+            ],
+            [
+              "CELL",
+              100,
+              "val_loss"
+            ],
+            [
+              "NUM",
+              "auto"
+            ]
+          ],
+          "program_compact": "NUM(CELL(PARSE(“run,step,val_loss,tokens_per_secon…00↵B,100,2.90,1000↵B,200,2.20,1400”, \"csv\"), 100, \"val_loss\"), \"auto\") → ABSENT (no row 100)",
+          "spans": [
+            {
+              "doc": "d1",
+              "start": 21,
+              "end": 119,
+              "quote": "run,step,val_loss,tokens_per_second\nA,100,3.10,900\nA,200,2.50,1100\nB,100,2.90,1000\nB,200,2.20,1400"
+            }
+          ],
+          "status": "ABSENT",
+          "value": null,
+          "value_text": null,
+          "reason": "no row 100",
+          "evidence": [],
+          "checks": [],
+          "coverage": null,
+          "withheld_value": null,
+          "candidates": null,
+          "typecheck": "Num",
+          "field": {
+            "name": "answer",
+            "instruction": "What is the validation loss for run A at step 100?",
+            "spec": {
+              "type": "number"
+            }
+          },
+          "type": "number",
+          "type_inferred": false,
+          "ms": {
+            "execute": 1
+          }
+        },
+        "usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "total_tokens": 0
+        },
+        "latency_ms": 1
+      },
+      "replay_client_ms": 866.64,
+      "replay_matches": true
+    },
+    {
+      "case_id": "prose-table-11",
+      "category": "table-diagnostic",
+      "response": {
+        "id": "ans_v97hb1rr3pxs882vjrb254qb",
+        "object": "answer",
+        "created": 1794646111,
+        "model": "xerj-reader-1",
+        "question": "What is the validation loss for run B at step 200?",
+        "type": "number",
+        "status": "ANSWER",
+        "value": "2.20",
+        "value_text": "2.20",
+        "reason": null,
+        "confidence": 0.9738,
+        "evidence": [
+          {
+            "start": 160,
+            "end": 164,
+            "quote": "2.20"
+          }
+        ],
+        "answer": {
+          "type": "span",
+          "text": "2.20",
+          "start": 160,
+          "end": 164,
+          "confidence": 0.9738
+        },
+        "best_guess": null,
+        "symbolic": {
+          "program": [
+            [
+              "SPAN",
+              "d1",
+              160,
+              164
+            ],
+            [
+              "NUM",
+              "auto"
+            ]
+          ],
+          "program_compact": "NUM(“2.20”, \"auto\") = 2.20",
+          "spans": [
+            {
+              "doc": "d1",
+              "start": 160,
+              "end": 164,
+              "quote": "2.20"
+            }
+          ],
+          "status": "ANSWER",
+          "value": "2.20",
+          "value_text": "2.20",
+          "reason": null,
+          "evidence": [
+            {
+              "doc_id": "d1",
+              "char_start": 160,
+              "char_end": 164,
+              "quote": "2.20",
+              "exact": true,
+              "path": "",
+              "chain": []
+            }
+          ],
+          "checks": [],
+          "coverage": null,
+          "withheld_value": null,
+          "candidates": null,
+          "typecheck": "Num",
+          "model": "xerj-reader-1",
+          "model_label": "XERJ Reader-1",
+          "field": {
+            "name": "answer",
+            "instruction": "What is the validation loss for run B at step 200?",
+            "spec": {
+              "type": "number"
+            }
+          },
+          "type": "number",
+          "type_inferred": false,
+          "confidence": {
+            "tok_min": 0.771,
+            "tok_mean": 0.974,
+            "ptr_min": 0.9998,
+            "ptr_mean": 0.9999,
+            "n_tok": 10,
+            "n_ptr": 2,
+            "conf": 0.9738
+          },
+          "finished": true,
+          "decode_error": null,
+          "n_prompt_tokens": 81,
+          "n_gen_tokens": 11,
+          "ms": {
+            "total": 287,
+            "generate": 162,
+            "execute": 1
+          }
+        },
+        "usage": {
+          "input_tokens": 60,
+          "output_tokens": 11,
+          "total_tokens": 71
+        },
+        "latency_ms": 289
+      },
+      "client_ms": 937.92,
+      "grade": {
+        "answer_correct": true,
+        "evidence_offsets_valid": true,
+        "answer_has_evidence": true
+      },
+      "replay": {
+        "id": "exe_z7mrnb16c7sd6kd9dee7z4xb",
+        "object": "execution",
+        "created": 1794646112,
+        "model": "xerj-reader-1",
+        "question": "What is the validation loss for run B at step 200?",
+        "type": "number",
+        "status": "ANSWER",
+        "value": "2.20",
+        "value_text": "2.20",
+        "reason": null,
+        "confidence": null,
+        "evidence": [
+          {
+            "start": 160,
+            "end": 164,
+            "quote": "2.20"
+          }
+        ],
+        "answer": {
+          "type": "span",
+          "text": "2.20",
+          "start": 160,
+          "end": 164,
+          "confidence": null
+        },
+        "best_guess": null,
+        "symbolic": {
+          "program": [
+            [
+              "SPAN",
+              "d1",
+              160,
+              164
+            ],
+            [
+              "NUM",
+              "auto"
+            ]
+          ],
+          "program_compact": "NUM(“2.20”, \"auto\") = 2.20",
+          "spans": [
+            {
+              "doc": "d1",
+              "start": 160,
+              "end": 164,
+              "quote": "2.20"
+            }
+          ],
+          "status": "ANSWER",
+          "value": "2.20",
+          "value_text": "2.20",
+          "reason": null,
+          "evidence": [
+            {
+              "doc_id": "d1",
+              "char_start": 160,
+              "char_end": 164,
+              "quote": "2.20",
+              "exact": true,
+              "path": "",
+              "chain": []
+            }
+          ],
+          "checks": [],
+          "coverage": null,
+          "withheld_value": null,
+          "candidates": null,
+          "typecheck": "Num",
+          "field": {
+            "name": "answer",
+            "instruction": "What is the validation loss for run B at step 200?",
+            "spec": {
+              "type": "number"
+            }
+          },
+          "type": "number",
+          "type_inferred": false,
+          "ms": {
+            "execute": 1
+          }
+        },
+        "usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "total_tokens": 0
+        },
+        "latency_ms": 2
+      },
+      "replay_client_ms": 700.83,
+      "replay_matches": true
+    },
+    {
+      "case_id": "prose-table-12",
+      "category": "table-diagnostic",
+      "response": {
+        "id": "ans_cb4wqr8tszbt9cfvvqdybywb",
+        "object": "answer",
+        "created": 1794646115,
+        "model": "xerj-reader-1",
+        "question": "What is the validation loss for run A at step 100?",
+        "type": "number",
+        "status": "ANSWER",
+        "value": "3.10",
+        "value_text": "3.10",
+        "reason": null,
+        "confidence": 0.9599,
+        "evidence": [
+          {
+            "start": 61,
+            "end": 65,
+            "quote": "3.10"
+          }
+        ],
+        "answer": {
+          "type": "span",
+          "text": "3.10",
+          "start": 61,
+          "end": 65,
+          "confidence": 0.9599
+        },
+        "best_guess": null,
+        "symbolic": {
+          "program": [
+            [
+              "SPAN",
+              "d1",
+              61,
+              65
+            ],
+            [
+              "NUM",
+              "auto"
+            ]
+          ],
+          "program_compact": "NUM(“3.10”, \"auto\") = 3.10",
+          "spans": [
+            {
+              "doc": "d1",
+              "start": 61,
+              "end": 65,
+              "quote": "3.10"
+            }
+          ],
+          "status": "ANSWER",
+          "value": "3.10",
+          "value_text": "3.10",
+          "reason": null,
+          "evidence": [
+            {
+              "doc_id": "d1",
+              "char_start": 61,
+              "char_end": 65,
+              "quote": "3.10",
+              "exact": true,
+              "path": "",
+              "chain": []
+            }
+          ],
+          "checks": [],
+          "coverage": null,
+          "withheld_value": null,
+          "candidates": null,
+          "typecheck": "Num",
+          "model": "xerj-reader-1",
+          "model_label": "XERJ Reader-1",
+          "field": {
+            "name": "answer",
+            "instruction": "What is the validation loss for run A at step 100?",
+            "spec": {
+              "type": "number"
+            }
+          },
+          "type": "number",
+          "type_inferred": false,
+          "confidence": {
+            "tok_min": 0.7916,
+            "tok_mean": 0.9606,
+            "ptr_min": 0.9993,
+            "ptr_mean": 0.9996,
+            "n_tok": 10,
+            "n_ptr": 2,
+            "conf": 0.9599
+          },
+          "finished": true,
+          "decode_error": null,
+          "n_prompt_tokens": 81,
+          "n_gen_tokens": 11,
+          "ms": {
+            "total": 224,
+            "generate": 164,
+            "execute": 1
+          }
+        },
+        "usage": {
+          "input_tokens": 60,
+          "output_tokens": 11,
+          "total_tokens": 71
+        },
+        "latency_ms": 226
+      },
+      "client_ms": 1140.97,
+      "grade": {
+        "answer_correct": true,
+        "evidence_offsets_valid": true,
+        "answer_has_evidence": true
+      },
+      "replay": {
+        "id": "exe_5q0xfzxb2hcmsf49wpdmp0fk",
+        "object": "execution",
+        "created": 1794646116,
+        "model": "xerj-reader-1",
+        "question": "What is the validation loss for run A at step 100?",
+        "type": "number",
+        "status": "ANSWER",
+        "value": "3.10",
+        "value_text": "3.10",
+        "reason": null,
+        "confidence": null,
+        "evidence": [
+          {
+            "start": 61,
+            "end": 65,
+            "quote": "3.10"
+          }
+        ],
+        "answer": {
+          "type": "span",
+          "text": "3.10",
+          "start": 61,
+          "end": 65,
+          "confidence": null
+        },
+        "best_guess": null,
+        "symbolic": {
+          "program": [
+            [
+              "SPAN",
+              "d1",
+              61,
+              65
+            ],
+            [
+              "NUM",
+              "auto"
+            ]
+          ],
+          "program_compact": "NUM(“3.10”, \"auto\") = 3.10",
+          "spans": [
+            {
+              "doc": "d1",
+              "start": 61,
+              "end": 65,
+              "quote": "3.10"
+            }
+          ],
+          "status": "ANSWER",
+          "value": "3.10",
+          "value_text": "3.10",
+          "reason": null,
+          "evidence": [
+            {
+              "doc_id": "d1",
+              "char_start": 61,
+              "char_end": 65,
+              "quote": "3.10",
+              "exact": true,
+              "path": "",
+              "chain": []
+            }
+          ],
+          "checks": [],
+          "coverage": null,
+          "withheld_value": null,
+          "candidates": null,
+          "typecheck": "Num",
+          "field": {
+            "name": "answer",
+            "instruction": "What is the validation loss for run A at step 100?",
+            "spec": {
+              "type": "number"
+            }
+          },
+          "type": "number",
+          "type_inferred": false,
+          "ms": {
+            "execute": 1
+          }
+        },
+        "usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "total_tokens": 0
+        },
+        "latency_ms": 1
+      },
+      "replay_client_ms": 882.69,
+      "replay_matches": true
+    }
+  ]
+}
