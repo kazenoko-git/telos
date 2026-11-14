@@ -25,18 +25,31 @@ def load_suite_cases(root: Path) -> dict[str, dict[str, Any]]:
 
 
 def load_all_runs(root: Path) -> dict[str, Any]:
-    """Merge model runs from comparative_512_v2_run.json, v1, or constituent run files."""
+    """Merge model runs from comparative_512_v2_run.json, constituent files, excluding Gemini."""
     r_dir = root / "reports/xerj_reader_2026-11-14"
-    for cand in ["comparative_512_v2_run.json", "comparative_512_run.json"]:
-        merged_path = r_dir / cand
-        if merged_path.exists():
-            try:
-                return json.loads(merged_path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                pass
-
     merged: dict[str, Any] = {"benchmark_meta": {}, "model_runs": {}}
-    sources = ["comparative_512_xerj.json", "comparative_512_local.json", "comparative_512_gemini.json"]
+
+    # Check if a combined v2 run file exists
+    merged_path = r_dir / "comparative_512_v2_run.json"
+    if merged_path.exists():
+        try:
+            data = json.loads(merged_path.read_text(encoding="utf-8"))
+            if "benchmark_meta" in data:
+                merged["benchmark_meta"] = data["benchmark_meta"]
+            for m_id, m_run in data.get("model_runs", {}).items():
+                if m_id == "gemini-3.5-flash-lite":
+                    continue
+                merged["model_runs"][m_id] = m_run
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    # Merge individual constituent files if available
+    sources = [
+        "comparative_512_v2_xerj.json",
+        "comparative_512_v2_local.json",
+        "comparative_512_qwen08b.json",
+        "comparative_512_qwen2b.json",
+    ]
     for src in sources:
         p = r_dir / src
         if not p.exists():
@@ -48,9 +61,10 @@ def load_all_runs(root: Path) -> dict[str, Any]:
         if "benchmark_meta" in data and not merged["benchmark_meta"]:
             merged["benchmark_meta"] = data["benchmark_meta"]
         for m_id, m_run in data.get("model_runs", {}).items():
-            if m_id == "gemini-3.5-flash-lite" and src == "comparative_512_local.json":
+            if m_id == "gemini-3.5-flash-lite":
                 continue
             merged["model_runs"][m_id] = m_run
+
     return merged
 
 
@@ -63,15 +77,6 @@ MODEL_METADATA = {
         "runtime": "XERJ Platform API (https://platform.xerj.ai/v1)",
         "architecture": "Document Reader with Symbolic Python Executor Replay (1/4 sample)",
         "cost_model": "$0.01 per 1M input tokens; execution free",
-    },
-    "gemini-3.5-flash-lite": {
-        "display_name": "Google Gemini 3.5 Flash-Lite (Incomplete)",
-        "tag": "Incomplete (107/512)",
-        "checkpoint": "gemini-3.5-flash-lite",
-        "quantization": "Hosted Cloud Service",
-        "runtime": "Google Generative Language API",
-        "architecture": "Multimodal Flash LLM with Reconstructed Quote Grounding (Incomplete: 107/512 completed; 25 quota errors; 380 unattempted due to 500 RPD daily free-tier cap; 106/107 correct)",
-        "cost_model": "Google AI Studio free tier (500 RPD cap hit)",
     },
     "ministral-3-8b-instruct-2512": {
         "display_name": "Ministral 3 8B Instruct",
@@ -107,6 +112,24 @@ MODEL_METADATA = {
         "quantization": "4-bit MLX (Direct Weights)",
         "runtime": "Direct MLX Resident Subprocess Worker (testrepos/mlx-vlm)",
         "architecture": "Non-Transformer Liquid Foundation Model; Autoregressive Greedy",
+        "cost_model": "Local compute (Apple Silicon / Metal)",
+    },
+    "qwen3.5-0.8b-mlx": {
+        "display_name": "Qwen 3.5 0.8B MLX",
+        "tag": "Edge 0.8B",
+        "checkpoint": "qwen3.5-0.8b-mlx",
+        "quantization": "4-bit MLX",
+        "runtime": "LM Studio Local Endpoint (http://localhost:1234/v1)",
+        "architecture": "Compact Dense Transformer for Sub-1B Ultra-Edge Deployment",
+        "cost_model": "Local compute (Apple Silicon / Metal)",
+    },
+    "qwen3.5-2b-optiq": {
+        "display_name": "Qwen 3.5 2B OptiQ",
+        "tag": "Local 2B OptiQ",
+        "checkpoint": "qwen3.5-2b-optiq",
+        "quantization": "OptiQ Quantized",
+        "runtime": "LM Studio Local Endpoint (http://localhost:1234/v1)",
+        "architecture": "Qwen 3.5 2B with OptiQ Quantization for Optimized Precision",
         "cost_model": "Local compute (Apple Silicon / Metal)",
     },
 }
