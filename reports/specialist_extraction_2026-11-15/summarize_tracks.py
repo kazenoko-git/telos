@@ -19,7 +19,7 @@ def summarize(path,case_map):
     if len(set(ids))!=len(ids):raise ValueError(f'Duplicate task IDs: {path.name}')
     if set(ids)-case_map.keys():raise ValueError(f'Unknown task IDs: {path.name}')
     result={'artifact':path.name,'model_id':meta.get('model_id'),'track':output_mode,'records':len(records),'complete':len(records)==512,
-            'extraction_exact':0,'extraction_grounded':0,'pipeline_correct':0,'direct_correct':0,'executor_contract_errors':0,'categories':{},'status_groups':{},'errors':{}}
+            'extraction_exact':0,'extraction_grounded':0,'pipeline_correct':0,'direct_correct':0,'format_failures':0,'executor_contract_errors':0,'categories':{},'status_groups':{},'errors':{}}
     errs=collections.Counter()
     for record in records:
         case=case_map[record['case_id']];cat=case['category'];group='answer_present' if 'expected' in case else 'absence_or_conflict'
@@ -34,6 +34,11 @@ def summarize(path,case_map):
         attempt_error=(attempts[-1].get('error') if isinstance(attempts,list) and attempts else None)
         err=record.get('error') or (record.get('response') or {}).get('error') or (record.get('inference_settings') or {}).get('error') or attempt_error
         if err:errs[str(err.get('kind','error') if isinstance(err,dict) else err)]+=1
+        response=record.get('response') or {}
+        malformed=(isinstance(err,dict) and err.get('kind')=='malformed_response') or response.get('status')=='MALFORMED'
+        invalid_status=bool(response) and response.get('status') not in ('ANSWER','ABSENT','UNKNOWN','CONFLICT','AMBIGUOUS','MALFORMED','ERROR')
+        result['format_failures']+=malformed or invalid_status
+        if invalid_status:errs['invalid_status']+=1
     result['errors']=dict(errs)
     return result
 

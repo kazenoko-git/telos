@@ -27,11 +27,11 @@ def main():
         fig.text(columns[0],y,names[r['model_id']],fontsize=14)
         fig.text(columns[1],y,f"{r['extraction_exact']}/512",fontsize=16,color='#9B5B3E')
         fig.text(columns[2],y,f"{r['pipeline_correct']}/512",fontsize=16,color='#23765D')
-        fig.text(columns[3],y,str(r['errors'].get('malformed_response',0)),fontsize=16)
+        fig.text(columns[3],y,str(r['format_failures']),fontsize=16)
     notes=[
         'Extraction checks source operands; the calculator scores final status/value.',
         'Calculator operations are human-specified. Pipeline scores are separate from direct QA.',
-        f"SmolLM2 direct QA: {direct['direct_correct']}/512; {direct['errors'].get('malformed_response',0)} malformed outputs; unconstrained decoding.",
+        f"SmolLM2 direct QA: {direct['direct_correct']}/512; {direct['format_failures']} format/status failures; unconstrained decoding.",
         'Exact source matching is not semantic evidence verification. See SUMMARY.md for protocol and artifacts.'
     ]
     for i,line in enumerate(notes):fig.text(.065,.22-i*.045,line,fontsize=9,color='#5C554D')
