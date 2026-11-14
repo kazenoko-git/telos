@@ -167,3 +167,13 @@ or pass a complete `.pt` training checkpoint on PyTorch. v1.5.1 restores trainin
 state and the saved run configuration, and rejects changed
 data or incompatible checkpoints. Older weights can start a new run through
 `--init-checkpoint`. See the [resume guide](https://github.com/kazenoko-git/telos/blob/main/cli/README.md#resuming-pretraining).
+
+## Evaluation displays
+
+Télos 1.6.0 turns saved evaluation JSON into a portable, offline cream notebook:
+
+```sh
+telos eval report logs/evaluation.json --output evaluation.html
+```
+
+Use `--html-report evaluation.html` during evaluation to save a notebook when the run finishes. Live progress adapts to terminals and plain CI logs; control it with `--display auto|plain|off`. The viewer preserves recorded outcomes and missing metrics, and supports filters, exports, and source-evidence inspection for Reader-1 archives.
