@@ -38,11 +38,12 @@ function summaries(rows) {
   const replay=rows.filter(r=>typeof r.replay==='boolean');
   const offsets=rows.filter(r=>typeof r.offsets==='boolean');
   const high=rows.filter(r=>r.correct===false&&typeof r.confidence==='number'&&r.confidence>=.9);
+  const hasConfidence=rows.some(r=>typeof r.confidence==='number');
   byId('checks').replaceChildren(
     check('Formula replay',replay.length?`${replay.filter(r=>r.replay).length} / ${replay.length} match`:'Not recorded'),
     check('Evidence offset checks',offsets.length?`${offsets.filter(r=>r.offsets).length} / ${offsets.length} valid`:'Not recorded'),
     check('Answered-value precision',answeredScored.length?percent(answeredScored.filter(r=>r.correct).length,answeredScored.length):'Not recorded'),
-    check('Incorrect, confidence ≥ 0.90',String(high.length)));
+    check('Incorrect, confidence ≥ 0.90',hasConfidence?String(high.length):'Not recorded'));
   const categories=byId('categories');categories.replaceChildren();
   if (suiteOnly) {
     byId('chart-label').textContent='Reported suite scores';
@@ -72,6 +73,7 @@ function render() {
     body.append(tr);
   }
   byId('count').textContent=`${visible.length} of ${report.rows.length} cases`;
+  document.querySelector('.pill').textContent=visible.length===report.rows.length?'Saved evaluation':'Filtered selection';
   byId('empty').hidden=visible.length>0||report.rows.length===0;
   byId('summary-only').hidden=report.rows.length>0;
   summaries(visible);

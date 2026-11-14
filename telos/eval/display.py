@@ -52,8 +52,11 @@ def normalize_report(data, *, title='Evaluation report', cases=None, source=''):
         raise ValueError('Report must be a JSON object.')
     case_map = {str(c['id']): c for c in (cases or [])}
     rows, suites = [], []
+    reader_found = False
 
     def reader(node, path):
+        nonlocal reader_found
+        reader_found = True
         for item in node['results']:
             response = item.get('response', {})
             case = case_map.get(str(item.get('case_id')), {})
@@ -143,9 +146,11 @@ def normalize_report(data, *, title='Evaluation report', cases=None, source=''):
     visit(data)
     if not rows and not suites:
         raise ValueError('No supported evaluation results found. Expected native suite reports or Reader-1 results.')
+    default_note = ('Synthetic diagnostic cases, not a population accuracy benchmark. Expected answers and accepted statuses were fixed before each run.'
+                    if reader_found else 'Scores describe these saved results. Datasets, budgets and retry policies may differ.')
     return {'schema': 'telos.evaluation.display.v1', 'title': str(title), 'source': source,
             'rows': rows, 'suites': suites,
-            'note': str(data.get('display_note', 'Scores describe these saved results. Datasets, budgets and retry policies may differ.'))}
+            'note': str(data.get('display_note', default_note))}
 
 
 def write_html_report(data, output, *, title='Evaluation report', cases=None, source=''):
