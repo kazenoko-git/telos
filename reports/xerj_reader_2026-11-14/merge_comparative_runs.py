@@ -28,14 +28,16 @@ def main():
         sources = [
             r_dir / "comparative_512_v2_xerj.json",
             r_dir / "comparative_512_v2_local.json",
-            r_dir / "comparative_512_v2_gemini.json",
+            r_dir / "comparative_512_qwen08b.json",
+            r_dir / "comparative_512_qwen2b.json",
         ]
     else:
         output_path = args.output or r_dir / "comparative_512_run.json"
         sources = [
             r_dir / "comparative_512_xerj.json",
             r_dir / "comparative_512_local.json",
-            r_dir / "comparative_512_gemini.json",
+            r_dir / "comparative_512_qwen08b.json",
+            r_dir / "comparative_512_qwen2b.json",
         ]
 
     combined = {"benchmark_meta": {}, "model_runs": {}}
@@ -54,8 +56,8 @@ def main():
             combined["benchmark_meta"] = data["benchmark_meta"]
 
         for m_id, m_run in data.get("model_runs", {}).items():
-            # Skip unrun gemini placeholder in local run file
-            if m_id == "gemini-3.5-flash-lite" and "local" in src.name:
+            # Exclude Gemini from final suite per user instructions
+            if m_id == "gemini-3.5-flash-lite":
                 continue
             combined["model_runs"][m_id] = m_run
 
@@ -65,6 +67,14 @@ def main():
     for m_id, r in combined["model_runs"].items():
         c_all = r.get("summary", {}).get("combined_512", {})
         print(f"  {m_id:30s}: {c_all.get('correct_count')}/{c_all.get('total_cases')} ({c_all.get('accuracy_pct')}%)")
+
+    try:
+        import sys
+        sys.path.insert(0, str(r_dir))
+        from run_comparative_suite import generate_markdown_report
+        generate_markdown_report(combined, output_path.with_suffix(".md"))
+    except Exception as err:
+        print(f"Notice: markdown report generation skipped: {err}")
 
 
 if __name__ == "__main__":
