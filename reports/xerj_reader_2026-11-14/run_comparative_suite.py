@@ -411,11 +411,12 @@ def evaluate_single_model(
                         first_query_time = q_dur
 
                 # Check if retry is required for transient errors
-                err_body = str(res.get("error", {}).get("body", ""))
+                err_obj = res.get("error") or {}
+                err_body = str(err_obj.get("body", ""))
                 is_transient = (
                     res.get("status") == "ERROR"
-                    and res.get("error", {}).get("kind") in ("HTTPError", "Timeout", "ConnectionError", "rate_limit_error")
-                    and res.get("error", {}).get("http_status") not in (401, 403, 404)
+                    and err_obj.get("kind") in ("HTTPError", "Timeout", "ConnectionError", "rate_limit_error")
+                    and err_obj.get("http_status") not in (401, 403, 404)
                     and "limit: 500" not in err_body
                     and "per day" not in err_body
                 )
@@ -425,7 +426,7 @@ def evaluate_single_model(
                     break
                 else:
                     retry_records.append({"attempt": attempts, "response": res})
-                    http_code = res.get("error", {}).get("http_status")
+                    http_code = err_obj.get("http_status")
                     delay = 15.0 if http_code == 429 else (2.0 * attempts)
                     time.sleep(delay)
 
