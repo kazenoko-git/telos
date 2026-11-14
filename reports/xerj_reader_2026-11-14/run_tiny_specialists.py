@@ -223,7 +223,7 @@ def run_direct_once(model, tok, case):
     messages = smollm_direct_prompt(case)
     prompt = tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     raw = generate(model, tok, prompt, max_tokens=256, sampler=make_sampler(temp=0.0), verbose=False)
-        completion_tokens = len(tok.encode(raw))
+    completion_tokens = len(tok.encode(raw))
     try:
         parsed = parse_json_object(raw)
         from model_adapters import normalize_evidence, normalize_value
