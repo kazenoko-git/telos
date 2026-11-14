@@ -9,7 +9,7 @@ const state = row => row.correct === true ? 'passed' : row.correct === false ? '
 const stateLabel = row => row.correct === true ? 'Correct' : row.correct === false ? 'Incorrect' : 'Unscored';
 let visible = report.rows;
 byId('note').textContent = report.note;
-byId('source').textContent = report.source ? 'Source · '+report.source : 'Saved results · no live model calls';
+byId('source').textContent = report.source ? 'Source · '+report.source : 'Saved results';
 for (const name of ['model','suite','category']) {
   const values = [...new Set(report.rows.map(r=>r[name]).filter(Boolean))].sort();
   if (!values.length) values.push(...new Set(report.suites.map(s=>s[name]).filter(Boolean)));
@@ -32,9 +32,9 @@ function summaries(rows) {
   const summarySuites=report.suites.filter(s=>(!byId('model').value||s.model===byId('model').value)&&(!byId('suite').value||s.suite===byId('suite').value));
   byId('metrics').replaceChildren(
     metric(suiteOnly?'Recorded suites':'Correctness',suiteOnly?String(summarySuites.length):percent(correct,scored.length),suiteOnly?'Summary-only report':`${correct} correct / ${scored.length} scored`),
-    metric('Task records',String(rows.length),suiteOnly?'Individual records not supplied':`${rows.length-scored.length} unscored / errors`),
+    metric('Task records',String(rows.length),suiteOnly?'Individual records not supplied':rows.length-scored.length?`${rows.length-scored.length} unscored / errors`:""),
     metric('Median client time',median===null?'—':(median/1000).toFixed(2)+'s',median===null?'Timing not recorded':`${n} timed model responses`),
-    metric('Input tokens',hasTokens?tokens.toLocaleString():'—',hasTokens?'API-reported model usage':'Usage not recorded'));
+    metric('Input tokens',hasTokens?tokens.toLocaleString():'—',hasTokens?'':'Usage not recorded'));
   const replay=rows.filter(r=>typeof r.replay==='boolean');
   const offsets=rows.filter(r=>typeof r.offsets==='boolean');
   const high=rows.filter(r=>r.correct===false&&typeof r.confidence==='number'&&r.confidence>=.9);

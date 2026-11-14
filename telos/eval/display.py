@@ -146,8 +146,8 @@ def normalize_report(data, *, title='Evaluation report', cases=None, source=''):
     visit(data)
     if not rows and not suites:
         raise ValueError('No supported evaluation results found. Expected native suite reports or Reader-1 results.')
-    default_note = ('Synthetic diagnostic cases, not a population accuracy benchmark. Expected answers and accepted statuses were fixed before each run.'
-                    if reader_found else 'Scores describe these saved results. Datasets, budgets and retry policies may differ.')
+    default_note = ('Synthetic diagnostics; not production accuracy.'
+                    if reader_found else 'Saved results; datasets and retry policies may differ.')
     return {'schema': 'telos.evaluation.display.v1', 'title': str(title), 'source': source,
             'rows': rows, 'suites': suites,
             'note': str(data.get('display_note', default_note))}
