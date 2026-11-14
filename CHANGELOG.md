@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-11-14
+
+### Added
+- Evaluation Beautification Display: standalone, offline HTML reports in the Télos research figures' cream/parchment style, with category scores, filters, CSV/JSON exports, and case-level evidence inspection.
+- `telos eval report` for saved native, tool-use, contextual-probe, audited historical, and Reader-1 reports; `--html-report` exports after evaluation.
+- Adaptive live progress for functional, tool-use, and contextual-probe evaluation, with plain CI output, `NO_COLOR`, and `--display auto|plain|off`.
+- Reproducible Reader-1 diagnostic artifacts: 34 pilot cases, six follow-up probes, and 240 parameter-generated synthetic cases. The extension scored 162/240 under its fixed checks; all 60 sampled formula replays matched. These are diagnostic results, not production accuracy estimates.
+
+### Fixed
+- Preserve missing metrics and unscored records in displays instead of inventing zero values or task outcomes.
+- Avoid counting native code aliases and dual-track summaries twice; keep historical saved-success labels and model identities.
+- Escape report strings and validate Unicode evidence offsets before highlighting source text.
+
 ## [1.5.5] - 2026-11-13
 
 ### Fixed

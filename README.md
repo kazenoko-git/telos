@@ -149,6 +149,18 @@ Télos supports experiments in autoregressive language modeling and discrete dif
 
 Browse the [research index](research/README.md) for papers, reports, and experiment notes. See [deployment and hardware guidance](DEPLOYMENT.md) for setup details.
 
+## Evaluation display
+
+Turn saved results into an offline cream evaluation notebook, with searchable cases, category scores, and inspectable evidence:
+
+```sh
+telos eval report logs/evaluation.json --output reports/evaluation.html
+# Or save the notebook as a run completes:
+telos eval --checkpoint path/to/checkpoint --mode functional --html-report reports/evaluation.html
+```
+
+Live terminal progress adapts to terminal width and emits plain records in CI. See the [evaluation display guide](docs/evaluation-display.md) for supported reports, filters, exports, and `--display auto|plain|off`.
+
 ## Model evaluations
 
 The historical archive contains five local model evaluations across seven suites, with **3,147 task IDs per model**. The table below uses the [audited per-task outcomes](reports/public_evaluations_2026-10-28/REPORT.md), which correct older summary values and task counts.
