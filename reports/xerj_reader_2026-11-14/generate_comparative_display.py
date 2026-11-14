@@ -65,13 +65,13 @@ MODEL_METADATA = {
         "cost_model": "$0.01 per 1M input tokens; execution free",
     },
     "gemini-3.5-flash-lite": {
-        "display_name": "Google Gemini 3.5 Flash-Lite",
-        "tag": "Cloud LLM API",
+        "display_name": "Google Gemini 3.5 Flash-Lite (Incomplete)",
+        "tag": "Incomplete (107/512)",
         "checkpoint": "gemini-3.5-flash-lite",
         "quantization": "Hosted Cloud Service",
         "runtime": "Google Generative Language API",
-        "architecture": "Multimodal Flash LLM with Structured JSON Schema & Offset Quoting",
-        "cost_model": "Google AI Studio tiered pricing",
+        "architecture": "Multimodal Flash LLM with Reconstructed Quote Grounding (Incomplete: 107/512 completed; 25 quota errors; 380 unattempted due to 500 RPD daily free-tier cap; 106/107 correct)",
+        "cost_model": "Google AI Studio free tier (500 RPD cap hit)",
     },
     "ministral-3-8b-instruct-2512": {
         "display_name": "Ministral 3 8B Instruct",
