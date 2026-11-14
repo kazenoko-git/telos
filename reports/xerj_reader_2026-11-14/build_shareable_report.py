@@ -29,6 +29,12 @@ def main():
     retry_path = ROOT / 'qwen08_http500_retry.json'
     if retry_path.exists():
         retry = json.loads(retry_path.read_text())
+        retry_meta = retry.get('benchmark_meta', {})
+        original_hash = hashlib.sha256((ROOT/'comparative_512_qwen08b.json').read_bytes()).hexdigest()
+        if retry_meta.get('source_sha256') != original_hash:
+            raise ValueError('Recovery source hash does not match preserved original run')
+        if not retry_meta.get('finished_utc'):
+            raise ValueError('Recovery run is still in progress')
         records = retry.get('cases', [])
         if not records and retry.get('model_runs'):
             records = next(iter(retry['model_runs'].values())).get('cases', [])
