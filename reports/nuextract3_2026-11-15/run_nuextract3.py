@@ -229,6 +229,16 @@ def create_output_scaffold(track: str, output_path: Path, suite_hash: str, plan_
             pass
 
     output = {"run_metadata": metadata, "records": []}
+    if output_path.exists():
+        try:
+            existing = json.loads(output_path.read_text())
+            if isinstance(existing, dict) and "records" in existing and len(existing["records"]) > 0:
+                print(f"Resuming existing output with {len(existing['records'])} records", flush=True)
+                existing["run_metadata"]["resumed_at"] = datetime.now(timezone.utc).isoformat()
+                return existing
+        except Exception:
+            pass
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     write_output(output_path, output)
     return output
