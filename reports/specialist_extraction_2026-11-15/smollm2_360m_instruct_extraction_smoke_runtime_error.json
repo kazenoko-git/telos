@@ -1,0 +1,83 @@
+{
+  "run_metadata": {
+    "model_id": "HuggingFaceTB/SmolLM2-360M-Instruct",
+    "model_revision": "a10cc1512eabd3dde888204e902eca88bddb4951",
+    "model_weights_sha256": "e6bffe7435d7ddc10fd3b9a9efd429dafbacb1cb17015fb5562664e7532bf86e",
+    "runtime": "mlx-lm",
+    "runtime_versions": {
+      "transformers": "5.23.0",
+      "tokenizers": "0.23.3",
+      "mlx": "0.32.4",
+      "mlx-lm": "0.32.2",
+      "huggingface-hub": "2.4.0"
+    },
+    "device": "Apple Silicon MLX",
+    "suite_sha256": "7aa446c23aa360a783b2ba5935e98e9305d67528ea55a7fea9a8f4cd30db529a",
+    "task_plan_sha256": "76cdd0600958e06aa02b6a9b499fa98a45e0daec5c027752b1481a57afc6ce15",
+    "started_at": "2026-11-14T18:46:44.114503+00:00",
+    "host_platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+    "hardware": {
+      "chip": "Apple M5 Pro",
+      "memory_bytes": 25769803776,
+      "power_source": "AC Power",
+      "macos_powermode_setting": 2
+    },
+    "python_version": "3.13.14 (main, Jun 11 2026, 03:58:32) [Clang 22.1.3 ]",
+    "output_mode": "raw and normalized records; per-case outputs saved incrementally",
+    "attempt_policy": "one normal generation; up to two retries only after runtime exceptions; malformed/contract outputs retained without retry",
+    "extraction_policy": "named fields only; model input excludes operation, expected value, and reference fields",
+    "track": "extraction",
+    "last_saved_at": "2026-11-14T18:46:45.164318+00:00",
+    "elapsed_seconds": 0.007,
+    "finished_at": "2026-11-14T18:46:45.164701+00:00",
+    "completed_records": 1
+  },
+  "records": [
+    {
+      "case_id": "arithmetic-01",
+      "attempts": [
+        {
+          "attempt": 1,
+          "error": {
+            "kind": "runtime_error",
+            "message": "TypeError: generate_step() got an unexpected keyword argument 'temp'"
+          }
+        },
+        {
+          "attempt": 2,
+          "error": {
+            "kind": "runtime_error",
+            "message": "TypeError: generate_step() got an unexpected keyword argument 'temp'"
+          }
+        },
+        {
+          "attempt": 3,
+          "error": {
+            "kind": "runtime_error",
+            "message": "TypeError: generate_step() got an unexpected keyword argument 'temp'"
+          }
+        }
+      ],
+      "raw_completion": null,
+      "parsed_fields": null,
+      "extraction_grade": {
+        "exact_fields": false,
+        "grounded": false,
+        "matching_fields": 0,
+        "total_fields": 2
+      },
+      "executor_result": {
+        "status": "CONTRACT_ERROR",
+        "value": null,
+        "error": "Extraction generation failed"
+      },
+      "executor_score": {
+        "answer_correct": false,
+        "outcome": "transport_error"
+      },
+      "prompt": null,
+      "inference_settings": {},
+      "client_ms": 6.565
+    }
+  ]
+}
