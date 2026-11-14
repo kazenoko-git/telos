@@ -37,10 +37,10 @@ Scores require matching semantic status (`ANSWER`, `CONFLICT`, `ABSENT`, etc.) a
 | `google/gemma-4-e4b` | Local 4B (Q4 · LM Studio) | 377/512 (73.6%) | **431/512 (84.2%)** | 200/240 (83.3%) | 231/272 (84.9%) | 3338.8 ms | 100.0% |
 | `lfm3-omni-2b` | Local 2B (MLX Direct Subprocess Worker) | 325/512 (63.5%) | **430/512 (84.0%)** | 192/240 (80.0%) | 238/272 (87.5%) | 578.8 ms | 93.4% |
 | `ternary-bonsai-4b-mlx` | Local 4B (1.58-bit Ternary · LM Studio) | 366/512 (71.5%) | **412/512 (80.5%)** | 201/240 (83.8%) | 211/272 (77.6%) | 1106.7 ms | 92.2% |
-| `gemini-3.5-flash-lite` | Cloud API (Google Generative Language) | 331/512 (64.7%) | **106/132 (80.3%)\*** | 60/63 (95.2%) | 46/69 (66.7%) | 1158.5 ms | 100.0% |
+| `gemini-3.5-flash-lite` | Cloud API (Google Generative Language) | 331/512 (Incomplete) | **Incomplete (107/512)* | 60/63 (completed) | 46/69 (completed) | 1158.5 ms | 100.0% (Reconstructed) |
 | `xerj-reader-1` | Cloud API + Symbolic Executor Replay | 330/512 (64.5%) | **330/512 (64.5%)** | 162/240 (67.5%) | 168/272 (61.8%) | 293.0 ms | 100.0% |
 
-*\*Note: Gemini 3.5 Flash-Lite completed 132 requests before exhausting the free-tier daily quota of 500 total API calls. Remaining cases are cleanly logged as `rate_limit_error` rather than scored as reasoning failures.*
+*\*Note on Gemini 3.5 Flash-Lite: The evaluation is incomplete. The 132 recorded attempts include 25 quota failures (HTTP 429 rate_limit_error), leaving 107 completed requests (106 correct, 1 incorrect; 99.1% accuracy on completed requests). The remaining 380 cases were unattempted due to the Google AI Studio 500 requests/day free-tier quota cap. Gemini is excluded from the primary 512-case comparable scoreboard.\*
 
 ### Analysis of Score Shifts
 - **LiquidAI LFM3 Omni 2B (+20.5%)**: Fixing the list parser crash and money schema caused LFM3's score to surge from 63.5% to 84.0%, achieving 43/43 on lists and 43/43 on corrections.
@@ -95,14 +95,15 @@ With harness mismatches resolved, true model capability boundaries emerge:
 | `xerj-reader-1` | Cloud API + Symbolic Replay | **293.0 ms** | 1008.6 ms | **100.0%** (512/512) | 23,414 | $0.000234 |
 | `lfm3-omni-2b` | Local 2B (MLX Resident Subprocess) | **578.8 ms** | 609.4 ms | **93.4%** (478/512) | 88,432 | $0.00 |
 | `ternary-bonsai-4b-mlx` | Local 4B (1.58-bit Ternary · LM Studio) | **1106.7 ms** | 1115.3 ms | **92.2%** (472/512) | 108,194 | $0.00 |
-| `gemini-3.5-flash-lite` | Cloud API (Google Generative Language) | **1158.5 ms** | 1056.8 ms | **100.0%** (132/132) | 35,420 | $0.00 |
+| `gemini-3.5-flash-lite` | Cloud API (Google Generative Language) | 331/512 (Incomplete) | **Incomplete (107/512)* | 60/63 (completed) | 46/69 (completed) | 1158.5 ms | 100.0% (Reconstructed) |
 | `google/gemma-4-e4b` | Local 4B (Q4 · LM Studio) | **3338.8 ms** | 3348.1 ms | **100.0%** (512/512) | 107,890 | $0.00 |
 | `ministral-3-8b-instruct-2512` | Local 8B (Q4 · LM Studio) | **3618.9 ms** | 3622.4 ms | **95.3%** (488/512) | 106,712 | $0.00 |
 
 ### Key System Takeaways
 - **Low-Latency Edge**: `lfm3-omni-2b` achieved the best balance of local speed (578.8 ms median latency) and accuracy (84.0%), benefiting from its persistent subprocess resident worker.
 - **Reader-1 Specialization**: `xerj-reader-1` maintains the fastest raw execution (293.0 ms), lowest token count (23,414 tokens), and 100% executor replay consistency (128/128 sampled), but is bounded on complex multi-predicate table reasoning.
-- **Evidence Offsets**: Reader-1 and Gemini produce native 100% valid character offsets. General local models achieve 92% to 100% validity via quotation grounding.
+- **Evidence Offsets & Provenance**: Only XERJ Reader-1 produces native model-emitted character offsets directly from its model architecture. For all general-purpose models (Gemini 3.5 Flash-Lite, Ministral 3 8B, Gemma 4 E4B, Ternary Bonsai 4B, and LFM3 Omni 2B), character offsets are **reconstructed post-hoc** by locating the model quotation in the source document (document.find). This measures literal quotation grounding, not native character coordinate prediction.
+- **Money Normalization Audit**: The money parser was audited to ensure explicit 3-letter currency codes (e.g. CAD, USD, EUR, GBP) and symbols ($, €, £, ¥) are parsed without silently assuming USD for non-USD currencies (e.g. CAD 15 parses as CAD; bare 15 leaves currency as None). Gold cases in this benchmark use USD, so model passes reflect genuine extractions from document context.
 
 ---
 
