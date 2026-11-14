@@ -14,7 +14,7 @@ for record in data['records']:
     fields=normalize(record['raw_completion'],[f['name'] for f in plan['fields']])
     result=execute(case['document'],public_plan(plan),fields)
     record['parsed_fields']=fields;record['extraction_grade']=grade_extraction(case['document'],plan,fields)
-    record['deterministic_executor']=result;record['executor_score']={'answer_correct':classify_outcome(case,result) in ('correct_answer','correct_abstention'),'outcome':classify_outcome(case,result)}
+    record['deterministic_executor']=result;record['executor_score']={'answer_correct':classify_outcome(case,result) in ('correct_answer','correct_abstention'),'outcome':'contract_error' if result.get('status')=='CONTRACT_ERROR' else classify_outcome(case,result)}
 data['run_metadata']['normalization']='Native span text, source-ordered by native character start, deduplicated; no inference rerun.'
 data['run_metadata']['postprocess']={'source':source.name,'source_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'script_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'reason':'GLiNER native spans are confidence-ordered; contract requires source order for ordered lists.'}
 (ROOT/'gliner2_base_extraction.json').write_text(json.dumps(data,indent=2,ensure_ascii=False)+'\n')
