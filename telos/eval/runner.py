@@ -224,8 +224,10 @@ def _evaluate_single_probe_type(
     """Executes a single pass (infill or causal) of the contextual probes."""
     results = []
     category_stats: Dict[str, Dict[str, Any]] = {}
+    progress = EvaluationProgress('Probes · ' + probe_type, len(probes_list))
+    progress.update(0, 0)
 
-    for probe in probes_list:
+    for probe_idx, probe in enumerate(probes_list, 1):
         cat = probe.get("category", "General")
         prompt = probe["prompt"]
         target_str = probe["target"]
@@ -307,6 +309,7 @@ def _evaluate_single_probe_type(
             "top1": is_top1,
             "top5": is_top5,
         })
+        progress.update(probe_idx, sum(r['top1'] for r in results), detail=cat)
 
     total_count = len(results)
     overall_top1 = sum(r["top1"] for r in results) / max(total_count, 1) * 100.0
@@ -1551,25 +1554,25 @@ def main():
 
     with display_mode(args.display):
         result = evaluate(
-        checkpoint=args.checkpoints,
-        mode=args.mode,
-        suite=args.suite,
-        probe_type=args.probe_type,
-        num_probes=args.num_probes,
-        max_tasks=args.max_tasks,
-        timeout=args.timeout,
-        tokenizer_path=args.tokenizer,
-        output_path=args.output,
-        benchmark_type=args.benchmark_type,
-        language=args.language,
-        prompt_mode=args.prompt_mode,
-        backend=args.backend,
-        api_base=args.api_base,
-        api_key=args.api_key,
-        concurrency=args.concurrency,
-        device=args.device,
-        torch_dtype=args.torch_dtype,
-        quantization=args.quantization,
+            checkpoint=args.checkpoints,
+            mode=args.mode,
+            suite=args.suite,
+            probe_type=args.probe_type,
+            num_probes=args.num_probes,
+            max_tasks=args.max_tasks,
+            timeout=args.timeout,
+            tokenizer_path=args.tokenizer,
+            output_path=args.output,
+            benchmark_type=args.benchmark_type,
+            language=args.language,
+            prompt_mode=args.prompt_mode,
+            backend=args.backend,
+            api_base=args.api_base,
+            api_key=args.api_key,
+            concurrency=args.concurrency,
+            device=args.device,
+            torch_dtype=args.torch_dtype,
+            quantization=args.quantization,
         )
     if args.html_report:
         write_html_report(result, args.html_report, title='Télos evaluation', source=Path(args.output).name if args.output else 'telos eval')

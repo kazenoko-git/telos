@@ -81,12 +81,33 @@ def normalize_report(data, *, title='Evaluation report', cases=None, source=''):
         if not isinstance(node, dict):
             return
         model = str(node.get('model_checkpoint', node.get('model', model)))
+        if isinstance(node.get('rows'), list) and 'tasks_per_model' in node:
+            for saved in node['rows']:
+                suites.append({'model': saved.get('name', saved.get('model', model)),
+                               'suite': saved.get('label', saved.get('suite', path)),
+                               'score': number(saved.get('saved_success_pct')),
+                               'metric': 'saved_success_pct', 'total': number(saved.get('total')),
+                               'ci': None, 'outcomes': {}})
+            return
         if isinstance(node.get('results'), list) and any('case_id' in r for r in node['results'] if isinstance(r, dict)):
             reader(node, path)
             return
         if isinstance(node.get('no_hint'), dict) and isinstance(node.get('hint'), dict):
             visit(node['no_hint'], path + '/no_hint', model)
             visit(node['hint'], path + '/hint', model)
+            return
+        if isinstance(node.get('overall'), dict) and 'total_probes' in node['overall']:
+            overall = node['overall']
+            if number(overall.get('top1_acc_pct')) is not None:
+                converted = dict(node, suite=path or node.get('probe_type', 'Probes'),
+                                 total_tasks=overall['total_probes'],
+                                 pass_at_1_pct=overall['top1_acc_pct'],
+                                 pass_at_1_95ci=overall.get('top1_95ci'),
+                                 tasks=[dict(p, id=p.get('id', i + 1), passed=p.get('top1'),
+                                             details={'target': p.get('target'), 'rank': p.get('rank'), 'cross_entropy': p.get('target_ce')})
+                                        for i, p in enumerate(node.get('probes', []))])
+                converted.pop('overall')
+                visit(converted, path, model)
             return
         score_key = next((k for k in ('pass_at_1_pct', 'pass_rate_pct') if number(node.get(k)) is not None), None)
         if score_key is not None and 'total_tasks' in node:
@@ -113,7 +134,7 @@ def normalize_report(data, *, title='Evaluation report', cases=None, source=''):
                              'program': '', 'replay': None, 'offsets': None, 'input_tokens': None})
             return
         for key, value in node.items():
-            if key == 'functional' and isinstance(node.get('code'), dict) and 'functional' in node['code']:
+            if key in ('functional', 'probes', 'anticheat', 'sample') and isinstance(node.get('code'), dict) and key in node['code']:
                 continue
             if isinstance(value, dict):
                 child_model = key if not path and not node.get('model_checkpoint') else model
@@ -133,10 +154,10 @@ def write_html_report(data, output, *, title='Evaluation report', cases=None, so
     payload = json.dumps(report, ensure_ascii=True, allow_nan=False).replace('&', '\\u0026').replace('<', '\\u003c').replace('>', '\\u003e')
     content = (ASSETS / 'report.html').read_text(encoding='utf-8')
     logo = base64.b64encode((ASSETS / 'logo.png').read_bytes()).decode('ascii')
-    for key, value in {'TITLE': html.escape(str(title)), 'STYLE': (ASSETS / 'report.css').read_text(),
+    replacements = {'TITLE': html.escape(str(title)), 'STYLE': (ASSETS / 'report.css').read_text(),
                        'SCRIPT': (ASSETS / 'report.js').read_text(), 'DATA': payload,
-                       'LOGO': logo}.items():
-        content = content.replace('{{' + key + '}}', value)
+                       'LOGO': logo}
+    content = re.sub(r'\{\{(TITLE|STYLE|SCRIPT|DATA|LOGO)\}\}', lambda m: replacements[m[1]], content)
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(content, encoding='utf-8')
