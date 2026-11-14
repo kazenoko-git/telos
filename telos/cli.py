@@ -40,6 +40,7 @@ def main():
         print("  train      Alias for pretrain")
         print("  posttrain  Post-train a causal Telos checkpoint (SFT or DPO)")
         print("  eval       High-end evaluation suite (100 contextual probes, code sampling, perplexity)")
+        print("  eval report  Turn saved evaluation JSON into a portable cream report (--output report.html)")
         print("  bench      Hardware throughput & step latency benchmark (strictly capped at 5 minutes)")
         print("  afm        Apple on-device Foundation Models (availability status, generation)")
         print("  test       Run unified verification suite across model contracts, causality, and samplers")
