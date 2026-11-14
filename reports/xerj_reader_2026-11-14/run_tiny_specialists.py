@@ -9,6 +9,7 @@ import importlib.metadata
 import json
 import platform
 import re
+import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -257,6 +258,10 @@ def create_output(model_key: str, output_path: Path, suite_hash: str, plan_hash:
             "macos_powermode_setting": 2,
         },
         "python_version": sys.version,
+        "runner_source_sha256": sha256_file(Path(__file__)),
+        "runner_source_commit": subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=REPO, check=True, capture_output=True, text=True
+        ).stdout.strip(),
         "output_mode": "raw and normalized records; per-case outputs saved incrementally",
         "attempt_policy": "one normal generation; up to two retries only after runtime exceptions; malformed/contract outputs retained without retry",
         "decoder": "unconstrained MLX greedy sampling; max_new_tokens=256; structured JSON is requested by prompt, not enforced by decoder",
