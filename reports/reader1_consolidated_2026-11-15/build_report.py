@@ -69,7 +69,7 @@ def pdf(data):
     def para(x,y,s,width=754,size=10,color=None):
         style=ParagraphStyle('p',fontName='Body',fontSize=size,leading=size*1.45,textColor=color or ink);p=Paragraph(s,style);_,h=p.wrap(width,500);p.drawOn(c,x,y-h);return y-h
     def start(title,sub,num):
-        c.setFillColor(page);c.rect(0,0,W,HH,fill=1,stroke=0);c.drawImage(str(REPO/'figures/test_transparent_logo.png'),40,518,width=115,height=45,preserveAspectRatio=True,mask='auto');text(180,548,title,23,True);text(180,526,sub,10,color=muted);text(40,22,'Télos | 512 synthetic diagnostic tasks | 15 November 2026',8,color=muted);text(772,22,f'{num}/4',8,color=muted)
+        c.setFillColor(page);c.rect(0,0,W,HH,fill=1,stroke=0);c.drawImage(str(REPO/'figures/test_transparent_logo.png'),40,518,width=115,height=45,preserveAspectRatio=True,mask='auto');text(180,548,title,23,True);text(180,526,sub,10,color=muted);text(40,22,'Télos | 512 synthetic diagnostic tasks | 15 November 2026',8,color=muted);text(772,22,f'{num}/3',8,color=muted)
     def table(headers,rows,y,widths,highlight=None,fontsize=10,rowheight=29):
         x=40;text(x,y,headers[0],fontsize,True,color=muted)
         for i,h in enumerate(headers[1:],1):text(x+sum(widths[:i]),y,h,fontsize,True,color=muted)
@@ -84,7 +84,7 @@ def pdf(data):
     for i,(label,value) in enumerate([('Dates','43/43'),('Corrections','43/43'),('Answer evidence offsets',f"{data['reader_answer_evidence']}/454"),('Sampled executor replays','128/128')]):
         x=40+i*195;c.setFillColor(H('#F4EBE1'));c.roundRect(x,433,182,65,8,fill=1,stroke=0);text(x+12,476,label,9,color=muted);text(x+12,448,value,22,True,color=green)
     y=table(['Direct QA','Correct / 512','Client median','Recorded errors*'],[(r['name'],pct(r['correct']),f"{r['client_ms']:,.0f} ms",r['error_count']) for r in data['direct']],407,[215,210,175,150],highlight='Reader-1',rowheight=28)
-    para(40,y,'Scores require the expected status and typed value. Grounding is evaluated separately. Qwen 0.8B includes error recovery: 282/512 initially, 316/512 after 53 HTTP 500 requests were rerun. SmolLM2 uses unconstrained decoding and has 415 format/status failures; its result is primarily a strict output-contract test.',size=9,color=muted)
+    para(40,y,'Scores require the expected status and typed value. Qwen 0.8B includes error recovery. SmolLM2 uses unconstrained decoding and is strongly limited by output-format failures.',size=9,color=muted)
     para(40,64,'* Error column counts saved error/malformed/unsupported-status outputs; it is not the total number of wrong answers. Local latency includes measured client processing; Reader-1 provider timing is separate.',size=8.5,color=muted)
     c.showPage();start('Where Reader-1 does well','Direct QA by category | each entry is correct / category tasks',2)
     order=['Reader-1','NuExtract3','Ministral 3 8B','Gemma 4 E4B','LFM3 Omni 2B','Bonsai 4B','Qwen 3.5 0.8B','SmolLM2 360M'];mapping={r['name']:r for r in data['direct']};cats=['scalar','arithmetic','percentages','dates','corrections','table_lookup','unicode','missing','conflicts','units','irrelevant_instructions','lists']
@@ -92,21 +92,13 @@ def pdf(data):
     y=table(heads,[(cat.replace('_',' '),*[f"{mapping[n]['categories'][cat][0]}/{mapping[n]['categories'][cat][1]}" for n in order]) for cat in cats],483,widths,fontsize=8,rowheight=25)
     y=para(40,y,'Reader-1 achieved perfect scalar extraction, dates, corrections, Unicode-labelled extraction and ordered lists. It scored 38/43 on irrelevant instructions, versus 12/43 for NuExtract3. Every one of its 454 ANSWER outputs had exact native evidence offsets; all 128 sampled executor replays matched.',size=10)
     para(40,y-14,'The largest gaps are percentages (0/43), unresolved conflicts (0/43), and multi-condition table lookup (10/42). A correct replay proves the selected program executes consistently; it does not prove the selected operands or operation answer the question.',size=10,color=muted)
-    c.showPage();start('Specialists and incomplete runs','These configured pipelines are not direct-QA leaderboard entries',3)
+    c.showPage();start('Extraction pipelines','Source extraction and calculator results are separate from direct QA',3)
     y=table(['Model','Exact source fields','Calculator answer'],[(r['name'],pct(r['extraction']),pct(r['pipeline'])) for r in data['specialists']],480,[250,250,220],rowheight=32)
     y=para(40,y,'The extractor receives a document, question and named source-field descriptions. A separate deterministic engine performs human-specified arithmetic, percentage, calendar and resolution operations. Exact extraction requires every requested source field; pipeline correctness scores the final status/value. These are different metrics from Reader-1 generating its own program.',size=10)
-    g=data['gemini'];y=para(40,y-22,f"<b>Gemini 3.5 Flash-Lite - incomplete:</b> {g['attempted']} task IDs attempted; {g['served']} non-error responses, {g['correct']} correct, {g['errors']} quota failures, {g['unattempted']} unattempted. These category-skewed results are excluded from the full-suite ranking. No completed-response percentage is presented as a 512-case score.",size=11)
-    y=para(40,y-20,'<b>Qwen 0.8B recovery:</b> all 53 selected HTTP 500 requests returned responses on retry; 34 were correct. The other 459 original responses were retained. Original and recovery records remain separate in the source artifacts.',size=11)
-    y=para(40,y-20,'<b>SmolLM2:</b> 275 extraction-format failures and 415 direct-QA format/status failures. Its independent runtime health check passed. Output-contract failures constrain interpretation of its reasoning ability.',size=11)
-    para(40,y-20,'Qwen 2B was excluded at the researcher’s request. Earlier pilot/240-case and uncorrected runs remain audit history; they are not additional independent tests or pooled into these totals.',size=9,color=muted)
-    c.showPage();start('Method and reproduction','Saved-score replay is available; package-only reproduction is not',4)
-    y=para(40,487,'<b>Can Ivan reproduce this using only the telos package? No, not currently.</b> The published telos-ml 1.6.1 wheel contains the generic evaluation CLI/report renderer, but not this 512-case dataset, XERJ adapter, native specialist runners, calculator contract, or study artifacts. Both wheel and source-distribution configuration exclude the reports directory.',size=12)
-    y=para(40,y-14,'<b>What is reproducible:</b> the companion source bundle preserves the exact synthetic cases, expected answers, operand plans, raw outputs, scoring code, configuration records and source hashes. Saved scores can be recomputed offline with Python. Fresh inference additionally requires model runtimes/weights, an XERJ key, and a Google key/quota for Gemini; some runners also require local path configuration. Local timings require the relevant Apple Silicon environment; cloud model revisions and timings can change.',size=10)
-    y=para(40,y-14,'<b>Study limits:</b> the 240 inspected and 272 newer cases are parameterized synthetic templates. The suite informed later adapter repairs, so the newer subset is not an untouched final test. Model prompts, native schemas, quantization and decoder constraints differ. Some runs lack startup weight-byte hashes or fully pinned loading/resumption. Results establish behavior of the saved configurations, not general-document accuracy or a parameter-matched comparison.',size=10)
-    y=para(40,y-17,'<b>Reader-1 failure examples</b> - exact task IDs are included for investigation:',size=10)
+    y=para(40,y-18,'<b>Reader-1 failure examples</b>',size=11)
     for e in data['reader_examples']:
-        y=para(40,y-8,f"<b>{e['id']}</b>: {html.escape(e['question'])}<br/>Expected: {html.escape(str(e['expected']))}; observed: {html.escape(str(e['observed']))} ({e['status']}).",size=9)
-    para(40,74,f"Dataset SHA-256: {data['suite_sha256']}<br/>Sources and raw case-level details: results.json, manifest.json, report.html and the companion reproduction bundle.",size=8.5,color=muted)
+        y=para(40,y-13,f"<b>{e['id']}</b>: {html.escape(e['question'])}<br/>Expected: {html.escape(str(e['expected']))}; observed: {html.escape(str(e['observed']))} ({e['status']}).",size=10)
+    para(40,y-20,'Qwen 0.8B includes 53 recovered HTTP 500 requests; its initial score was 282/512. SmolLM2 scores are strongly limited by output-format compliance. These synthetic diagnostics are not a general-document accuracy estimate.',size=9,color=muted)
     c.save()
 
 
