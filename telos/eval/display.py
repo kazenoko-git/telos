@@ -48,6 +48,10 @@ def normalize_report(data, *, title='Evaluation report', cases=None, source=''):
     Missing results stay unknown. Duplicate native code/functional aliases are
     skipped, and dual hint tracks remain separate instead of being pooled.
     """
+    if isinstance(data, dict) and data.get('schema') == 'telos.evaluation.display.v1':
+        if not isinstance(data.get('rows'), list) or not isinstance(data.get('suites'), list):
+            raise ValueError('Display reports require rows and suites lists.')
+        return dict(data, title=str(title), source=source or data.get('source', ''))
     if isinstance(data, dict) and str(data.get('schema', '')).startswith('telos.eval.documents.'):
         from .documents.display import normalize
         return normalize(data, title, source)
@@ -164,11 +168,32 @@ def write_html_report(data, output, *, title='Evaluation report', cases=None, so
     logo = base64.b64encode((ASSETS / 'logo.png').read_bytes()).decode('ascii')
     replacements = {'TITLE': html.escape(str(title)), 'STYLE': (ASSETS / 'report.css').read_text(),
                        'SCRIPT': (ASSETS / 'report.js').read_text(), 'DATA': payload,
-                       'LOGO': logo}
-    content = re.sub(r'\{\{(TITLE|STYLE|SCRIPT|DATA|LOGO)\}\}', lambda m: replacements[m[1]], content)
+                       'LOGO': logo, 'FONT': base64.b64encode((ASSETS / 'Outfit.ttf').read_bytes()).decode('ascii')}
+    content = re.sub(r'\{\{(TITLE|STYLE|SCRIPT|DATA|LOGO|FONT)\}\}', lambda m: replacements[m[1]], content)
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(content, encoding='utf-8')
+    return output
+
+
+def write_pdf_report(html_path, output):
+    """Print the existing viewer; HTML/CSS remain the only layout source."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError as exc:
+        raise RuntimeError('PDF export requires pip install "telos-ml[eval-pdf]" and playwright install chromium') from exc
+    output = Path(output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with sync_playwright() as browser_api:
+        options = {'headless': True}
+        if os.environ.get('TELOS_CHROMIUM_EXECUTABLE'):
+            options['executable_path'] = os.environ['TELOS_CHROMIUM_EXECUTABLE']
+        with browser_api.chromium.launch(**options) as browser:
+            page = browser.new_page()
+            page.goto(Path(html_path).resolve().as_uri())
+            page.wait_for_function('window.telosReportReady === true')
+            page.evaluate('document.fonts.ready')
+            page.pdf(path=str(output), print_background=True, prefer_css_page_size=True)
     return output
 
 
@@ -225,18 +250,24 @@ def main(argv=None):
     parser.add_argument('reports', nargs='+', type=Path)
     parser.add_argument('--output', '-o', type=Path, default=Path('evaluation.html'))
     parser.add_argument('--title', default='Evaluation report')
+    parser.add_argument('--pdf', type=Path, help='Also print the same viewer to PDF (requires telos-ml[eval-pdf] and playwright install chromium)')
     parser.add_argument('--cases', type=Path, help='Optional Reader-1 cases JSON for expected answers and source documents')
     args = parser.parse_args(argv)
     try:
         data = {p.stem: json.loads(p.read_text()) for p in args.reports}
         if len(data) != len(args.reports):
             raise ValueError('Input filenames must have distinct stems.')
+        if len(data) == 1:
+            data = next(iter(data.values()))
         cases = json.loads(args.cases.read_text()) if args.cases else None
         path = write_html_report(data, args.output, title=args.title, cases=cases,
                                  source=', '.join(p.name for p in args.reports))
     except (OSError, ValueError, TypeError, KeyError) as error:
         parser.error(str(error))
     print(f'TÉLOS · Saved evaluation display to {path}')
+    if args.pdf:
+        write_pdf_report(path, args.pdf)
+        print(f'TÉLOS · Saved PDF to {args.pdf}')
 
 
 if __name__ == '__main__':

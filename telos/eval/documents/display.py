@@ -3,7 +3,7 @@ from .suite import load_suite
 
 
 def normalize(data, title, source):
-    cases, _, _ = load_suite()
+    cases, plans, _ = load_suite()
     case_map = {c['id']: c for c in cases}
     if data['schema'] == 'telos.eval.documents.v1':
         model = data['identity']['model']['model']
@@ -30,7 +30,7 @@ def normalize(data, title, source):
                          'correct': grade.get('exact_fields') if label == 'extraction' else grade.get('answer_correct'),
                          'status': response.get('status', grade['outcome']), 'question': case['question'],
                          'value': record.get('fields') if label == 'extraction' else response.get('value'),
-                         'expected': case.get('expected', case.get('statuses')), 'document': case['document'],
+                         'expected': plans[record['case_id']]['reference_fields'] if label == 'extraction' else case.get('expected', case.get('statuses')), 'document': case['document'],
                          'confidence': None, 'latency_ms': record.get('client_ms'),
                          'evidence': record.get('evidence_check', {}).get('spans', []),
                          'details': record.get('error') or response.get('reason'),

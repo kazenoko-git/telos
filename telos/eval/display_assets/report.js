@@ -8,12 +8,67 @@ const percent = (a,b) => b ? (100*a/b).toFixed(1)+'%' : '—';
 const state = row => row.correct === true ? 'passed' : row.correct === false ? 'failed' : 'unknown';
 const stateLabel = row => row.correct === true ? 'Correct' : row.correct === false ? 'Incorrect' : 'Unscored';
 let visible = report.rows;
+let pageSize = 60;
+const presentation = report.presentation || {};
+const models = [...new Set([...report.rows.map(r=>r.model), ...report.suites.map(r=>r.model)])];
+const comparison = models.length > 1 || new Set(report.rows.map(r=>r.suite)).size > 1;
+const labels = {direct_qa:'Direct QA', extraction:'Source extraction', calculator:'Calculator'};
+const trackLabel = t => labels[t] || t;
+const notes = {direct_qa:'Correct status + value',extraction:'All requested source fields match',calculator:'Extracted fields + fixed operations'};
+const medianOf = rows => {const a=rows.map(r=>r.latency_ms).filter(v=>typeof v==='number'&&Number.isFinite(v)).sort((a,b)=>a-b);return a.length?(a[Math.floor((a.length-1)/2)]+a[Math.ceil((a.length-1)/2)])/2:null;};
 byId('note').textContent = report.note;
-byId('source').textContent = report.source ? 'Source · '+report.source : 'Saved results';
+byId('source').textContent = comparison ? '' : report.source ? 'Source · '+report.source : '';
 for (const name of ['model','suite','category']) {
   const values = [...new Set(report.rows.map(r=>r[name]).filter(Boolean))].sort();
   if (!values.length) values.push(...new Set(report.suites.map(s=>s[name]).filter(Boolean)));
-  for (const value of values) { const option = make('option',value); option.value=value; byId(name).append(option); }
+  for (const value of values) { const option = make('option',name==='suite'?trackLabel(value):value); option.value=value; byId(name).append(option); }
+}
+if (comparison) {
+  document.body.classList.add('comparison-report');
+  byId('comparison').hidden=false;
+  byId('model').value=presentation.featured_model || models[0];
+  byId('suite').value=presentation.default_suite || report.suites[0]?.suite || report.rows[0]?.suite || '';
+  for(const id of ['model','suite']) byId('analysis-selectors').append(byId(id).parentElement);
+  byId('suite').parentElement.firstChild.textContent='Track';
+  byId('comparison-note').textContent=(presentation.footnotes||[]).join(' · ');
+}
+function scoresFor(track) {
+  return report.suites.filter(s=>s.suite===track).map(s=>{
+    const rows=report.rows.filter(r=>r.model===s.model&&r.suite===track);
+    const correct=rows.length?rows.filter(r=>r.correct===true).length:s.correct;
+    return {...s,correct,latency:medianOf(rows) ?? s.client_ms ?? null};
+  }).sort((a,b)=>(b.score??-1)-(a.score??-1)||a.model.localeCompare(b.model));
+}
+function ranking() {
+  if(!comparison)return;
+  const track=byId('suite').value;
+  const tabs=byId('track-tabs');tabs.replaceChildren();
+  for(const t of [...new Set(report.suites.map(s=>s.suite))]){
+    const button=make('button',trackLabel(t));button.setAttribute('aria-pressed',String(t===track));
+    button.addEventListener('click',()=>{byId('suite').value=t;pageSize=60;render();});tabs.append(button);
+  }
+  byId('track-note').textContent=notes[track]||'';
+  const board=byId('leaderboard');board.replaceChildren();
+  const head=make('div',undefined,'rank-head');['Model','Correct','Accuracy','Client median'].forEach(x=>head.append(make('span',x)));board.append(head);
+  for(const score of scoresFor(track)){
+    const row=make('div',undefined,'rank-row'+(score.model===presentation.featured_model?' featured':''));
+    row.append(make('strong',score.model,'rank-model'),make('span',`${score.correct ?? '—'} / ${score.total ?? '—'}`,'rank-count'),make('strong',score.score==null?'—':score.score.toFixed(1)+'%','rank-score'),make('span',score.latency==null?'—':(score.latency/1000).toFixed(2)+' s','rank-time'));board.append(row);
+  }
+  const paired=byId('print-pipelines');paired.replaceChildren();
+  const extraction=scoresFor('extraction'),calculator=scoresFor('calculator');
+  if(extraction.length){paired.append(make('h2','Extraction pipelines'));const table=make('div',undefined,'pipeline-grid');
+    for(const t of ['Model','Source fields','Calculator'])table.append(make('strong',t));
+    for(const e of extraction){const c=calculator.find(c=>c.model===e.model);table.append(make('span',e.model),make('span',`${e.correct} / ${e.total}`),make('span',c?`${c.correct} / ${c.total}`:'—'));}paired.append(table,make('p','Human-specified operations; separate from direct QA.','fine'));
+  }
+}
+function examples(){
+  const cards=byId('example-cards');cards.replaceChildren();
+  for(const key of presentation.selected_cases||[]){const row=report.rows.find(r=>r.id===key.id&&r.model===key.model&&r.suite===key.suite);if(!row)continue;
+    const box=make('article',undefined,'example-card');box.append(make('h3',row.question));
+    box.append(make('p',`Expected: ${format(row.expected)} · Observed: ${row.status==='ANSWER'?format(row.value):row.status}`));
+    const button=make('button','View source');button.addEventListener('click',()=>details(row));box.append(button);cards.append(box);
+  }
+  byId('examples').hidden=!cards.children.length;
 }
 function metric(label,value,note) {
   const box=make('div',undefined,'metric'); box.append(make('div',label,'metric-label'),make('div',value,'metric-value'),make('div',note,'metric-note')); return box;
@@ -30,6 +85,7 @@ function summaries(rows) {
   const hasTokens=rows.some(r=>typeof r.input_tokens==='number');
   const suiteOnly=!report.rows.length;
   const summarySuites=report.suites.filter(s=>(!byId('model').value||s.model===byId('model').value)&&(!byId('suite').value||s.suite===byId('suite').value));
+  byId('metrics').hidden=comparison;
   byId('metrics').replaceChildren(
     metric(suiteOnly?'Recorded suites':'Correctness',suiteOnly?String(summarySuites.length):percent(correct,scored.length),suiteOnly?'Summary-only report':`${correct} correct / ${scored.length} scored`),
     metric('Task records',String(rows.length),suiteOnly?'Individual records not supplied':rows.length-scored.length?`${rows.length-scored.length} unscored / errors`:""),
@@ -44,6 +100,18 @@ function summaries(rows) {
     check('Evidence offset checks',offsets.length?`${offsets.filter(r=>r.offsets).length} / ${offsets.length} valid`:'Not recorded'),
     check('Answered-value precision',answeredScored.length?percent(answeredScored.filter(r=>r.correct).length,answeredScored.length):'Not recorded'),
     check('Incorrect, confidence ≥ 0.90',hasConfidence?String(high.length):'Not recorded'));
+  if(comparison) {
+    byId('category-heading').textContent=byId('model').value || 'Categories';
+    const saved=(presentation.verification||[]).filter(v=>v.model===byId('model').value&&(!v.suite||v.suite===byId('suite').value));
+    if(saved.length)byId('checks').replaceChildren(...saved.map(v=>check(v.label,v.value)));
+    else {
+      const checks=[];
+      if(replay.length)checks.push(check('Formula replay',`${replay.filter(r=>r.replay).length} / ${replay.length}`));
+      if(offsets.length)checks.push(check('Evidence offsets',`${offsets.filter(r=>r.offsets).length} / ${offsets.length}`));
+      byId('checks').replaceChildren(...checks);
+    }
+    document.querySelector('.assurance').hidden=!byId('checks').children.length;
+  }
   const categories=byId('categories');categories.replaceChildren();
   if (suiteOnly) {
     byId('chart-label').textContent='Reported suite scores';
@@ -61,10 +129,16 @@ function bar(label,value,caption,parent) {
   head.append(make('span',label),make('strong',caption));fill.style.width=Math.max(0,Math.min(100,value))+'%';track.append(fill);box.append(head,track);parent.append(box);
 }
 function render() {
+  if(comparison){
+    const track=byId('suite').value;
+    const available=report.suites.filter(s=>s.suite===track).map(s=>s.model);
+    if(!available.includes(byId('model').value))byId('model').value=available.includes(presentation.featured_model)?presentation.featured_model:available[0]||'';
+    for(const option of byId('model').options)option.disabled=Boolean(option.value&&!available.includes(option.value));
+  }
   const query=byId('search').value.toLowerCase();
   visible=report.rows.filter(row=>['model','suite','category'].every(k=>!byId(k).value||row[k]===byId(k).value)&&(!byId('outcome').value||state(row)===byId('outcome').value)&&(!query||JSON.stringify(row).toLowerCase().includes(query)));
   const body=byId('rows');body.replaceChildren();
-  for (const row of visible) {
+  for (const row of visible.slice(0,pageSize)) {
     const tr=make('tr'),cell=make('td'),button=make('button');
     button.append(make('span',row.model+' · '+row.id,'case-id'),make('span',row.question||row.suite));button.addEventListener('click',()=>details(row));cell.append(button);tr.append(cell);
     tr.append(make('td',row.category.replaceAll('_',' ')));
@@ -72,7 +146,9 @@ function render() {
     tr.append(make('td',row.confidence===null?'—':row.confidence.toFixed(4),'nowrap'),make('td',row.latency_ms===null?'—':(row.latency_ms/1000).toFixed(2)+'s','nowrap'));
     body.append(tr);
   }
-  byId('count').textContent=`${visible.length} of ${report.rows.length} cases`;
+  byId('count').textContent=`${Math.min(pageSize,visible.length)} of ${visible.length} matching cases`;
+  byId('more').hidden=visible.length<=pageSize;
+  ranking();
   document.querySelector('.pill').textContent=visible.length===report.rows.length?'Saved evaluation':'Filtered selection';
   byId('empty').hidden=visible.length>0||report.rows.length===0;
   byId('summary-only').hidden=report.rows.length>0;
@@ -111,7 +187,10 @@ byId('csv').addEventListener('click',()=>{
   download('telos-visible-cases.csv',[keys.join(','),...visible.map(r=>keys.map(k=>cell(r[k])).join(','))].join('\r\n'),'text/csv');
 });
 byId('print').addEventListener('click',()=>window.print());
+byId('more').addEventListener('click',()=>{pageSize+=60;render();});
 byId('close').addEventListener('click',()=>byId('detail').close());
-byId('reset').addEventListener('click',()=>{for(const k of ['search','model','suite','category','outcome'])byId(k).value='';render();});
-for(const k of ['search','model','suite','category','outcome'])byId(k).addEventListener(k==='search'?'input':'change',render);
+byId('reset').addEventListener('click',()=>{for(const k of ['search','model','suite','category','outcome'])byId(k).value='';if(comparison){byId('model').value=presentation.featured_model||models[0];byId('suite').value=presentation.default_suite||report.suites[0].suite;}pageSize=60;render();});
+for(const k of ['search','model','suite','category','outcome'])byId(k).addEventListener(k==='search'?'input':'change',()=>{pageSize=60;render();});
+examples();
 render();
+window.telosReportReady=true;

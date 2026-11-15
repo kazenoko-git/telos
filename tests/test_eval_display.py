@@ -185,3 +185,25 @@ def test_cli_html_export_preserves_evaluation_arguments(tmp_path, monkeypatch):
     runner.main()
     assert captured['checkpoint'] == ['fixture']
     assert target.exists()
+
+
+def test_canonical_viewer_preserves_separate_suites_and_presentation(tmp_path):
+    data = {'schema': 'telos.evaluation.display.v1', 'rows': [],
+            'suites': [{'model':'A','suite':'extraction','score':50},
+                       {'model':'A','suite':'calculator','score':100}],
+            'presentation': {'featured_model':'A', 'selected_cases':[]}, 'note':'Diagnostic'}
+    result = normalize_report(data, title='Comparison')
+    assert result['presentation'] == data['presentation']
+    assert [s['score'] for s in result['suites']] == [50,100]
+    out=write_html_report(data,tmp_path/'comparison.html')
+    text=out.read_text()
+    assert 'data:font/ttf;base64,' in text
+    assert '{{FONT}}' not in text
+    assert 'window.telosReportReady=true' in text
+
+
+def test_document_extraction_displays_source_contract_not_final_answer():
+    from telos.eval.documents.runner import replay_reference
+    report=normalize_report(replay_reference())
+    row=next(r for r in report['rows'] if r['suite']=='extraction' and r['id']=='arithmetic-01')
+    assert row['expected']=={'east':['14'],'west':['5']}
