@@ -65,3 +65,17 @@ A package run can also be replayed. Raw completions take precedence over cached 
 ## Scope
 
 The original 240 tasks were inspected during development; 272 were added later. This frozen set is a diagnostic suite with repeated templates, not a general-document benchmark or a continuing held-out test. Historical response replay reproduces the reported scores. Fresh inference can differ with weights, quantization, prompts, decoding, runtime and service changes. No vendor-specific endpoint adapter is included.
+
+## Comparison viewer and PDF
+
+The current viewer supports per-model leaderboards, separate track tabs, model/category filters, source inspection and paginated case lists. It embeds the Télos logo and Outfit font, including for offline viewing. Multiple tracks are never combined into a headline accuracy.
+
+The PDF uses the viewer's print stylesheet, not a second report layout:
+
+```bash
+pip install '.[eval-pdf]'
+playwright install chromium
+telos eval report scored.json --title 'Document evaluation' --output report.html --pdf report.pdf
+```
+
+`pip install '.[eval-pdf]'` installs from the current source checkout. Browser PDF export is optional; the HTML viewer's Print action also uses the same print layout. `TELOS_CHROMIUM_EXECUTABLE` can select an existing Chrome/Chromium executable instead of a Playwright download.
