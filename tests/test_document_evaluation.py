@@ -143,3 +143,20 @@ def test_http_attempt_is_observable_and_not_hidden_by_retry():
     record = result['tracks']['direct_qa']['records'][0]
     assert record['request_trace'][0]['http_status'] == 429
     assert record['grade']['outcome'] == 'rate_limit_error'
+
+
+def test_master_entrypoint_routes_multiple_document_models(monkeypatch, tmp_path):
+    from telos.eval import runner
+    monkeypatch.setattr(runner, 'load_adapter', lambda *a, **k: Model())
+    report = runner.evaluate(['a', 'b'], suite='document512', max_tasks=1,
+                             output_path=tmp_path/'models.json', track='all')
+    assert report['schema'] == 'telos.eval.documents.collection.v1'
+    assert len(report['runs']) == 2
+    assert all(len(r['tracks']) == 3 for r in report['runs'])
+
+
+def test_explicit_api_backend_does_not_route_gemma_to_gemini(monkeypatch):
+    from telos.eval.adapters import registry
+    monkeypatch.setattr(registry, 'OpenAIAPIAdapter', lambda **kw: kw)
+    result = registry.load_adapter('gemma-4-local', backend='openai_api', api_base='http://localhost:1234/v1')
+    assert result['model_name'] == 'gemma-4-local'
