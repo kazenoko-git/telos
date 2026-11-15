@@ -210,7 +210,7 @@ function comparisonPages(){
       const tr=make('tr');tr.append(make('th',category.replaceAll('_',' ')));
       const scores=group.models.map(m=>score(m,group.track,category));
       const best=Math.max(...scores.map(s=>s?s.correct/s.total:-1));
-      for(const s of scores){const winner=s&&best>0&&s.correct/s.total===best;const td=make('td',s?`${s.correct}/${s.total}`:'—',winner?'category-lead':'');tr.append(td);}body.append(tr);
+      for(const s of scores){const winner=s&&best>0&&s.correct/s.total===best;const td=make('td',undefined,winner?'category-lead':'');td.append(make('span',s?`${s.correct}/${s.total}`:'—','matrix-value'));tr.append(td);}body.append(tr);
     }
     table.append(body);wrap.append(table);box.append(wrap);return box;
   }
@@ -218,19 +218,36 @@ function comparisonPages(){
     const page=make('article',undefined,'comparison-page');
     const heading=make('div',undefined,'comparison-page-heading');heading.append(document.querySelector('.brand img').cloneNode(),make('h1',definition.title),make('span',`${index+1} / ${definitions.length}`,'page-number'));page.append(heading);
     page.append(make('p',definition.note||'512 synthetic document tasks','comparison-page-note'));
-    const summary=make('table',undefined,'comparison-summary'),head=make('thead'),hr=make('tr');hr.append(make('th','Model'));
-    for(const col of definition.columns)hr.append(make('th',col.label));head.append(hr);summary.append(head);
-    const body=make('tbody');
-    for(const model of definition.models){const tr=make('tr');tr.append(make('th',model));
+    const summary=make('div',undefined,'score-cards');summary.style.setProperty('--model-count',definition.models.length);
+    const directOnly=definition.columns.filter(c=>c.kind!=='latency').length===1;
+    if(directOnly)summary.classList.add('direct-only');
+    for(const model of definition.models){
+      const card=make('section',undefined,'score-card'+(model===presentation.featured_model?' featured-model':''));card.append(make('h3',model));
       for(const col of definition.columns){
-        const s=score(model,col.track);
-        const text=col.kind==='latency'?(scoresFor(col.track).find(s=>s.model===model)?.latency):s;
-        tr.append(make('td',col.kind==='latency'?(text==null?'—':(text/1000).toFixed(2)+' s'):s?`${s.correct}/${s.total} · ${percent(s.correct,s.total)}`:'—'));
-      }body.append(tr);
+        const s=score(model,col.track),metric=make('div',undefined,'score-card-metric');
+        if(col.kind==='latency'){
+          const time=scoresFor(col.track).find(s=>s.model===model)?.latency;
+          metric.append(make('span',col.label),make('strong',time==null?'—':(time/1000).toFixed(2)+' s'));
+        }else if(directOnly){
+          card.append(make('div',s?percent(s.correct,s.total):'—','score-card-value'),make('div',s?`${s.correct} / ${s.total} correct`:'Not evaluated','score-card-count'));
+          continue;
+        }else{
+          metric.append(make('span',col.label),make('strong',s?percent(s.correct,s.total):'—'));
+        }
+        card.append(metric);
+      }
+      if(directOnly){
+        const group=definition.matrices[0];
+        const categories=[...new Set(report.rows.filter(r=>r.suite===group.track&&group.models.includes(r.model)).map(r=>r.category))];
+        const sole=[],tied=[];
+        for(const category of categories){const counts=group.models.map(m=>score(m,group.track,category)),best=Math.max(...counts.map(c=>c?c.correct/c.total:-1));const own=score(model,group.track,category);if(own&&best>0&&own.correct/own.total===best){const leaders=counts.filter(c=>c&&c.correct/c.total===best).length;(leaders===1?sole:tied).push(category.replaceAll('_',' '));}}
+        card.append(make('p',sole.length?'Leads · '+sole.join(', '):tied.length?`${tied.length} shared category leads`:'No category leads','model-strength'));
+      }
+      summary.append(card);
     }
-    summary.append(body);page.append(summary);
+    page.append(summary);
     const matrices=make('div',undefined,'comparison-matrices');if(definition.matrices.length===1)matrices.classList.add('single');for(const group of definition.matrices)matrices.append(matrix(group));page.append(matrices);
-    page.append(make('p','Green = category lead, including ties. Counts = correct / tasks.','comparison-legend'));
+    page.append(make('p','Highlighted = category lead, including ties. Correct / tasks.','comparison-legend'));
     if(definition.footer)page.append(make('p',definition.footer,'comparison-footer'));
     root.append(page);
   }
