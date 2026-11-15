@@ -1,8 +1,14 @@
 # Reproduce the study
 
-## Package-only answer
+## Packaged evaluation
 
-No. We inspected the published `telos-ml==1.6.1` wheel and verified its SHA-256 against PyPI metadata. It contains the generic Télos evaluation/report package, but none of this study's 512 tasks, XERJ/specialist adapters or calculator plans. The repository build excludes `reports/` from the wheel and source distribution.
+`telos-ml==1.6.2` includes the frozen suite, calculator plans, generic runners and historical response snapshots:
+
+```sh
+telos eval documents replay --reference --output replay.json --html-report replay.html
+```
+
+See `docs/document-evaluation.md` on the main branch for new inference. This study directory also preserves the original runner environments and records. `package_audit.json` is the historical inspection of version 1.6.1, before integration.
 
 ## Recompute saved scores (offline)
 
@@ -16,7 +22,7 @@ This uses only the Python standard library and the included scoring source. It c
 
 ## Run new inference
 
-New inference requires the study runners and environment setup, not just `telos eval`:
+The package supports new inference through generic adapters. The original study runners below preserve the historical setups:
 
 - `reports/xerj_reader_2026-11-14/run_comparative_suite.py`: Reader-1/API and local LM Studio runners; see `--help` and `model_adapters.py`.
 - `reports/xerj_reader_2026-11-14/rerun_qwen08_http500.py`: the explicitly labelled 53-request recovery pass.
@@ -28,4 +34,8 @@ Inspect each runner and its saved metadata before running. Several use machine-s
 
 Fixed cloud models, parameter-matched checkpoints, cross-platform timing parity, and bit-for-bit regeneration of all original responses are not guaranteed. Some earlier runs lack startup weight hashes; the NuExtract3 runner declares a revision but originally loaded by repository name. Use a pinned local snapshot and isolated output path for a new run; validate settings before resuming. Keep new results separate from original artifacts.
 
-`manifest.json` lists source file SHA-256 values. `package_audit.json` records the wheel inspection. `report.html` is self-contained and searchable; the four-page PDF is the concise overview. The archive is a study artifact bundle, not an installable Télos package release.
+`manifest.json` lists source file SHA-256 values. `package_audit.json` records the wheel inspection. `report.html` is self-contained and searchable; the two-page PDF is the concise overview. The archive is a study artifact bundle, not an installable Télos package release.
+
+## Rebuild the display
+
+Use the current Télos source checkout with its optional `eval-pdf` dependencies and Chromium installed. Run `build_report.py` in this directory. It converts the saved records into `viewer.json`, then calls `telos.eval.display` for both HTML and PDF. There is no separate PDF layout. `--html-only` skips PDF export.
