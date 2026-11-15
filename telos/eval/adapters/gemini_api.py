@@ -35,7 +35,7 @@ class GeminiAPIAdapter(BaseModelAdapter):
         self.concurrency = max(1, concurrency)
         self.timeout = timeout
 
-    def _call_gemini_api(self, prompt: str, max_new_tokens: int, temperature: float, stop: Optional[List[str]]) -> str:
+    def _call_gemini_api(self, prompt: str, max_new_tokens: int, temperature: float, stop: Optional[List[str]], request_attempts=5, request_trace=None) -> str:
         """Sends a generateContent request to Google Gemini API."""
         endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent"
 
@@ -66,12 +66,15 @@ class GeminiAPIAdapter(BaseModelAdapter):
 
         req = urllib.request.Request(endpoint, data=body_bytes, headers=headers, method="POST")
 
-        max_retries = 5
+        max_retries = request_attempts
         delay = 1.0
         for attempt in range(max_retries):
+            attempt_start = time.perf_counter()
             try:
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
+                    if request_trace is not None:
+                        request_trace.append({'attempt': attempt + 1, 'http_status': resp.status, 'client_ms': (time.perf_counter() - attempt_start) * 1000})
                     candidates = data.get("candidates", [])
                     if not candidates:
                         return ""
@@ -83,6 +86,8 @@ class GeminiAPIAdapter(BaseModelAdapter):
                     return "".join(text_pieces).strip()
             except urllib.error.HTTPError as err:
                 status = err.code
+                if request_trace is not None:
+                    request_trace.append({'attempt': attempt + 1, 'http_status': status})
                 error_body = err.read().decode("utf-8", errors="replace")
                 if status in (429, 500, 503) and attempt < max_retries - 1:
                     time.sleep(delay)
@@ -109,7 +114,7 @@ class GeminiAPIAdapter(BaseModelAdapter):
         **kwargs
     ) -> str:
         """Generates completion via Google Gemini REST endpoint."""
-        return self._call_gemini_api(prompt, max_new_tokens, temperature, stop)
+        return self._call_gemini_api(prompt, max_new_tokens, temperature, stop, request_attempts=kwargs.get("request_attempts", 5), request_trace=kwargs.get("request_trace"))
 
     def generate_batch(
         self,

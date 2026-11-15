@@ -39,6 +39,7 @@ class HuggingFaceAdapter(BaseModelAdapter):
         model_kwargs: Dict[str, Any] = {
             "torch_dtype": selected_dtype,
             "trust_remote_code": trust_remote_code,
+            "revision": kwargs.get("revision"),
         }
 
         if device == "auto":
@@ -52,12 +53,21 @@ class HuggingFaceAdapter(BaseModelAdapter):
             model_kwargs["load_in_8bit"] = True
 
         print(f"Loading Hugging Face model: {model_name_or_path} (dtype={torch_dtype}, quant={quantization})...")
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=trust_remote_code)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=trust_remote_code, revision=kwargs.get("revision"))
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
 
         self.model = AutoModelForCausalLM.from_pretrained(model_name_or_path, **model_kwargs)
         self.model.eval()
+        self.model_revision = getattr(self.model.config, '_commit_hash', kwargs.get('revision'))
+        from pathlib import Path
+        if Path(model_name_or_path).is_dir():
+            self.model_path = str(Path(model_name_or_path).resolve())
+        else:
+            from huggingface_hub import try_to_load_from_cache
+            config_path = try_to_load_from_cache(model_name_or_path, 'config.json', revision=self.model_revision)
+            if isinstance(config_path, str):
+                self.model_path = str(Path(config_path).parent)
 
     def generate(
         self,
