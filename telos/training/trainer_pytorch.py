@@ -639,6 +639,10 @@ class UnifiedPyTorchTrainer:
             "seq_len": self.seq_len,
             "steps": steps,
             "elapsed_seconds": elapsed,
+            "timing": "synchronized_completed_updates",
+            "warmup_updates": 5,
+            "valid_measurement": steps > 0,
+            "token_unit": "input_tokens",
             "tokens_processed": tokens_processed,
             "steps_per_sec": sps,
             "tokens_per_sec": tps,
@@ -775,9 +779,8 @@ class UnifiedPyTorchTrainer:
             print(f"  [Benchmark Mode] Starting throughput benchmark (Maximum limit: {max_bench_duration:.0f}s)...")
 
         start_time = time.time()
-        bench_start_time = None
-        latencies = []
-        bench_steps = 0
+        from .benchmark_timing import pytorch_benchmark_timer
+        benchmark_timer = pytorch_benchmark_timer(self) if benchmark else None
         self.optimizer.zero_grad()
         if self.use_master_weights:
             self.model.zero_grad()
@@ -809,6 +812,8 @@ class UnifiedPyTorchTrainer:
                 import torch_xla.core.xla_model as xm
                 # Stateless per-update seeding survives XLA graph retracing.
                 xm.set_rng_state(self.seed + step * max(1, self.world_size) + self.rank, self.device)
+            if benchmark_timer is not None:
+                benchmark_timer.begin()
             t_step_start = time.perf_counter()
 
             if prefetch_queue is not None:
@@ -960,20 +965,12 @@ class UnifiedPyTorchTrainer:
                 except Exception:
                     pass
 
-            step_time_ms = (time.perf_counter() - t_step_start) * 1000.0
-
-            # For benchmark mode: 5 warmup steps before collecting benchmark timers
-            if benchmark:
-                if step >= resume_step + 5 and bench_start_time is None:
-                    bench_start_time = time.time()
-                elif bench_start_time is not None:
-                    latencies.append(step_time_ms)
-                    bench_steps += 1
-                    # Check benchmark duration condition
-                    if (time.time() - bench_start_time) >= max_bench_duration:
-                        bench_elapsed = time.time() - bench_start_time
-                        self._print_benchmark_report(bench_steps, bench_elapsed, latencies, bs, grad_accum)
-                        return
+            if benchmark_timer is not None:
+                benchmark_timer.end()
+                if benchmark_timer.steps and benchmark_timer.elapsed >= max_bench_duration:
+                    self._print_benchmark_report(benchmark_timer.steps, benchmark_timer.elapsed,
+                                                 benchmark_timer.latencies, bs, grad_accum)
+                    return
 
             if self.is_master and (
                 step <= 5
@@ -1070,8 +1067,8 @@ class UnifiedPyTorchTrainer:
 
         total_time = time.time() - start_time
         if benchmark:
-            bench_elapsed = time.time() - (bench_start_time if bench_start_time else start_time)
-            self._print_benchmark_report(bench_steps, bench_elapsed, latencies, bs, grad_accum)
+            self._print_benchmark_report(benchmark_timer.steps, benchmark_timer.elapsed,
+                                         benchmark_timer.latencies, bs, grad_accum)
             return
 
         if self._save_thread is not None and self._save_thread.is_alive():

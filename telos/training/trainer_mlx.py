@@ -392,6 +392,10 @@ class UnifiedMLXTrainer:
             "seq_len": self.seq_len,
             "steps": steps,
             "elapsed_seconds": elapsed,
+            "timing": "synchronized_completed_updates",
+            "warmup_updates": 5,
+            "valid_measurement": steps > 0,
+            "token_unit": "input_tokens",
             "tokens_processed": tokens_processed,
             "steps_per_sec": sps,
             "tokens_per_sec": tps,
@@ -566,11 +570,12 @@ class UnifiedMLXTrainer:
         eval_micro = (self.hw_profile.eval_policy == "eager")
 
         start_time = time.time()
-        bench_start_time = None
-        latencies = []
-        bench_steps = 0
+        from .benchmark_timing import BenchmarkTimer
+        benchmark_timer = BenchmarkTimer(mx.synchronize) if benchmark else None
 
         for step in range(resume_step + 1, max_steps + 1):
+            if benchmark_timer is not None:
+                benchmark_timer.begin()
             t_step_start = time.perf_counter()
 
             lr = self._get_lr(step, warmup_steps, max_steps, max_lr, min_lr)
@@ -617,22 +622,12 @@ class UnifiedMLXTrainer:
                 asynchronous=not benchmark and bool(self.t_cfg.get("async_eval", False)),
             )
 
-            step_time_ms = (time.perf_counter() - t_step_start) * 1000.0
-
-            # For benchmark mode: 5 warmup steps before collecting benchmark timers
-            if benchmark:
-                if step >= resume_step + 5 and bench_start_time is None:
-                    bench_start_time = time.time()
-                elif bench_start_time is not None:
-                    latencies.append(step_time_ms)
-                    bench_steps += 1
-                    # Check benchmark duration condition
-                    if (time.time() - bench_start_time) >= max_bench_duration:
-                        bench_elapsed = time.time() - bench_start_time
-                        self._print_benchmark_report(bench_steps, bench_elapsed, latencies, bs, grad_accum)
-                        return
-
-
+            if benchmark_timer is not None:
+                benchmark_timer.end()
+                if benchmark_timer.steps and benchmark_timer.elapsed >= max_bench_duration:
+                    self._print_benchmark_report(benchmark_timer.steps, benchmark_timer.elapsed,
+                                                 benchmark_timer.latencies, bs, grad_accum)
+                    return
 
             if step % 50 == 0 or step == 1 or step == max_steps or (benchmark and step % 10 == 0):
                 training_step.synchronize()
@@ -668,8 +663,8 @@ class UnifiedMLXTrainer:
         training_step.synchronize()
         total_time = time.time() - start_time
         if benchmark:
-            bench_elapsed = time.time() - (bench_start_time if bench_start_time else start_time)
-            self._print_benchmark_report(bench_steps, bench_elapsed, latencies, bs, grad_accum)
+            self._print_benchmark_report(benchmark_timer.steps, benchmark_timer.elapsed,
+                                         benchmark_timer.latencies, bs, grad_accum)
             return
 
         final_weights = ckpt_dir / "model.safetensors"
