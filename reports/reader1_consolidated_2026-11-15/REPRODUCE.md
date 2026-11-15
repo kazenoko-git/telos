@@ -18,7 +18,7 @@ Extract `Reader-1-reproduction.zip`, enter the extracted root, then run:
 python3 reports/reader1_consolidated_2026-11-15/replay_saved_scores.py
 ```
 
-This uses only the Python standard library and the included scoring source. It checks all 6,144 consolidated records (8 direct-QA tracks and 4 extraction/pipeline tracks), including exact-field and calculator replay. It does not run models. Original model artifacts and source SHA-256 values are included for inspection.
+This uses only the Python standard library and the included scoring source. It checks all 4,608 consolidated records (6 direct-QA tracks and 3 extraction/pipeline tracks), including exact-field and calculator replay. It does not run models. Original model artifacts and source SHA-256 values are included for inspection.
 
 ## Run new inference
 

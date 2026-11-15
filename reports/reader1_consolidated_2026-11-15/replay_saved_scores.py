@@ -27,6 +27,6 @@ def main():
     for (name,track),(passed,total) in sorted(scored.items()):
         assert total==512
         print(f'{name:20} {track:24} {passed}/{total}')
-    print('All 6,144 saved case records replayed. No inference, API keys, or telos installation used.')
+    print(f"All {len(report['cases']):,} saved case records replayed. No inference, API keys, or telos installation used.")
 
 if __name__=='__main__':main()
