@@ -1013,6 +1013,34 @@ def _evaluate_single(
     **kwargs
 ) -> Dict[str, Any]:
     """Evaluates a single model checkpoint across requested benchmark types."""
+    if suite == 'document512':
+        from .documents.runner import evaluate_documents, atomic_write
+        models = list(checkpoint) if isinstance(checkpoint, (list, tuple)) else [checkpoint]
+        reports = []
+        if output_path and Path(output_path).exists() and not kwargs.get('resume'):
+            raise FileExistsError('Output exists; choose a new path or use --resume')
+        if len(models) > 1 and kwargs.get('resume'):
+            raise ValueError('Document resume requires one model per output file')
+        for model in models:
+            adapter = load_adapter(str(model), backend=kwargs.get('backend', 'auto'),
+                                   api_base=kwargs.get('api_base'), api_key=kwargs.get('api_key'),
+                                   concurrency=kwargs.get('concurrency', 1), device=kwargs.get('device', 'auto'),
+                                   torch_dtype=kwargs.get('torch_dtype', 'bfloat16'), quantization=kwargs.get('quantization'),
+                                   revision=kwargs.get('model_revision'))
+            report = evaluate_documents(adapter, tracks=kwargs.get('track', 'direct_qa'),
+                                        output=output_path if len(models) == 1 else None,
+                                        resume=kwargs.get('resume', False), max_tasks=max_tasks,
+                                        max_new_tokens=kwargs.get('max_new_tokens', 256), temperature=kwargs.get('temperature', 0.0),
+                                        prompt_format=kwargs.get('document_prompt', 'instruction'), thinking=kwargs.get('thinking', False), case_ids=kwargs.get('case_ids'))
+            reports.append(report)
+        if len(reports) == 1:
+            return reports[0]
+        result = {'schema': 'telos.eval.documents.collection.v1', 'runs': reports}
+        if output_path:
+            if Path(output_path).exists():
+                raise FileExistsError('Output exists; use a different output path')
+            atomic_write(output_path, result)
+        return result
     b_type = str(kwargs.get("type", benchmark_type)).lower()
     lang = str(language).lower()
 
@@ -1382,6 +1410,9 @@ def evaluate(
     Supports evaluating a single checkpoint or multiple checkpoints side-by-side across
     benchmark types ('all', 'code', 'linguistic', 'tooluse') and languages ('auto', 'english', 'python').
     """
+    if suite == 'document512':
+        return _evaluate_single(checkpoint=checkpoint, mode=mode, suite=suite,
+                                max_tasks=max_tasks, output_path=output_path, **kwargs)
     b_type = str(kwargs.get("type", benchmark_type)).lower()
 
     if isinstance(checkpoint, (list, tuple)):
@@ -1465,6 +1496,9 @@ def evaluate(
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == 'documents':
+        from .documents.cli import main as documents_main
+        return documents_main(sys.argv[2:])
     if len(sys.argv) > 1 and sys.argv[1] == 'report':
         from .display import main as report_main
         return report_main(sys.argv[2:])
@@ -1516,7 +1550,7 @@ def main():
             "humaneval", "mbpp", "public_standard",
             "humaneval_cs", "humaneval_java", "humaneval_js", "humaneval_ts", "humaneval_rust",
             "react", "gsm8k", "arc", "gpqa", "gpqa_diamond", "mmlu", "mmlu_science",
-            "competition_math", "cyber", "tooluse"
+            "competition_math", "cyber", "tooluse", "document512"
         ],
         help="Benchmark suite track. Default is 'private_unseen'."
     )
@@ -1550,6 +1584,14 @@ def main():
     parser.add_argument("--output", type=str, default=None, help="Path to save output JSON report")
     parser.add_argument("--html-report", type=Path, help="Also save a portable cream evaluation notebook")
     parser.add_argument("--display", choices=['auto', 'plain', 'off'], default='auto', help="Live progress: adaptive terminal, plain log records, or off")
+    parser.add_argument('--case-ids', nargs='+', help='Explicit document task subset; use a new output for recovery runs')
+    parser.add_argument('--track', choices=['direct_qa', 'extraction', 'calculator', 'all'], default='direct_qa', help='Separate document512 track; all shares one extraction generation with the calculator')
+    parser.add_argument('--document-prompt', choices=['instruction', 'native-template'], default='instruction', help='Document prompt rendering; native-template requires tokenizer template/instructions support')
+    parser.add_argument('--max-new-tokens', type=int, default=256, help='Document generation token budget')
+    parser.add_argument('--temperature', type=float, default=0.0, help='Document generation temperature')
+    parser.add_argument('--thinking', action='store_true', help='Enable thinking in supported local document chat templates')
+    parser.add_argument('--model-revision', help='Pin a local HF/MLX model revision')
+    parser.add_argument('--resume', action='store_true', help='Resume a document output only when its fingerprint matches')
     args = parser.parse_args()
 
     with display_mode(args.display):
@@ -1573,6 +1615,9 @@ def main():
             device=args.device,
             torch_dtype=args.torch_dtype,
             quantization=args.quantization,
+            track=args.track, document_prompt=args.document_prompt,
+            max_new_tokens=args.max_new_tokens, temperature=args.temperature,
+            thinking=args.thinking, model_revision=args.model_revision, resume=args.resume, case_ids=args.case_ids,
         )
     if args.html_report:
         write_html_report(result, args.html_report, title='Télos evaluation', source=Path(args.output).name if args.output else 'telos eval')

@@ -69,7 +69,7 @@ def execute(document, plan, fields):
 
 def grade_extraction(document, plan, fields):
     expected=plan['reference_fields']
-    if not isinstance(fields,dict):return {'exact_fields':False,'grounded':False,'matching_fields':0,'total_fields':len(expected)}
+    if not isinstance(fields,dict) or any(not isinstance(v,list) or any(not isinstance(x,str) for x in v) for v in fields.values()):return {'exact_fields':False,'grounded':False,'matching_fields':0,'total_fields':len(expected)}
     grounded=all(isinstance(v,list) and all(isinstance(x,str) and bool(x) and x in document for x in v) for v in fields.values())
     count=0
     for name, ref in expected.items():

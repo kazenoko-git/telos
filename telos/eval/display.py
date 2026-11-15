@@ -48,6 +48,9 @@ def normalize_report(data, *, title='Evaluation report', cases=None, source=''):
     Missing results stay unknown. Duplicate native code/functional aliases are
     skipped, and dual hint tracks remain separate instead of being pooled.
     """
+    if isinstance(data, dict) and str(data.get('schema', '')).startswith('telos.eval.documents.'):
+        from .documents.display import normalize
+        return normalize(data, title, source)
     if not isinstance(data, dict):
         raise ValueError('Report must be a JSON object.')
     case_map = {str(c['id']): c for c in (cases or [])}
