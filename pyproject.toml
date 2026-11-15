@@ -1,6 +1,6 @@
 [project]
 name = "telos-ml"
-version = "1.6.1"
+version = "1.6.2"
 description = "Language modeling and discrete diffusion: pretraining, SFT and DPO post-training, evaluation, and Apple Foundation Models access."
 readme = "README_PYPI.md"
 requires-python = ">=3.10"
@@ -60,6 +60,8 @@ dev = [
 mlx = [
     "mlx>=0.22.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
 ]
+eval-mlx = ["mlx-lm>=0.32.2; python_version >= '3.11' and sys_platform == 'darwin' and platform_machine == 'arm64'"]
+eval-hf = ["transformers>=4.51", "accelerate>=1.0"]
 all = [
     "telos-ml[dev,mlx]",
 ]
@@ -93,6 +95,7 @@ only-include = [
     "LICENSE",
     "CHANGELOG.md",
     "DEPLOYMENT.md",
+    "docs/document-evaluation.md",
 ]
 exclude = [
     "**/__pycache__",

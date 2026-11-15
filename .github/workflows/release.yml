@@ -46,9 +46,16 @@ jobs:
           python -m zipfile -l dist/*.whl
           # The bundled tokenizer must ship; compiled artifacts must not.
           python - <<'PY'
-          import glob, zipfile
+          import glob, zipfile, json, gzip, hashlib
           names = zipfile.ZipFile(glob.glob("dist/*.whl")[0]).namelist()
           assert "telos/assets/tokenizer_0.json" in names, "bundled tokenizer missing"
+          wheel = zipfile.ZipFile(glob.glob("dist/*.whl")[0])
+          root = "telos/eval/documents/data/"
+          manifest = json.loads(wheel.read(root + "manifest.json"))
+          for name, digest in manifest["files"].items():
+              assert hashlib.sha256(wheel.read(root + name)).hexdigest() == digest
+          assert len(json.loads(wheel.read(root + "cases.json"))) == 512
+          assert len(json.loads(gzip.decompress(wheel.read(root + "references.json.gz")))["records"]) == 6144
           assert not any(n.endswith("/afm_bridge") for n in names), "compiled bridge leaked"
           assert any(n.endswith("afm_bridge.swift") for n in names), "bridge source missing"
           PY
