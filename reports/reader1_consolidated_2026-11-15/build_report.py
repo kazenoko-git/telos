@@ -111,7 +111,7 @@ def viewer_report(data):
                      'matrices':[
                          {'title':'Direct answers','track':'direct_qa','models':['Reader-1','NuExtract3']},
                          {'title':'Exact source fields','track':'extraction','models':['NuExtract3','NuExtract Tiny','GLiNER2 Base'],'labels':{'NuExtract Tiny':'NuExtract Tiny','GLiNER2 Base':'GLiNER2'}}],
-                     'footer':f"Reader-1: {data['reader_answer_evidence']}/454 answer evidence offsets matched; {replay['matched_replays']}/{replay['sampled_replays']} sampled formula replays matched. Calculator operations are human-specified; not Reader-1 program generation."},
+                     'footer':f"Reader-1 · Answer evidence: {data['reader_answer_evidence']}/454 matched · Sampled formula replays: {replay['matched_replays']}/{replay['sampled_replays']} matched. Calculator: fixed human-specified operations."},
                     {'title':'Reader-1 and small language models',
                      'note':'512 synthetic tasks · direct answers only',
                      'models':['Reader-1','LFM3 Omni 2B','Bonsai 4B','Qwen 3.5 0.8B','Gemma 4 E4B'],
