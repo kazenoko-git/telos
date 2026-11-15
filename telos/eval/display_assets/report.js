@@ -210,7 +210,16 @@ function comparisonPages(){
       const tr=make('tr');tr.append(make('th',category.replaceAll('_',' ')));
       const scores=group.models.map(m=>score(m,group.track,category));
       const best=Math.max(...scores.map(s=>s?s.correct/s.total:-1));
-      for(const s of scores){const winner=s&&best>0&&s.correct/s.total===best;const td=make('td',undefined,winner?'category-lead':'');td.append(make('span',s?`${s.correct}/${s.total}`:'—','matrix-value'));tr.append(td);}body.append(tr);
+      const leaders = scores.filter(s => s && best > 0 && s.correct / s.total === best).length;
+      for (const s of scores) {
+        const bestScore = s && best > 0 && s.correct / s.total === best;
+        const className = bestScore ? (leaders === 1 ? 'category-lead' : 'category-tie') : '';
+        const td = make('td', undefined, className);
+        if (bestScore) td.title = leaders === 1 ? 'Outright category win' : 'Tied category lead';
+        td.append(make('span', s ? `${s.correct}/${s.total}` : '—', 'matrix-value'));
+        tr.append(td);
+      }
+      body.append(tr);
     }
     table.append(body);wrap.append(table);box.append(wrap);return box;
   }
@@ -247,7 +256,7 @@ function comparisonPages(){
     }
     page.append(summary);
     const matrices=make('div',undefined,'comparison-matrices');if(definition.matrices.length===1)matrices.classList.add('single');for(const group of definition.matrices)matrices.append(matrix(group));page.append(matrices);
-    page.append(make('p','Highlighted = category lead, including ties. Correct / tasks.','comparison-legend'));
+    page.append(make('p','Green = outright category win. Dot = tied best. Correct / tasks.','comparison-legend'));
     if(definition.footer)page.append(make('p',definition.footer,'comparison-footer'));
     root.append(page);
   }
