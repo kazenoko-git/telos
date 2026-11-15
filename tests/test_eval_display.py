@@ -207,3 +207,10 @@ def test_document_extraction_displays_source_contract_not_final_answer():
     report=normalize_report(replay_reference())
     row=next(r for r in report['rows'] if r['suite']=='extraction' and r['id']=='arithmetic-01')
     assert row['expected']=={'east':['14'],'west':['5']}
+
+
+def test_multiple_canonical_inputs_retain_model_tracks():
+    child={'schema':'telos.evaluation.display.v1','rows':[],
+           'suites':[{'model':'A','suite':'direct_qa','score':50}]}
+    result=normalize_report({'first':child,'second':dict(child,suites=[{'model':'B','suite':'calculator','score':75}])})
+    assert [(s['model'],s['suite']) for s in result['suites']]==[('A','direct_qa'),('B','calculator')]

@@ -90,6 +90,11 @@ def normalize_report(data, *, title='Evaluation report', cases=None, source=''):
     def visit(node, path='', model='Model'):
         if not isinstance(node, dict):
             return
+        if str(node.get('schema', '')).startswith('telos.eval.documents.') or node.get('schema') == 'telos.evaluation.display.v1':
+            child = normalize_report(node, title=title, source=source)
+            rows.extend(child['rows'])
+            suites.extend(child['suites'])
+            return
         model = str(node.get('model_checkpoint', node.get('model', model)))
         if isinstance(node.get('rows'), list) and 'tasks_per_model' in node:
             for saved in node['rows']:

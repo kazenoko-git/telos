@@ -36,4 +36,4 @@ def normalize(data, title, source):
                          'details': record.get('error') or response.get('reason'),
                          'program': '', 'replay': None, 'offsets': None, 'input_tokens': None})
     return {'schema': 'telos.evaluation.display.v1', 'title': title, 'source': source, 'rows': rows, 'suites': suites,
-            'note': 'Document diagnostics. Each track is a separate metric; do not pool direct QA, source extraction and human-configured calculation. Historical reference replay is not fresh inference.'}
+            'note': 'Synthetic document diagnostics · tracks scored separately.'}
