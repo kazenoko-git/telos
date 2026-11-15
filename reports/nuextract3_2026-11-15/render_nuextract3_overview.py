@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from historical_scores import scores as historical_scores, cell
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
@@ -88,12 +89,13 @@ def main():
     d_med = direct["timing"]["client_ms"]["median"]
     e_med = extraction["timing"]["client_ms"]["median"]
 
+    history = historical_scores()
     cards = [
         {
             "title": "Direct QA Track",
             "score": f"{d_corr} / {d_total}",
             "pct": f"{d_pct:.1f}%",
-            "sub": f"Baseline Reader-1: 330 (64.5%)\nMedian Latency: {d_med:.0f} ms",
+            "sub": f"Reader-1: {cell(history['reader'], 'direct')}\nMedian Latency: {d_med:.0f} ms",
             "color": color_direct,
             "x": 0.05,
         },
@@ -101,7 +103,7 @@ def main():
             "title": "Exact Extraction",
             "score": f"{e_exact} / {e_total}",
             "pct": f"{e_pct:.1f}%",
-            "sub": f"Grounded Spans: {e_ground} ({e_ground/e_total*100:.1f}%)\nFrozen Operand Descriptors",
+            "sub": f"Literal-source cases: {e_ground} ({e_ground/e_total*100:.1f}%)\nFrozen Operand Descriptors",
             "color": color_exact,
             "x": 0.28,
         },
@@ -109,12 +111,12 @@ def main():
             "title": "Calculator Pipeline",
             "score": f"{p_corr} / {e_total}",
             "pct": f"{p_pct:.1f}%",
-            "sub": f"NuExtract-1.5-tiny: 416 (81.2%)\nDeterministic Executor",
+            "sub": f"NuExtract Tiny: {cell(history['tiny'], 'pipeline')}\nHuman-specified operations",
             "color": color_pipeline,
             "x": 0.51,
         },
         {
-            "title": "Execution Quality",
+            "title": "Output Format",
             "score": f"{extraction['format_failures']} / {e_total}",
             "pct": "0.0% Fail",
             "sub": f"Recovery Retries: {extraction['recovery_attempts']}\nMedian Ext. Latency: {e_med:.0f} ms",
@@ -163,8 +165,8 @@ def main():
         "Reader-1 (Baseline)",
         "NuExtract3 (4B)",
     ]
-    pipe_scores = [272, 382, 416, 0, p_corr]
-    direct_scores = [128, 0, 0, 330, d_corr]
+    pipe_scores = [history[k]["pipeline"] for k in ("smol","gliner","tiny")] + [0,p_corr]
+    direct_scores = [history["smol"]["direct"],0,0,history["reader"]["direct"],d_corr]
 
     y_pos = range(len(models))
     height = 0.36
@@ -237,8 +239,8 @@ def main():
     notes = [
         "• Tracks are strictly separated: Direct QA scores direct model answers; Extraction + Calculator feeds verbatim operands to deterministic executor.",
         "• Model configuration: numind/NuExtract3-mlx-4bits (Qwen 3.5 4B base), greedy decoding (temp=0.0), thinking_mode=False.",
-        "• Evaluation integrity: Replayed independently via specialist_contract.py; zero prompt leakage of gold answers or reference fields.",
-        "• Hardware runtime: Apple Silicon (Apple M5 Pro, 24 GB Unified Memory), mlx-lm 0.32.2. All statistics derived directly from summary.json.",
+        "• Evaluation integrity: Replayed independently via specialist_contract.py; no serialized gold/reference fields found in saved prompts.",
+        "• Hardware runtime: Apple Silicon (Apple M5 Pro, 24 GB Unified Memory), mlx-lm 0.32.2. Statistics read from recorded run artifacts.",
     ]
     for i, note in enumerate(notes):
         fig.text(0.05, 0.16 - i * 0.035, note, fontsize=8.5, color=text_muted)

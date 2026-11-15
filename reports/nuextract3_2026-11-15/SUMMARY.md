@@ -21,9 +21,9 @@ Evaluation of `numind/NuExtract3` (4-bit affine quantized on Apple Silicon MLX) 
 |---|---|---:|---:|---:|---|
 | **NuExtract3** (MLX 4-bit) | 4B (Qwen 3.5 base) | *See above* | *See above* | *See above* | Native structured schema, non-thinking mode |
 | Reader-1 Baseline | Reference | — | — | 330/512 (64.5%) | Frozen baseline reference |
-| NuExtract-1.5-tiny | 0.5B | 421/512 (82.2%) | 416/512 (81.2%) | — | Previous generation tiny specialist |
-| GLiNER2 Base | 205M | 394/512 (77.0%) | 382/512 (74.6%) | — | Bi-encoder token extraction specialist |
-| SmolLM2-Instruct | 360M | 247/512 (48.2%) | 272/512 (53.1%) | 128/512 (25.0%) | General tiny LM baseline |
+| NuExtract-1.5-tiny | 0.5B | 88/512 (17.2%) | 89/512 (17.4%) | — | Recorded native-template run |
+| GLiNER2 Base | 205M | 214/512 (41.8%) | 214/512 (41.8%) | — | Native source-ordered spans |
+| SmolLM2-Instruct | 360M | 10/512 (2.0%) | 10/512 (2.0%) | 1/512 (0.2%) | Unconstrained output; severe format failures |
 
 ## Performance by Category
 
@@ -52,7 +52,7 @@ Evaluation of `numind/NuExtract3` (4-bit affine quantized on Apple Silicon MLX) 
 ## Latency & Runtime Details
 
 - **Hardware**: Apple Silicon (Apple M5 Pro, 24 GB Unified Memory, AC Power, Power Mode: High)
-- **Runtime**: `mlx-lm` 0.32.2 on `mlx` 0.32.2, Python 3.12
+- **Runtime**: `mlx-lm` 0.32.2 on `mlx` 0.32.2, Python 3.14.6
 - **Model**: `numind/NuExtract3-mlx-4bits` (revision `29c38269f94054282bf9ea97a20dfc6bb8bbefea`)
 - **Precision**: 4-bit affine quantized (group_size: 64)
 - **Thinking Mode**: `False` (frozen non-thinking mode for deterministic structured extraction)
@@ -63,6 +63,7 @@ Evaluation of `numind/NuExtract3` (4-bit affine quantized on Apple Silicon MLX) 
 
 ## Verification & Integrity Assurances
 
-- Zero prompt leaks: Suite gold answers and private reference fields were never exposed during inference.
+- Saved prompts contain no serialized gold/reference fields; this check is not a proof of all possible data leakage.
+- Extraction grounding means literal source-substring matching; empty fields pass vacuously. It is not semantic evidence verification.
 - Complete auditability: All 512 case outputs, raw completion text, parsed JSON, and execution logs are preserved on disk.
 - Independent replay: Extraction grades and deterministic pipeline executions re-verified offline via `audit_nuextract3.py`.
