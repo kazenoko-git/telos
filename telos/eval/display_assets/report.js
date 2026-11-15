@@ -28,7 +28,7 @@ if (comparison) {
   byId('comparison').hidden=false;
   byId('model').value=presentation.featured_model || models[0];
   byId('suite').value=presentation.default_suite || report.suites[0]?.suite || report.rows[0]?.suite || '';
-  for(const id of ['model','suite']) byId('analysis-selectors').append(byId(id).parentElement);
+  if(!presentation.comparison_pages)for(const id of ['model','suite']) byId('analysis-selectors').append(byId(id).parentElement);
   byId('suite').parentElement.firstChild.textContent='Track';
   byId('comparison-note').textContent=(presentation.footnotes||[]).join(' · ');
 }
@@ -191,6 +191,52 @@ byId('more').addEventListener('click',()=>{pageSize+=60;render();});
 byId('close').addEventListener('click',()=>byId('detail').close());
 byId('reset').addEventListener('click',()=>{for(const k of ['search','model','suite','category','outcome'])byId(k).value='';if(comparison){byId('model').value=presentation.featured_model||models[0];byId('suite').value=presentation.default_suite||report.suites[0].suite;}pageSize=60;render();});
 for(const k of ['search','model','suite','category','outcome'])byId(k).addEventListener(k==='search'?'input':'change',()=>{pageSize=60;render();});
+function comparisonPages(){
+  const definitions=presentation.comparison_pages;
+  if(!Array.isArray(definitions)||!definitions.length)return;
+  document.body.classList.add('curated-pages');
+  const root=byId('comparison-pages');root.hidden=false;
+  function score(model,track,category){
+    const rows=report.rows.filter(r=>r.model===model&&r.suite===track&&(!category||r.category===category));
+    return rows.length?{correct:rows.filter(r=>r.correct===true).length,total:rows.length}:null;
+  }
+  function matrix(group){
+    const box=make('section',undefined,'category-matrix');box.append(make('h3',group.title));
+    const wrap=make('div',undefined,'matrix-wrap'),table=make('table'),head=make('thead'),hr=make('tr');
+    hr.append(make('th','Category'));for(const name of group.models)hr.append(make('th',group.labels?.[name]||name));head.append(hr);table.append(head);
+    const body=make('tbody');
+    const categories=[...new Set(report.rows.filter(r=>r.suite===group.track&&group.models.includes(r.model)).map(r=>r.category))].sort();
+    for(const category of categories){
+      const tr=make('tr');tr.append(make('th',category.replaceAll('_',' ')));
+      const scores=group.models.map(m=>score(m,group.track,category));
+      const best=Math.max(...scores.map(s=>s?s.correct/s.total:-1));
+      for(const s of scores){const winner=s&&best>0&&s.correct/s.total===best;const td=make('td',s?`${s.correct}/${s.total}`:'—',winner?'category-lead':'');tr.append(td);}body.append(tr);
+    }
+    table.append(body);wrap.append(table);box.append(wrap);return box;
+  }
+  for(const [index,definition] of definitions.entries()){
+    const page=make('article',undefined,'comparison-page');
+    const heading=make('div',undefined,'comparison-page-heading');heading.append(document.querySelector('.brand img').cloneNode(),make('h1',definition.title),make('span',`${index+1} / ${definitions.length}`,'page-number'));page.append(heading);
+    page.append(make('p',definition.note||'512 synthetic document tasks','comparison-page-note'));
+    const summary=make('table',undefined,'comparison-summary'),head=make('thead'),hr=make('tr');hr.append(make('th','Model'));
+    for(const col of definition.columns)hr.append(make('th',col.label));head.append(hr);summary.append(head);
+    const body=make('tbody');
+    for(const model of definition.models){const tr=make('tr');tr.append(make('th',model));
+      for(const col of definition.columns){
+        const s=score(model,col.track);
+        const text=col.kind==='latency'?(scoresFor(col.track).find(s=>s.model===model)?.latency):s;
+        tr.append(make('td',col.kind==='latency'?(text==null?'—':(text/1000).toFixed(2)+' s'):s?`${s.correct}/${s.total} · ${percent(s.correct,s.total)}`:'—'));
+      }body.append(tr);
+    }
+    summary.append(body);page.append(summary);
+    const matrices=make('div',undefined,'comparison-matrices');if(definition.matrices.length===1)matrices.classList.add('single');for(const group of definition.matrices)matrices.append(matrix(group));page.append(matrices);
+    page.append(make('p','Green = category lead, including ties. Counts = correct / tasks.','comparison-legend'));
+    if(definition.footer)page.append(make('p',definition.footer,'comparison-footer'));
+    root.append(page);
+  }
+}
+comparisonPages();
+
 examples();
 render();
 window.telosReportReady=true;
