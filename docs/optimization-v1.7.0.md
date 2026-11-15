@@ -161,3 +161,20 @@ Model checkpoints remain local; only measurements/source hashes are tracked.
 - [MLX quantized linear](https://ml-explore.github.io/mlx/build/html/python/nn/_autosummary/mlx.nn.QuantizedLinear.html)
 - [CUDA timing and streams](https://docs.pytorch.org/docs/stable/notes/cuda)
 - [MLX compilation](https://ml-explore.github.io/mlx/build/html/usage/compile.html)
+
+
+## v1.7.1 follow-up
+
+The six failures above are fixed in v1.7.1 without removing tests or loosening
+numerical tolerances. macOS sandbox launch now resolves interpreter/scratch
+symlinks and allows dyld to open the root directory itself; access to unrelated
+files, networking and Python process forking remains denied. MLX defaults to
+full-precision FP32 GEMMs, and low-precision embedding gradients accumulate in
+FP32 before casting back once. See the v1.7.1 validation report for evidence.
+
+`MLX_ENABLE_TF32=1` remains an explicit speed/precision tradeoff. Set it before
+starting Python. MLX caches the setting at its first matmul; importing Télos
+cannot retroactively change a backend already initialized by another library.
+BF16/FP16 matmuls retain native acceleration. These precision fixes can change
+training trajectories relative to v1.7.0, and FP32 full-precision matmuls can be
+slower than TF32. This patch does not claim a throughput improvement.

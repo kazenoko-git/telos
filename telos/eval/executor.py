@@ -85,7 +85,7 @@ def execute_code_sandboxed(
     temporary = None
     if scratch_dir is None:
         temporary = tempfile.TemporaryDirectory(prefix="telos_eval_sandbox_")
-        scratch = Path(temporary.name)
+        scratch = Path(temporary.name).resolve()
     else:
         scratch = Path(scratch_dir).resolve()
         scratch.mkdir(parents=True, exist_ok=True)

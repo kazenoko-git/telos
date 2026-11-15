@@ -1,7 +1,15 @@
 import sys
+import os
 import math
 import subprocess
 import time
+
+# MLX 0.32.2 defaults FP32 GEMMs to TF32 on M5 tensor hardware. Configure
+# this before the first MLX matmul: the backend caches the environment setting.
+# BF16/FP16 GEMMs keep their native acceleration; users can explicitly opt in
+# to the reduced-precision FP32 path before starting the process.
+if sys.platform == "darwin":
+    os.environ.setdefault("MLX_ENABLE_TF32", "0")
 
 _METAL_PROBE_COMPLETE = False
 _METAL_PROBE_RESULT = False

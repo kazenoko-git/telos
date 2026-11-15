@@ -9,7 +9,7 @@ if not metal_usable():
 
 import mlx.core as mx
 import mlx.nn as nn
-from .mlx_components import MLXBlock, MLXRMSNorm
+from .mlx_components import MLXBlock, MLXRMSNorm, MLXEmbedding
 
 class MLXTelosTransformer(nn.Module):
     """Unified Telos Transformer for Apple Silicon (MLX)."""
@@ -38,7 +38,7 @@ class MLXTelosTransformer(nn.Module):
         
         # Default n_kv_heads to n_heads (standard Multi-Head Attention) if not explicitly set for GQA
         actual_kv_heads = n_heads if n_kv_heads is None else n_kv_heads
-        self.emb = nn.Embedding(vocab_size, d_model)
+        self.emb = MLXEmbedding(vocab_size, d_model)
         self.layers = [MLXBlock(d_model, n_heads, actual_kv_heads, is_causal=is_causal) for _ in range(n_layers)]
         self.norm = MLXRMSNorm(d_model)
         

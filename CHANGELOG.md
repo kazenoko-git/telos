@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.1] - 2026-11-15
+
+### Fixed
+- Resolve sandbox entry-point symlinks and temporary scratch paths before launching. Permit macOS dyld to read the root directory itself without granting access to its descendants; keep network, outside-scratch writes and Python process forking denied.
+- Default MLX FP32 matmuls to full precision before backend initialization instead of implicit TF32 on M5. Preserve an explicit `MLX_ENABLE_TF32=1` opt-in; BF16/FP16 GEMMs keep their acceleration.
+- Accumulate BF16/FP16 embedding lookup gradients in FP32 before rounding once, avoiding repeated-token low-precision atomic accumulation errors.
+
+### Tests
+- Retain the original FP32/BF16 checkpoint-gradient assertions and tolerances; add matched eager/compiled checkpoint coverage, exact repeated-token gradient checks and a Float64 GEMM reference.
+- Add real sandbox launch, scratch-alias, outside-file, network, environment and process-fork regressions.
+
 ## [1.7.0] - 2026-11-15
 
 ### Added

@@ -98,6 +98,29 @@ def _experimental_packed_swiglu_vjp(primals, cotangent, output):
     )[0]
 
 
+@mx.custom_function
+def _embedding_lookup(weight, indices):
+    return mx.take(weight, indices, axis=0)
+
+
+@_embedding_lookup.vjp
+def _embedding_lookup_vjp(primals, cotangent, output):
+    weight, indices = primals
+    # Native low-precision scatter-add rounds every repeated-token update.
+    # Accumulate lookup gradients in FP32, then round once to parameter dtype.
+    flat_indices = indices.reshape(-1)
+    updates = cotangent.reshape(-1, weight.shape[-1]).astype(mx.float32)
+    gradient = mx.zeros(weight.shape, dtype=mx.float32).at[flat_indices].add(updates)
+    return gradient.astype(weight.dtype), mx.zeros_like(indices)
+
+
+class MLXEmbedding(nn.Embedding):
+    def __call__(self, indices):
+        if self.weight.dtype in (mx.bfloat16, mx.float16):
+            return _embedding_lookup(self.weight, indices)
+        return super().__call__(indices)
+
+
 class MLXRMSNorm(nn.Module):
     """Root Mean Square Layer Normalization."""
 
