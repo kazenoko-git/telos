@@ -204,3 +204,13 @@ Télos evaluates external models as well as its own checkpoints. These historica
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
+
+## Packaged document evaluation
+
+The frozen 512-case document diagnostic suite ships in Télos 1.6.2. Replay the completed historical responses offline:
+
+```bash
+telos eval documents replay --reference --output replay.json --html-report replay.html
+```
+
+Run new predictions using existing generic backends with `telos eval --suite document512 --model MODEL --backend openai_api --api-base http://localhost:1234/v1 --track all --output run.json`. Direct QA, exact source extraction and the configured calculator remain separate metrics. See [document evaluation](https://github.com/kazenoko-git/telos/blob/v1.6.2/docs/document-evaluation.md) for model setup, revision pins and imported responses.

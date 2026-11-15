@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.2] - 2026-11-15
+
+### Added
+- Ship the frozen 512-case synthetic document diagnostic suite, operand plans, integrity manifest and historical response snapshots inside the package.
+- Run provider-neutral document evaluations through `telos eval --suite document512`, with separate direct QA, exact source extraction and deterministic calculator tracks.
+- Export tasks and replay reference or imported responses offline with `telos eval documents`; render each track in the cream report viewer.
+- Save raw completions, request attempts, model revisions and local weight hashes; resume only matching run configurations.
+
+### Fixed
+- Respect explicit local evaluation backends and revision pins. Document runs disable hidden HTTP retries and retain malformed outputs and backend failures.
+
 ## [1.6.1] - 2026-11-14
 
 ### Fixed
