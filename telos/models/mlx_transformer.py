@@ -151,9 +151,9 @@ class MLXTelosTransformer(nn.Module):
         target_logits = mx.sum(hidden.astype(mx.float32) * target_weight, axis=-1)
         return (log_partition - target_logits).reshape(input_ids.shape)
 
-    def __call__(self, x, return_reliability: bool = False, mask_override=None, is_causal: bool | None = None):
+    def __call__(self, x, return_reliability: bool = False, mask_override=None, is_causal: bool | None = None, next_token_only: bool = False):
         h = self.hidden_states(x, mask_override=mask_override, is_causal=is_causal)
-        logits = self.logits_from_hidden(h)
+        logits = self.logits_from_hidden(h[:, :-1] if next_token_only else h)
         if return_reliability:
             if self.reliability_head is None:
                 raise ValueError("return_reliability=True requested but use_reliability_head was not enabled.")

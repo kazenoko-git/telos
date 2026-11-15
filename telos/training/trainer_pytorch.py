@@ -3,7 +3,6 @@ Unified PyTorch Trainer for all Telos paradigms (AR, MDLM, UNDLM, COROSred).
 """
 
 import os
-import queue
 import threading
 import time
 import math
@@ -55,7 +54,7 @@ class UnifiedPyTorchTrainer:
 
         self.paradigm = paradigm.lower()
         self.crsr_cfg = cfg.get("crsr", cfg.get("corosred", {}))
-        
+
         # Determine if COROSred should run in unified continuous mode (default) or legacy multi-phase
         if self.paradigm == "corosred":
             if self.crsr_cfg.get("unified", None) is not None:
@@ -94,7 +93,7 @@ class UnifiedPyTorchTrainer:
         self.vocab_size = self.m_cfg.get("vocab_size", 8192)
         self.seq_len = self.m_cfg.get("seq_len", 512)
         self.precision = self.t_cfg.get("precision", "bf16")
-        
+
         # Build special token LUT manually for PyTorch
         self.special_lut = torch.zeros(self.vocab_size, dtype=torch.bool)
         self.special_lut[:4] = True
@@ -181,6 +180,10 @@ class UnifiedPyTorchTrainer:
             except Exception:
                 pass
 
+        if self.t_cfg.get("packed_projections", self.m_cfg.get("packed_projections", False)):
+            from telos.models.packed import pack_projections
+            pack_projections(self.model)
+            self.m_cfg["packed_projections"] = True
         self.model.to(self.device)
         self.special_lut = self.special_lut.to(self.device)
 
@@ -228,17 +231,14 @@ class UnifiedPyTorchTrainer:
 
         # Enable checkpointing on TPU only for large models (d_model >= 1536)
         tpu_needs_chkpt = self.is_tpu and (self.m_cfg.get("d_model", 512) >= 1536 or self.t_cfg.get("batch_size", 32) > 128)
-        auto_chkpt = (
-            tpu_needs_chkpt
-            or cuda_needs_chkpt
-            or self.t_cfg.get("gradient_checkpointing", False)
-            or self.m_cfg.get("use_grad_checkpoint", False)
-        )
+        checkpoint_policy = self.t_cfg.get("gradient_checkpointing", "auto")
+        if checkpoint_policy not in (True, False, "auto"):
+            raise ValueError("gradient_checkpointing must be true, false or auto")
+        auto_chkpt = (tpu_needs_chkpt or cuda_needs_chkpt or self.m_cfg.get("use_grad_checkpoint", False)) if checkpoint_policy == "auto" else checkpoint_policy
+        backbone = getattr(self.model, "module", self.model)
+        if hasattr(backbone, "use_grad_checkpoint"):
+            backbone.use_grad_checkpoint = bool(auto_chkpt)
         if auto_chkpt:
-            if hasattr(self.model, "use_grad_checkpoint"):
-                self.model.use_grad_checkpoint = True
-            elif hasattr(self.model, "module") and hasattr(self.model.module, "use_grad_checkpoint"):
-                self.model.module.use_grad_checkpoint = True
             print("  [Memory] PyTorch Gradient Checkpointing Enabled.")
 
 
@@ -509,7 +509,13 @@ class UnifiedPyTorchTrainer:
         metrics = None
 
         if self.paradigm == "ar":
-            logits = self.model(batch_seqs, mask_override=True)
+            if self.t_cfg.get("fused_vocab_loss", False):
+                token_losses = self.model(batch_seqs, mask_override=True, next_token_only=True,
+                                          loss_targets=batch_seqs[:, 1:],
+                                          vocab_chunk_size=int(self.t_cfg.get("fused_vocab_chunk_size", 256)))
+                loss = token_losses.mean()
+                return loss, {"loss": loss, "unweighted_ce": loss}
+            logits = self.model(batch_seqs, mask_override=True, next_token_only=True)
             loss, metrics = ar_loss_fn_pytorch(logits, batch_seqs, special_token_lut=self.special_lut)
 
         elif self.paradigm == "mdlm":
@@ -531,7 +537,7 @@ class UnifiedPyTorchTrainer:
                 mask_token_id = self.m_cfg.get("mask_token_id", 1)
                 mask_prob = float(self.crsr_cfg.get("mask_prob", 0.20))
                 k_amb = int(self.crsr_cfg.get("k_amb", 5))
-                
+
                 # Fetch continuous schedule weights driven by step progress and empirical EMAs.
                 # Defaults to 25 on TPU (to avoid XLA recompilations) and 1 on CUDA/CPU unless manually specified.
                 default_sched_cadence = int(self.crsr_cfg.get("default_cadence", self.t_cfg.get("default_cadence", 25 if self.is_tpu else 1)))
@@ -586,7 +592,7 @@ class UnifiedPyTorchTrainer:
                 )
             else:
                 raise ValueError(f"Unknown COROSred phase: '{self.phase}'. Supported phases are 'A', 'B', 'C', or 'unified'.")
-        
+
         return loss, metrics
 
     def _print_benchmark_report(self, steps: int, elapsed: float, latencies: list[float], bs: int, grad_accum: int):
@@ -669,7 +675,7 @@ class UnifiedPyTorchTrainer:
         train_bin = Path(train_path) if train_path else Path("data/python_corpus.bin")
         if not train_bin.exists() and train_path is None:
             train_bin = Path("data/python_corpus_2.5b.bin")
-        
+
         if train_bin.exists() and not use_synthetic:
             if self.is_master:
                 print(f"  Loading pre-tokenized dataset from {train_bin}...")
@@ -785,278 +791,161 @@ class UnifiedPyTorchTrainer:
         if self.use_master_weights:
             self.model.zero_grad()
 
-        # Background asynchronous batch prefetcher (CUDA only; disabled on XLA)
-        if self.is_tpu:
-            prefetch_queue = None
-        else:
-            prefetch_queue = queue.Queue(maxsize=1)
+        # Dedicated copy stream with bounded reusable pinned host staging.
+        prefetcher = None
+        if self.device.type == "cuda" and self.t_cfg.get("prefetch", True):
+            from .prefetch import CUDAPrefetcher
+            prefetcher = CUDAPrefetcher(dataset_matrix, idx_ptr, local_step_seqs, self.seq_len,
+                                       cluster_step_seqs, self.device, self.max_steps - resume_step)
 
-            def prefetch_worker():
-                nonlocal idx_ptr
-                try:
-                    for _ in range(resume_step + 1, self.max_steps + 1):
-                        batch_t, _ = get_global_targets_contiguous_pytorch(
-                            dataset_matrix, idx_ptr, local_step_seqs, self.seq_len, self.device, non_blocking=True
-                        )
-                        idx_ptr = (idx_ptr + cluster_step_seqs) % n_rows
-                        prefetch_queue.put((batch_t, None))
-                except Exception as e:
-                    # Pass exception through the queue so consumer thread does not hang indefinitely
-                    prefetch_queue.put((None, e))
+        try:
+            for step in range(resume_step + 1, self.max_steps + 1):
+                if self.is_tpu:
+                    import torch_xla.core.xla_model as xm
+                    # Stateless per-update seeding survives XLA graph retracing.
+                    xm.set_rng_state(self.seed + step * max(1, self.world_size) + self.rank, self.device)
+                if benchmark_timer is not None:
+                    benchmark_timer.begin()
 
-            prefetch_thread = threading.Thread(target=prefetch_worker, daemon=True)
-            prefetch_thread.start()
-
-        for step in range(resume_step + 1, self.max_steps + 1):
-            if self.is_tpu:
-                import torch_xla.core.xla_model as xm
-                # Stateless per-update seeding survives XLA graph retracing.
-                xm.set_rng_state(self.seed + step * max(1, self.world_size) + self.rank, self.device)
-            if benchmark_timer is not None:
-                benchmark_timer.begin()
-            t_step_start = time.perf_counter()
-
-            if prefetch_queue is not None:
-                item, exc = prefetch_queue.get()
-                if exc is not None:
-                    raise exc
-                global_targets = item
-            else:
-                global_targets, _ = get_global_targets_contiguous_pytorch(
-                    dataset_matrix, idx_ptr, local_step_seqs, self.seq_len, self.device, non_blocking=False
-                )
-                idx_ptr = (idx_ptr + cluster_step_seqs) % n_rows
-            self._next_row = (self._next_row + cluster_step_seqs) % n_rows
-            # Periodically replenish routing cache only once confidence-routed masking is active (after hold phase)
-            has_routing = getattr(self, "is_unified", False) and hasattr(self, "routing_cache")
-            if has_routing and self.routing_cache.should_refresh(step):
-                sched_w_check = self.schedule.get_weights(step)
-                if sched_w_check.get("mask_blend", 0.0) > 0.0:
-                    self.routing_cache.refresh(
-                        self.model,
-                        upcoming_seqs=global_targets,
-                        current_step=step,
-                        mask_prob=float(self.crsr_cfg.get("mask_prob", 0.15)),
-                    )
-
-            last_metrics = None
-            
-            for i in range(grad_accum):
-                batch_seqs = global_targets[i * bs : (i + 1) * bs]
-
-                # In PyTorch-XLA SPMD mode, shard batch dimension across TPU chips so PJRT
-                # produces valid PjRtShardedData buffers and avoids ExecuteReplicated NULL pointer SIGSEGV.
-                if getattr(self, "is_spmd", False) and self.spmd_mesh is not None:
-                    import torch_xla.distributed.spmd as xs
-                    xs.mark_sharding(batch_seqs, self.spmd_mesh, ("data", None))
-
-                is_log_step = (
-                    step <= 5
-                    or (step <= 50 and step % 10 == 0)
-                    or step % 50 == 0
-                    or step == self.max_steps
-                    or (benchmark and step % 10 == 0)
-                )
-                eval_metrics = (i == grad_accum - 1) and is_log_step
-                # DDP gradient accumulation optimization: disable all-reduce on non-final microbatches
-                sync_ctx = self.model.no_sync() if (getattr(self, "is_ddp", False) and i < grad_accum - 1) else nullcontext()
-                with sync_ctx:
-                    if self.use_amp:
-                        with torch.amp.autocast(device_type=getattr(self, "amp_device", self.device.type), dtype=self.amp_dtype):
-                            loss, metrics = self._execute_microbatch(batch_seqs, compute_metrics=eval_metrics)
-                    else:
-                        loss, metrics = self._execute_microbatch(batch_seqs, compute_metrics=eval_metrics)
-
-                    loss = loss / grad_accum
-                    if self.use_scaler:
-                        self.scaler.scale(loss).backward()
-                    else:
-                        loss.backward()
-                last_metrics = metrics
-
-            if self.use_scaler:
-                self.scaler.unscale_(self.optimizer)
-                nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
-                self.scaler.step(self.optimizer)
-                self.scaler.update()
-            elif self.is_tpu:
-                import torch_xla.core.xla_model as xm
-                # Copy gradients from bfloat16 model parameters to float32 master parameters
-                if self.use_master_weights:
-                    for p, mp in self.param_to_master:
-                        if p.grad is not None:
-                            mp.grad = p.grad.float()
-
-                # In SPMD mode, xs.mark_sharding on the batch automatically triggers the partitioner all-reduce.
-                if not getattr(self, "is_spmd", False):
-                    xm.reduce_gradients(self.optimizer)
-                if self.grad_clip > 0:
-                    target_params = self.master_params if self.use_master_weights else self.model.parameters()
-                    nn.utils.clip_grad_norm_(target_params, self.grad_clip)
-                # Call self.optimizer.step() directly: xm.optimizer_step() would redundantly invoke
-                # reduce_gradients() a second time, multiplying gradients by 1/(world_size^2) (1/64x on 8 cores).
-                self.optimizer.step()
-
-                # Synchronize updated float32 master weights back to bfloat16 model parameters
-                if self.use_master_weights:
-                    for p, mp in self.param_to_master:
-                        p.data.copy_(mp.data.to(p.dtype))
-
-                xm.mark_step()
-
-            else:
-                nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
-                self.optimizer.step()
-
-            self.optimizer.zero_grad()
-            if self.use_master_weights:
-                self.model.zero_grad()
-            self.scheduler.step()
-            self.global_step = step
-
-            # Synchronized cadence all-reduce of LRH AUC / balanced accuracy across all 8 replicas.
-            # Executed synchronously by ALL ranks outside `if self.is_master` to ensure 100% identical schedule EMAs.
-            default_cadence = int(self.crsr_cfg.get("default_cadence", self.t_cfg.get("default_cadence", 25 if self.is_tpu else 1)))
-            cadence = int(self.crsr_cfg.get("cadence", self.t_cfg.get("cadence", default_cadence)) or default_cadence)
-            if getattr(self, "is_unified", False) and (step % cadence == 0 or step == 1) and last_metrics is not None:
-                raw_auc = last_metrics.get("lrh_bal_acc", last_metrics.get("lrh_auc", None))
-                raw_acc = last_metrics.get("lrh_acc", None)
-                if raw_auc is not None:
-                    if isinstance(raw_auc, torch.Tensor):
-                        auc_t = raw_auc.detach().clone()
-                        acc_t = raw_acc.detach().clone() if isinstance(raw_acc, torch.Tensor) else None
-
-                        # Cheap scalar all-reduce of 0D tensors across all replicas
-                        if self.is_tpu:
-                            import torch_xla.core.xla_model as xm
-                            # Use cached world_size or xworld_size() to avoid non-existent xrt_world_size attribute
-                            world_size = xm.xworld_size() if hasattr(xm, "xworld_size") else getattr(self, "world_size", 1)
-                            if world_size > 1:
-                                reduce_op = getattr(xm, "REDUCE_SUM", "sum")
-                                tensors_to_reduce = [auc_t] + ([acc_t] if acc_t is not None else [])
-                                reduced = xm.all_reduce(reduce_op, tensors_to_reduce, scale=1.0 / float(world_size))
-                                auc_t = reduced[0]
-                                if acc_t is not None:
-                                    acc_t = reduced[1]
-                        elif getattr(self, "is_ddp", False):
-                            import torch.distributed as dist
-                            dist.all_reduce(auc_t, op=dist.ReduceOp.SUM)
-                            auc_t /= dist.get_world_size()
-                            if acc_t is not None:
-                                dist.all_reduce(acc_t, op=dist.ReduceOp.SUM)
-                                acc_t /= dist.get_world_size()
-
-                        auc_val = float(auc_t.cpu().item())
-                        acc_val = float(acc_t.cpu().item()) if acc_t is not None else auc_val
-                    else:
-                        auc_val = float(raw_auc)
-                        acc_val = float(raw_acc) if raw_acc is not None else auc_val
-
-                    # Update local metric tracker on ALL replicas with identical cluster-wide reduced scalar
-                    if getattr(self, "metric_tracker", None) is not None:
-                        self.metric_tracker.update_lrh(acc=acc_val, auc=auc_val, cadence=cadence)
-
-            if self.is_tpu and step % 50 == 0:
-                import gc
-                gc.collect()
-                try:
-                    import ctypes
-                    ctypes.CDLL("libc.so.6").malloc_trim(0)
-                except Exception:
-                    pass
-
-            if benchmark_timer is not None:
-                benchmark_timer.end()
-                if benchmark_timer.steps and benchmark_timer.elapsed >= max_bench_duration:
-                    self._print_benchmark_report(benchmark_timer.steps, benchmark_timer.elapsed,
-                                                 benchmark_timer.latencies, bs, grad_accum)
-                    return
-
-            if self.is_master and (
-                step <= 5
-                or (step <= 50 and step % 10 == 0)
-                or step % 25 == 0
-                or step == self.max_steps
-                or (benchmark and step % 10 == 0)
-            ):
-                lr = self.scheduler.get_last_lr()[0]
-                elapsed = time.time() - start_time
-                steps_taken = step - resume_step
-                sps = steps_taken / elapsed if elapsed > 0 else 0
-                world_mult = getattr(self, "world_size", 1) if not getattr(self, "is_spmd", False) else 1
-                tps = sps * bs * grad_accum * self.seq_len * world_mult
-
-                l_val = float(last_metrics['loss'].detach().cpu().item()) if last_metrics and 'loss' in last_metrics else 0.0
-                ce_val = float(last_metrics['unweighted_ce'].detach().cpu().item()) if last_metrics and 'unweighted_ce' in last_metrics else 0.0
-                
-                if getattr(self, "is_unified", False) and last_metrics and "causal_ce" in last_metrics:
-                    c_ce = float(last_metrics["causal_ce"].detach().cpu().item())
-                    i_ce = float(last_metrics["infill_ce"].detach().cpu().item())
-                    a_w = float(last_metrics.get("alpha", 0.0))
-                    b_w = float(last_metrics.get("beta", 0.0))
-                    g_w = float(last_metrics.get("gamma", 0.0))
-                    raw_acc = last_metrics.get("lrh_acc", 0.0)
-                    tracker = getattr(self, "metric_tracker", None)
-                    l_acc = tracker.lrh_acc_ema if tracker and tracker.lrh_acc_ema is not None else (float(raw_acc.detach().cpu().item()) if isinstance(raw_acc, torch.Tensor) else float(raw_acc))
-                    raw_auc = last_metrics.get("lrh_bal_acc", last_metrics.get("lrh_auc", 0.0))
-                    l_auc = tracker.lrh_auc_ema if tracker and tracker.lrh_auc_ema is not None else (float(raw_auc.detach().cpu().item()) if isinstance(raw_auc, torch.Tensor) else float(raw_auc))
-
-                    log_msg = (
-                        f"  [COROSRED-UNIFIED] Step {step:>6d}/{self.max_steps} | Loss: {l_val:>6.4f} | "
-                        f"C-CE: {c_ce:>5.3f} | I-CE: {i_ce:>5.3f} | "
-                        f"α={a_w:.2f} β={b_w:.2f} γ={g_w:.2f} | Acc={l_acc:.2f} AUC={l_auc:.2f} | "
-                        f"{sps:>5.1f} st/s | {tps:>9,.0f} tok/s"
-                    )
+                if prefetcher is not None:
+                    global_targets = prefetcher.get()
                 else:
-                    log_msg = f"  [{self.paradigm.upper()}] Step {step:>6d}/{self.max_steps} | Loss: {l_val:>6.4f} | CE: {ce_val:>5.3f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s"
-
-                if not benchmark:
-                    eta_mins = (self.max_steps - step) / sps / 60.0 if sps > 0 else 0.0
-                    log_msg += f" | ETA: {eta_mins:>4.1f}m"
-                print(log_msg, flush=True)
-
-            save_interval = self.c_cfg.get("save_every_steps", 1000)
-            if not benchmark and save_interval > 0 and step % save_interval == 0:
-                ckpt_file = ckpt_dir / f"checkpoint_step_{step}.pt"
-                if self.is_master:
-                    print(f"\n  [Checkpoint Step {step:>6d}] Saving checkpoint weights to {ckpt_file}...", flush=True)
-
-                # On multi-core TPU, in-loop evaluation on a single rank causes XLA graph desynchronization
-                # and barrier deadlocks against non-master ranks. Only run on non-TPU / single-device configurations.
-                if getattr(self, "is_unified", False) and getattr(self, "dual_monitor", None) is not None and self.is_master and not self.is_tpu:
-                    probe_res = self.dual_monitor.evaluate(self.model, current_step=step)
-                    print(
-                        f"  [Dual Probe Step {step:>6d}] Causal Top-1: {probe_res['causal_top1']*100:.1f}% | "
-                        f"C-CE: {probe_res['causal_ce']:.3f} | Infill Top-1: {probe_res['infill_top1']*100:.1f}% | "
-                        f"I-CE: {probe_res['infill_ce']:.3f} | LRH AUC: {probe_res['lrh_auc']:.3f}",
-                        flush=True
+                    global_targets, _ = get_global_targets_contiguous_pytorch(
+                        dataset_matrix, idx_ptr, local_step_seqs, self.seq_len, self.device, non_blocking=False
                     )
-                    div_warn = self.dual_monitor.check_divergence()
-                    if div_warn:
-                        print(f"  {div_warn}", flush=True)
-                    if getattr(self, "metric_tracker", None) is not None:
-                        self.metric_tracker.update_lrh(probe_res["lrh_acc"], probe_res["lrh_auc"])
+                    idx_ptr = (idx_ptr + cluster_step_seqs) % n_rows
+                self._next_row = (self._next_row + cluster_step_seqs) % n_rows
+                # Periodically replenish routing cache only once confidence-routed masking is active (after hold phase)
+                has_routing = getattr(self, "is_unified", False) and hasattr(self, "routing_cache")
+                if has_routing and self.routing_cache.should_refresh(step):
+                    sched_w_check = self.schedule.get_weights(step)
+                    if sched_w_check.get("mask_blend", 0.0) > 0.0:
+                        self.routing_cache.refresh(
+                            self.model,
+                            upcoming_seqs=global_targets,
+                            current_step=step,
+                            mask_prob=float(self.crsr_cfg.get("mask_prob", 0.15)),
+                        )
 
-                if getattr(self, "is_ddp", False) and getattr(self, "metric_tracker", None) is not None:
-                    # Master-only validation must not leave curriculum gates
-                    # different on the other CUDA workers.
-                    payload = [vars(self.metric_tracker) if self.is_master else None]
-                    torch.distributed.broadcast_object_list(payload, src=0)
-                    vars(self.metric_tracker).update(payload[0])
+                last_metrics = None
 
-                # In PyTorch-XLA multi-processing, all workers must synchronize at step boundaries
-                # so master rank can serialize model weights without worker desynchronization
-                if self.is_tpu:
+                for i in range(grad_accum):
+                    batch_seqs = global_targets[i * bs : (i + 1) * bs]
+
+                    # In PyTorch-XLA SPMD mode, shard batch dimension across TPU chips so PJRT
+                    # produces valid PjRtShardedData buffers and avoids ExecuteReplicated NULL pointer SIGSEGV.
+                    if getattr(self, "is_spmd", False) and self.spmd_mesh is not None:
+                        import torch_xla.distributed.spmd as xs
+                        xs.mark_sharding(batch_seqs, self.spmd_mesh, ("data", None))
+
+                    is_log_step = (
+                        step <= 5
+                        or (step <= 50 and step % 10 == 0)
+                        or step % 50 == 0
+                        or step == self.max_steps
+                        or (benchmark and step % 10 == 0)
+                    )
+                    eval_metrics = (i == grad_accum - 1) and is_log_step
+                    # DDP gradient accumulation optimization: disable all-reduce on non-final microbatches
+                    sync_ctx = self.model.no_sync() if (getattr(self, "is_ddp", False) and i < grad_accum - 1) else nullcontext()
+                    with sync_ctx:
+                        if self.use_amp:
+                            with torch.amp.autocast(device_type=getattr(self, "amp_device", self.device.type), dtype=self.amp_dtype):
+                                loss, metrics = self._execute_microbatch(batch_seqs, compute_metrics=eval_metrics)
+                        else:
+                            loss, metrics = self._execute_microbatch(batch_seqs, compute_metrics=eval_metrics)
+
+                        loss = loss / grad_accum
+                        if self.use_scaler:
+                            self.scaler.scale(loss).backward()
+                        else:
+                            loss.backward()
+                    last_metrics = metrics
+
+                if self.use_scaler:
+                    self.scaler.unscale_(self.optimizer)
+                    nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
+                elif self.is_tpu:
                     import torch_xla.core.xla_model as xm
-                    xm.rendezvous(f"checkpoint_save_{step}")
+                    # Copy gradients from bfloat16 model parameters to float32 master parameters
+                    if self.use_master_weights:
+                        for p, mp in self.param_to_master:
+                            if p.grad is not None:
+                                mp.grad = p.grad.float()
 
-                if self.is_master or self.world_size > 1:
-                    self.save_checkpoint(ckpt_file)
-                    print(f"  [Checkpoint Step {step:>6d}] Successfully saved weights to {ckpt_file}\n", flush=True)
+                    # In SPMD mode, xs.mark_sharding on the batch automatically triggers the partitioner all-reduce.
+                    if not getattr(self, "is_spmd", False):
+                        xm.reduce_gradients(self.optimizer)
+                    if self.grad_clip > 0:
+                        target_params = self.master_params if self.use_master_weights else self.model.parameters()
+                        nn.utils.clip_grad_norm_(target_params, self.grad_clip)
+                    # Call self.optimizer.step() directly: xm.optimizer_step() would redundantly invoke
+                    # reduce_gradients() a second time, multiplying gradients by 1/(world_size^2) (1/64x on 8 cores).
+                    self.optimizer.step()
 
-                if self.is_tpu:
-                    import torch_xla.core.xla_model as xm
-                    xm.rendezvous(f"checkpoint_done_{step}")
+                    # Synchronize updated float32 master weights back to bfloat16 model parameters
+                    if self.use_master_weights:
+                        for p, mp in self.param_to_master:
+                            p.data.copy_(mp.data.to(p.dtype))
+
+                    xm.mark_step()
+
+                else:
+                    nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
+                    self.optimizer.step()
+
+                self.optimizer.zero_grad()
+                if self.use_master_weights:
+                    self.model.zero_grad()
+                self.scheduler.step()
+                self.global_step = step
+
+                # Synchronized cadence all-reduce of LRH AUC / balanced accuracy across all 8 replicas.
+                # Executed synchronously by ALL ranks outside `if self.is_master` to ensure 100% identical schedule EMAs.
+                default_cadence = int(self.crsr_cfg.get("default_cadence", self.t_cfg.get("default_cadence", 25 if self.is_tpu else 1)))
+                cadence = int(self.crsr_cfg.get("cadence", self.t_cfg.get("cadence", default_cadence)) or default_cadence)
+                if getattr(self, "is_unified", False) and (step % cadence == 0 or step == 1) and last_metrics is not None:
+                    raw_auc = last_metrics.get("lrh_bal_acc", last_metrics.get("lrh_auc", None))
+                    raw_acc = last_metrics.get("lrh_acc", None)
+                    if raw_auc is not None:
+                        if isinstance(raw_auc, torch.Tensor):
+                            auc_t = raw_auc.detach().clone()
+                            acc_t = raw_acc.detach().clone() if isinstance(raw_acc, torch.Tensor) else None
+
+                            # Cheap scalar all-reduce of 0D tensors across all replicas
+                            if self.is_tpu:
+                                import torch_xla.core.xla_model as xm
+                                # Use cached world_size or xworld_size() to avoid non-existent xrt_world_size attribute
+                                world_size = xm.xworld_size() if hasattr(xm, "xworld_size") else getattr(self, "world_size", 1)
+                                if world_size > 1:
+                                    reduce_op = getattr(xm, "REDUCE_SUM", "sum")
+                                    tensors_to_reduce = [auc_t] + ([acc_t] if acc_t is not None else [])
+                                    reduced = xm.all_reduce(reduce_op, tensors_to_reduce, scale=1.0 / float(world_size))
+                                    auc_t = reduced[0]
+                                    if acc_t is not None:
+                                        acc_t = reduced[1]
+                            elif getattr(self, "is_ddp", False):
+                                import torch.distributed as dist
+                                dist.all_reduce(auc_t, op=dist.ReduceOp.SUM)
+                                auc_t /= dist.get_world_size()
+                                if acc_t is not None:
+                                    dist.all_reduce(acc_t, op=dist.ReduceOp.SUM)
+                                    acc_t /= dist.get_world_size()
+
+                            auc_val = float(auc_t.cpu().item())
+                            acc_val = float(acc_t.cpu().item()) if acc_t is not None else auc_val
+                        else:
+                            auc_val = float(raw_auc)
+                            acc_val = float(raw_acc) if raw_acc is not None else auc_val
+
+                        # Update local metric tracker on ALL replicas with identical cluster-wide reduced scalar
+                        if getattr(self, "metric_tracker", None) is not None:
+                            self.metric_tracker.update_lrh(acc=acc_val, auc=auc_val, cadence=cadence)
+
+                cleanup_cadence = int(self.t_cfg.get("xla_cleanup_every", 0))
+                if self.is_tpu and cleanup_cadence > 0 and step % cleanup_cadence == 0:
                     import gc
                     gc.collect()
                     try:
@@ -1065,31 +954,135 @@ class UnifiedPyTorchTrainer:
                     except Exception:
                         pass
 
-        total_time = time.time() - start_time
-        if benchmark:
-            self._print_benchmark_report(benchmark_timer.steps, benchmark_timer.elapsed,
-                                         benchmark_timer.latencies, bs, grad_accum)
-            return
+                if benchmark_timer is not None:
+                    benchmark_timer.end()
+                    if benchmark_timer.steps and benchmark_timer.elapsed >= max_bench_duration:
+                        self._print_benchmark_report(benchmark_timer.steps, benchmark_timer.elapsed,
+                                                     benchmark_timer.latencies, bs, grad_accum)
+                        return
 
-        if self._save_thread is not None and self._save_thread.is_alive():
-            self._save_thread.join()
+                if self.is_master and (
+                    step <= 5
+                    or (step <= 50 and step % 10 == 0)
+                    or step % 25 == 0
+                    or step == self.max_steps
+                    or (benchmark and step % 10 == 0)
+                ):
+                    lr = self.scheduler.get_last_lr()[0]
+                    elapsed = time.time() - start_time
+                    steps_taken = step - resume_step
+                    sps = steps_taken / elapsed if elapsed > 0 else 0
+                    world_mult = getattr(self, "world_size", 1) if not getattr(self, "is_spmd", False) else 1
+                    tps = sps * bs * grad_accum * self.seq_len * world_mult
 
-        if self.is_tpu:
-            import torch_xla.core.xla_model as xm
-            xm.mark_step()
-            xm.rendezvous("checkpoint_final_start")
+                    l_val = float(last_metrics['loss'].detach().cpu().item()) if last_metrics and 'loss' in last_metrics else 0.0
+                    ce_val = float(last_metrics['unweighted_ce'].detach().cpu().item()) if last_metrics and 'unweighted_ce' in last_metrics else 0.0
 
-        if self.is_master or self.world_size > 1:
-            self.save_checkpoint(ckpt_dir / "checkpoint_final.pt", sync=True)
-        if self.is_master:
-            # Write standalone config.json for eval loader and downstream tools
-            with open(ckpt_dir / "config.json", "w", encoding="utf-8") as f:
-                json.dump(self.cfg, f, indent=2, default=str)
-            print("=" * 70)
-            print(f"  {self.paradigm.upper()} PyTorch Training Complete! Total time: {total_time/60.0:.2f} minutes.")
-            print(f"  Saved standalone model artifact to {ckpt_dir}/")
-            print("=" * 70)
+                    if getattr(self, "is_unified", False) and last_metrics and "causal_ce" in last_metrics:
+                        c_ce = float(last_metrics["causal_ce"].detach().cpu().item())
+                        i_ce = float(last_metrics["infill_ce"].detach().cpu().item())
+                        a_w = float(last_metrics.get("alpha", 0.0))
+                        b_w = float(last_metrics.get("beta", 0.0))
+                        g_w = float(last_metrics.get("gamma", 0.0))
+                        raw_acc = last_metrics.get("lrh_acc", 0.0)
+                        tracker = getattr(self, "metric_tracker", None)
+                        l_acc = tracker.lrh_acc_ema if tracker and tracker.lrh_acc_ema is not None else (float(raw_acc.detach().cpu().item()) if isinstance(raw_acc, torch.Tensor) else float(raw_acc))
+                        raw_auc = last_metrics.get("lrh_bal_acc", last_metrics.get("lrh_auc", 0.0))
+                        l_auc = tracker.lrh_auc_ema if tracker and tracker.lrh_auc_ema is not None else (float(raw_auc.detach().cpu().item()) if isinstance(raw_auc, torch.Tensor) else float(raw_auc))
 
-        if self.is_tpu:
-            import torch_xla.core.xla_model as xm
-            xm.rendezvous("checkpoint_final_done")
+                        log_msg = (
+                            f"  [COROSRED-UNIFIED] Step {step:>6d}/{self.max_steps} | Loss: {l_val:>6.4f} | "
+                            f"C-CE: {c_ce:>5.3f} | I-CE: {i_ce:>5.3f} | "
+                            f"α={a_w:.2f} β={b_w:.2f} γ={g_w:.2f} | Acc={l_acc:.2f} AUC={l_auc:.2f} | "
+                            f"{sps:>5.1f} st/s | {tps:>9,.0f} tok/s"
+                        )
+                    else:
+                        log_msg = f"  [{self.paradigm.upper()}] Step {step:>6d}/{self.max_steps} | Loss: {l_val:>6.4f} | CE: {ce_val:>5.3f} | LR: {lr:.2e} | {sps:>5.1f} st/s | {tps:>9,.0f} tok/s"
+
+                    if not benchmark:
+                        eta_mins = (self.max_steps - step) / sps / 60.0 if sps > 0 else 0.0
+                        log_msg += f" | ETA: {eta_mins:>4.1f}m"
+                    print(log_msg, flush=True)
+
+                save_interval = self.c_cfg.get("save_every_steps", 1000)
+                if not benchmark and save_interval > 0 and step % save_interval == 0:
+                    ckpt_file = ckpt_dir / f"checkpoint_step_{step}.pt"
+                    if self.is_master:
+                        print(f"\n  [Checkpoint Step {step:>6d}] Saving checkpoint weights to {ckpt_file}...", flush=True)
+
+                    # On multi-core TPU, in-loop evaluation on a single rank causes XLA graph desynchronization
+                    # and barrier deadlocks against non-master ranks. Only run on non-TPU / single-device configurations.
+                    if getattr(self, "is_unified", False) and getattr(self, "dual_monitor", None) is not None and self.is_master and not self.is_tpu:
+                        probe_res = self.dual_monitor.evaluate(self.model, current_step=step)
+                        print(
+                            f"  [Dual Probe Step {step:>6d}] Causal Top-1: {probe_res['causal_top1']*100:.1f}% | "
+                            f"C-CE: {probe_res['causal_ce']:.3f} | Infill Top-1: {probe_res['infill_top1']*100:.1f}% | "
+                            f"I-CE: {probe_res['infill_ce']:.3f} | LRH AUC: {probe_res['lrh_auc']:.3f}",
+                            flush=True
+                        )
+                        div_warn = self.dual_monitor.check_divergence()
+                        if div_warn:
+                            print(f"  {div_warn}", flush=True)
+                        if getattr(self, "metric_tracker", None) is not None:
+                            self.metric_tracker.update_lrh(probe_res["lrh_acc"], probe_res["lrh_auc"])
+
+                    if getattr(self, "is_ddp", False) and getattr(self, "metric_tracker", None) is not None:
+                        # Master-only validation must not leave curriculum gates
+                        # different on the other CUDA workers.
+                        payload = [vars(self.metric_tracker) if self.is_master else None]
+                        torch.distributed.broadcast_object_list(payload, src=0)
+                        vars(self.metric_tracker).update(payload[0])
+
+                    # In PyTorch-XLA multi-processing, all workers must synchronize at step boundaries
+                    # so master rank can serialize model weights without worker desynchronization
+                    if self.is_tpu:
+                        import torch_xla.core.xla_model as xm
+                        xm.rendezvous(f"checkpoint_save_{step}")
+
+                    if self.is_master or self.world_size > 1:
+                        self.save_checkpoint(ckpt_file)
+                        print(f"  [Checkpoint Step {step:>6d}] Successfully saved weights to {ckpt_file}\n", flush=True)
+
+                    if self.is_tpu:
+                        import torch_xla.core.xla_model as xm
+                        xm.rendezvous(f"checkpoint_done_{step}")
+                        import gc
+                        gc.collect()
+                        try:
+                            import ctypes
+                            ctypes.CDLL("libc.so.6").malloc_trim(0)
+                        except Exception:
+                            pass
+
+            total_time = time.time() - start_time
+            if benchmark:
+                self._print_benchmark_report(benchmark_timer.steps, benchmark_timer.elapsed,
+                                             benchmark_timer.latencies, bs, grad_accum)
+                return
+
+            if self._save_thread is not None and self._save_thread.is_alive():
+                self._save_thread.join()
+
+            if self.is_tpu:
+                import torch_xla.core.xla_model as xm
+                xm.mark_step()
+                xm.rendezvous("checkpoint_final_start")
+
+            if self.is_master or self.world_size > 1:
+                self.save_checkpoint(ckpt_dir / "checkpoint_final.pt", sync=True)
+            if self.is_master:
+                # Write standalone config.json for eval loader and downstream tools
+                with open(ckpt_dir / "config.json", "w", encoding="utf-8") as f:
+                    json.dump(self.cfg, f, indent=2, default=str)
+                print("=" * 70)
+                print(f"  {self.paradigm.upper()} PyTorch Training Complete! Total time: {total_time/60.0:.2f} minutes.")
+                print(f"  Saved standalone model artifact to {ckpt_dir}/")
+                print("=" * 70)
+
+            if self.is_tpu:
+                import torch_xla.core.xla_model as xm
+                xm.rendezvous("checkpoint_final_done")
+
+        finally:
+            if prefetcher is not None:
+                prefetcher.close()

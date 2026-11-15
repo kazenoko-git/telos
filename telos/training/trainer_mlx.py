@@ -56,6 +56,21 @@ class UnifiedMLXTrainer:
         self.m_cfg = cfg.setdefault("model", {})
         self.t_cfg = cfg.setdefault("training", {})
         self.c_cfg = cfg.setdefault("checkpoint", {})
+        self.experimental_qkv_rope = bool(self.t_cfg.get("experimental_qkv_rope", False))
+        if self.experimental_qkv_rope:
+            eligible = [layer for layer in getattr(self.model, "layers", ())
+                        if getattr(layer, "head_dim", None) == 64
+                        and getattr(layer, "n_heads", None) == getattr(layer, "n_kv_heads", None)]
+            if not eligible:
+                raise ValueError("experimental_qkv_rope requires equal Q/K/V heads with head dimension 64")
+            from telos.models.mlx_qkv_rope import make_rope_table
+            table = make_rope_table(int(self.m_cfg.get("seq_len", 512)))
+            for layer in eligible:
+                # Bypass Module.__setattr__: constants must stay outside both
+                # parameter and compiled model-state dictionaries.
+                object.__setattr__(layer, "_qkv_rope_table", table)
+                layer.use_experimental_qkv_rope = True
+            print("  [Experimental] Fused QKV/RoPE enabled; BF16 rounding may differ slightly.")
         self.experimental_packed_swiglu = bool(self.t_cfg.get("experimental_packed_swiglu", False))
         if self.experimental_packed_swiglu:
             enabled_modules = 0
@@ -154,16 +169,15 @@ class UnifiedMLXTrainer:
 
         auto_chkpt = working_set_gb > mem_budget_gb
 
-        requested_chkpt = (self.t_cfg.get("gradient_checkpointing", False)
-                           or self.m_cfg.get("use_grad_checkpoint", False)
-                           or getattr(self.model, "use_grad_checkpoint", False))
-        self.auto_enabled_checkpointing = auto_chkpt and not requested_chkpt
-        if requested_chkpt or auto_chkpt:
-            self.model.use_grad_checkpoint = True
-            if self.auto_enabled_checkpointing:
-                print(f"  [Memory] Auto-enabled gradient checkpointing (Estimated: {working_set_gb:.2f}GB > Budget: {mem_budget_gb:.2f}GB).")
-            else:
-                print("  [Memory] Gradient Checkpointing Enabled.")
+        policy = self.t_cfg.get("gradient_checkpointing", "auto")
+        if policy not in (True, False, "auto"):
+            raise ValueError("gradient_checkpointing must be true, false or auto")
+        requested = bool(self.m_cfg.get("use_grad_checkpoint", False))
+        enabled = (auto_chkpt or requested) if policy == "auto" else policy
+        self.auto_enabled_checkpointing = policy == "auto" and auto_chkpt and not requested
+        self.model.use_grad_checkpoint = bool(enabled)
+        if enabled:
+            print(f"  [Memory] Gradient checkpointing enabled (policy={policy}).")
 
         # Device-resident pre-sampled Beta(1.5, 1.5) buffer to eliminate per-microbatch CPU RNG & transfers
         if self.paradigm in ["mdlm", "undlm"]:
@@ -576,7 +590,6 @@ class UnifiedMLXTrainer:
         for step in range(resume_step + 1, max_steps + 1):
             if benchmark_timer is not None:
                 benchmark_timer.begin()
-            t_step_start = time.perf_counter()
 
             lr = self._get_lr(step, warmup_steps, max_steps, max_lr, min_lr)
             optimizer.learning_rate = lr

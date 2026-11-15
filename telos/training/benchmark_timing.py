@@ -54,7 +54,8 @@ def pytorch_benchmark_timer(trainer):
     else:
         def synchronize():
             if trainer.device.type == "cuda":
-                torch.cuda.synchronize(trainer.device)
+                for index in getattr(trainer.model, "device_ids", [trainer.device]):
+                    torch.cuda.synchronize(index)
         def maximum(value):
             return value
     return BenchmarkTimer(synchronize, maximum)

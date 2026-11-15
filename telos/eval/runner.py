@@ -50,8 +50,9 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
         mlx_file = cp / "model.safetensors"
         pt_file = cp / "checkpoint_final.pt"
         if not pt_file.exists():
-            pt_files = sorted(cp.glob("checkpoint_step_*.pt"))
-            pt_file = pt_files[-1] if pt_files else pt_file
+            native_files = [(int(match.group(1)), path) for path in cp.iterdir()
+                            if (match := re.fullmatch(r"checkpoint_step_(\d+)\.(?:pt|safetensors)", path.name))]
+            pt_file = max(native_files, key=lambda item: item[0])[1] if native_files else pt_file
 
         if mlx_file.exists():
             cp = mlx_file
@@ -117,7 +118,7 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
                 emb_shape = f.get_slice("emb.weight").get_shape()
                 vocab_size = emb_shape[0]
                 d_model = emb_shape[1]
-            if "layers.0.qkv_proj.weight" in keys:
+            if "layers.0.qkv_proj.weight" in keys and "n_heads" not in m_cfg:
                 qkv_shape = f.get_slice("layers.0.qkv_proj.weight").get_shape()
                 qkv_out = qkv_shape[0]
                 # QKV projection = 3 * n_heads * head_dim (head_dim = 64)
@@ -146,7 +147,9 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
                 n_layers=n_layers,
                 n_heads=n_heads,
                 n_kv_heads=n_kv_heads,
-                tied_embeddings=True,
+                tied_embeddings=bool(m_cfg.get("tied_embeddings", True)),
+                packed_projections=bool(m_cfg.get("packed_projections", False)),
+                max_seq_len=int(m_cfg.get("max_seq_len", m_cfg.get("seq_len") or 512)),
                 is_causal=is_causal,
                 use_reliability_head=use_reliability_head,
             )
@@ -167,7 +170,8 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
                 n_layers=n_layers,
                 n_heads=n_heads,
                 n_kv_heads=n_kv_heads,
-                tied_embeddings=True,
+                tied_embeddings=bool(m_cfg.get("tied_embeddings", True)),
+                max_seq_len=int(m_cfg.get("max_seq_len", m_cfg.get("seq_len") or 512)),
                 is_causal=is_causal,
                 use_reliability_head=use_reliability_head,
             )
@@ -195,7 +199,9 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
             n_layers=n_layers,
             n_heads=n_heads,
             n_kv_heads=n_kv_heads,
-            tied_embeddings=True,
+            tied_embeddings=bool(m_cfg.get("tied_embeddings", True)),
+            packed_projections=bool(m_cfg.get("packed_projections", False)),
+            max_seq_len=int(m_cfg.get("max_seq_len", m_cfg.get("seq_len") or 512)),
             is_causal=is_causal,
             use_reliability_head=use_reliability_head,
         )

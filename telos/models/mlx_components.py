@@ -17,6 +17,7 @@ if not metal_usable():
 
 import mlx.core as mx
 import mlx.nn as nn
+from .mlx_qkv_rope import experimental_qkv_rope
 
 
 _PACKED_SWIGLU_FORWARD = mx.fast.metal_kernel(
@@ -148,6 +149,8 @@ class MLXBlock(nn.Module):
         self.kv_groups = n_heads // n_kv_heads
         self.is_causal = is_causal
         self.force_fused_attention = False
+        self.use_experimental_qkv_rope = False
+        object.__setattr__(self, "_qkv_rope_table", None)
 
         self.qkv_proj = nn.Linear(d_model, (n_heads + 2 * n_kv_heads) * self.head_dim, bias=False)
         self.out = nn.Linear(d_model, d_model, bias=False)
@@ -162,15 +165,20 @@ class MLXBlock(nn.Module):
         h = self.norm1(x)
 
         qkv = self.qkv_proj(h)
-        # Split using precomputed static index boundaries
-        q, k, v = mx.split(qkv, [self._q_end, self._k_end], axis=-1)
-        q = q.reshape(B, T, self.n_heads, self.head_dim).transpose(0, 2, 1, 3)
-        k = k.reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
-        v = v.reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
-
-        # Apply hardware-accelerated RoPE Metal kernel
-        q = mx.fast.rope(q, self.head_dim, traditional=True, base=10000.0, scale=1.0, offset=0)
-        k = mx.fast.rope(k, self.head_dim, traditional=True, base=10000.0, scale=1.0, offset=0)
+        table = self._qkv_rope_table
+        if (self.use_experimental_qkv_rope and table is not None
+                and self.head_dim == 64 and self.n_heads == self.n_kv_heads
+                and T <= table.shape[0] and qkv.dtype in (mx.float32, mx.bfloat16)
+                and mx.default_device() == mx.gpu):
+            q, k, v = experimental_qkv_rope(qkv, table[:T])
+        else:
+            # Split using precomputed static index boundaries.
+            q, k, v = mx.split(qkv, [self._q_end, self._k_end], axis=-1)
+            q = q.reshape(B, T, self.n_heads, self.head_dim).transpose(0, 2, 1, 3)
+            k = k.reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
+            v = v.reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
+            q = mx.fast.rope(q, self.head_dim, traditional=True, base=10000.0, scale=1.0, offset=0)
+            k = mx.fast.rope(k, self.head_dim, traditional=True, base=10000.0, scale=1.0, offset=0)
 
         scale = 1.0 / (self.head_dim ** 0.5)
         

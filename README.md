@@ -16,7 +16,7 @@
 
 Télos is for people who want to run and study language-model training processes. Prepare data, configure pretraining or post-training, choose an objective and backend, then evaluate the resulting model in the same toolkit. Model-size and token budgets help configure a run alongside architecture, batching, and training settings.
 
-Télos covers corpus preparation, pretraining, supervised fine-tuning (SFT), direct preference optimization (DPO), and model evaluation. Pretraining includes autoregressive (AR), masked diffusion (MDLM), uniform-noise diffusion (UNDLM), and COROSred objectives. Full-parameter SFT and DPO operate on native causal Télos checkpoints. Training paths target Apple Silicon through MLX, NVIDIA GPUs through PyTorch/CUDA, Google Cloud TPUs through PyTorch-XLA, and CPU for compatible workflows. Its evaluation suite includes contextual code probes, executable code tasks, reasoning, tool use, cybersecurity, and other task suites.
+Télos covers corpus preparation, pretraining, supervised fine-tuning (SFT), direct preference optimization (DPO), and model evaluation. Pretraining includes autoregressive (AR), masked diffusion (MDLM), uniform-noise diffusion (UNDLM), and COROSred objectives. Full-parameter, LoRA and QLoRA SFT/DPO operate on native causal Télos checkpoints. Training paths target Apple Silicon through MLX, NVIDIA GPUs through PyTorch/CUDA, Google Cloud TPUs through PyTorch-XLA, and CPU for compatible workflows. Its evaluation suite includes contextual code probes, executable code tasks, reasoning, tool use, cybersecurity, and other task suites.
 
 The [v1.5.5 release](https://github.com/kazenoko-git/telos/releases/tag/v1.5.5) adds complete SFT/DPO resume alongside pretraining resume, including optimizer state, random generators, data position, and frozen DPO reference weights. CUDA post-training supports multiple GPUs, and distributed pretraining resume validates the original worker topology and per-rank checkpoints. Physical multi-GPU CUDA and distributed TPU validation remain outstanding. On Colab TPU v5e-1, small single-worker resume checks passed, but the standard SFT/DPO launcher failed before training; those checks dispatched the worker directly.
 
@@ -68,7 +68,7 @@ telos pretrain --paradigm ar --params 50M --tokens 300M --data data/corpus.bin \
   --checkpoint-dir checkpoints/ar
 ```
 
-With v1.5.5, resume pretraining using the saved configuration and original total training budget:
+Resume pretraining using the saved configuration and original total training budget:
 
 ```bash
 # Apple Silicon / MLX: complete training state, separate from exported weights
@@ -101,12 +101,45 @@ telos posttrain --method sft --checkpoint checkpoints/ar \
 
 This example uses MLX state; CPU/CUDA/XLA post-training uses `.resume.pt` instead of `.resume.npz`. DPO resume also restores the original frozen reference model. Keep the original data, tokenizer, method, and training settings.
 
+
+### LoRA and QLoRA (v1.7.0)
+
+Use the same SFT/DPO commands with `--finetune lora` or `--finetune qlora`:
+
+```bash
+telos posttrain --method sft --checkpoint checkpoints/ar \
+  --data data/instructions.jsonl --output checkpoints/ar-lora \
+  --finetune lora --lora-rank 16 --lora-alpha 32
+
+telos posttrain --method dpo --checkpoint checkpoints/ar-sft \
+  --data data/preferences.jsonl --output checkpoints/ar-qlora \
+  --finetune qlora --hardware mlx
+
+# CUDA: one worker per GPU; batch-size is per worker under torchrun.
+torchrun --standalone --nproc-per-node=2 -m telos posttrain \
+  --hardware cuda --method sft --checkpoint checkpoints/ar \
+  --data data/instructions.jsonl --output checkpoints/ar-lora-cuda \
+  --finetune lora --batch-size 4
+```
+
+All transformer attention/MLP projections are adapted by default; embeddings, output head and base weights stay frozen. `--lora-targets` accepts projection suffixes (PyTorch: `q_proj,v_proj`; MLX: `qkv_proj`). `--lora-dropout` defaults to zero. Adapter weights are FP32.
+
+PyTorch QLoRA stores frozen projections as packed blockwise NF4, with a portable dequantize/matmul path for CPU, CUDA and XLA. MLX uses native grouped affine 4-bit quantized matmul; projection input widths must be divisible by 64. These are distinct quantization formats. This implementation does not include double quantization or paged optimizers, and does not claim fused CUDA-kernel performance. Embeddings and output heads remain unquantized.
+
+Each save produces a merged native model for ordinary evaluation, an adapter-only artifact, and complete `.resume.pt`/`.resume.npz` state. Resume with the **original base checkpoint**, original options and full resume artifact; merged exports are for evaluation or starting a new run. DPO resume restores its frozen reference. New resume identities include the base hash, adapter, precision, compilation and cache settings; older post-training resume files do not match v1.7 settings.
+
+CUDA/XLA `--precision auto` chooses BF16 where supported (CUDA otherwise uses scaled FP16); `--precision float32` opts out. MLX auto preserves the loaded parameter dtype. MLX compiles the update by default; CUDA compiles the model. Use `--no-compile` to opt out. DPO reference caching is bounded by `--reference-cache-size` (128 batches by default); `--no-cache-reference` disables it. XLA always pads to the configured maximum length for stable shapes; `--padding batch` is available on CPU/CUDA/MLX.
+
+Pretraining supports opt-in `--packed-projections` on PyTorch, `--experimental-qkv-rope` on MLX, and `--fused-vocab-loss --fused-vocab-chunk-size 256` for tiled AR loss on both. Tiling trades recomputation for lower vocabulary activation memory. Choose activation checkpointing explicitly with `--gradient-checkpointing auto|on|off`. Benchmark JSON reports synchronized completed-update timing, five excluded warmup updates, input-token units and whether enough updates were measured.
+
+See [v1.7 optimization and validation notes](docs/optimization-v1.7.0.md) for hardware limits and local evidence.
+
 Evaluation suite preparation uses scripts from the source repository. If you installed only the package, first obtain a matching source checkout:
 
 ```bash
 git clone https://github.com/kazenoko-git/telos.git
 cd telos
-git checkout v1.5.5
+git checkout v1.7.0
 ```
 
 Build or fetch the datasets as needed, then evaluate your checkpoint. Relative checkpoint paths below are resolved from the repository directory:

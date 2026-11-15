@@ -331,7 +331,7 @@ def train(
             n_kv_heads=m_cfg.get("n_kv_heads", None),
             is_causal=is_causal,
             use_reliability_head=bool(m_cfg.get("use_reliability_head", paradigm.lower() == "corosred")),
-            use_grad_checkpoint=t_cfg.get("gradient_checkpointing", False) or m_cfg.get("use_grad_checkpoint", False),
+            use_grad_checkpoint=(t_cfg.get("gradient_checkpointing") is True or m_cfg.get("use_grad_checkpoint", False)),
             precision=precision
         )
         # Auto-detect or load initial checkpoint (e.g. chaining Phase A weights into Phase B or Phase C)
@@ -364,7 +364,7 @@ def train(
             n_kv_heads=m_cfg.get("n_kv_heads", None),
             is_causal=is_causal,
             use_reliability_head=(paradigm.lower() == "corosred"),
-            use_grad_checkpoint=t_cfg.get("gradient_checkpointing", False) or m_cfg.get("use_grad_checkpoint", False)
+            use_grad_checkpoint=(t_cfg.get("gradient_checkpointing") is True or m_cfg.get("use_grad_checkpoint", False))
         )
 
 
@@ -444,6 +444,8 @@ def main():
                         help="Vocabulary tile width for --fused-vocab-loss (default: 256)")
     parser.add_argument("--experimental-packed-swiglu", action=argparse.BooleanOptionalAction, default=None,
                         help="Experimental packed SwiGLU Metal VJP; may change BF16 rounding (default: disabled)")
+    parser.add_argument("--experimental-qkv-rope", action=argparse.BooleanOptionalAction, default=None,
+                        help="Experimental fused QKV/RoPE for equal heads of dimension 64 (default: disabled)")
     parser.add_argument("--compiled-accumulation", action=argparse.BooleanOptionalAction, default=None,
                         help="Compile backward with gradient accumulation (experimental; default: disabled)")
     parser.add_argument("--force-fused-attention", action=argparse.BooleanOptionalAction, default=None,
@@ -478,6 +480,10 @@ def main():
     parser.add_argument("--self-condition", action=argparse.BooleanOptionalAction, default=True, help="Enable self-conditioned draft training in COROSred Phase B")
     parser.add_argument("--self-cond-prob", type=float, default=0.5, help="Probability of training on model drafts vs clean masks in Phase B")
     parser.add_argument("--init-checkpoint", type=str, default=None, help="Path to initial checkpoint to load weights from before training")
+    parser.add_argument("--packed-projections", action=argparse.BooleanOptionalAction, default=None,
+                        help="Pack PyTorch QKV and SwiGLU GEMMs, retaining canonical checkpoint keys")
+    parser.add_argument("--gradient-checkpointing", choices=["auto", "on", "off"], default=None,
+                        help="Explicitly choose activation recomputation policy")
     parser.add_argument("--compile", action=argparse.BooleanOptionalAction, default=None, help="Enable torch.compile for model execution")
     parser.add_argument("--seed", type=int, default=42, help="Global random seed for initialization and training reproducibility (default: 42)")
     # Cadence & Dynamics Overrides
@@ -519,7 +525,10 @@ def main():
             fused_vocab_loss=args.fused_vocab_loss,
             fused_vocab_chunk_size=args.fused_vocab_chunk_size,
             experimental_packed_swiglu=args.experimental_packed_swiglu,
+            experimental_qkv_rope=args.experimental_qkv_rope,
             compiled_accumulation=args.compiled_accumulation,
+            packed_projections=args.packed_projections,
+            gradient_checkpointing={"auto": "auto", "on": True, "off": False}.get(args.gradient_checkpointing),
             force_fused_attention=args.force_fused_attention,
             seq_len=args.seq_len,
             d_model=args.d_model,

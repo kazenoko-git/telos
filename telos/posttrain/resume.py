@@ -37,7 +37,7 @@ class PosttrainResume:
                 raise ValueError('Post-training resume configuration, topology, tokenizer or data mismatch')
             self.step = self.saved['step']
 
-    def restore(self, model, optimizer, reference=None, randomizer=None):
+    def restore(self, model, optimizer, reference=None, randomizer=None, scaler=None):
         state = self.saved
         if state is None:
             return
@@ -57,6 +57,8 @@ class PosttrainResume:
             import torch
             getattr(model, 'module', model).load_state_dict(state['model'])
             optimizer.load_state_dict(state['optimizer'])
+            if scaler is not None and state.get('scaler') is not None:
+                scaler.load_state_dict(state['scaler'])
             if reference is not None:
                 getattr(reference, 'module', reference).load_state_dict(state['reference'])
             torch.set_rng_state(state['rng'])
@@ -69,7 +71,7 @@ class PosttrainResume:
         if randomizer is not None:
             randomizer.setstate(_tuples(state['sampler']))
 
-    def save(self, path, model, optimizer, step, reference=None, randomizer=None):
+    def save(self, path, model, optimizer, step, reference=None, randomizer=None, scaler=None):
         state = {'posttrain_resume': 1, 'identity': self.identity, 'step': step,
                  'host_rng': host_rng_state(),
                  'sampler': randomizer.getstate() if randomizer is not None else None}
@@ -85,6 +87,7 @@ class PosttrainResume:
         else:
             import torch
             state.update(model=getattr(model, 'module', model).state_dict(), optimizer=optimizer.state_dict(),
+                         scaler=scaler.state_dict() if scaler is not None else None,
                          reference=getattr(reference, 'module', reference).state_dict() if reference is not None else None,
                          rng=torch.get_rng_state(),
                          cuda_rng=torch.cuda.get_rng_state_all() if self.backend == 'cuda' else None)

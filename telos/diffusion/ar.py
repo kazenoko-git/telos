@@ -71,7 +71,13 @@ if TORCH_AVAILABLE:
     ) -> tuple[torch.Tensor, dict[str, float]]:
         batch_size, seq_len, vocab_size = logits.shape
         
-        shift_logits = logits[:, :-1, :].contiguous().view(-1, vocab_size)
+        if seq_len == batch_seqs.shape[1] - 1:
+            shift_logits = logits.reshape(-1, vocab_size)
+        elif seq_len == batch_seqs.shape[1]:
+            shift_logits = logits[:, :-1, :].contiguous().view(-1, vocab_size)
+        else:
+            raise ValueError("AR logits must contain T or T-1 positions")
+        target_seq_len = batch_seqs.shape[1] - 1
         shift_targets = batch_seqs[:, 1:].contiguous().view(-1)
         total_tokens = shift_targets.numel()
 
@@ -84,9 +90,9 @@ if TORCH_AVAILABLE:
                 chunk_l = shift_logits[i : i + chunk_size]
                 chunk_t = shift_targets[i : i + chunk_size]
                 ce_chunks.append(F.cross_entropy(chunk_l, chunk_t, reduction="none"))
-            ce_loss_per_token = torch.cat(ce_chunks, dim=0).view(batch_size, seq_len - 1)
+            ce_loss_per_token = torch.cat(ce_chunks, dim=0).view(batch_size, target_seq_len)
         else:
-            ce_loss_per_token = F.cross_entropy(shift_logits, shift_targets, reduction="none").view(batch_size, seq_len - 1)
+            ce_loss_per_token = F.cross_entropy(shift_logits, shift_targets, reduction="none").view(batch_size, target_seq_len)
 
         # Mean cross-entropy across all tokens
         loss = ce_loss_per_token.mean()

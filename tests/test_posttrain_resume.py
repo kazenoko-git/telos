@@ -38,3 +38,26 @@ def test_posttrain_resume_replays(tmp_path, method, hardware):
         a,b = mx.load(str(first)),mx.load(str(second))
         for key in a:
             assert mx.allclose(a[key],b[key],rtol=1e-5,atol=1e-6).item()
+
+
+@pytest.mark.parametrize('method', ['sft','dpo'])
+def test_mlx_bf16_master_weight_resume(tmp_path,method):
+    from telos.training.core import metal_usable
+    if not metal_usable():
+        pytest.skip('Metal required')
+    tok=load_tokenizer()
+    cfg=TelosConfig(vocab_size=len(tok.get_vocab()),d_model=32,n_layers=1,n_heads=2,max_seq_len=16,is_causal=True)
+    source=tmp_path/'base.pt'
+    torch.save({'model_state_dict':TelosTransformer(cfg).state_dict(),'config':{'paradigm':'ar','model':vars(cfg)}},source)
+    row={'prompt':'Q','response':'A'} if method=='sft' else {'prompt':'Q','chosen':'A','rejected':'B'}
+    data=tmp_path/'data.jsonl';data.write_text(json.dumps(row))
+    options=dict(method=method,hardware='mlx',precision='bf16',max_steps=3,batch_size=1,max_length=8,save_every=1)
+    first=posttrain(source,data,tmp_path/'first',**options)
+    second=posttrain(source,data,tmp_path/'second',resume=tmp_path/'first/checkpoint_step_1.resume.npz',**options)
+    import mlx.core as mx
+    a,b=mx.load(str(first)),mx.load(str(second))
+    for key in a:
+        assert mx.array_equal(a[key],b[key]).item(),key
+    from telos.training.checkpoint import load_mlx_state
+    state=load_mlx_state(tmp_path/'first/model.resume.npz')
+    assert state['master'] is not None

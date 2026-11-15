@@ -7,6 +7,9 @@ import json
 import platform
 import os
 import random
+import hashlib
+import re
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
@@ -30,9 +33,10 @@ def _checkpoint_file(path: str | Path) -> Path:
             candidate = path / name
             if candidate.exists():
                 return candidate
-        candidates = sorted(path.glob("checkpoint_step_*.pt"))
+        candidates = [(int(match.group(1)), candidate) for candidate in path.iterdir()
+                      if (match := re.fullmatch(r"checkpoint_step_(\d+)\.(?:pt|safetensors)", candidate.name))]
         if candidates:
-            return candidates[-1]
+            return max(candidates, key=lambda item: item[0])[1]
         raise FileNotFoundError(f"No supported checkpoint found in {path}")
     if not path.is_file():
         raise FileNotFoundError(f"Checkpoint not found: {path}")
@@ -92,16 +96,117 @@ def _encode(tokenizer, prompt: str, answer: str, max_length: int, device: torch.
     return tokens, labels, pad_id
 
 
-def _collate(rows, tokenizer, max_length: int, device: torch.device):
-    encoded = [_encode(tokenizer, row["prompt"], row["response"], max_length, device) for row in rows]
-    pad_id = encoded[0][2]
-    width = max(len(tokens) for tokens, _, _ in encoded)
-    input_ids = torch.full((len(rows), width), pad_id, dtype=torch.long, device=device)
+def _prepare_records(records, tokenizer, max_length, method):
+    """Encode once, retaining exactly the original sampling order/length."""
+    prepared = []
+    for row in records:
+        item = dict(row)
+        for key in (("response",) if method == "sft" else ("chosen", "rejected")):
+            item["_" + key] = _encode(tokenizer, row["prompt"], row[key], max_length, None)
+        prepared.append(item)
+    return prepared
+
+
+def _response_rows(batch, key):
+    return [{"_encoded": row["_" + key]} for row in batch]
+
+
+def _collate(rows, tokenizer, max_length: int, device: torch.device, *, fixed=False):
+    encoded = [row["_encoded"] if "_encoded" in row else
+               _encode(tokenizer, row["prompt"], row["response"], max_length, None) for row in rows]
+    width = max_length if fixed else max(len(tokens) for tokens, _, _ in encoded)
+    # CPU staging avoids one device allocation/copy per example (and XLA slice graphs).
+    input_ids = torch.full((len(rows), width), encoded[0][2], dtype=torch.long)
     labels = torch.full_like(input_ids, -100)
     for index, (tokens, targets, _) in enumerate(encoded):
-        input_ids[index, :len(tokens)] = torch.tensor(tokens, dtype=torch.long, device=device)
-        labels[index, :len(targets)] = torch.tensor(targets, dtype=torch.long, device=device)
-    return input_ids, labels
+        input_ids[index, :len(tokens)] = torch.tensor(tokens)
+        labels[index, :len(targets)] = torch.tensor(targets)
+    if device.type == "cuda":
+        input_ids, labels = input_ids.pin_memory(), labels.pin_memory()
+    return (input_ids.to(device, non_blocking=device.type == "cuda"),
+            labels.to(device, non_blocking=device.type == "cuda"))
+
+
+def _adapter_options(finetune, rank, alpha, dropout, targets):
+    if finetune not in {"full", "lora", "qlora"}:
+        raise ValueError("finetune must be full, lora or qlora")
+    if rank < 1 or alpha <= 0 or not 0 <= dropout < 1:
+        raise ValueError("LoRA requires rank>0, alpha>0 and 0<=dropout<1")
+    if isinstance(targets, str):
+        targets = [target.strip() for target in targets.split(",") if target.strip()]
+    return dict(finetune=finetune, lora_rank=rank, lora_alpha=alpha,
+                lora_dropout=dropout, lora_targets=targets)
+
+
+def _apply_adapters(model, options, backend):
+    if getattr(model, "reliability_head", None) is not None:
+        if backend == "mlx":
+            model.reliability_head.freeze()
+        else:
+            model.reliability_head.requires_grad_(False)
+    if options["finetune"] == "full":
+        return
+    if backend == "mlx":
+        from .mlx_adapters import apply_lora
+    else:
+        from telos.models.packed import unpack_projections
+        unpack_projections(model)
+        from .adapters import apply_lora
+    apply_lora(model, rank=options["lora_rank"], alpha=options["lora_alpha"],
+               dropout=options["lora_dropout"], targets=options["lora_targets"],
+               quantized=options["finetune"] == "qlora")
+
+
+def _export_torch(model):
+    from .adapters import merged_state_dict
+    return {key: value.detach().cpu() for key, value in merged_state_dict(model).items()}
+
+
+def _save_torch_adapter(model, path, options):
+    if options["finetune"] == "full":
+        return
+    from .adapters import adapter_state_dict
+    _atomic_torch_save({"format": "telos-lora-v1", "options": options,
+                        "adapter_state_dict": _to_cpu(adapter_state_dict(model))},
+                       path.with_suffix(".adapter.pt"))
+
+
+def _torch_precision(device, precision):
+    if precision not in {"auto", "float32", "bf16", "fp16"}:
+        raise ValueError("precision must be auto, float32, bf16 or fp16")
+    if device.type == "cpu":
+        if precision not in {"auto", "float32"}:
+            raise ValueError("CPU post-training supports float32 precision")
+        return None
+    if precision == "auto":
+        precision = "bf16" if device.type == "xla" or torch.cuda.is_bf16_supported() else "fp16"
+    if device.type == "cuda" and precision == "bf16" and not torch.cuda.is_bf16_supported():
+        raise ValueError("BF16 was requested but this CUDA device does not support it")
+    if device.type == "xla" and precision == "fp16":
+        raise ValueError("XLA post-training supports bf16 or float32")
+    return {"float32": None, "bf16": torch.bfloat16, "fp16": torch.float16}[precision]
+
+
+def _autocast(device, dtype):
+    return torch.autocast(device.type, dtype=dtype) if dtype is not None else nullcontext()
+
+
+def _sft_loss(logits, labels, device, world_size=1):
+    targets = labels[:, 1:].reshape(-1)
+    total = F.cross_entropy(logits.reshape(-1, logits.shape[-1]), targets, ignore_index=-100, reduction="sum")
+    count = (targets != -100).sum().float()
+    if device.type == "xla":
+        import torch_xla.core.xla_model as xm
+        count = xm.all_reduce(xm.REDUCE_SUM, count) / world_size
+    elif torch.distributed.is_initialized():
+        torch.distributed.all_reduce(count)
+        count /= torch.distributed.get_world_size()
+    return total / count.clamp_min(1)
+
+
+def _pair_logps(model, cids, clabels, rids, rlabels):
+    scores = _sequence_logps(model, torch.cat((cids, rids)), torch.cat((clabels, rlabels)))
+    return scores.chunk(2)
 
 
 class _CudaParallelModel(torch.nn.DataParallel):
@@ -121,7 +226,7 @@ def _cuda_device_ids(devices, available):
 
 
 def _sequence_logps(model, input_ids, labels):
-    logits = model(input_ids, mask_override=True)[:, :-1].float()
+    logits = model(input_ids, mask_override=True, next_token_only=True).float()
     targets = labels[:, 1:]
     valid = targets.ne(-100)
     safe_targets = targets.masked_fill(~valid, 0)
@@ -228,16 +333,13 @@ def _mlx_parameters_from_pytorch(state_dict):
 
 def _mlx_logps(model, input_ids, labels):
     import mlx.core as mx
-    import mlx.nn as nn
 
-    logits = model(input_ids, is_causal=True)[:, :-1, :].astype(mx.float32)
+    from telos.training.mlx_losses import cross_entropy
+    logits = model(input_ids, is_causal=True, next_token_only=True)
     targets = labels[:, 1:]
     valid = (targets != -100).astype(mx.float32)
     safe_targets = mx.maximum(targets, 0)
-    token_logps = mx.take_along_axis(
-        nn.log_softmax(logits, axis=-1), safe_targets[..., None], axis=-1
-    ).squeeze(-1)
-    return mx.sum(token_logps * valid, axis=-1)
+    return -mx.sum(cross_entropy(logits, safe_targets, reduction="none") * valid, axis=-1)
 
 
 def _mlx_loss(model, input_ids, labels):
@@ -250,9 +352,10 @@ def _mlx_loss(model, input_ids, labels):
 
 def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config, records, tokenizer,
                    out_dir, *, method, max_steps, batch_size, learning_rate, beta,
-                   max_length, save_every, seed, resume=None):
+                   max_length, save_every, seed, resume=None, options=None):
     import mlx.core as mx
     import mlx.optimizers as optim
+    import mlx.nn as nn
     from mlx.utils import tree_flatten, tree_map
     from telos.models import MLXTelosTransformer
 
@@ -280,19 +383,28 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
             raise ValueError(f"PyTorch checkpoint is missing MLX model parameters: {sorted(missing)[:8]}")
         model.load_weights(list(weights.items()), strict=False)
     model.is_causal = True
+    if options["precision"] == "fp16":
+        raise ValueError("MLX post-training supports auto, float32 or bf16 precision")
+    if options["precision"] != "auto":
+        model.set_dtype(mx.bfloat16 if options["precision"] == "bf16" else mx.float32)
     mx.eval(model.parameters())
 
+    mx.random.seed(seed)
+    _apply_adapters(model, options, "mlx")
+    model.train()
     reference = copy.deepcopy(model) if method == "dpo" else None
+    if reference is not None:
+        reference.eval()
     optimizer = optim.AdamW(learning_rate=learning_rate)
     mx.random.seed(seed)
     master_params = None
-    if any(value.dtype == mx.bfloat16 for _, value in tree_flatten(model.parameters())):
-        master_params = tree_map(lambda value: value.astype(mx.float32), model.parameters())
+    if any(value.dtype == mx.bfloat16 for _, value in tree_flatten(model.trainable_parameters())):
+        master_params = tree_map(lambda value: value.astype(mx.float32), model.trainable_parameters())
         optimizer.master_params = master_params
     randomizer = random.Random(seed)
     session = PosttrainResume(resume, 'mlx', records, tokenizer,
         dict(method=method, max_steps=max_steps, batch_size=batch_size, learning_rate=learning_rate,
-             beta=beta, max_length=max_length, seed=seed))
+             beta=beta, max_length=max_length, seed=seed, options=options))
     session.restore(model, optimizer, reference, randomizer)
     master_params = getattr(optimizer, 'master_params', master_params)
     final_path = out_dir / "model.safetensors"
@@ -303,7 +415,12 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         path = final_path if final else out_dir / f"checkpoint_step_{step}.safetensors"
         mx.eval(model.parameters(), optimizer.state)
         from telos.training.checkpoint import atomic_write
-        atomic_write(path, lambda tmp: model.save_weights(tmp))
+        from .mlx_adapters import merged_weights, adapter_weights
+        atomic_write(path, lambda tmp: mx.save_safetensors(tmp, dict(merged_weights(model))))
+        if options["finetune"] != "full":
+            atomic_write(path.with_suffix(".adapter.safetensors"),
+                         lambda tmp: mx.save_safetensors(tmp, dict(adapter_weights(model))))
+            path.with_suffix(".adapter.json").write_text(json.dumps(options, indent=2))
         session.save(path.with_suffix('.resume.npz'), model, optimizer, step, reference, randomizer)
         cfg = copy.deepcopy(source_config)
         cfg.setdefault("model", {}).update({
@@ -315,42 +432,58 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
             "is_causal": True, "use_reliability_head": model.use_reliability_head,
         })
         cfg["paradigm"] = "ar"
-        cfg["posttrain"] = {"method": method, "source_checkpoint": str(checkpoint_path), "step": step, "backend": "mlx"}
+        cfg["posttrain"] = {"method": method, "source_checkpoint": str(checkpoint_path), "step": step, "backend": "mlx", "options": options}
         (out_dir / "config.json").write_text(json.dumps(cfg, indent=2, default=str), encoding="utf-8")
         return path
 
-    value_and_grad = mx.value_and_grad(_mlx_loss)
-    for step in range(session.step + 1, max_steps + 1):
-        batch = randomizer.choices(records, k=batch_size)
-        if method == "sft":
-            ids, labels = _collate(batch, tokenizer, max_length, torch.device("cpu"))
-            ids, labels = mx.array(ids.numpy(), dtype=mx.int32), mx.array(labels.numpy(), dtype=mx.int32)
-            loss, grads = value_and_grad(model, ids, labels)
-        else:
-            chosen = [{"prompt": row["prompt"], "response": row["chosen"]} for row in batch]
-            rejected = [{"prompt": row["prompt"], "response": row["rejected"]} for row in batch]
-            cids, clabels = _collate(chosen, tokenizer, max_length, torch.device("cpu"))
-            rids, rlabels = _collate(rejected, tokenizer, max_length, torch.device("cpu"))
-            cids, clabels = mx.array(cids.numpy(), dtype=mx.int32), mx.array(clabels.numpy(), dtype=mx.int32)
-            rids, rlabels = mx.array(rids.numpy(), dtype=mx.int32), mx.array(rlabels.numpy(), dtype=mx.int32)
-            ref_c, ref_r = _mlx_logps(reference, cids, clabels), _mlx_logps(reference, rids, rlabels)
-            mx.eval(ref_c, ref_r)
+    prepared = _prepare_records(records, tokenizer, max_length, method)
+    fixed = options["padding"] != "batch"
 
-            def dpo_loss(active_model, chosen_ids, chosen_labels, rejected_ids, rejected_labels, ref_chosen, ref_rejected):
-                c_logps = _mlx_logps(active_model, chosen_ids, chosen_labels)
-                r_logps = _mlx_logps(active_model, rejected_ids, rejected_labels)
-                preference_margin = beta * ((c_logps - r_logps) - (ref_chosen - ref_rejected))
-                log_sigmoid = -mx.maximum(-preference_margin, 0.0) - mx.log1p(mx.exp(-mx.abs(preference_margin)))
-                return -mx.mean(log_sigmoid)
+    def dpo_loss(active_model, ids, labels, ref_chosen, ref_rejected):
+        c_logps, r_logps = mx.split(_mlx_logps(active_model, ids, labels), 2)
+        margin = beta * ((c_logps - r_logps) - (ref_chosen - ref_rejected))
+        return mx.mean(mx.maximum(-margin, 0.0) + mx.log1p(mx.exp(-mx.abs(margin))))
 
-            loss, grads = mx.value_and_grad(dpo_loss)(model, cids, clabels, rids, rlabels, ref_c, ref_r)
+    loss_fn = _mlx_loss if method == "sft" else dpo_loss
+    value_and_grad = nn.value_and_grad(model, loss_fn)
+    optimizer.init(master_params if master_params is not None else model.trainable_parameters())
+    state = [model.state, optimizer.state, mx.random.state]
+    if master_params is not None:
+        state.append(master_params)
+
+    def update(*args):
+        loss, grads = value_and_grad(model, *args)
         if master_params is not None:
-            master_params = optimizer.apply_gradients(grads, master_params)
+            master_params.update(optimizer.apply_gradients(grads, master_params))
             model.update(tree_map(lambda value: value.astype(mx.bfloat16), master_params))
-            optimizer.master_params = master_params
         else:
             optimizer.update(model, grads)
-        mx.eval(model.parameters(), optimizer.state, loss)
+        return loss
+
+    step_fn = mx.compile(update, inputs=state, outputs=state) if options["compile_step"] else update
+    ref_cache = {}
+    for step in range(session.step + 1, max_steps + 1):
+        batch = randomizer.choices(prepared, k=batch_size)
+        rows = _response_rows(batch, "response") if method == "sft" else (
+            _response_rows(batch, "chosen") + _response_rows(batch, "rejected"))
+        ids, labels = _collate(rows, tokenizer, max_length, torch.device("cpu"), fixed=fixed)
+        ids, labels = mx.array(ids.numpy(), dtype=mx.int32), mx.array(labels.numpy(), dtype=mx.int32)
+        if method == "sft":
+            loss = step_fn(ids, labels)
+        else:
+            key = tuple(tuple(row["_encoded"][0]) + tuple(row["_encoded"][1]) for row in rows)
+            if not options["cache_reference"] or key not in ref_cache:
+                ref = _mlx_logps(reference, ids, labels)
+                mx.eval(ref)
+                # Cache at most the requested number of batches; device memory stays bounded.
+                if options["cache_reference"] and len(ref_cache) < options["reference_cache_size"]:
+                    ref_cache[key] = ref
+            else:
+                ref = ref_cache[key]
+            ref_c, ref_r = mx.split(ref, 2)
+            loss = step_fn(ids, labels, ref_c, ref_r)
+        mx.eval(model.trainable_parameters(), optimizer.state, loss,
+                master_params if master_params is not None else [])
         if step == 1 or step % 10 == 0 or step == max_steps:
             print(f"[{method.upper()}/MLX] step {step}/{max_steps} loss={loss.item():.4f}", flush=True)
         if save_every and step % save_every == 0 and step != max_steps:
@@ -404,12 +537,19 @@ def _xla_posttrain_worker(index, arguments):
     model_config = source_config.get("model", source_config)
     model.config.max_seq_len = int(model_config.get("max_seq_len", model_config.get("seq_len", model.config.max_seq_len)))
     model.config.is_causal = True
+    options = arguments["options"]
+    # Every rank must start with identical LoRA factors before reducing gradients.
+    torch.manual_seed(arguments["seed"])
+    _apply_adapters(model, options, "xla")
+    torch.manual_seed(arguments["seed"] + rank)
     model.to(device)
+    amp_dtype = _torch_precision(device, options["precision"])
+    model.train()
     reference = copy.deepcopy(model).eval() if arguments["method"] == "dpo" else None
     if reference is not None:
         for parameter in reference.parameters():
             parameter.requires_grad_(False)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=arguments["learning_rate"])
+    optimizer = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad), lr=arguments["learning_rate"])
     tokenizer = load_tokenizer(arguments["tokenizer"])
     records = _read_records(arguments["data"], arguments["method"])
     randomizer = random.Random(arguments["seed"])
@@ -417,7 +557,7 @@ def _xla_posttrain_worker(index, arguments):
     batch_size = arguments["batch_size"]
     out_dir = Path(arguments["output"])
     session = PosttrainResume(arguments.get('resume'), 'xla', records, tokenizer,
-        {k: arguments[k] for k in ('method', 'max_steps', 'batch_size', 'learning_rate', 'beta', 'max_length', 'seed')},
+        {k: arguments[k] for k in ('method', 'max_steps', 'batch_size', 'learning_rate', 'beta', 'max_length', 'seed', 'options')},
         rank=rank, world_size=world_size)
     session.restore(model, optimizer, reference, randomizer)
     output_collision = False
@@ -439,6 +579,7 @@ def _xla_posttrain_worker(index, arguments):
                 "n_layers": model.config.n_layers, "n_heads": model.config.n_heads,
                 "n_kv_heads": model.config.n_kv_heads,
                 "max_seq_len": model.config.max_seq_len, "is_causal": True,
+                "packed_projections": model.config.packed_projections,
                 "use_reliability_head": model.reliability_head is not None,
             })
             config["paradigm"] = "ar"
@@ -449,43 +590,60 @@ def _xla_posttrain_worker(index, arguments):
             path = out_dir / ("checkpoint_final.pt" if final else f"checkpoint_step_{step}.pt")
             _atomic_torch_save({
                 "global_step": step,
-                "model_state_dict": _to_cpu(model.state_dict()),
+                "model_state_dict": _export_torch(model),
                 "optimizer_state_dict": _to_cpu(optimizer.state_dict()),
                 "config": config,
             }, path)
+            _save_torch_adapter(model, path, options)
             (out_dir / "config.json").write_text(json.dumps(config, indent=2, default=str), encoding="utf-8")
             print(f"Saved XLA post-trained checkpoint: {path}", flush=True)
         resume_path = out_dir / ("checkpoint_final.resume.pt" if final else f"checkpoint_step_{step}.resume.pt")
         session.save(resume_path, model, optimizer, step, reference, randomizer)
         xm.rendezvous(f"telos_posttrain_save_{step}_done")
 
+    prepared = _prepare_records(records, tokenizer, max_length, arguments["method"])
+    ref_cache = {}
     for step in range(session.step + 1, arguments["max_steps"] + 1):
         xm.set_rng_state(arguments["seed"] + step * world_size + rank)
-        global_batch = randomizer.choices(records, k=batch_size * world_size)
+        global_batch = randomizer.choices(prepared, k=batch_size * world_size)
         local_batch = global_batch[rank * batch_size:(rank + 1) * batch_size]
         optimizer.zero_grad(set_to_none=True)
-        if arguments["method"] == "sft":
-            ids, labels = _collate(local_batch, tokenizer, max_length, device)
-            logits = model(ids, mask_override=True)[:, :-1].float()
-            loss = F.cross_entropy(logits.reshape(-1, logits.shape[-1]), labels[:, 1:].reshape(-1), ignore_index=-100)
-        else:
-            chosen = [{"prompt": row["prompt"], "response": row["chosen"]} for row in local_batch]
-            rejected = [{"prompt": row["prompt"], "response": row["rejected"]} for row in local_batch]
-            cids, clabels = _collate(chosen, tokenizer, max_length, device)
-            rids, rlabels = _collate(rejected, tokenizer, max_length, device)
-            with torch.no_grad():
-                ref_c, ref_r = _sequence_logps(reference, cids, clabels), _sequence_logps(reference, rids, rlabels)
-            pi_c, pi_r = _sequence_logps(model, cids, clabels), _sequence_logps(model, rids, rlabels)
-            loss = -F.logsigmoid(arguments["beta"] * ((pi_c - pi_r) - (ref_c - ref_r))).mean()
+        method = arguments["method"]
+        rows = _response_rows(local_batch, "response") if method == "sft" else (
+            _response_rows(local_batch, "chosen") + _response_rows(local_batch, "rejected"))
+        ids, labels = _collate(rows, tokenizer, max_length, device, fixed=True)
+        with _autocast(device, amp_dtype):
+            if method == "sft":
+                logits = model(ids, mask_override=True, next_token_only=True).float()
+                loss = _sft_loss(logits, labels, device, world_size)
+            else:
+                key = tuple(tuple(row["_encoded"][0]) + tuple(row["_encoded"][1]) for row in rows)
+                if not options["cache_reference"] or key not in ref_cache:
+                    with torch.no_grad():
+                        ref = _sequence_logps(reference, ids, labels)
+                    # Materialize outside the policy graph, avoiding its recomputation.
+                    xm.mark_step()
+                    if options["cache_reference"] and len(ref_cache) < options["reference_cache_size"]:
+                        ref_cache[key] = ref.detach()
+                else:
+                    ref = ref_cache[key]
+                policy = _sequence_logps(model, ids, labels)
+                ref_c, ref_r = ref.chunk(2)
+                pi_c, pi_r = policy.chunk(2)
+                loss = -F.logsigmoid(arguments["beta"] * ((pi_c - pi_r) - (ref_c - ref_r))).mean()
         loss.backward()
         xm.reduce_gradients(optimizer)
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        torch.nn.utils.clip_grad_norm_((p for p in model.parameters() if p.requires_grad), 1.0)
         optimizer.step()
+        log_step = step == 1 or step % 10 == 0 or step == arguments["max_steps"]
+        if log_step:
+            # Identical collective order on every rank; no host loss read on other updates.
+            mean_loss = xm.all_reduce(xm.REDUCE_SUM, loss.detach()) / world_size
         xm.mark_step()
-        mean_loss = xm.all_reduce(xm.REDUCE_SUM, loss.detach()) / world_size
-        mean_loss_value = mean_loss.item()
-        if rank == 0 and (step == 1 or step % 10 == 0 or step == arguments["max_steps"]):
-            print(f"[{arguments['method'].upper()}/XLA] step {step}/{arguments['max_steps']} loss={mean_loss_value:.4f} ranks={world_size}", flush=True)
+        if log_step:
+            mean_loss_value = mean_loss.item()
+            if rank == 0:
+                print(f"[{method.upper()}/XLA] step {step}/{arguments['max_steps']} loss={mean_loss_value:.4f} ranks={world_size}", flush=True)
         if arguments["save_every"] and step % arguments["save_every"] == 0 and step != arguments["max_steps"]:
             save(step)
     save(arguments["max_steps"], final=True)
@@ -504,7 +662,7 @@ def _posttrain_xla(arguments):
     return Path(arguments["output"]) / "checkpoint_final.pt"
 
 
-def posttrain(
+def _posttrain(
     checkpoint: str | Path,
     data: str | Path,
     output: str | Path,
@@ -521,17 +679,41 @@ def posttrain(
     save_every: int = 250,
     seed: int = 42,
     resume: str | Path | None = None,
+    finetune: str = "full",
+    lora_rank: int = 16,
+    lora_alpha: float = 32.0,
+    lora_dropout: float = 0.0,
+    lora_targets: list[str] | str | None = None,
+    precision: str = "auto",
+    compile_step: bool = True,
+    padding: str = "auto",
+    cache_reference: bool = True,
+    reference_cache_size: int = 128,
 ) -> Path:
-    """Run full-parameter SFT or DPO and write a native Telos checkpoint."""
+    """Run full, LoRA or quantized LoRA SFT/DPO and export a native checkpoint."""
     method = method.lower()
     if method not in {"sft", "dpo"}:
         raise ValueError("method must be 'sft' or 'dpo'")
     if max_steps < 1 or batch_size < 1 or learning_rate <= 0 or beta <= 0 or save_every < 0:
         raise ValueError("steps, batch size, learning rate, beta, and save cadence must be valid positive values")
 
+    options = _adapter_options(finetune, lora_rank, lora_alpha, lora_dropout, lora_targets)
+    if padding not in {"auto", "batch", "fixed"}:
+        raise ValueError("padding must be auto, batch or fixed")
+    if precision not in {"auto", "float32", "bf16", "fp16"} or reference_cache_size < 0:
+        raise ValueError("Invalid precision or reference cache size")
+    options.update(precision=precision, compile_step=compile_step, padding=padding,
+                   cache_reference=cache_reference, reference_cache_size=reference_cache_size)
     checkpoint_path = _checkpoint_file(checkpoint)
+    digest = hashlib.sha256()
+    with checkpoint_path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    options["base_sha256"] = digest.hexdigest()
+    options["base_checkpoint"] = str(checkpoint_path.resolve())
     source_config = _checkpoint_config(checkpoint_path)
     backend_name = _resolve_backend(hardware)
+    options["quantization"] = "affine_int4_group64" if backend_name == "mlx" and finetune == "qlora" else ("nf4_block64" if finetune == "qlora" else None)
     print(f"[POSTTRAIN] method={method.upper()} backend={backend_name}", flush=True)
     if devices != "auto" and int(devices) < 1:
         raise ValueError("devices must be 'auto' or a positive integer")
@@ -560,6 +742,7 @@ def posttrain(
             "batch_size": batch_size, "learning_rate": learning_rate, "beta": beta,
             "max_length": max_length or int(model_config.get("max_seq_len", model_config.get("seq_len", 512))),
             "save_every": save_every, "seed": seed, "resume": str(resume) if resume else None,
+            "options": options,
         }
         return _posttrain_xla(arguments)
 
@@ -593,7 +776,7 @@ def posttrain(
         records = _read_records(data, method)
         out_dir = Path(output)
         out_dir.mkdir(parents=True, exist_ok=True)
-        if (out_dir / "model.safetensors").exists() or any(out_dir.glob("checkpoint_step_*.safetensors")):
+        if resume is None and ((out_dir / "model.safetensors").exists() or any(out_dir.glob("checkpoint_step_*.safetensors"))):
             raise FileExistsError(f"Output directory already contains MLX checkpoints: {out_dir}")
         if backend != "mlx" and backend != "pytorch":
             raise ValueError(f"MLX post-training cannot load checkpoint backend {backend!r}")
@@ -601,7 +784,7 @@ def posttrain(
             model, backend, checkpoint_path, source_config, records, tokenizer, out_dir,
             method=method, max_steps=max_steps, batch_size=batch_size,
             learning_rate=learning_rate, beta=beta, max_length=max_length,
-            save_every=save_every, seed=seed, resume=resume,
+            save_every=save_every, seed=seed, resume=resume, options=options,
         )
 
     if backend != "pytorch":
@@ -610,8 +793,13 @@ def posttrain(
         raise RuntimeError("CUDA was requested but is not available")
     model.config.max_seq_len = configured_length
     model.config.is_causal = True
-    device = torch.device("cuda:0" if backend_name == "cuda" else "cpu")
-    model.to(device)
+    ddp = backend_name == "cuda" and torch.distributed.is_initialized()
+    rank = torch.distributed.get_rank() if ddp else 0
+    world_size = torch.distributed.get_world_size() if ddp else 1
+    device = torch.device(f"cuda:{int(os.environ.get('LOCAL_RANK', 0))}" if backend_name == "cuda" else "cpu")
+    if ddp and devices != "auto" and int(devices) != world_size:
+        raise ValueError("Requested devices must match the torchrun world size")
+    # Adapt on CPU so NF4 quantization never synchronizes the training accelerator.
 
     data_config = source_config.get("data", {}) or {}
     tokenizer_ref = tokenizer_path or data_config.get("tokenizer")
@@ -630,12 +818,19 @@ def posttrain(
     if device.type == "cuda":
         torch.cuda.manual_seed_all(seed)
 
+    _apply_adapters(model, options, backend_name)
+    model.to(device)
+    amp_dtype = _torch_precision(device, precision)
     reference = None
     if method == "dpo":
         reference = copy.deepcopy(model).eval()
         for parameter in reference.parameters():
             parameter.requires_grad_(False)
-    if backend_name == "cuda":
+    if ddp:
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[device.index])
+        # Frozen reference has no gradient synchronization and stays rank-local.
+        device_ids = [device.index]
+    elif backend_name == "cuda":
         device_ids = _cuda_device_ids(devices, torch.cuda.device_count())
         if len(device_ids) > 1:
             model = _CudaParallelModel(model, device_ids=device_ids)
@@ -643,72 +838,124 @@ def posttrain(
                 reference = _CudaParallelModel(reference, device_ids=device_ids)
             batch_size *= len(device_ids)
     model.train()
-    optimizer = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad), lr=learning_rate)
+    optimizer = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad), lr=learning_rate,
+                                  **({"fused": True} if device.type == "cuda" else {}))
+    scaler = torch.amp.GradScaler("cuda", enabled=device.type == "cuda" and amp_dtype == torch.float16)
     out_dir = Path(output)
     out_dir.mkdir(parents=True, exist_ok=True)
     final_path = out_dir / "checkpoint_final.pt"
     if final_path.resolve() == checkpoint_path.resolve():
         raise ValueError("Output checkpoint must not overwrite the starting checkpoint")
-    if resume is None and (final_path.exists() or any(out_dir.glob("checkpoint_step_*.pt"))):
+    collision = resume is None and (final_path.exists() or any(out_dir.glob("checkpoint_step_*.pt")))
+    if ddp:
+        flag = torch.tensor(int(collision), device=device)
+        torch.distributed.all_reduce(flag, op=torch.distributed.ReduceOp.MAX)
+        collision = bool(flag.item())
+    if collision:
         raise FileExistsError(f"Output directory already contains checkpoints: {out_dir}")
 
+    randomizer = random.Random(seed)
     session = PosttrainResume(resume, backend_name, records, tokenizer,
         dict(method=method, max_steps=max_steps, batch_size=batch_size, learning_rate=learning_rate,
-             beta=beta, max_length=max_length, seed=seed),
-        world_size=len(device_ids) if backend_name == "cuda" else 1)
-    session.restore(model, optimizer, reference)
+             beta=beta, max_length=max_length, seed=seed, options=options),
+        rank=rank, world_size=world_size if ddp else (len(device_ids) if backend_name == "cuda" else 1))
+    if ddp:
+        torch.manual_seed(seed + rank)
+        torch.cuda.manual_seed_all(seed + rank)
+    session.restore(model, optimizer, reference, randomizer, scaler=scaler)
 
     def save(step: int, final: bool = False):
         output_path = out_dir / ("checkpoint_final.pt" if final else f"checkpoint_step_{step}.pt")
+        backbone = getattr(model, "module", model)
         saved_config = copy.deepcopy(source_config)
         saved_config.setdefault("model", {}).update({
-            "vocab_size": model.config.vocab_size,
-            "d_model": model.config.d_model,
-            "n_layers": model.config.n_layers,
-            "n_heads": model.config.n_heads,
-            "n_kv_heads": model.config.n_kv_heads,
-            "max_seq_len": model.config.max_seq_len,
+            "vocab_size": backbone.config.vocab_size,
+            "d_model": backbone.config.d_model,
+            "n_layers": backbone.config.n_layers,
+            "n_heads": backbone.config.n_heads,
+            "n_kv_heads": backbone.config.n_kv_heads,
+            "max_seq_len": backbone.config.max_seq_len,
+            "packed_projections": backbone.config.packed_projections,
             "is_causal": True,
-            "use_reliability_head": model.reliability_head is not None,
+            "use_reliability_head": backbone.reliability_head is not None,
         })
         saved_config["paradigm"] = "ar"
-        _atomic_torch_save({
-            "global_step": step,
-            "model_state_dict": {key: value.detach().cpu() for key, value in getattr(model, "module", model).state_dict().items()},
-            "optimizer_state_dict": optimizer.state_dict(),
-            "config": saved_config,
-            "posttrain": {"method": method, "source_checkpoint": str(checkpoint_path), "step": step},
-        }, output_path)
-        session.save(output_path.with_suffix('.resume.pt'), model, optimizer, step, reference)
+        if ddp:
+            torch.distributed.barrier()
+        if rank == 0:
+            _atomic_torch_save({
+                "global_step": step,
+                "model_state_dict": _export_torch(model),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "config": saved_config,
+                "posttrain": {"method": method, "source_checkpoint": str(checkpoint_path), "step": step, "options": options},
+            }, output_path)
+            _save_torch_adapter(model, output_path, options)
+        session.save(output_path.with_suffix('.resume.pt'), model, optimizer, step, reference, randomizer, scaler=scaler)
+        if ddp:
+            torch.distributed.barrier()
         return output_path
 
+    prepared = _prepare_records(records, tokenizer, max_length, method)
+    fixed = padding == "fixed" or (padding == "auto" and compile_step and device.type == "cuda")
+    active_model = torch.compile(model) if compile_step and device.type == "cuda" else model
+    ref_cache = {}
     for step in range(session.step + 1, max_steps + 1):
-        batch = random.choices(records, k=batch_size)
+        global_batch = randomizer.choices(prepared, k=batch_size * world_size)
+        batch = global_batch[rank * batch_size:(rank + 1) * batch_size]
         optimizer.zero_grad(set_to_none=True)
-        if method == "sft":
-            input_ids, labels = _collate(batch, tokenizer, max_length, device)
-            logits = model(input_ids, mask_override=True)[:, :-1].float()
-            loss = F.cross_entropy(logits.reshape(-1, logits.shape[-1]), labels[:, 1:].reshape(-1), ignore_index=-100)
-        else:
-            chosen = [{"prompt": row["prompt"], "response": row["chosen"]} for row in batch]
-            rejected = [{"prompt": row["prompt"], "response": row["rejected"]} for row in batch]
-            chosen_ids, chosen_labels = _collate(chosen, tokenizer, max_length, device)
-            rejected_ids, rejected_labels = _collate(rejected, tokenizer, max_length, device)
-            with torch.no_grad():
-                ref_chosen = _sequence_logps(reference, chosen_ids, chosen_labels)
-                ref_rejected = _sequence_logps(reference, rejected_ids, rejected_labels)
-            policy_chosen = _sequence_logps(model, chosen_ids, chosen_labels)
-            policy_rejected = _sequence_logps(model, rejected_ids, rejected_labels)
-            logits = beta * ((policy_chosen - policy_rejected) - (ref_chosen - ref_rejected))
-            loss = -F.logsigmoid(logits).mean()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        optimizer.step()
-        if step == 1 or step % 10 == 0 or step == max_steps:
+        rows = _response_rows(batch, "response") if method == "sft" else (
+            _response_rows(batch, "chosen") + _response_rows(batch, "rejected"))
+        input_ids, labels = _collate(rows, tokenizer, max_length, device, fixed=fixed)
+        with _autocast(device, amp_dtype):
+            if method == "sft":
+                logits = active_model(input_ids, mask_override=True, next_token_only=True).float()
+                loss = _sft_loss(logits, labels, device, world_size)
+            else:
+                key = tuple(tuple(row["_encoded"][0]) + tuple(row["_encoded"][1]) for row in rows)
+                if not cache_reference or key not in ref_cache:
+                    with torch.no_grad():
+                        ref = _sequence_logps(reference, input_ids, labels)
+                    if cache_reference and len(ref_cache) < reference_cache_size:
+                        ref_cache[key] = ref.detach()
+                else:
+                    ref = ref_cache[key]
+                policy = _sequence_logps(active_model, input_ids, labels)
+                ref_chosen, ref_rejected = ref.chunk(2)
+                policy_chosen, policy_rejected = policy.chunk(2)
+                logits = beta * ((policy_chosen - policy_rejected) - (ref_chosen - ref_rejected))
+                loss = -F.logsigmoid(logits).mean()
+        scaler.scale(loss).backward()
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_((p for p in model.parameters() if p.requires_grad), 1.0)
+        scaler.step(optimizer)
+        scaler.update()
+        if rank == 0 and (step == 1 or step % 10 == 0 or step == max_steps):
             print(f"[{method.upper()}] step {step}/{max_steps} loss={loss.item():.4f}", flush=True)
         if save_every and step % save_every == 0 and step != max_steps:
             save(step)
 
     result = save(max_steps, final=True)
-    print(f"Saved post-trained checkpoint: {result}", flush=True)
+    if rank == 0:
+        print(f"Saved post-trained checkpoint: {result}", flush=True)
     return result
+
+
+def posttrain(*args, **kwargs):
+    """SFT/DPO entry point; torchrun owns one CUDA device per process."""
+    owned_group = False
+    distributed = int(os.environ.get("WORLD_SIZE", "1")) > 1 and "LOCAL_RANK" in os.environ
+    if distributed:
+        backend = _resolve_backend(kwargs.get("hardware", "auto"))
+        if backend != "cuda":
+            raise ValueError("torchrun post-training requires the CUDA backend; XLA uses its native launcher")
+        import torch.distributed as dist
+        torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
+        if not dist.is_initialized():
+            dist.init_process_group("nccl")
+            owned_group = True
+    try:
+        return _posttrain(*args, **kwargs)
+    finally:
+        if owned_group:
+            torch.distributed.destroy_process_group()

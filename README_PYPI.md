@@ -74,6 +74,8 @@ telos afm status
 
 For preference optimization, use `telos posttrain --method dpo` with JSONL records containing `prompt`, `chosen`, and `rejected` strings. Select `--hardware mlx`, `cuda`, `xla`, or `cpu`; Apple Silicon post-training uses MLX rather than PyTorch MPS. `telos train` remains an alias for `telos pretrain`.
 
+With v1.7.0, add `--finetune lora` or `--finetune qlora` for adapter training. Configure `--lora-rank`, `--lora-alpha`, `--lora-dropout` and `--lora-targets`. Saves include merged native weights, adapter-only weights and complete resume state. PyTorch QLoRA uses portable packed NF4; MLX uses native affine int4. Embeddings/output heads remain unquantized; double quantization and paged optimizers are not implemented. CUDA/TPU hardware validation is still required. See the repository README for distributed training and precision options.
+
 ---
 
 ### 2. Python API

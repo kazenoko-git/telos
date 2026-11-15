@@ -5,6 +5,30 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-11-15
+
+### Added
+- Native LoRA and QLoRA SFT/DPO on PyTorch and MLX, with adapter-only artifacts, merged native exports, base-checkpoint hashes and complete resume state. PyTorch uses portable packed NF4; MLX uses grouped affine int4. Double quantization and paged optimizers are not included.
+- CUDA post-training mixed precision, FP16 scaler resume, fused AdamW, optional compilation and torchrun DDP with per-rank resume artifacts.
+- Opt-in PyTorch packed QKV/SwiGLU projections and checkpointed tiled AR vocabulary loss; canonical checkpoint keys remain compatible.
+- Integrate the existing opt-in MLX QKV/RoPE kernel and its gradient/update checks.
+- Fresh-process synthetic post-training benchmark runner with source hashes.
+
+### Changed
+- Pretokenize post-training records, collate batches on CPU, concatenate DPO pairs, and bound frozen-reference caching.
+- Compile MLX post-training updates and use class-index cross entropy instead of materializing FP32 log-softmax intermediates.
+- Use fixed XLA post-training shapes, read loss only at logging cadence, and keep distributed SFT normalization token-weighted.
+- Use event-controlled CUDA prefetch with reusable pinned staging, native CUDA GQA, explicit activation-checkpointing policies, and configurable XLA cleanup cadence.
+
+### Fixed
+- Fence benchmark updates on CUDA, MLX and XLA; exclude warmup and use slowest-rank timing for distributed reporting/stopping. Label input-token units and insufficient-sample reports.
+- Preserve native checkpoint attention-head configuration, maximum context and tied-embedding settings during loading.
+- Update isolated MLX accumulation experiments for the production step-hook signature.
+- Allow same-directory MLX post-training resume; select checkpoint steps numerically and exclude adapter/resume sidecars.
+
+### Validation
+- CPU and Metal validation only; CUDA/TPU hardware, distributed execution and sustained convergence remain unverified. See the release validation report for exact results and reproduced baseline failures.
+
 ## [1.6.2] - 2026-11-15
 
 ### Added
