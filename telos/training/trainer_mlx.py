@@ -119,51 +119,49 @@ class UnifiedMLXTrainer:
             self.model.use_master_weights = True
             print("  [Precision] MLX weights cast to bfloat16 (maintaining fp32 master weights).")
 
-        # Auto-enable gradient checkpointing when estimated working set exceeds memory budget
         from mlx.utils import tree_flatten
+        from .mlx_memory import GIB, plan_training_batch, training_memory_budget
+
+        info = mx.device_info()
+        cap_gb = float(self.t_cfg.get("autotune_memory_gb", 0))
+        self.memory_budget = training_memory_budget(
+            int(self.hw_profile.total_memory_gb * GIB),
+            recommended_bytes=info.get("max_recommended_working_set_size"),
+            limit_bytes=int(cap_gb * GIB) if cap_gb > 0 else None,
+        )
+        configured_bs = int(self.t_cfg.get("batch_size", 16))
+        configured_accum = int(self.t_cfg.get("gradient_accumulation", 1))
+        if min(configured_bs, configured_accum) < 1:
+            raise ValueError("batch_size and gradient_accumulation must be positive")
+        requested_chkpt = bool(self.t_cfg.get("gradient_checkpointing", False)
+                               or self.m_cfg.get("use_grad_checkpoint", False)
+                               or getattr(self.model, "use_grad_checkpoint", False))
         param_count = sum(p.size for _, p in tree_flatten(self.model.parameters()))
-        # 16 bytes/param: 2 (bf16 model) + 4 (fp32 master) + 4 (Adam m) + 4 (Adam v) + 2 (grads)
-        static_mem_gb = (param_count * 16.0) / (1024 ** 3)
-        bs_est = int(self.t_cfg.get("batch_size", 16))
-        d_model_est = self.m_cfg.get("d_model", 512)
-        n_layers_est = self.m_cfg.get("n_layers", 12)
-        # Empirical activation memory estimate for non-checkpointed transformer
-        act_mem_gb = (n_layers_est * bs_est * self.seq_len * d_model_est * 16.0) / (1024 ** 3)
-        working_set_gb = static_mem_gb + act_mem_gb
-        # Apple Silicon unified memory tiers:
-        # 1/3 at <=24GB, 1/2 at 32GB, 3/4 at 64GB, 81.25% at 128GB
-        tot_gb = self.hw_profile.total_memory_gb
-        if tot_gb <= 24.0:
-            mem_frac = 1.0 / 3.0
-        elif tot_gb <= 36.0:
-            mem_frac = 0.50
-        elif tot_gb <= 72.0:
-            mem_frac = 0.75
-        else:
-            mem_frac = 0.8125
-
-        mem_budget_gb = tot_gb * mem_frac
-
-        # Set resident wired memory limit via Metal API to control active wired allocations
+        self.memory_plan = plan_training_batch(
+            param_count, self.m_cfg, configured_bs * configured_accum,
+            self.memory_budget, checkpointing=requested_chkpt,
+        )
+        plan = self.memory_plan
+        self.t_cfg["batch_size"] = plan["batch_size"]
+        self.t_cfg["gradient_accumulation"] = plan["grad_accum"]
+        self.t_cfg["gradient_checkpointing"] = plan["checkpointing"]
+        self.m_cfg["use_grad_checkpoint"] = plan["checkpointing"]
+        self.model.use_grad_checkpoint = plan["checkpointing"]
+        self.auto_enabled_checkpointing = plan["checkpointing"] and not requested_chkpt
+        self.t_cfg["memory_plan"] = dict(plan)
+        # MLX limits are advisory. Both estimates and measured tuning reserve
+        # headroom inside the same ceiling; neither is an OS allocation cap.
+        mx.set_memory_limit(self.memory_budget.allocation_bytes)
         set_wired_fn = getattr(mx, "set_wired_limit", getattr(getattr(mx, "metal", None), "set_wired_limit", None))
         if set_wired_fn is not None:
             try:
-                set_wired_fn(int(mem_budget_gb * (1024 ** 3)))
+                set_wired_fn(self.memory_budget.ceiling_bytes)
             except Exception as e:
-                print(f"  [Memory Notice] Could not set Metal wired memory limit ({e}). System limit can be increased via 'sudo sysctl iogpu.wired_limit_mb=...'.")
-
-        auto_chkpt = working_set_gb > mem_budget_gb
-
-        requested_chkpt = (self.t_cfg.get("gradient_checkpointing", False)
-                           or self.m_cfg.get("use_grad_checkpoint", False)
-                           or getattr(self.model, "use_grad_checkpoint", False))
-        self.auto_enabled_checkpointing = auto_chkpt and not requested_chkpt
-        if requested_chkpt or auto_chkpt:
-            self.model.use_grad_checkpoint = True
-            if self.auto_enabled_checkpointing:
-                print(f"  [Memory] Auto-enabled gradient checkpointing (Estimated: {working_set_gb:.2f}GB > Budget: {mem_budget_gb:.2f}GB).")
-            else:
-                print("  [Memory] Gradient Checkpointing Enabled.")
+                print(f"  [Memory Notice] Could not set Metal wired memory limit ({e}).")
+        print(f"  [Memory] BS={plan['batch_size']}, accum={plan['grad_accum']}, "
+              f"checkpoint={plan['checkpointing']}; estimated peak {plan['estimated_peak_bytes'] / GIB:.2f} GiB "
+              f"+ {self.memory_budget.headroom_bytes / GIB:.2f} GiB headroom "
+              f"<= {self.memory_budget.ceiling_bytes / GIB:.2f} GiB ceiling (at most 60% RAM).")
 
         # Device-resident pre-sampled Beta(1.5, 1.5) buffer to eliminate per-microbatch CPU RNG & transfers
         if self.paradigm in ["mdlm", "undlm"]:

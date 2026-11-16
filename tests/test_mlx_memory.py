@@ -48,3 +48,20 @@ def test_explicit_checkpointing_stays_enabled_and_invalid_batches_fail():
     assert plan_training_batch(10000, MODEL, 7, budget, checkpointing=True)['checkpointing']
     with pytest.raises(ValueError):
         plan_training_batch(10000, MODEL, 0, budget)
+
+
+def test_trainer_applies_plan_without_changing_effective_batch():
+    mx = pytest.importorskip('mlx.core')
+    if not mx.metal.is_available():
+        pytest.skip('Metal required')
+    from telos.models.mlx_transformer import MLXTelosTransformer
+    from telos.training.trainer_mlx import UnifiedMLXTrainer
+
+    cfg = dict(model=dict(vocab_size=128, d_model=64, n_layers=1, n_heads=1,
+                          seq_len=16, is_causal=True),
+               training=dict(batch_size=2, gradient_accumulation=4))
+    trainer = UnifiedMLXTrainer('ar', MLXTelosTransformer(**cfg['model']), cfg)
+    assert cfg['training']['batch_size'] == 8
+    assert cfg['training']['gradient_accumulation'] == 1
+    assert trainer.memory_plan['effective_batch'] == 8
+    assert trainer.memory_plan['estimated_peak_bytes'] + GIB <= trainer.memory_budget.ceiling_bytes
