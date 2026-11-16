@@ -1,0 +1,108 @@
+[
+  {
+    "name": "t2048_0_native",
+    "trial_dir": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/full_attention_retry/t2048_0_native",
+    "mode": "native",
+    "length": 2048,
+    "valid": false,
+    "competition": [],
+    "metadata": {
+      "arguments": {
+        "params": "50M",
+        "d_model": null,
+        "n_layers": null,
+        "tokens": 2097152,
+        "seq_len": 2048,
+        "microbatch": 1,
+        "grad_accum": 8,
+        "data": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/corpus_prefix.bin",
+        "output": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/full_attention_retry/t2048_0_native",
+        "save_initial_weights": true,
+        "max_mlx_gib": 4.0,
+        "critical_memory_free_percent": 25,
+        "critical_swap_free_mib": 256.0,
+        "critical_swap_growth_mib": 512.0,
+        "stage_profile": false,
+        "fused_step": true,
+        "compile_microbatch": true,
+        "async_stage_eval": false,
+        "fused_vocab_loss": false,
+        "experimental_packed_swiglu": true,
+        "experimental_qkv_rope": false,
+        "compiled_accumulation": true,
+        "force_fused_attention": true,
+        "trim_ar_final_token": false,
+        "fused_vocab_chunk_size": 256,
+        "fused_vocab_chunk_axis": "vocab",
+        "vocab_size": 8192
+      },
+      "device": {
+        "device_name": "Apple M5 Pro",
+        "max_recommended_working_set_size": 19069665280,
+        "memory_size": 25769803776,
+        "architecture": "applegpu_g17s",
+        "max_buffer_length": 14302248960,
+        "resource_limit": 499000
+      },
+      "mlx_version": "0.32.4",
+      "mlx_module": "/private/tmp/telos-mlx-0.32.4/mlx/core.cpython-313-darwin.so",
+      "attention_backward_env": "0",
+      "commit": "2f0d3934a1ffef5c52470d0a2a677a768007882a",
+      "initial_system": {
+        "time": 1794849508.842327,
+        "swap_used_mb": 9800.44,
+        "swap_free_mb": 1463.5599999999995,
+        "memory_free_percent": 36,
+        "gpu_system": {
+          "Device Utilization %": 35,
+          "Renderer Utilization %": 35,
+          "Tiler Utilization %": 12,
+          "In use system memory": 1946959872
+        }
+      },
+      "pid": 89380,
+      "limitations": [
+        "GPU utilization is system-wide, including other applications.",
+        "No dedicated Neural Accelerator occupancy counter exposed in this session.",
+        "MLX memory limit is advisory; memory-pressure and swap-headroom guards stop at update boundaries."
+      ],
+      "actual_batch_size": 1,
+      "actual_grad_accum": 8,
+      "memory_plan": {
+        "batch_size": 1,
+        "grad_accum": 8,
+        "checkpointing": true,
+        "estimated_peak_bytes": 2829909197,
+        "effective_batch": 8,
+        "memory_ceiling_bytes": 4294967296,
+        "allocation_budget_bytes": 3221225472,
+        "headroom_bytes": 1073741824
+      },
+      "initial_weights_sha256": "b95399e433484c6b0b87d846f5a89cd136d68900592debadac9dd0123a466be3"
+    },
+    "summary": {
+      "status": "memory_guard_stopped",
+      "updates": 21,
+      "input_tokens_processed": 344064,
+      "wall_seconds": 15.333690833998844,
+      "errors": [
+        "Stopped at update boundary after the memory guard triggered"
+      ],
+      "final_system": {
+        "time": 1794849524.221028,
+        "swap_used_mb": 11216.94,
+        "swap_free_mb": 1071.0599999999995,
+        "memory_free_percent": 37,
+        "gpu_system": {
+          "Device Utilization %": 98,
+          "Renderer Utilization %": 96,
+          "Tiler Utilization %": 4,
+          "In use system memory": 2637561856
+        }
+      }
+    },
+    "warmup": 16,
+    "tokens_per_second": null,
+    "peak_mlx_bytes": 2133312984
+  }
+]

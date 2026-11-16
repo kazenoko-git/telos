@@ -1,0 +1,88 @@
+{
+  "arguments": {
+    "params": "50M",
+    "d_model": null,
+    "n_layers": null,
+    "tokens": 1572864,
+    "seq_len": 256,
+    "microbatch": 8,
+    "grad_accum": 8,
+    "data": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/corpus_prefix.bin",
+    "output": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/full_attention_steady/t256_1_fallback",
+    "save_initial_weights": true,
+    "max_mlx_gib": 4.0,
+    "critical_memory_free_percent": 25,
+    "critical_swap_free_mib": 256.0,
+    "critical_swap_growth_mib": 512.0,
+    "swap_growth_baseline_updates": 32,
+    "stage_profile": false,
+    "fused_step": true,
+    "compile_microbatch": true,
+    "async_stage_eval": false,
+    "fused_vocab_loss": false,
+    "experimental_packed_swiglu": true,
+    "experimental_qkv_rope": false,
+    "compiled_accumulation": true,
+    "force_fused_attention": true,
+    "trim_ar_final_token": false,
+    "fused_vocab_chunk_size": 256,
+    "fused_vocab_chunk_axis": "vocab",
+    "vocab_size": 8192
+  },
+  "device": {
+    "device_name": "Apple M5 Pro",
+    "max_recommended_working_set_size": 19069665280,
+    "memory_size": 25769803776,
+    "architecture": "applegpu_g17s",
+    "max_buffer_length": 14302248960,
+    "resource_limit": 499000
+  },
+  "mlx_version": "0.32.4",
+  "mlx_module": "/private/tmp/telos-mlx-0.32.4/mlx/core.cpython-313-darwin.so",
+  "attention_backward_env": "1",
+  "commit": "2f0d3934a1ffef5c52470d0a2a677a768007882a",
+  "initial_system": {
+    "time": 1794850287.81904,
+    "swap_used_mb": 11574.12,
+    "swap_free_mb": 713.8799999999992,
+    "memory_free_percent": 43,
+    "gpu_system": {
+      "Device Utilization %": 50,
+      "Renderer Utilization %": 50,
+      "Tiler Utilization %": 15,
+      "In use system memory": 1741389824
+    }
+  },
+  "pid": 92025,
+  "limitations": [
+    "GPU utilization is system-wide, including other applications.",
+    "No dedicated Neural Accelerator occupancy counter exposed in this session.",
+    "MLX memory limit is advisory; memory-pressure and swap-headroom guards stop at update boundaries."
+  ],
+  "actual_batch_size": 4,
+  "actual_grad_accum": 16,
+  "memory_plan": {
+    "batch_size": 4,
+    "grad_accum": 16,
+    "checkpointing": false,
+    "estimated_peak_bytes": 2848783565,
+    "effective_batch": 64,
+    "memory_ceiling_bytes": 4294967296,
+    "allocation_budget_bytes": 3221225472,
+    "headroom_bytes": 1073741824
+  },
+  "initial_weights_sha256": "b95399e433484c6b0b87d846f5a89cd136d68900592debadac9dd0123a466be3",
+  "swap_growth_baseline": {
+    "update": 32,
+    "time": 1794850305.4157598,
+    "swap_used_mb": 11550.12,
+    "swap_free_mb": 737.8799999999992,
+    "memory_free_percent": 37,
+    "gpu_system": {
+      "Device Utilization %": 89,
+      "Renderer Utilization %": 48,
+      "Tiler Utilization %": 1,
+      "In use system memory": 2544861184
+    }
+  }
+}

@@ -75,13 +75,20 @@ native gain over fallback was -45.5% at length 64, -22.8% at 256, -2.9% at 1024
 dimension 128 have different crossover behavior. These percentages describe
 the attention output-plus-VJP component only.
 
-The full-training ABBA confirmation was attempted on merged v1.7.4 code with
+The initial full-training ABBA confirmation was attempted on merged v1.7.4 code with
 the same 49M architecture, length 2048 and effective batch eight. The planner
 selected microbatch one, accumulation eight and checkpointing. Its first run
-hit the sustained swap-growth guard at update 22, so **no full-update speed
-claim or production dispatcher is promoted**. The native/fallback environment
+hit the sustained swap-growth guard at update 22, so no full-update speed
+claim was made at that stage. The native/fallback environment
 flag is changed only inside the single-threaded diagnostic or between fresh
 processes; production training does not mutate a process-wide flag by shape.
+
+The [subsequent full-training validation](FULL_ATTENTION_VALIDATION.md) completed
+all eight ABBA jobs with a fixed post-warmup swap baseline. It measured native
++76.9% at context 2048 and fallback +6.0% at 256 across two adjacent pairs per
+shape. Checkpoint tensors differ between modes despite close held-out CE; no
+automatic dispatcher or default is promoted. See that report for allocation,
+timing drift, numerical distances and the limits of these short-run checks.
 
 Raw data: [component samples and numerical errors](attention_shapes/results.json),
 [runtime/device metadata](attention_shapes/metadata.json), and

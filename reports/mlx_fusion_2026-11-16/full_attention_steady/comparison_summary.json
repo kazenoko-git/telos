@@ -1,0 +1,198 @@
+{
+  "initial_weights_sha256": "b95399e433484c6b0b87d846f5a89cd136d68900592debadac9dd0123a466be3",
+  "shapes": [
+    {
+      "length": 2048,
+      "memory_plan": {
+        "batch_size": 1,
+        "grad_accum": 8,
+        "checkpointing": true,
+        "estimated_peak_bytes": 2829909197,
+        "effective_batch": 8,
+        "memory_ceiling_bytes": 4294967296,
+        "allocation_budget_bytes": 3221225472,
+        "headroom_bytes": 1073741824
+      },
+      "rates": {
+        "native": [
+          20818.963045436743,
+          17776.58569647836
+        ],
+        "fallback": [
+          10135.021467327495,
+          11673.951117626537
+        ]
+      },
+      "paired_native_gain_percent": [
+        105.41607250217791,
+        52.275656436812
+      ],
+      "geometric_native_gain_percent": 76.86115255459836,
+      "runs": [
+        {
+          "name": "t2048_0_native",
+          "mode": "native",
+          "updates": 128,
+          "warmup": 32,
+          "tokens_per_second": 20818.963045436743,
+          "peak_mlx_gib": 2.130305763334036,
+          "half_window_tokens_per_second": [
+            22464.720652219166,
+            19397.881039958167
+          ],
+          "system_free_percent_min": 31,
+          "system_swap_free_mib_min": 1050.5599999999995,
+          "post_warmup_swap_growth_mib_max": 0,
+          "heldout_mean_ce": 6.303634241223335
+        },
+        {
+          "name": "t2048_1_fallback",
+          "mode": "fallback",
+          "updates": 128,
+          "warmup": 32,
+          "tokens_per_second": 10135.021467327495,
+          "peak_mlx_gib": 1.6329989144578576,
+          "half_window_tokens_per_second": [
+            8758.678484318394,
+            12024.567895653441
+          ],
+          "system_free_percent_min": 31,
+          "system_swap_free_mib_min": 1506.75,
+          "post_warmup_swap_growth_mib_max": 0,
+          "heldout_mean_ce": 6.304272294044495
+        },
+        {
+          "name": "t2048_2_fallback",
+          "mode": "fallback",
+          "updates": 128,
+          "warmup": 32,
+          "tokens_per_second": 11673.951117626537,
+          "peak_mlx_gib": 1.6835360238328576,
+          "half_window_tokens_per_second": [
+            11853.410560746366,
+            11499.84462716298
+          ],
+          "system_free_percent_min": 31,
+          "system_swap_free_mib_min": 1176.5599999999995,
+          "post_warmup_swap_growth_mib_max": 0,
+          "heldout_mean_ce": 6.304272294044495
+        },
+        {
+          "name": "t2048_3_native",
+          "mode": "native",
+          "updates": 128,
+          "warmup": 32,
+          "tokens_per_second": 17776.58569647836,
+          "peak_mlx_gib": 2.258199174888432,
+          "half_window_tokens_per_second": [
+            18129.716249487443,
+            17436.948864301467
+          ],
+          "system_free_percent_min": 28,
+          "system_swap_free_mib_min": 585.8799999999992,
+          "post_warmup_swap_growth_mib_max": 361.2400000000016,
+          "heldout_mean_ce": 6.303634241223335
+        }
+      ]
+    },
+    {
+      "length": 256,
+      "memory_plan": {
+        "batch_size": 4,
+        "grad_accum": 16,
+        "checkpointing": false,
+        "estimated_peak_bytes": 2848783565,
+        "effective_batch": 64,
+        "memory_ceiling_bytes": 4294967296,
+        "allocation_budget_bytes": 3221225472,
+        "headroom_bytes": 1073741824
+      },
+      "rates": {
+        "native": [
+          27673.87012743628,
+          28917.49023127728
+        ],
+        "fallback": [
+          28551.136378740066,
+          31493.07057588061
+        ]
+      },
+      "paired_native_gain_percent": [
+        -3.0726141322943046,
+        -8.17824460272183
+      ],
+      "geometric_native_gain_percent": -5.659962283015441,
+      "runs": [
+        {
+          "name": "t256_0_native",
+          "mode": "native",
+          "updates": 96,
+          "warmup": 32,
+          "tokens_per_second": 27673.87012743628,
+          "peak_mlx_gib": 1.2187672425061464,
+          "half_window_tokens_per_second": [
+            30322.874798235775,
+            25450.514576973255
+          ],
+          "system_free_percent_min": 35,
+          "system_swap_free_mib_min": 617.8799999999992,
+          "post_warmup_swap_growth_mib_max": 0,
+          "heldout_mean_ce": 6.658892288804054
+        },
+        {
+          "name": "t256_1_fallback",
+          "mode": "fallback",
+          "updates": 96,
+          "warmup": 32,
+          "tokens_per_second": 28551.136378740066,
+          "peak_mlx_gib": 1.1809883955866098,
+          "half_window_tokens_per_second": [
+            30939.711000423293,
+            26504.930925878703
+          ],
+          "system_free_percent_min": 35,
+          "system_swap_free_mib_min": 713.8799999999992,
+          "post_warmup_swap_growth_mib_max": 0,
+          "heldout_mean_ce": 6.661067724227905
+        },
+        {
+          "name": "t256_2_fallback",
+          "mode": "fallback",
+          "updates": 96,
+          "warmup": 32,
+          "tokens_per_second": 31493.07057588061,
+          "peak_mlx_gib": 1.1809865031391382,
+          "half_window_tokens_per_second": [
+            32586.102671190565,
+            30470.985621562293
+          ],
+          "system_free_percent_min": 33,
+          "system_swap_free_mib_min": 793.8799999999992,
+          "post_warmup_swap_growth_mib_max": 0,
+          "heldout_mean_ce": 6.661067724227905
+        },
+        {
+          "name": "t256_3_native",
+          "mode": "native",
+          "updates": 96,
+          "warmup": 32,
+          "tokens_per_second": 28917.49023127728,
+          "peak_mlx_gib": 1.2187634576112032,
+          "half_window_tokens_per_second": [
+            26571.90954358678,
+            31717.26674824033
+          ],
+          "system_free_percent_min": 34,
+          "system_swap_free_mib_min": 801.8799999999992,
+          "post_warmup_swap_growth_mib_max": 0,
+          "heldout_mean_ce": 6.658892288804054
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Two adjacent fresh-process pairs per shape; pair ranges are not confidence intervals.",
+    "Completed optimizer-update throughput excludes process/model setup and final checkpoint serialization.",
+    "Held-out checks are short-run diagnostics, not convergence or general quality equivalence."
+  ]
+}

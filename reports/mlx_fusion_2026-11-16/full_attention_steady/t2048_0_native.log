@@ -1,0 +1,23 @@
+============================================================================
+  TÉLOS UNIFIED TRAINER  |  Paradigm: AR
+  Hardware Backend:     MLX (gpu)
+  Target Parameters:    49,166,848 (~50M)
+  Batch Config:         batch_size=1, grad_accum=8 (effective=8 seqs / 16,384 tok)
+  Training Steps:       128 steps | LR: 4.00e-04 -> 4.00e-05 (warmup=50)
+  Checkpoint Dir:       /Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/full_attention_steady/t2048_0_native/checkpoints (every 1000 steps)
+  [Experimental] Packed SwiGLU Metal VJP enabled; BF16 rounding may differ slightly.
+  [Hardware] Detected Apple M5 Pro (24.0GB Unified Memory)
+  [Hardware] Evaluation Policy: STEP
+  [Precision] MLX weights cast to bfloat16 (maintaining fp32 master weights).
+  [Memory] BS=1, accum=8, checkpoint=True; estimated peak 2.64 GiB + 1.00 GiB headroom <= 4.00 GiB ceiling (at most 60% RAM).
+  Loading pre-tokenized dataset from /Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/corpus_prefix.bin...
+  Checkpoint Directory: /Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/full_attention_steady/t2048_0_native/checkpoints (Paradigm: AR)
+  [AR] Step      1/128 | Loss: 9.5278 | CE: 9.528 | LR: 8.00e-06 |   1.1 st/s |    18,830 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.50GB) | Swap: 11192.94M | ETA:  1.8m
+  [AR] Step     50/128 | Loss: 6.7336 | CE: 6.734 | LR: 4.00e-04 |   1.4 st/s |    23,262 tok/s | Metal Unified GPU: 0.53GB (Peak: 2.20GB) | Swap: 11192.94M | ETA:  0.9m
+  [AR] Step    100/128 | Loss: 6.4928 | CE: 6.493 | LR: 1.43e-04 |   1.4 st/s |    22,415 tok/s | Metal Unified GPU: 0.49GB (Peak: 2.29GB) | Swap: 11192.94M | ETA:  0.3m
+  [AR] Step    128/128 | Loss: 6.2924 | CE: 6.292 | LR: 4.00e-05 |   1.3 st/s |    21,372 tok/s | Metal Unified GPU: 0.49GB (Peak: 2.29GB) | Swap: 11192.94M | ETA:  0.0m
+======================================================================
+  AR Training Complete! Total time: 1.64 minutes.
+  Saved standalone model artifact to /Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/full_attention_steady/t2048_0_native/checkpoints/
+======================================================================
+PROFILE_SUMMARY={"status": "complete", "updates": 128, "input_tokens_processed": 2097152, "wall_seconds": 98.60313045897055, "errors": [], "final_system": {"time": 1794849683.996763, "swap_used_mb": 10781.25, "swap_free_mb": 1506.75, "memory_free_percent": 37, "gpu_system": {"Device Utilization %": 12, "Renderer Utilization %": 12, "Tiler Utilization %": 6, "In use system memory": 2406678528}}}

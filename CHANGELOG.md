@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Validation
 - Correctness checks and measured limits are recorded in `docs/releases/v1.7.5-validation.md` and `reports/mlx_fusion_2026-11-16/REPORT.md`. Chunking has not established a memory or speed win; attention dispatch and all experimental defaults remain unchanged.
 - Four completed 192-update QKV/buffer runs matched final model, master, optimizer and MLX RNG tensors bit for bit. 16/16 lowered allocation, but incomplete reverse-order repetitions do not establish a new speedup.
+- Complete eight same-runtime full-training attention ABBA jobs: native backward was faster at context 2048, while fallback was faster at 256. Native used more allocation and changed final weights; close short-run held-out CE is not quality-equivalence evidence. See `reports/mlx_fusion_2026-11-16/FULL_ATTENTION_VALIDATION.md`.
 
 ## [1.7.4] - 2026-11-16
 

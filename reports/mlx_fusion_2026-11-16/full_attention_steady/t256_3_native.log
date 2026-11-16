@@ -1,0 +1,22 @@
+============================================================================
+  TÉLOS UNIFIED TRAINER  |  Paradigm: AR
+  Hardware Backend:     MLX (gpu)
+  Target Parameters:    49,166,848 (~50M)
+  Batch Config:         batch_size=8, grad_accum=8 (effective=64 seqs / 16,384 tok)
+  Training Steps:       96 steps | LR: 4.00e-04 -> 4.00e-05 (warmup=50)
+  Checkpoint Dir:       /Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/full_attention_steady/t256_3_native/checkpoints (every 1000 steps)
+  [Experimental] Packed SwiGLU Metal VJP enabled; BF16 rounding may differ slightly.
+  [Hardware] Detected Apple M5 Pro (24.0GB Unified Memory)
+  [Hardware] Evaluation Policy: STEP
+  [Precision] MLX weights cast to bfloat16 (maintaining fp32 master weights).
+  [Memory] BS=4, accum=16, checkpoint=False; estimated peak 2.65 GiB + 1.00 GiB headroom <= 4.00 GiB ceiling (at most 60% RAM).
+  Loading pre-tokenized dataset from /Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/corpus_prefix.bin...
+  Checkpoint Directory: /Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/full_attention_steady/t256_3_native/checkpoints (Paradigm: AR)
+  [AR] Step      1/96 | Loss: 9.5167 | CE: 9.517 | LR: 8.00e-06 |   1.7 st/s |    28,163 tok/s | Metal Unified GPU: 0.49GB (Peak: 0.81GB) | Swap: 11486.12M | ETA:  0.9m
+  [AR] Step     50/96 | Loss: 6.7418 | CE: 6.742 | LR: 4.00e-04 |   1.8 st/s |    29,132 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.31GB) | Swap: 11486.12M | ETA:  0.4m
+  [AR] Step     96/96 | Loss: 6.6619 | CE: 6.662 | LR: 4.00e-05 |   1.8 st/s |    29,445 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.31GB) | Swap: 11486.12M | ETA:  0.0m
+======================================================================
+  AR Training Complete! Total time: 0.89 minutes.
+  Saved standalone model artifact to /Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/full_attention_steady/t256_3_native/checkpoints/
+======================================================================
+PROFILE_SUMMARY={"status": "complete", "updates": 96, "input_tokens_processed": 1572864, "wall_seconds": 53.840064833988436, "errors": [], "final_system": {"time": 1794850449.942453, "swap_used_mb": 11390.12, "swap_free_mb": 897.8799999999992, "memory_free_percent": 41, "gpu_system": {"Device Utilization %": 19, "Renderer Utilization %": 19, "Tiler Utilization %": 12, "In use system memory": 2523873280}}}
