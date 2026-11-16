@@ -1,0 +1,443 @@
+[
+  {
+    "name": "default_reference",
+    "buffers16": false,
+    "qkv": false,
+    "valid": true,
+    "metadata": {
+      "arguments": {
+        "params": "50M",
+        "tokens": 3145728,
+        "seq_len": 256,
+        "microbatch": 8,
+        "grad_accum": 8,
+        "data": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/corpus_prefix.bin",
+        "output": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/qkv_buffers_prefix/00_default_reference",
+        "max_mlx_gib": 3.2,
+        "critical_memory_free_percent": 25,
+        "critical_swap_free_mib": 256.0,
+        "critical_swap_growth_mib": 512.0,
+        "stage_profile": false,
+        "fused_step": true,
+        "compile_microbatch": true,
+        "async_stage_eval": false,
+        "fused_vocab_loss": false,
+        "experimental_packed_swiglu": true,
+        "experimental_qkv_rope": false,
+        "compiled_accumulation": true,
+        "force_fused_attention": true,
+        "trim_ar_final_token": false,
+        "fused_vocab_chunk_size": 256
+      },
+      "device": {
+        "device_name": "Apple M5 Pro",
+        "max_recommended_working_set_size": 19069665280,
+        "memory_size": 25769803776,
+        "architecture": "applegpu_g17s",
+        "max_buffer_length": 14302248960,
+        "resource_limit": 499000
+      },
+      "mlx_version": "0.32.2",
+      "mlx_module": "/Users/ivansamuel/Documents/Projects/telos/.venv/lib/python3.13/site-packages/mlx/core.cpython-313-darwin.so",
+      "telos_module": "/private/tmp/telos-fusion-frozen-f558146/telos/__init__.py",
+      "commit": "f5581469adba661eee8e06d534de563ae7b0a2ae",
+      "initial_system": {
+        "time": 1794846569.337777,
+        "swap_used_mb": 10140.06,
+        "swap_free_mb": 1123.9400000000005,
+        "memory_free_percent": 47,
+        "gpu_system": {
+          "Device Utilization %": 53,
+          "Renderer Utilization %": 53,
+          "Tiler Utilization %": 8,
+          "In use system memory": 1978908672
+        }
+      },
+      "pid": 79353,
+      "limitations": [
+        "GPU utilization is system-wide, including other applications.",
+        "No dedicated Neural Accelerator occupancy counter exposed in this session.",
+        "MLX memory limit is advisory; memory-pressure and swap-headroom guards stop at update boundaries."
+      ],
+      "initial_weights_sha256": "b95399e433484c6b0b87d846f5a89cd136d68900592debadac9dd0123a466be3"
+    },
+    "summary": {
+      "status": "complete",
+      "updates": 192,
+      "input_tokens_processed": 3145728,
+      "wall_seconds": 78.41323179099709,
+      "errors": [],
+      "final_system": {
+        "time": 1794846647.795676,
+        "swap_used_mb": 10067.94,
+        "swap_free_mb": 1196.0599999999995,
+        "memory_free_percent": 39,
+        "gpu_system": {
+          "Device Utilization %": 0,
+          "Renderer Utilization %": 0,
+          "Tiler Utilization %": 0,
+          "In use system memory": 2392834048
+        }
+      }
+    },
+    "warmup": 16,
+    "warmed_seconds": 70.06814070220571,
+    "warmed_updates": 176,
+    "tokens_per_second": 41153.996254238074,
+    "peak_mlx_bytes": 1762777214
+  },
+  {
+    "name": "buffers16_reference",
+    "buffers16": true,
+    "qkv": false,
+    "valid": true,
+    "metadata": {
+      "arguments": {
+        "params": "50M",
+        "tokens": 3145728,
+        "seq_len": 256,
+        "microbatch": 8,
+        "grad_accum": 8,
+        "data": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/corpus_prefix.bin",
+        "output": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/qkv_buffers_prefix/01_buffers16_reference",
+        "max_mlx_gib": 3.2,
+        "critical_memory_free_percent": 25,
+        "critical_swap_free_mib": 256.0,
+        "critical_swap_growth_mib": 512.0,
+        "stage_profile": false,
+        "fused_step": true,
+        "compile_microbatch": true,
+        "async_stage_eval": false,
+        "fused_vocab_loss": false,
+        "experimental_packed_swiglu": true,
+        "experimental_qkv_rope": false,
+        "compiled_accumulation": true,
+        "force_fused_attention": true,
+        "trim_ar_final_token": false,
+        "fused_vocab_chunk_size": 256
+      },
+      "device": {
+        "device_name": "Apple M5 Pro",
+        "max_recommended_working_set_size": 19069665280,
+        "memory_size": 25769803776,
+        "architecture": "applegpu_g17s",
+        "max_buffer_length": 14302248960,
+        "resource_limit": 499000
+      },
+      "mlx_version": "0.32.2",
+      "mlx_module": "/Users/ivansamuel/Documents/Projects/telos/.venv/lib/python3.13/site-packages/mlx/core.cpython-313-darwin.so",
+      "telos_module": "/private/tmp/telos-fusion-frozen-f558146/telos/__init__.py",
+      "commit": "f5581469adba661eee8e06d534de563ae7b0a2ae",
+      "initial_system": {
+        "time": 1794846648.596586,
+        "swap_used_mb": 10067.94,
+        "swap_free_mb": 1196.0599999999995,
+        "memory_free_percent": 42,
+        "gpu_system": {
+          "Device Utilization %": 27,
+          "Renderer Utilization %": 27,
+          "Tiler Utilization %": 11,
+          "In use system memory": 1806155776
+        }
+      },
+      "pid": 79667,
+      "limitations": [
+        "GPU utilization is system-wide, including other applications.",
+        "No dedicated Neural Accelerator occupancy counter exposed in this session.",
+        "MLX memory limit is advisory; memory-pressure and swap-headroom guards stop at update boundaries."
+      ],
+      "initial_weights_sha256": "b95399e433484c6b0b87d846f5a89cd136d68900592debadac9dd0123a466be3"
+    },
+    "summary": {
+      "status": "complete",
+      "updates": 192,
+      "input_tokens_processed": 3145728,
+      "wall_seconds": 87.92134587501641,
+      "errors": [],
+      "final_system": {
+        "time": 1794846736.5707462,
+        "swap_used_mb": 9603.88,
+        "swap_free_mb": 1660.1200000000008,
+        "memory_free_percent": 38,
+        "gpu_system": {
+          "Device Utilization %": 92,
+          "Renderer Utilization %": 77,
+          "Tiler Utilization %": 2,
+          "In use system memory": 2610298880
+        }
+      }
+    },
+    "warmup": 16,
+    "warmed_seconds": 81.32508199219592,
+    "warmed_updates": 176,
+    "tokens_per_second": 35457.49883506681,
+    "peak_mlx_bytes": 1392678174
+  },
+  {
+    "name": "buffers16_qkv",
+    "buffers16": true,
+    "qkv": true,
+    "valid": true,
+    "metadata": {
+      "arguments": {
+        "params": "50M",
+        "tokens": 3145728,
+        "seq_len": 256,
+        "microbatch": 8,
+        "grad_accum": 8,
+        "data": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/corpus_prefix.bin",
+        "output": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/qkv_buffers_prefix/02_buffers16_qkv",
+        "max_mlx_gib": 3.2,
+        "critical_memory_free_percent": 25,
+        "critical_swap_free_mib": 256.0,
+        "critical_swap_growth_mib": 512.0,
+        "stage_profile": false,
+        "fused_step": true,
+        "compile_microbatch": true,
+        "async_stage_eval": false,
+        "fused_vocab_loss": false,
+        "experimental_packed_swiglu": true,
+        "experimental_qkv_rope": true,
+        "compiled_accumulation": true,
+        "force_fused_attention": true,
+        "trim_ar_final_token": false,
+        "fused_vocab_chunk_size": 256
+      },
+      "device": {
+        "device_name": "Apple M5 Pro",
+        "max_recommended_working_set_size": 19069665280,
+        "memory_size": 25769803776,
+        "architecture": "applegpu_g17s",
+        "max_buffer_length": 14302248960,
+        "resource_limit": 499000
+      },
+      "mlx_version": "0.32.2",
+      "mlx_module": "/Users/ivansamuel/Documents/Projects/telos/.venv/lib/python3.13/site-packages/mlx/core.cpython-313-darwin.so",
+      "telos_module": "/private/tmp/telos-fusion-frozen-f558146/telos/__init__.py",
+      "commit": "f5581469adba661eee8e06d534de563ae7b0a2ae",
+      "initial_system": {
+        "time": 1794846737.538284,
+        "swap_used_mb": 9603.88,
+        "swap_free_mb": 1660.1200000000008,
+        "memory_free_percent": 40,
+        "gpu_system": {
+          "Device Utilization %": 47,
+          "Renderer Utilization %": 46,
+          "Tiler Utilization %": 11,
+          "In use system memory": 2016411648
+        }
+      },
+      "pid": 80202,
+      "limitations": [
+        "GPU utilization is system-wide, including other applications.",
+        "No dedicated Neural Accelerator occupancy counter exposed in this session.",
+        "MLX memory limit is advisory; memory-pressure and swap-headroom guards stop at update boundaries."
+      ],
+      "initial_weights_sha256": "b95399e433484c6b0b87d846f5a89cd136d68900592debadac9dd0123a466be3"
+    },
+    "summary": {
+      "status": "complete",
+      "updates": 192,
+      "input_tokens_processed": 3145728,
+      "wall_seconds": 95.19579791591968,
+      "errors": [],
+      "final_system": {
+        "time": 1794846832.805835,
+        "swap_used_mb": 9626.75,
+        "swap_free_mb": 1637.25,
+        "memory_free_percent": 36,
+        "gpu_system": {
+          "Device Utilization %": 0,
+          "Renderer Utilization %": 0,
+          "Tiler Utilization %": 0,
+          "In use system memory": 2528870400
+        }
+      }
+    },
+    "warmup": 16,
+    "warmed_seconds": 87.19259795744438,
+    "warmed_updates": 176,
+    "tokens_per_second": 33071.43114840293,
+    "peak_mlx_bytes": 1325806070
+  },
+  {
+    "trial_dir": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/qkv_buffers_prefix/03_default_qkv_retry2",
+    "competition": [],
+    "name": "default_qkv",
+    "buffers16": false,
+    "qkv": true,
+    "valid": true,
+    "metadata": {
+      "arguments": {
+        "params": "50M",
+        "tokens": 3145728,
+        "seq_len": 256,
+        "microbatch": 8,
+        "grad_accum": 8,
+        "data": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/corpus_prefix.bin",
+        "output": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/qkv_buffers_prefix/03_default_qkv_retry2",
+        "max_mlx_gib": 3.2,
+        "critical_memory_free_percent": 25,
+        "critical_swap_free_mib": 256.0,
+        "critical_swap_growth_mib": 512.0,
+        "stage_profile": false,
+        "fused_step": true,
+        "compile_microbatch": true,
+        "async_stage_eval": false,
+        "fused_vocab_loss": false,
+        "experimental_packed_swiglu": true,
+        "experimental_qkv_rope": true,
+        "compiled_accumulation": true,
+        "force_fused_attention": true,
+        "trim_ar_final_token": false,
+        "fused_vocab_chunk_size": 256
+      },
+      "device": {
+        "device_name": "Apple M5 Pro",
+        "max_recommended_working_set_size": 19069665280,
+        "memory_size": 25769803776,
+        "architecture": "applegpu_g17s",
+        "max_buffer_length": 14302248960,
+        "resource_limit": 499000
+      },
+      "mlx_version": "0.32.2",
+      "mlx_module": "/Users/ivansamuel/Documents/Projects/telos/.venv/lib/python3.13/site-packages/mlx/core.cpython-313-darwin.so",
+      "telos_module": "/private/tmp/telos-fusion-frozen-f558146/telos/__init__.py",
+      "commit": "f5581469adba661eee8e06d534de563ae7b0a2ae",
+      "initial_system": {
+        "time": 1794847314.669846,
+        "swap_used_mb": 9950.38,
+        "swap_free_mb": 1313.6200000000008,
+        "memory_free_percent": 46,
+        "gpu_system": {
+          "Device Utilization %": 28,
+          "Renderer Utilization %": 27,
+          "Tiler Utilization %": 11,
+          "In use system memory": 1655963648
+        }
+      },
+      "pid": 82919,
+      "limitations": [
+        "GPU utilization is system-wide, including other applications.",
+        "No dedicated Neural Accelerator occupancy counter exposed in this session.",
+        "MLX memory limit is advisory; memory-pressure and swap-headroom guards stop at update boundaries."
+      ],
+      "initial_weights_sha256": "b95399e433484c6b0b87d846f5a89cd136d68900592debadac9dd0123a466be3"
+    },
+    "summary": {
+      "status": "complete",
+      "updates": 192,
+      "input_tokens_processed": 3145728,
+      "wall_seconds": 78.23988412506878,
+      "errors": [],
+      "final_system": {
+        "time": 1794847392.952728,
+        "swap_used_mb": 10119.0,
+        "swap_free_mb": 1145.0,
+        "memory_free_percent": 38,
+        "gpu_system": {
+          "Device Utilization %": 24,
+          "Renderer Utilization %": 23,
+          "Tiler Utilization %": 11,
+          "In use system memory": 2571042816
+        }
+      }
+    },
+    "warmup": 16,
+    "warmed_seconds": 71.52908846235368,
+    "warmed_updates": 176,
+    "tokens_per_second": 40313.44536869993,
+    "peak_mlx_bytes": 1713460702
+  },
+  {
+    "trial_dir": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/qkv_buffers_prefix/04_default_qkv_retry2",
+    "competition": [],
+    "name": "default_qkv",
+    "buffers16": false,
+    "qkv": true,
+    "valid": false,
+    "metadata": {
+      "arguments": {
+        "params": "50M",
+        "tokens": 3145728,
+        "seq_len": 256,
+        "microbatch": 8,
+        "grad_accum": 8,
+        "data": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/corpus_prefix.bin",
+        "output": "/Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/qkv_buffers_prefix/04_default_qkv_retry2",
+        "max_mlx_gib": 3.2,
+        "critical_memory_free_percent": 25,
+        "critical_swap_free_mib": 256.0,
+        "critical_swap_growth_mib": 512.0,
+        "stage_profile": false,
+        "fused_step": true,
+        "compile_microbatch": true,
+        "async_stage_eval": false,
+        "fused_vocab_loss": false,
+        "experimental_packed_swiglu": true,
+        "experimental_qkv_rope": true,
+        "compiled_accumulation": true,
+        "force_fused_attention": true,
+        "trim_ar_final_token": false,
+        "fused_vocab_chunk_size": 256
+      },
+      "device": {
+        "device_name": "Apple M5 Pro",
+        "max_recommended_working_set_size": 19069665280,
+        "memory_size": 25769803776,
+        "architecture": "applegpu_g17s",
+        "max_buffer_length": 14302248960,
+        "resource_limit": 499000
+      },
+      "mlx_version": "0.32.2",
+      "mlx_module": "/Users/ivansamuel/Documents/Projects/telos/.venv/lib/python3.13/site-packages/mlx/core.cpython-313-darwin.so",
+      "telos_module": "/private/tmp/telos-fusion-frozen-f558146/telos/__init__.py",
+      "commit": "f5581469adba661eee8e06d534de563ae7b0a2ae",
+      "initial_system": {
+        "time": 1794848042.084627,
+        "swap_used_mb": 9476.56,
+        "swap_free_mb": 763.4400000000005,
+        "memory_free_percent": 42,
+        "gpu_system": {
+          "Device Utilization %": 19,
+          "Renderer Utilization %": 19,
+          "Tiler Utilization %": 6,
+          "In use system memory": 1518239744
+        }
+      },
+      "pid": 85250,
+      "limitations": [
+        "GPU utilization is system-wide, including other applications.",
+        "No dedicated Neural Accelerator occupancy counter exposed in this session.",
+        "MLX memory limit is advisory; memory-pressure and swap-headroom guards stop at update boundaries."
+      ],
+      "initial_weights_sha256": "b95399e433484c6b0b87d846f5a89cd136d68900592debadac9dd0123a466be3"
+    },
+    "summary": {
+      "status": "memory_guard_stopped",
+      "updates": 92,
+      "input_tokens_processed": 1507328,
+      "wall_seconds": 35.636993500054814,
+      "errors": [
+        "Stopped at update boundary after the memory guard triggered"
+      ],
+      "final_system": {
+        "time": 1794848077.763414,
+        "swap_used_mb": 10037.75,
+        "swap_free_mb": 1226.25,
+        "memory_free_percent": 37,
+        "gpu_system": {
+          "Device Utilization %": 94,
+          "Renderer Utilization %": 76,
+          "Tiler Utilization %": 3,
+          "In use system memory": 2418950144
+        }
+      }
+    },
+    "warmup": 16,
+    "warmed_seconds": 29.223268832429312,
+    "warmed_updates": 76,
+    "tokens_per_second": null,
+    "peak_mlx_bytes": 1616278566
+  }
+]

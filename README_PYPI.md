@@ -19,7 +19,7 @@ pip install telos-ml
 ```
 
 ### With Apple Silicon (MLX) Acceleration
-For native Apple Silicon Metal acceleration on macOS (M1/M2/M3/M4):
+For native Apple Silicon Metal acceleration on macOS (M1/M2/M3/M4/M5):
 
 ```bash
 pip install "telos-ml[mlx]"

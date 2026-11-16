@@ -1,0 +1,23 @@
+============================================================================
+  TÉLOS UNIFIED TRAINER  |  Paradigm: AR
+  Hardware Backend:     MLX (gpu)
+  Target Parameters:    49,166,848 (~50M)
+  Batch Config:         batch_size=8, grad_accum=8 (effective=64 seqs / 16,384 tok)
+  Training Steps:       192 steps | LR: 4.00e-04 -> 4.00e-05 (warmup=50)
+  Checkpoint Dir:       /Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/qkv_buffers_prefix/00_default_reference/checkpoints (every 1000 steps)
+  [Experimental] Packed SwiGLU Metal VJP enabled; BF16 rounding may differ slightly.
+  [Hardware] Detected Apple M5 Pro (24.0GB Unified Memory)
+  [Hardware] Evaluation Policy: STEP
+  [Precision] MLX weights cast to bfloat16 (maintaining fp32 master weights).
+  Loading pre-tokenized dataset from /Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/corpus_prefix.bin...
+  Checkpoint Directory: /Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/qkv_buffers_prefix/00_default_reference/checkpoints (Paradigm: AR)
+  [AR] Step      1/192 | Loss: 9.5167 | CE: 9.517 | LR: 8.00e-06 |   1.3 st/s |    21,518 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.25GB) | Swap: 10140.06M | ETA:  2.4m
+  [AR] Step     50/192 | Loss: 6.7415 | CE: 6.742 | LR: 4.00e-04 |   2.3 st/s |    36,939 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.76GB) | Swap: 10140.06M | ETA:  1.0m
+  [AR] Step    100/192 | Loss: 6.5190 | CE: 6.519 | LR: 3.01e-04 |   2.4 st/s |    39,348 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.76GB) | Swap: 10140.06M | ETA:  0.6m
+  [AR] Step    150/192 | Loss: 6.0006 | CE: 6.001 | LR: 1.12e-04 |   2.4 st/s |    40,054 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.76GB) | Swap: 10140.06M | ETA:  0.3m
+  [AR] Step    192/192 | Loss: 5.8259 | CE: 5.826 | LR: 4.00e-05 |   2.5 st/s |    40,298 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.76GB) | Swap: 10140.06M | ETA:  0.0m
+======================================================================
+  AR Training Complete! Total time: 1.30 minutes.
+  Saved standalone model artifact to /Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/qkv_buffers_prefix/00_default_reference/checkpoints/
+======================================================================
+PROFILE_SUMMARY={"status": "complete", "updates": 192, "input_tokens_processed": 3145728, "wall_seconds": 78.41323179099709, "errors": [], "final_system": {"time": 1794846647.795676, "swap_used_mb": 10067.94, "swap_free_mb": 1196.0599999999995, "memory_free_percent": 39, "gpu_system": {"Device Utilization %": 0, "Renderer Utilization %": 0, "Tiler Utilization %": 0, "In use system memory": 2392834048}}}

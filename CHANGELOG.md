@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.5] - 2026-11-16
+
+### Fixed
+- Correct experimental MLX vocabulary-tiled CE target rounding and confident-target gradients in BF16; preserve the reference AR transformer context.
+- Report actual memory-planned microbatch/accumulation in the MLX profiler and normalize sampled loss using the executed accumulation count.
+
+### Added
+- Default-off MLX token-chunked projection/CE with recomputed logits, first-order gradient checks and exact per-path checkpoint replay. Reject its use on other backends.
+- Fresh-process projection diagnostics and a numerical/graph-checked, shape-aware native/fallback attention-backward probe.
+
+### Validation
+- Correctness checks and measured limits are recorded in `docs/releases/v1.7.5-validation.md` and `reports/mlx_fusion_2026-11-16/REPORT.md`. Chunking has not established a memory or speed win; attention dispatch and all experimental defaults remain unchanged.
+- Four completed 192-update QKV/buffer runs matched final model, master, optimizer and MLX RNG tensors bit for bit. 16/16 lowered allocation, but incomplete reverse-order repetitions do not establish a new speedup.
+
 ## [1.7.4] - 2026-11-16
 
 ### Added
@@ -268,7 +282,7 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
   virtualized, or sandboxed macOS sessions): `telos train`, `telos bench` and
   `telos test` fall back to the PyTorch CPU path instead of aborting the process.
 
-[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.7.4...HEAD
+[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.7.5...HEAD
 [1.5.5]: https://github.com/kazenoko-git/telos/compare/v1.5.4...v1.5.5
 [1.5.4]: https://github.com/kazenoko-git/telos/compare/v1.5.3...v1.5.4
 [1.5.3]: https://github.com/kazenoko-git/telos/compare/v1.5.2...v1.5.3
@@ -281,3 +295,4 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
 [1.7.3]: https://github.com/kazenoko-git/telos/releases/tag/v1.7.3
 
 [1.7.4]: https://github.com/kazenoko-git/telos/compare/v1.7.3...v1.7.4
+[1.7.5]: https://github.com/kazenoko-git/telos/compare/v1.7.4...v1.7.5

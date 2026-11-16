@@ -1,0 +1,15 @@
+============================================================================
+  TÉLOS UNIFIED TRAINER  |  Paradigm: AR
+  Hardware Backend:     MLX (gpu)
+  Target Parameters:    49,166,848 (~50M)
+  Batch Config:         batch_size=8, grad_accum=8 (effective=64 seqs / 16,384 tok)
+  Training Steps:       128 steps | LR: 4.00e-04 -> 4.00e-05 (warmup=50)
+  Checkpoint Dir:       /Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/qkv_buffers_128/00_default_reference/checkpoints (every 1000 steps)
+  [Experimental] Packed SwiGLU Metal VJP enabled; BF16 rounding may differ slightly.
+  [Hardware] Detected Apple M5 Pro (24.0GB Unified Memory)
+  [Hardware] Evaluation Policy: STEP
+  [Precision] MLX weights cast to bfloat16 (maintaining fp32 master weights).
+  Loading pre-tokenized dataset from /Users/ivansamuel/Documents/Projects/telos/data/english_corpus_5b.bin...
+  Checkpoint Directory: /Users/ivansamuel/Documents/Projects/telos-mlx-fusion/reports/mlx_fusion_2026-11-16/qkv_buffers_128/00_default_reference/checkpoints (Paradigm: AR)
+  [AR] Step      1/128 | Loss: 9.5167 | CE: 9.517 | LR: 8.00e-06 |   1.4 st/s |    23,745 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.28GB) | Swap: 10530.81M | ETA:  1.5m
+PROFILE_SUMMARY={"status": "memory_guard_stopped", "updates": 29, "input_tokens_processed": 475136, "wall_seconds": 25.650108041940257, "errors": ["Stopped at update boundary after the memory guard triggered"], "final_system": {"time": 1794846474.91604, "swap_used_mb": 10804.06, "swap_free_mb": 459.9400000000005, "memory_free_percent": 37, "gpu_system": {"Device Utilization %": 97, "Renderer Utilization %": 94, "Tiler Utilization %": 1, "In use system memory": 2410151936}}}

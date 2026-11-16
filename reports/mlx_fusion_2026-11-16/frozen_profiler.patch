@@ -1,0 +1,17 @@
+--- scripts/profile_mlx_training.py
++++ scripts/profile_mlx_training.py
+@@ -48,0 +49,2 @@
++    parser.add_argument("--critical-swap-growth-mib", type=float, default=None,
++                        help="Stop after sustained system swap growth from the initial sample")
+@@ -101,0 +104 @@
++        "telos_module": __import__("telos").__file__,
+@@ -145,0 +149,2 @@
++                        or (args.critical_swap_growth_mib is not None and
++                            sample["swap_used_mb"] - initial["swap_used_mb"] >= args.critical_swap_growth_mib)
+@@ -175,0 +181,6 @@
++            if count == 0:
++                import hashlib
++                initial_weights = output / "initial.safetensors"
++                step.model.save_weights(str(initial_weights))
++                metadata["initial_weights_sha256"] = hashlib.sha256(initial_weights.read_bytes()).hexdigest()
++                (output / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")

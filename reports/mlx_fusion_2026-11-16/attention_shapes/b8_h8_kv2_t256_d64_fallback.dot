@@ -1,0 +1,222 @@
+digraph {
+{ rank=source; "A"; }
+{ 526959743896 [label ="Copy", shape=rectangle]; }
+"A" -> 526959743896
+{ "B"; }
+526959743896 -> "B"
+{ rank=source; "C"; }
+{ 526959743800 [label ="Copy", shape=rectangle]; }
+"C" -> 526959743800
+{ "D"; }
+526959743800 -> "D"
+{ rank=source; "E"; }
+{ 526959744232 [label ="Copy", shape=rectangle]; }
+"E" -> 526959744232
+{ "F"; }
+526959744232 -> "F"
+{ 526954250008 [label ="ScaledDotProductAttention", shape=rectangle]; }
+"B" -> 526954250008
+"D" -> 526954250008
+"F" -> 526954250008
+{ rank=sink; "G"; }
+526954250008 -> "G"
+{ rank=source; "H"; }
+{ 526951397784 [label ="Broadcast", shape=rectangle]; }
+"H" -> 526951397784
+{ "I"; }
+526951397784 -> "I"
+{ 526968195848 [label ="Arange", shape=rectangle]; }
+{ "J"; }
+526968195848 -> "J"
+{ 526968197528 [label ="ExpandDims", shape=rectangle]; }
+"J" -> 526968197528
+{ "K"; }
+526968197528 -> "K"
+{ 526951388056 [label ="Broadcast", shape=rectangle]; }
+"K" -> 526951388056
+{ "L"; }
+526951388056 -> "L"
+{ 526968197448 [label ="Arange", shape=rectangle]; }
+{ "M"; }
+526968197448 -> "M"
+{ 526968198888 [label ="ExpandDims", shape=rectangle]; }
+"M" -> 526968198888
+{ "N"; }
+526968198888 -> "N"
+{ 526951388312 [label ="Broadcast", shape=rectangle]; }
+"N" -> 526951388312
+{ "O"; }
+526951388312 -> "O"
+{ 526966923544 [label ="GreaterEqual", shape=rectangle]; }
+"L" -> 526966923544
+"O" -> 526966923544
+{ "P"; }
+526966923544 -> "P"
+{ 526951397912 [label ="Broadcast", shape=rectangle]; }
+"P" -> 526951397912
+{ "Q"; }
+526951397912 -> "Q"
+{ 526932191384 [label ="AsType", shape=rectangle]; }
+"Q" -> 526932191384
+{ "R"; }
+526932191384 -> "R"
+{ 526959743992 [label ="Copy", shape=rectangle]; }
+"B" -> 526959743992
+{ "S"; }
+526959743992 -> "S"
+{ 526930636920 [label ="Multiply", shape=rectangle]; }
+"I" -> 526930636920
+"S" -> 526930636920
+{ "T"; }
+526930636920 -> "T"
+{ 526951387160 [label ="Unflatten", shape=rectangle]; }
+"T" -> 526951387160
+{ "U"; }
+526951387160 -> "U"
+{ 526959744568 [label ="Copy", shape=rectangle]; }
+"D" -> 526959744568
+{ "V"; }
+526959744568 -> "V"
+{ 526968195528 [label ="ExpandDims", shape=rectangle]; }
+"V" -> 526968195528
+{ "W"; }
+526968195528 -> "W"
+{ 526931624200 [label ="Transpose", shape=rectangle]; }
+"W" -> 526931624200
+{ "X"; }
+526931624200 -> "X"
+{ 526956503576 [label ="Broadcast", shape=rectangle]; }
+"X" -> 526956503576
+{ "Y"; }
+526956503576 -> "Y"
+{ 526966921672 [label ="Matmul", shape=rectangle]; }
+"U" -> 526966921672
+"Y" -> 526966921672
+{ "Z"; }
+526966921672 -> "Z"
+{ rank=source; "AA"; }
+{ 526951389208 [label ="Broadcast", shape=rectangle]; }
+"AA" -> 526951389208
+{ "AB"; }
+526951389208 -> "AB"
+{ 526959744280 [label ="Select", shape=rectangle]; }
+"Q" -> 526959744280
+"Z" -> 526959744280
+"AB" -> 526959744280
+{ "AC"; }
+526959744280 -> "AC"
+{ 526930625496 [label ="Softmax", shape=rectangle]; }
+"AC" -> 526930625496
+{ "AD"; }
+526930625496 -> "AD"
+{ rank=source; "AE"; }
+{ 526951383064 [label ="Unflatten", shape=rectangle]; }
+"AE" -> 526951383064
+{ "AF"; }
+526951383064 -> "AF"
+{ 526959743752 [label ="Copy", shape=rectangle]; }
+"F" -> 526959743752
+{ "AG"; }
+526959743752 -> "AG"
+{ 526968197048 [label ="ExpandDims", shape=rectangle]; }
+"AG" -> 526968197048
+{ "AH"; }
+526968197048 -> "AH"
+{ 526956503704 [label ="Broadcast", shape=rectangle]; }
+"AH" -> 526956503704
+{ "AI"; }
+526956503704 -> "AI"
+{ 526931624440 [label ="Transpose", shape=rectangle]; }
+"AI" -> 526931624440
+{ "AJ"; }
+526931624440 -> "AJ"
+{ 526966918504 [label ="Matmul", shape=rectangle]; }
+"AF" -> 526966918504
+"AJ" -> 526966918504
+{ "AK"; }
+526966918504 -> "AK"
+{ 526930636728 [label ="Multiply", shape=rectangle]; }
+"AD" -> 526930636728
+"AK" -> 526930636728
+{ "AL"; }
+526930636728 -> "AL"
+{ 526931624120 [label ="Sum", shape=rectangle]; }
+"AL" -> 526931624120
+{ "AM"; }
+526931624120 -> "AM"
+{ 526951383832 [label ="Broadcast", shape=rectangle]; }
+"AM" -> 526951383832
+{ "AN"; }
+526951383832 -> "AN"
+{ 526930631928 [label ="Multiply", shape=rectangle]; }
+"AD" -> 526930631928
+"AN" -> 526930631928
+{ "AO"; }
+526930631928 -> "AO"
+{ 526930633464 [label ="Subtract", shape=rectangle]; }
+"AL" -> 526930633464
+"AO" -> 526930633464
+{ "AP"; }
+526930633464 -> "AP"
+{ 526930631160 [label ="Multiply", shape=rectangle]; }
+"R" -> 526930631160
+"AP" -> 526930631160
+{ "AQ"; }
+526930631160 -> "AQ"
+{ 526931623960 [label ="Transpose", shape=rectangle]; }
+"Y" -> 526931623960
+{ "AR"; }
+526931623960 -> "AR"
+{ 526966918024 [label ="Matmul", shape=rectangle]; }
+"AQ" -> 526966918024
+"AR" -> 526966918024
+{ "AS"; }
+526966918024 -> "AS"
+{ 526932905688 [label ="Flatten", shape=rectangle]; }
+"AS" -> 526932905688
+{ "AT"; }
+526932905688 -> "AT"
+{ 526930632888 [label ="Multiply", shape=rectangle]; }
+"I" -> 526930632888
+"AT" -> 526930632888
+{ rank=sink; "AU"; }
+526930632888 -> "AU"
+{ 526931625800 [label ="Transpose", shape=rectangle]; }
+"U" -> 526931625800
+{ "AV"; }
+526931625800 -> "AV"
+{ 526966915480 [label ="Matmul", shape=rectangle]; }
+"AV" -> 526966915480
+"AQ" -> 526966915480
+{ "AW"; }
+526966915480 -> "AW"
+{ 526931625240 [label ="Sum", shape=rectangle]; }
+"AW" -> 526931625240
+{ "AX"; }
+526931625240 -> "AX"
+{ 526931624360 [label ="Transpose", shape=rectangle]; }
+"AX" -> 526931624360
+{ "AY"; }
+526931624360 -> "AY"
+{ 526959731560 [label ="Squeeze", shape=rectangle]; }
+"AY" -> 526959731560
+{ rank=sink; "AZ"; }
+526959731560 -> "AZ"
+{ 526931624040 [label ="Transpose", shape=rectangle]; }
+"AD" -> 526931624040
+{ "BA"; }
+526931624040 -> "BA"
+{ 526966923688 [label ="Matmul", shape=rectangle]; }
+"BA" -> 526966923688
+"AF" -> 526966923688
+{ "BB"; }
+526966923688 -> "BB"
+{ 526931624280 [label ="Sum", shape=rectangle]; }
+"BB" -> 526931624280
+{ "BC"; }
+526931624280 -> "BC"
+{ 526959731800 [label ="Squeeze", shape=rectangle]; }
+"BC" -> 526959731800
+{ rank=sink; "BD"; }
+526959731800 -> "BD"
+}
