@@ -44,7 +44,8 @@ This intentionally fixes the old training trajectory; equality with the broken
 loss is not an acceptance criterion.
 
 For a fair optimization comparison, the final baseline is v1.7.2 with **only**
-this same loss fix applied. `baseline_loss_fix.patch` preserves the exact change.
+this same loss fix applied. `baseline_loss_fix.patch` preserves the exact change; apply it to v1.7.2 with
+`git apply --unidiff-zero baseline_loss_fix.patch`.
 Its source was `/private/tmp/telos-mlx-dpo-baseline`; it retains the original
 Torch collation and whole-batch reference cache. The candidate includes both the
 loss fix and the optimizations described above.

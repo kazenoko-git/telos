@@ -2,12 +2,6 @@ diff --git a/telos/posttrain/trainer.py b/telos/posttrain/trainer.py
 index 4a05c5f..38f82dc 100644
 --- a/telos/posttrain/trainer.py
 +++ b/telos/posttrain/trainer.py
-@@ -450,7 +450,7 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
-     def dpo_loss(active_model, ids, labels, ref_chosen, ref_rejected):
-         c_logps, r_logps = mx.split(_mlx_logps(active_model, ids, labels), 2)
-         margin = beta * ((c_logps - r_logps) - (ref_chosen - ref_rejected))
+@@ -453 +453 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
 -        return mx.mean(mx.maximum(-margin, 0.0) + mx.log1p(mx.exp(-mx.abs(margin))))
 +        return mx.mean(mx.logaddexp(0.0, -margin))
- 
-     loss_fn = _mlx_loss if method == "sft" else dpo_loss
-     value_and_grad = nn.value_and_grad(model, loss_fn)
