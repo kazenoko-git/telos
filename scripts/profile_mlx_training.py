@@ -37,6 +37,8 @@ def system_sample():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--params", default="50M")
+    parser.add_argument("--d-model", type=int, default=None)
+    parser.add_argument("--n-layers", type=int, default=None)
     parser.add_argument("--tokens", type=int, default=49_166_848)
     parser.add_argument("--seq-len", type=int, default=256)
     parser.add_argument("--microbatch", type=int, default=8)
@@ -46,6 +48,8 @@ def main():
     parser.add_argument("--max-mlx-gib", type=float, default=4.0)
     parser.add_argument("--critical-memory-free-percent", type=int, default=12)
     parser.add_argument("--critical-swap-free-mib", type=float, default=512.0)
+    parser.add_argument("--critical-swap-growth-mib", type=float, default=None,
+                        help="Stop after sustained system swap growth from the initial sample")
     parser.add_argument("--stage-profile", action="store_true",
                         help="Synchronize between stages to measure update work separately")
     parser.add_argument("--fused-step", action=argparse.BooleanOptionalAction, default=True,
@@ -67,6 +71,8 @@ def main():
     parser.add_argument("--trim-ar-final-token", action="store_true",
                         help="Skip the unused final hidden-state position in causal AR training")
     parser.add_argument("--fused-vocab-chunk-size", type=int, default=256)
+    parser.add_argument("--fused-vocab-chunk-axis", choices=["vocab", "token"], default="vocab")
+    parser.add_argument("--vocab-size", type=int, default=8192)
     args = parser.parse_args()
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -108,6 +114,16 @@ def main():
     (output / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
 
     original_init = MLXTrainingStep.__init__
+    original_trainer_init = trainer_mlx.UnifiedMLXTrainer.__init__
+
+    def measured_trainer_init(trainer, *positional, **keywords):
+        original_trainer_init(trainer, *positional, **keywords)
+        metadata["actual_batch_size"] = trainer.t_cfg["batch_size"]
+        metadata["actual_grad_accum"] = trainer.t_cfg.get("gradient_accumulation", 1)
+        metadata["memory_plan"] = getattr(trainer, "memory_plan", None)
+        (output / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+
+    trainer_mlx.UnifiedMLXTrainer.__init__ = measured_trainer_init
     original_batch_fetch = trainer_mlx.get_global_targets_contiguous
     active_stage_profile = [None]
     if args.stage_profile:
@@ -143,6 +159,8 @@ def main():
                     critical = (
                         sample["memory_free_percent"] <= args.critical_memory_free_percent
                         or sample["swap_free_mb"] <= args.critical_swap_free_mib
+                        or (args.critical_swap_growth_mib is not None and
+                            sample["swap_used_mb"] - initial["swap_used_mb"] >= args.critical_swap_growth_mib)
                     )
                     critical_memory_samples = critical_memory_samples + 1 if critical else 0
                     if critical_memory_samples >= 3:
@@ -184,7 +202,7 @@ def main():
             if args.stage_profile:
                 record.update(step.stage_profile)
             if count == 1 or count % 50 == 0:
-                record["loss"] = result[0].item() / args.grad_accum
+                record["loss"] = result[0].item() / keywords.get("grad_accum", 1)
             timings.write(json.dumps(record) + "\n")
             if record["mlx_peak_bytes"] > args.max_mlx_gib * 1024**3 or memory_stop.is_set():
                 step.synchronize()
@@ -195,12 +213,16 @@ def main():
         MLXTrainingStep.__call__ = measured_step
         try:
             train(paradigm="ar", params=args.params, tokens=args.tokens, hardware="mlx",
+                  d_model=args.d_model, n_layers=args.n_layers,
                   batch_size=args.microbatch, grad_accum=args.grad_accum, seq_len=args.seq_len,
                   data_path=args.data, synthetic=False, autotune=False, fused_step=args.fused_step, async_eval=False,
                   fused_vocab_loss=args.fused_vocab_loss,
                   experimental_packed_swiglu=args.experimental_packed_swiglu,
                   experimental_qkv_rope=args.experimental_qkv_rope,
                   fused_vocab_chunk_size=args.fused_vocab_chunk_size,
+                  fused_vocab_chunk_axis=args.fused_vocab_chunk_axis,
+                  vocab_size=args.vocab_size,
+                  autotune_memory_gb=args.max_mlx_gib,
                   compiled_accumulation=args.compiled_accumulation,
                   max_lr=4e-4, min_lr=4e-5, weight_decay=0.01,
                   checkpoint_dir=str(output / "checkpoints"), save_every=1000, seed=42)
@@ -215,6 +237,7 @@ def main():
                 MLXTelosTransformer.next_token_logits = original_next_token_logits
             mx.compile = original_compile
             MLXTrainingStep.__call__ = original
+            trainer_mlx.UnifiedMLXTrainer.__init__ = original_trainer_init
             if args.stage_profile:
                 MLXTrainingStep.__init__ = original_init
                 trainer_mlx.get_global_targets_contiguous = original_batch_fetch
