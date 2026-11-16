@@ -455,6 +455,13 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
 
     prepared = _prepare_records(records, tokenizer, max_length, method)
     fixed = options["padding"] != "batch"
+    from .mlx_batches import collate_mlx, ReferenceScores
+    if method == "dpo":
+        for index, row in enumerate(prepared):
+            for response in ("chosen", "rejected"):
+                # Encoding is immutable within this invocation; a row identity
+                # avoids duplicating long token/label tuples for the cache.
+                row["_" + response + "_key"] = (index, response)
 
     def dpo_loss(active_model, ids, labels, ref_chosen, ref_rejected):
         c_logps, r_logps = mx.split(_mlx_logps(active_model, ids, labels), 2)
@@ -477,25 +484,20 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         return loss
 
     step_fn = mx.compile(update, inputs=state, outputs=state) if options["compile_step"] else update
-    ref_cache = {}
+    ref_cache = ReferenceScores(
+        options["reference_cache_size"] if options["cache_reference"] else 0, batch_size)
     for step in range(session.step + 1, max_steps + 1):
         batch = randomizer.choices(prepared, k=batch_size)
         rows = _response_rows(batch, "response") if method == "sft" else (
             _response_rows(batch, "chosen") + _response_rows(batch, "rejected"))
-        ids, labels = _collate(rows, tokenizer, max_length, torch.device("cpu"), fixed=fixed)
-        ids, labels = mx.array(ids.numpy(), dtype=mx.int32), mx.array(labels.numpy(), dtype=mx.int32)
+        ids, labels = collate_mlx(rows, max_length, fixed=fixed)
         if method == "sft":
             loss = step_fn(ids, labels)
         else:
-            key = tuple(tuple(row["_encoded"][0]) + tuple(row["_encoded"][1]) for row in rows)
-            if not options["cache_reference"] or key not in ref_cache:
-                ref = _mlx_logps(reference, ids, labels)
-                mx.eval(ref)
-                # Cache at most the requested number of batches; device memory stays bounded.
-                if options["cache_reference"] and len(ref_cache) < options["reference_cache_size"]:
-                    ref_cache[key] = ref
-            else:
-                ref = ref_cache[key]
+            for item, key in zip(rows, [row["_chosen_key"] for row in batch] +
+                                      [row["_rejected_key"] for row in batch]):
+                item["_reference_key"] = key
+            ref = ref_cache.get(rows, ids.shape[1], lambda: _mlx_logps(reference, ids, labels))
             ref_c, ref_r = mx.split(ref, 2)
             loss = step_fn(ids, labels, ref_c, ref_r)
         mx.eval(model.trainable_parameters(), optimizer.state, loss,

@@ -32,7 +32,7 @@ def main():
     parser.add_argument("--compile", dest="compile_step", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--padding", choices=["auto", "batch", "fixed"], default="auto")
     parser.add_argument("--cache-reference", action=argparse.BooleanOptionalAction, default=True)
-    parser.add_argument("--reference-cache-size", type=int, default=128, help="Maximum cached DPO reference batches")
+    parser.add_argument("--reference-cache-size", type=int, default=128, help="Maximum cached DPO reference batches (MLX uses an equivalent per-response budget)")
     args = parser.parse_args()
     posttrain(
         args.checkpoint, args.data, args.output,
