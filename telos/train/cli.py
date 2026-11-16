@@ -157,6 +157,7 @@ def train(
     data_path: str | Path | None = None,
     synthetic: bool = False,
     resume_step: int = 0,
+    resume_checkpoint: str | Path | None = None,
     eval_policy: str = "auto",
     benchmark: bool = False,
     benchmark_duration: float = 300.0,
@@ -171,6 +172,14 @@ def train(
     """
     Programmatic entrypoint to train any Télos model.
     """
+    if resume_checkpoint is not None and (resume_step or init_checkpoint):
+        raise ValueError("Use resume_checkpoint alone; it restores both weights and training state")
+    if resume_step < 0:
+        raise ValueError("Resume step must be nonnegative")
+    if hardware in {"auto", "xla", "tpu"}:
+        from telos.training.xla_utils import is_tpu_environment, clean_tpu_environment
+        if hardware in {"xla", "tpu"} or is_tpu_environment():
+            clean_tpu_environment()
     cfg = build_config(
         default_cadence=default_cadence,
         paradigm=paradigm,
@@ -203,6 +212,37 @@ def train(
         seed=seed,
         **kwargs
     )
+
+    if resume_step:
+        # Backwards-compatible numeric syntax now resolves a real checkpoint,
+        # rather than silently skipping updates with random initial weights.
+        suffix = ".resume.npz" if cfg["_backend"] == "mlx" else ".pt"
+        resume_checkpoint = Path(cfg["checkpoint"]["checkpoint_dir"]) / f"checkpoint_step_{resume_step}{suffix}"
+    if resume_checkpoint is not None:
+        from copy import deepcopy
+        from telos.training.checkpoint import read_resume
+        saved = read_resume(resume_checkpoint)
+        original_backend = (cfg["_backend"], cfg["_device"])
+        cfg = deepcopy(saved["config"])
+        if hardware != "auto" and original_backend != (cfg["_backend"], cfg["_device"]):
+            raise ValueError("Reliable resume requires the original backend/device")
+        if devices != "auto" and int(devices) != cfg.get("_device_count", 1):
+            raise ValueError("Resume requires the original device count")
+        if benchmark:
+            raise ValueError("Resume cannot be combined with benchmark mode")
+        paradigm = cfg["paradigm"]
+        phase = cfg.get("phase")
+        resume_step = saved["global_step"]
+        if checkpoint_dir is not None:
+            cfg["checkpoint"]["checkpoint_dir"] = str(checkpoint_dir)
+        if data_path is not None:
+            cfg["data"]["train_path"] = str(data_path)
+        # File paths are normalized when a new run starts, making resume work
+        # independently of the working directory used for the original run.
+    for key in ("train_path", "dataset_path", "path", "tokenizer", "val_path", "val_dataset_path"):
+        value = cfg.get("data", {}).get(key)
+        if value and Path(value).is_file():
+            cfg["data"][key] = str(Path(value).resolve())
 
     backend = cfg["_backend"]
     device = cfg["_device"]
@@ -257,7 +297,8 @@ def train(
                     config_path=config_path,
                     data_path=data_path,
                     synthetic=synthetic,
-                    resume_step=resume_step,
+                    resume_step=0 if resume_checkpoint is not None else resume_step,
+                    resume_checkpoint=resume_checkpoint,
                     eval_policy=eval_policy,
                     benchmark=benchmark,
                     benchmark_duration=benchmark_duration,
@@ -274,7 +315,7 @@ def train(
             return None
 
         except Exception as e:
-            print(f"  [Notice] Multi-core xmp.spawn skipped ({e}). Proceeding on single core.")
+            raise RuntimeError("Multi-core XLA training failed; refusing single-core fallback") from e
 
     from telos.training import set_global_seed
     resolved_seed = int(t_cfg.get("seed", kwargs.get("seed", seed)))
@@ -294,7 +335,7 @@ def train(
             n_kv_heads=m_cfg.get("n_kv_heads", None),
             is_causal=is_causal,
             use_reliability_head=bool(m_cfg.get("use_reliability_head", paradigm.lower() == "corosred")),
-            use_grad_checkpoint=t_cfg.get("gradient_checkpointing", False) or m_cfg.get("use_grad_checkpoint", False),
+            use_grad_checkpoint=(t_cfg.get("gradient_checkpointing") is True or m_cfg.get("use_grad_checkpoint", False)),
             precision=precision
         )
         # Auto-detect or load initial checkpoint (e.g. chaining Phase A weights into Phase B or Phase C)
@@ -327,7 +368,7 @@ def train(
             n_kv_heads=m_cfg.get("n_kv_heads", None),
             is_causal=is_causal,
             use_reliability_head=(paradigm.lower() == "corosred"),
-            use_grad_checkpoint=t_cfg.get("gradient_checkpointing", False) or m_cfg.get("use_grad_checkpoint", False)
+            use_grad_checkpoint=(t_cfg.get("gradient_checkpointing") is True or m_cfg.get("use_grad_checkpoint", False))
         )
 
 
@@ -356,25 +397,8 @@ def train(
             print(f"  [Init] Successfully loaded weights from {init_ckpt_path}.")
 
         trainer = UnifiedPyTorchTrainer(paradigm=paradigm, model=model, cfg=cfg, device_type=device)
-        if ckpt_state is not None and resume_step > 0:
-            # Restore optimizer state only on CUDA/CPU to avoid host-device tensor desync on XLA
-            if device != "xla" and not getattr(trainer, "is_tpu", False) and "optimizer_state_dict" in ckpt_state:
-                try:
-                    trainer.optimizer.load_state_dict(ckpt_state["optimizer_state_dict"])
-                    print(f"  [Resume] Successfully restored AdamW optimizer moment buffers from step {resume_step}.")
-                except Exception as e:
-                    print(f"  [Resume Notice] Could not restore optimizer state ({e}). Proceeding with fresh optimizer states.")
-            elif getattr(trainer, "is_tpu", False):
-                print("  [Resume TPU] Optimizer moments initialized natively on TPU device (avoiding cross-device bus stalls).")
-
-            # Restore metric tracker EMAs if available
-            tracker = getattr(trainer, "metric_tracker", None)
-            if tracker is not None:
-                acc_saved = ckpt_state.get("lrh_acc_ema", None)
-                auc_saved = ckpt_state.get("lrh_auc_ema", None)
-                if acc_saved is not None and auc_saved is not None:
-                    tracker.update_lrh(acc=float(acc_saved), auc=float(auc_saved))
-                    print(f"  [Resume] Restored LRH telemetry: Acc={acc_saved:.2f}, AUC={auc_saved:.2f}.")
+    if resume_checkpoint is not None:
+        trainer.load_checkpoint(resume_checkpoint)
 
     # Execute training or benchmark
     bench_dur = min(float(benchmark_duration), 300.0)
@@ -424,6 +448,8 @@ def main():
                         help="Vocabulary tile width for --fused-vocab-loss (default: 256)")
     parser.add_argument("--experimental-packed-swiglu", action=argparse.BooleanOptionalAction, default=None,
                         help="Experimental packed SwiGLU Metal VJP; may change BF16 rounding (default: disabled)")
+    parser.add_argument("--experimental-qkv-rope", action=argparse.BooleanOptionalAction, default=None,
+                        help="Experimental fused QKV/RoPE for equal heads of dimension 64 (default: disabled)")
     parser.add_argument("--compiled-accumulation", action=argparse.BooleanOptionalAction, default=None,
                         help="Compile backward with gradient accumulation (experimental; default: disabled)")
     parser.add_argument("--force-fused-attention", action=argparse.BooleanOptionalAction, default=None,
@@ -442,7 +468,7 @@ def main():
     parser.add_argument("--weight-decay", type=float, default=None, help="Weight decay regularization override")
     parser.add_argument("--checkpoint-dir", type=str, default=None, help="Directory to save model checkpoints")
     parser.add_argument("--save-every", type=int, default=None, help="Save checkpoint cadence (steps)")
-    parser.add_argument("--resume", "--resume-step", dest="resume", type=int, default=0, help="Step to resume training from")
+    parser.add_argument("--resume", "--resume-step", dest="resume", default=None, help="Full checkpoint path, or legacy step number resolved in --checkpoint-dir")
     parser.add_argument("--eval-policy", type=str, default="auto", choices=["auto", "eager", "step", "lazy"], help="Memory evaluation policy for Apple Silicon MLX")
 
     # Data & Config Bypass
@@ -458,6 +484,10 @@ def main():
     parser.add_argument("--self-condition", action=argparse.BooleanOptionalAction, default=True, help="Enable self-conditioned draft training in COROSred Phase B")
     parser.add_argument("--self-cond-prob", type=float, default=0.5, help="Probability of training on model drafts vs clean masks in Phase B")
     parser.add_argument("--init-checkpoint", type=str, default=None, help="Path to initial checkpoint to load weights from before training")
+    parser.add_argument("--packed-projections", action=argparse.BooleanOptionalAction, default=None,
+                        help="Pack PyTorch QKV and SwiGLU GEMMs, retaining canonical checkpoint keys")
+    parser.add_argument("--gradient-checkpointing", choices=["auto", "on", "off"], default=None,
+                        help="Explicitly choose activation recomputation policy")
     parser.add_argument("--compile", action=argparse.BooleanOptionalAction, default=None, help="Enable torch.compile for model execution")
     parser.add_argument("--seed", type=int, default=42, help="Global random seed for initialization and training reproducibility (default: 42)")
     # Cadence & Dynamics Overrides
@@ -468,6 +498,18 @@ def main():
 
     args = parser.parse_args()
 
+    if args.resume is not None:
+        allowed = {"--resume", "--resume-step", "--checkpoint-dir", "--data", "--data-path",
+                   "--hardware", "--devices", "--eval-policy"}
+        if str(args.resume).isdigit():
+            # Legacy numeric invocations need the original dimensions/config to
+            # locate their checkpoint; its saved configuration remains authoritative.
+            pass
+        else:
+            supplied = {arg.split("=", 1)[0] for arg in sys.argv[1:] if arg.startswith("--")}
+            if supplied - allowed:
+                parser.error("Resume uses the saved run configuration; remove these overrides: "
+                             + ", ".join(sorted(supplied - allowed)))
     try:
         train(
             default_cadence=args.default_cadence,
@@ -487,7 +529,10 @@ def main():
             fused_vocab_loss=args.fused_vocab_loss,
             fused_vocab_chunk_size=args.fused_vocab_chunk_size,
             experimental_packed_swiglu=args.experimental_packed_swiglu,
+            experimental_qkv_rope=args.experimental_qkv_rope,
             compiled_accumulation=args.compiled_accumulation,
+            packed_projections=args.packed_projections,
+            gradient_checkpointing={"auto": "auto", "on": True, "off": False}.get(args.gradient_checkpointing),
             force_fused_attention=args.force_fused_attention,
             seq_len=args.seq_len,
             d_model=args.d_model,
@@ -506,7 +551,8 @@ def main():
             config_path=args.config,
             data_path=args.data,
             synthetic=args.synthetic,
-            resume_step=args.resume,
+            resume_step=int(args.resume) if args.resume is not None and str(args.resume).isdigit() else 0,
+            resume_checkpoint=args.resume if args.resume is not None and not str(args.resume).isdigit() else None,
             eval_policy=args.eval_policy,
             benchmark=args.benchmark,
             benchmark_duration=args.benchmark_duration,

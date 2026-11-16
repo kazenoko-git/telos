@@ -19,6 +19,7 @@ import numpy as np
 
 from .suite import load_tooluse_suite, STANDARD_TOOL_DEFINITIONS, TOOLUSE_BENCHMARK_SUITE
 from telos.eval.stats import bootstrap_confidence_interval
+from telos.eval.display import EvaluationProgress
 
 
 def format_tooluse_prompt(user_query: str, tools: Optional[List[Dict[str, Any]]] = None) -> str:
@@ -246,6 +247,8 @@ def evaluate_tooluse(
     correct_tools = 0
     valid_syntax_count = 0
     passed_tasks = 0
+    progress = EvaluationProgress('Tool use', total_tasks)
+    progress.update(0, 0)
 
     stop_words = ["\nUser:", "\n\n", "User:"]
 
@@ -326,6 +329,7 @@ def evaluate_tooluse(
             "tool_correct": is_tool_correct,
             "passed": is_passed,
         })
+        progress.update(idx, passed_tasks, detail=cat)
 
     tool_acc_pct = (correct_tools / max(total_tasks, 1)) * 100.0
     syntax_acc_pct = (valid_syntax_count / max(total_tasks, 1)) * 100.0

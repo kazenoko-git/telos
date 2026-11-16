@@ -1,0 +1,52 @@
+{
+  "model": {
+    "vocab_size": 8192,
+    "seq_len": 256,
+    "max_seq_len": 256,
+    "d_model": 512,
+    "n_layers": 14,
+    "n_heads": 8,
+    "n_kv_heads": 8,
+    "tied_embeddings": true,
+    "use_reliability_head": false,
+    "mask_token_id": 1,
+    "paradigm": "ar",
+    "is_causal": true
+  },
+  "training": {
+    "autotune": false,
+    "fused_step": true,
+    "async_eval": false,
+    "compiled_accumulation": false,
+    "fused_vocab_loss": false,
+    "fused_vocab_chunk_size": 256,
+    "experimental_packed_swiglu": false,
+    "batch_size": 8,
+    "gradient_accumulation": 1,
+    "max_steps": 8,
+    "max_lr": 0.0004,
+    "min_lr": 4e-05,
+    "warmup_steps": 50,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "precision": "bf16",
+    "seed": 42,
+    "default_cadence": 1,
+    "lr_cadence": 1,
+    "sched_cadence": 1,
+    "cadence": 1
+  },
+  "checkpoint": {
+    "checkpoint_dir": "/private/tmp/telos-native-m5-smoke/checkpoints",
+    "save_every_steps": 1000
+  },
+  "data": {
+    "train_path": "/Users/ivansamuel/Documents/Projects/telos/data/english_corpus_5b.bin"
+  },
+  "_resolved_params": 49166848,
+  "_backend": "mlx",
+  "_device": "gpu",
+  "_device_count": 1,
+  "seed": 42,
+  "paradigm": "ar"
+}

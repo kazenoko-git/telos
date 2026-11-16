@@ -37,7 +37,7 @@ pip install "telos-ml[dev]"
 - **Discrete Diffusion & Autoregressive Paradigms**: Unified implementations of Masked Diffusion Language Models (MDLM), Uniform Noise Diffusion (UNDLM), Causal Autoregressive (AR), and Confidence-Routed Selective ReDiffusion (COROSred).
 - **Multi-Backend Hardware Acceleration**:
   - **Apple Silicon**: Native Metal execution via Apple MLX (`mlx.core`).
-  - **NVIDIA CUDA**: Scaled PyTorch training with FlashAttention-2, mixed-precision (bfloat16), and master weight accumulation.
+  - **NVIDIA CUDA**: Scaled PyTorch training with FlashAttention-2, mixed precision (native BF16 or scaled FP16), and master weight accumulation.
   - **Google Cloud TPU**: Multi-core single-chip and Pod scaling with PJRT runtime.
 - **Apple Foundation Models (AFM) Bridge**: Direct Python access to Apple's native on-device language models on macOS Sequoia via compiled Swift IPC.
 - **Evaluation & Benchmarks**: 100 contextual probes, code execution suites (HumanEval, MBPP), cybersecurity audits, and tool-use verification.
@@ -73,6 +73,8 @@ telos afm status
 ```
 
 For preference optimization, use `telos posttrain --method dpo` with JSONL records containing `prompt`, `chosen`, and `rejected` strings. Select `--hardware mlx`, `cuda`, `xla`, or `cpu`; Apple Silicon post-training uses MLX rather than PyTorch MPS. `telos train` remains an alias for `telos pretrain`.
+
+With v1.7.0, add `--finetune lora` or `--finetune qlora` for adapter training. Configure `--lora-rank`, `--lora-alpha`, `--lora-dropout` and `--lora-targets`. Saves include merged native weights, adapter-only weights and complete resume state. PyTorch QLoRA uses portable packed NF4; MLX uses native affine int4. Embeddings/output heads remain unquantized; double quantization and paged optimizers are not implemented. v1.7.2 recomputes frozen NF4 weights during backward to reduce autograd retention and selects native CUDA precision automatically. v1.7.3 fixes MLX DPO gradients at zero preference margin, stages batches directly as int32 and reuses reference response scores across shuffled batches. Physical CUDA/TPU v1.7.2 reruns remain pending; the repository release validation notes audit the earlier single-device report. See the repository README for distributed training and precision options.
 
 ---
 
@@ -159,3 +161,31 @@ model, backend, vocab_size = load_model_from_checkpoint("checkpoints/model.pt")
 ## License
 
 Télos is licensed under the [Apache 2.0 License](https://github.com/kazenoko-git/telos/blob/main/LICENSE).
+
+### Resume pretraining
+
+Use `telos pretrain --resume checkpoints/ar/checkpoint_step_1000.resume.npz` on MLX,
+or pass a complete `.pt` training checkpoint on PyTorch. v1.5.1 restores training
+state and the saved run configuration, and rejects changed
+data or incompatible checkpoints. Older weights can start a new run through
+`--init-checkpoint`. See the [resume guide](https://github.com/kazenoko-git/telos/blob/main/cli/README.md#resuming-pretraining).
+
+## Evaluation displays
+
+Télos 1.6.0 turns saved evaluation JSON into a portable, offline cream notebook:
+
+```sh
+telos eval report logs/evaluation.json --output evaluation.html
+```
+
+Use `--html-report evaluation.html` during evaluation to save a notebook when the run finishes. Live progress adapts to terminals and plain CI logs; control it with `--display auto|plain|off`. The viewer preserves recorded outcomes and missing metrics, and supports filters, exports, and source-evidence inspection for Reader-1 archives.
+
+## Packaged document evaluation
+
+The frozen 512-case document diagnostic suite ships in Télos 1.6.2. Replay the completed historical responses offline:
+
+```bash
+telos eval documents replay --reference --output replay.json --html-report replay.html
+```
+
+Run new predictions using existing generic backends with `telos eval --suite document512 --model MODEL --backend openai_api --api-base http://localhost:1234/v1 --track all --output run.json`. Direct QA, exact source extraction and the configured calculator remain separate metrics. See [document evaluation](https://github.com/kazenoko-git/telos/blob/v1.6.2/docs/document-evaluation.md) for model setup, revision pins and imported responses.

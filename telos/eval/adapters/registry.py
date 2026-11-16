@@ -45,6 +45,7 @@ def load_adapter(
         torch_dtype: Model weights precision ('bfloat16', 'float16', 'float32').
         quantization: Quantization mode ('4bit', '8bit', None).
     """
+    backend = backend or "auto"
     m_lower = model_identifier.lower().strip()
 
     # Explicit MLX-LM backend override
@@ -53,7 +54,7 @@ def load_adapter(
         return MLXLMAdapter(model_path=model_identifier, **kwargs)
 
     # Google Gemini / Gemma API routing
-    if backend == "gemini_api" or "gemini" in m_lower or "gemma-4" in m_lower:
+    if backend == "gemini_api" or backend == "auto" and ("gemini" in m_lower or "gemma-4" in m_lower):
         gemini_model = model_identifier
         if "gemini-4" in m_lower and "gemma" not in m_lower:
             gemini_model = os.environ.get("GEMINI_4_MODEL_NAME", "gemini-2.5-flash")
@@ -69,7 +70,7 @@ def load_adapter(
         return SwiftAFMAdapter(model_identifier=model_identifier, **kwargs)
 
     # AFM models: route to native Swift FoundationModels on Apple Silicon by default
-    if "afm-3" in m_lower or "afm_3" in m_lower or "afm" in m_lower:
+    if backend == "auto" and ("afm-3" in m_lower or "afm_3" in m_lower or "afm" in m_lower):
         if api_base is not None or backend == "openai_api":
             return OpenAIAPIAdapter(
                 model_name=model_identifier,
@@ -102,8 +103,8 @@ def load_adapter(
     path_obj = Path(model_identifier)
     if (
         backend == "telos_native"
-        or path_obj.is_file()
-        or (path_obj.is_dir() and (
+        or backend == "auto" and path_obj.is_file()
+        or (backend == "auto" and path_obj.is_dir() and (
             (path_obj / "model.safetensors").exists()
             or (path_obj / "checkpoint_final.pt").exists()
             or list(path_obj.glob("checkpoint_step_*.pt"))
@@ -122,6 +123,8 @@ def load_adapter(
             **kwargs
         )
     except Exception as exc:
+        if backend == "huggingface":
+            raise
         # Fall back to OpenAIAPIAdapter if HF import/download fails or user intends local vLLM serving
         print(f"Notice: HuggingFace adapter failed to initialize ({exc}). Routing to OpenAI-compatible REST adapter...")
         return OpenAIAPIAdapter(

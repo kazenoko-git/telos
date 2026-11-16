@@ -120,13 +120,18 @@ class Attention(nn.Module):
     def forward(self, x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor, is_causal_override: bool | None = None) -> torch.Tensor:
         batch, seq_len, _ = x.shape
 
-        q = self.q_proj(x).view(batch, seq_len, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
-        k = self.k_proj(x).view(batch, seq_len, self.n_kv_heads, self.head_dim).permute(0, 2, 1, 3)
-        v = self.v_proj(x).view(batch, seq_len, self.n_kv_heads, self.head_dim).permute(0, 2, 1, 3)
+        if hasattr(self, "qkv_proj"):
+            q, k, v = self.qkv_proj(x).split(self.qkv_sizes, dim=-1)
+        else:
+            q, k, v = self.q_proj(x), self.k_proj(x), self.v_proj(x)
+        q = q.view(batch, seq_len, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
+        k = k.view(batch, seq_len, self.n_kv_heads, self.head_dim).permute(0, 2, 1, 3)
+        v = v.view(batch, seq_len, self.n_kv_heads, self.head_dim).permute(0, 2, 1, 3)
 
         q, k = apply_rope(q, k, cos, sin)
 
-        if self.num_queries_per_kv > 1:
+        native_gqa = self.num_queries_per_kv > 1 and x.device.type == "cuda"
+        if self.num_queries_per_kv > 1 and not native_gqa:
             k = k.repeat_interleave(self.num_queries_per_kv, dim=1)
             v = v.repeat_interleave(self.num_queries_per_kv, dim=1)
 
@@ -136,7 +141,8 @@ class Attention(nn.Module):
             q, k, v,
             attn_mask=None,
             dropout_p=self.dropout if self.training else 0.0,
-            is_causal=causal_flag
+            is_causal=causal_flag,
+            **({"enable_gqa": True} if native_gqa else {})
         )
 
         out = out.permute(0, 2, 1, 3).contiguous().view(batch, seq_len, self.d_model)

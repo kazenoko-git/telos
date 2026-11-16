@@ -126,16 +126,14 @@ def test_pytorch_master_weights_precision_and_resume():
         for p in trainer.model.parameters():
             p.fill_(42.0)
 
-    # Simulate checkpoint dict
-    ckpt = {
-        "global_step": 5,
-        "model_state_dict": trainer.model.state_dict(),
-        "optimizer_state_dict": trainer.optimizer.state_dict(),
-        "scheduler_state_dict": trainer.scheduler.state_dict(),
-    }
+    # Save a full checkpoint, including the precise master values. Legacy
+    # weights-only checkpoints are intentionally rejected by reliable resume.
+    for _, mp in trainer.param_to_master:
+        mp.data.fill_(42.0)
+    trainer.global_step = 5
     import tempfile
     with tempfile.NamedTemporaryFile(suffix=".pt") as tmp:
-        torch.save(ckpt, tmp.name)
+        trainer.save_checkpoint(tmp.name, sync=True)
 
         # Mutate master params to stale random values
         for _, mp in trainer.param_to_master:

@@ -1,0 +1,220 @@
+TEST ar
+============================================================================
+  TÉLOS UNIFIED TRAINER  |  Paradigm: AR
+  Hardware Backend:     PYTORCH (xla)
+  Target Parameters:    217,472 (~12M)
+  Batch Config:         batch_size=2, grad_accum=1 (effective=2 seqs / 16 tok)
+  Training Steps:       4 steps | LR: 8.49e-04 -> 8.49e-05 (warmup=1)
+  Checkpoint Dir:       /content/telos_xla_test/ar (every 2 steps)
+  [Hardware] Detected PyTorch-XLA TPU Topology (1 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  Notice: Using synthetic dataset stream...
+  Checkpoint Directory: /content/telos_xla_test/ar (Paradigm: AR)
+  [AR] Step      1/4 | Loss: 3.4740 | CE: 3.474 | LR: 6.58e-04 |   1.6 st/s |        25 tok/s | ETA:  0.0m
+  [AR] Step      2/4 | Loss: 3.6421 | CE: 3.642 | LR: 6.58e-04 |   1.7 st/s |        28 tok/s | ETA:  0.0m
+
+  [Checkpoint Step      2] Saving checkpoint weights to /content/telos_xla_test/ar/checkpoint_step_2.pt...
+  [Checkpoint Step      2] Successfully saved weights to /content/telos_xla_test/ar/checkpoint_step_2.pt
+
+  [AR] Step      3/4 | Loss: 3.5055 | CE: 3.506 | LR: 6.58e-04 |   2.2 st/s |        35 tok/s | ETA:  0.0m
+  [AR] Step      4/4 | Loss: 3.5269 | CE: 3.527 | LR: 8.49e-05 |   2.9 st/s |        47 tok/s | ETA:  0.0m
+
+  [Checkpoint Step      4] Saving checkpoint weights to /content/telos_xla_test/ar/checkpoint_step_4.pt...
+  [Checkpoint Step      4] Successfully saved weights to /content/telos_xla_test/ar/checkpoint_step_4.pt
+
+======================================================================
+  AR PyTorch Training Complete! Total time: 0.03 minutes.
+  Saved standalone model artifact to /content/telos_xla_test/ar/
+======================================================================
+============================================================================
+  TÉLOS UNIFIED TRAINER  |  Paradigm: AR
+  Hardware Backend:     PYTORCH (xla)
+  Target Parameters:    217,472 (~12M)
+  Batch Config:         batch_size=2, grad_accum=1 (effective=2 seqs / 16 tok)
+  Training Steps:       4 steps | LR: 8.49e-04 -> 8.49e-05 (warmup=1)
+  Checkpoint Dir:       /content/telos_xla_test/ar-resumed (every 2 steps)
+  [Hardware] Detected PyTorch-XLA TPU Topology (1 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  Notice: Using synthetic dataset stream...
+  Checkpoint Directory: /content/telos_xla_test/ar-resumed (Paradigm: AR)
+  [AR] Step      3/4 | Loss: 3.5055 | CE: 3.506 | LR: 6.58e-04 |  66.9 st/s |     1,070 tok/s | ETA:  0.0m
+  [AR] Step      4/4 | Loss: 3.5269 | CE: 3.527 | LR: 8.49e-05 |  68.0 st/s |     1,088 tok/s | ETA:  0.0m
+
+  [Checkpoint Step      4] Saving checkpoint weights to /content/telos_xla_test/ar-resumed/checkpoint_step_4.pt...
+  [Checkpoint Step      4] Successfully saved weights to /content/telos_xla_test/ar-resumed/checkpoint_step_4.pt
+
+======================================================================
+  AR PyTorch Training Complete! Total time: 0.00 minutes.
+  Saved standalone model artifact to /content/telos_xla_test/ar-resumed/
+======================================================================
+eval torch.Size([1, 8, 32]) 0.0740581601858139
+TEST mdlm
+============================================================================
+  TÉLOS UNIFIED TRAINER  |  Paradigm: MDLM
+  Hardware Backend:     PYTORCH (xla)
+  Target Parameters:    217,472 (~12M)
+  Batch Config:         batch_size=2, grad_accum=1 (effective=2 seqs / 16 tok)
+  Training Steps:       4 steps | LR: 8.49e-04 -> 8.49e-05 (warmup=1)
+  Checkpoint Dir:       /content/telos_xla_test/mdlm (every 2 steps)
+  [Hardware] Detected PyTorch-XLA TPU Topology (1 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  Notice: Using synthetic dataset stream...
+  Checkpoint Directory: /content/telos_xla_test/mdlm (Paradigm: MDLM)
+  [MDLM] Step      1/4 | Loss: 6.3373 | CE: 3.543 | LR: 6.58e-04 |   0.5 st/s |         9 tok/s | ETA:  0.1m
+  [MDLM] Step      2/4 | Loss: 9.5205 | CE: 3.662 | LR: 6.58e-04 |   0.5 st/s |         9 tok/s | ETA:  0.1m
+
+  [Checkpoint Step      2] Saving checkpoint weights to /content/telos_xla_test/mdlm/checkpoint_step_2.pt...
+  [Checkpoint Step      2] Successfully saved weights to /content/telos_xla_test/mdlm/checkpoint_step_2.pt
+
+  [MDLM] Step      3/4 | Loss: 10.7196 | CE: 3.536 | LR: 6.58e-04 |   0.8 st/s |        12 tok/s | ETA:  0.0m
+  [MDLM] Step      4/4 | Loss: 7.6544 | CE: 3.674 | LR: 8.49e-05 |   1.0 st/s |        17 tok/s | ETA:  0.0m
+
+  [Checkpoint Step      4] Saving checkpoint weights to /content/telos_xla_test/mdlm/checkpoint_step_4.pt...
+  [Checkpoint Step      4] Successfully saved weights to /content/telos_xla_test/mdlm/checkpoint_step_4.pt
+
+======================================================================
+  MDLM PyTorch Training Complete! Total time: 0.07 minutes.
+  Saved standalone model artifact to /content/telos_xla_test/mdlm/
+======================================================================
+============================================================================
+  TÉLOS UNIFIED TRAINER  |  Paradigm: MDLM
+  Hardware Backend:     PYTORCH (xla)
+  Target Parameters:    217,472 (~12M)
+  Batch Config:         batch_size=2, grad_accum=1 (effective=2 seqs / 16 tok)
+  Training Steps:       4 steps | LR: 8.49e-04 -> 8.49e-05 (warmup=1)
+  Checkpoint Dir:       /content/telos_xla_test/mdlm-resumed (every 2 steps)
+  [Hardware] Detected PyTorch-XLA TPU Topology (1 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  Notice: Using synthetic dataset stream...
+  Checkpoint Directory: /content/telos_xla_test/mdlm-resumed (Paradigm: MDLM)
+  [MDLM] Step      3/4 | Loss: 11.7497 | CE: 3.739 | LR: 6.58e-04 |   0.6 st/s |         9 tok/s | ETA:  0.0m
+  [MDLM] Step      4/4 | Loss: 7.6446 | CE: 3.666 | LR: 8.49e-05 |   1.1 st/s |        18 tok/s | ETA:  0.0m
+
+  [Checkpoint Step      4] Saving checkpoint weights to /content/telos_xla_test/mdlm-resumed/checkpoint_step_4.pt...
+  [Checkpoint Step      4] Successfully saved weights to /content/telos_xla_test/mdlm-resumed/checkpoint_step_4.pt
+
+======================================================================
+  MDLM PyTorch Training Complete! Total time: 0.03 minutes.
+  Saved standalone model artifact to /content/telos_xla_test/mdlm-resumed/
+======================================================================
+eval torch.Size([1, 8, 32]) 0.05782734975218773
+TEST undlm
+============================================================================
+  TÉLOS UNIFIED TRAINER  |  Paradigm: UNDLM
+  Hardware Backend:     PYTORCH (xla)
+  Target Parameters:    217,472 (~12M)
+  Batch Config:         batch_size=2, grad_accum=1 (effective=2 seqs / 16 tok)
+  Training Steps:       4 steps | LR: 8.49e-04 -> 8.49e-05 (warmup=1)
+  Checkpoint Dir:       /content/telos_xla_test/undlm (every 2 steps)
+  [Hardware] Detected PyTorch-XLA TPU Topology (1 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  Notice: Using synthetic dataset stream...
+  Checkpoint Directory: /content/telos_xla_test/undlm (Paradigm: UNDLM)
+  [UNDLM] Step      1/4 | Loss: 4.3666 | CE: 2.454 | LR: 6.58e-04 |   0.3 st/s |         6 tok/s | ETA:  0.1m
+  [UNDLM] Step      2/4 | Loss: 5.6525 | CE: 2.364 | LR: 6.58e-04 |   0.3 st/s |         6 tok/s | ETA:  0.1m
+
+  [Checkpoint Step      2] Saving checkpoint weights to /content/telos_xla_test/undlm/checkpoint_step_2.pt...
+  [Checkpoint Step      2] Successfully saved weights to /content/telos_xla_test/undlm/checkpoint_step_2.pt
+
+  [UNDLM] Step      3/4 | Loss: 8.2417 | CE: 3.069 | LR: 6.58e-04 |   0.5 st/s |         8 tok/s | ETA:  0.0m
+  [UNDLM] Step      4/4 | Loss: 5.2212 | CE: 2.585 | LR: 8.49e-05 |   0.7 st/s |        11 tok/s | ETA:  0.0m
+
+  [Checkpoint Step      4] Saving checkpoint weights to /content/telos_xla_test/undlm/checkpoint_step_4.pt...
+  [Checkpoint Step      4] Successfully saved weights to /content/telos_xla_test/undlm/checkpoint_step_4.pt
+
+======================================================================
+  UNDLM PyTorch Training Complete! Total time: 0.10 minutes.
+  Saved standalone model artifact to /content/telos_xla_test/undlm/
+======================================================================
+============================================================================
+  TÉLOS UNIFIED TRAINER  |  Paradigm: UNDLM
+  Hardware Backend:     PYTORCH (xla)
+  Target Parameters:    217,472 (~12M)
+  Batch Config:         batch_size=2, grad_accum=1 (effective=2 seqs / 16 tok)
+  Training Steps:       4 steps | LR: 8.49e-04 -> 8.49e-05 (warmup=1)
+  Checkpoint Dir:       /content/telos_xla_test/undlm-resumed (every 2 steps)
+  [Hardware] Detected PyTorch-XLA TPU Topology (1 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  Notice: Using synthetic dataset stream...
+  Checkpoint Directory: /content/telos_xla_test/undlm-resumed (Paradigm: UNDLM)
+  [UNDLM] Step      3/4 | Loss: 7.4810 | CE: 2.886 | LR: 6.58e-04 |  59.6 st/s |       954 tok/s | ETA:  0.0m
+  [UNDLM] Step      4/4 | Loss: 5.8262 | CE: 2.903 | LR: 8.49e-05 |  60.7 st/s |       971 tok/s | ETA:  0.0m
+
+  [Checkpoint Step      4] Saving checkpoint weights to /content/telos_xla_test/undlm-resumed/checkpoint_step_4.pt...
+  [Checkpoint Step      4] Successfully saved weights to /content/telos_xla_test/undlm-resumed/checkpoint_step_4.pt
+
+======================================================================
+  UNDLM PyTorch Training Complete! Total time: 0.00 minutes.
+  Saved standalone model artifact to /content/telos_xla_test/undlm-resumed/
+======================================================================
+eval torch.Size([1, 8, 32]) 0.05009879916906357
+TEST corosred
+============================================================================
+  TÉLOS UNIFIED TRAINER  |  Paradigm: COROSRED (Unified Continuous)
+  Hardware Backend:     PYTORCH (xla)
+  Target Parameters:    217,472 (~12M)
+  Batch Config:         batch_size=2, grad_accum=1 (effective=2 seqs / 16 tok)
+  Training Steps:       4 steps | LR: 8.49e-04 -> 8.49e-05 (warmup=1)
+  Checkpoint Dir:       /content/telos_xla_test/corosred (every 2 steps)
+  [Hardware] Detected PyTorch-XLA TPU Topology (1 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  [COROSred Unified] Initialized continuous multi-objective loop: alpha=[0.85->0.50 floor], beta=[0.15->0.35], gamma_max=0.10, hold=20%, adaptive_rebalance=False.
+  Notice: Using synthetic dataset stream...
+  Checkpoint Directory: /content/telos_xla_test/corosred (Paradigm: COROSRED)
+  [COROSRED-UNIFIED] Step      1/4 | Loss: 3.7407 | C-CE: 3.731 | I-CE: 3.794 | α=0.85 β=0.15 γ=0.00 | Acc=1.00 AUC=0.50 |   0.9 st/s |        15 tok/s | ETA:  0.1m
+  [COROSRED-UNIFIED] Step      2/4 | Loss: 3.6325 | C-CE: 3.553 | I-CE: 4.080 | α=0.85 β=0.15 γ=0.00 | Acc=1.00 AUC=0.50 |   1.0 st/s |        15 tok/s | ETA:  0.0m
+
+  [Checkpoint Step      2] Saving checkpoint weights to /content/telos_xla_test/corosred/checkpoint_step_2.pt...
+  [Checkpoint Step      2] Successfully saved weights to /content/telos_xla_test/corosred/checkpoint_step_2.pt
+
+  [COROSRED-UNIFIED] Step      3/4 | Loss: 3.2378 | C-CE: 3.355 | I-CE: 2.573 | α=0.85 β=0.15 γ=0.00 | Acc=1.00 AUC=0.50 |   1.3 st/s |        21 tok/s | ETA:  0.0m
+  [COROSRED-UNIFIED] Step      4/4 | Loss: 3.4501 | C-CE: 3.552 | I-CE: 2.874 | α=0.85 β=0.15 γ=0.00 | Acc=1.00 AUC=0.50 |   1.7 st/s |        28 tok/s | ETA:  0.0m
+
+  [Checkpoint Step      4] Saving checkpoint weights to /content/telos_xla_test/corosred/checkpoint_step_4.pt...
+  [Checkpoint Step      4] Successfully saved weights to /content/telos_xla_test/corosred/checkpoint_step_4.pt
+
+======================================================================
+  COROSRED PyTorch Training Complete! Total time: 0.04 minutes.
+  Saved standalone model artifact to /content/telos_xla_test/corosred/
+======================================================================
+============================================================================
+  TÉLOS UNIFIED TRAINER  |  Paradigm: COROSRED (Unified Continuous)
+  Hardware Backend:     PYTORCH (xla)
+  Target Parameters:    217,472 (~12M)
+  Batch Config:         batch_size=2, grad_accum=1 (effective=2 seqs / 16 tok)
+  Training Steps:       4 steps | LR: 8.49e-04 -> 8.49e-05 (warmup=1)
+  Checkpoint Dir:       /content/telos_xla_test/corosred-resumed (every 2 steps)
+  [Hardware] Detected PyTorch-XLA TPU Topology (1 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  [COROSred Unified] Initialized continuous multi-objective loop: alpha=[0.85->0.50 floor], beta=[0.15->0.35], gamma_max=0.10, hold=20%, adaptive_rebalance=False.
+  Notice: Using synthetic dataset stream...
+  Checkpoint Directory: /content/telos_xla_test/corosred-resumed (Paradigm: COROSRED)
+  [COROSRED-UNIFIED] Step      3/4 | Loss: 3.2937 | C-CE: 3.355 | I-CE: 2.946 | α=0.85 β=0.15 γ=0.00 | Acc=1.00 AUC=0.50 |  35.6 st/s |       569 tok/s | ETA:  0.0m
+  [COROSRED-UNIFIED] Step      4/4 | Loss: 3.5581 | C-CE: 3.553 | I-CE: 3.586 | α=0.85 β=0.15 γ=0.00 | Acc=1.00 AUC=0.50 |  36.6 st/s |       585 tok/s | ETA:  0.0m
+
+  [Checkpoint Step      4] Saving checkpoint weights to /content/telos_xla_test/corosred-resumed/checkpoint_step_4.pt...
+  [Checkpoint Step      4] Successfully saved weights to /content/telos_xla_test/corosred-resumed/checkpoint_step_4.pt
+
+======================================================================
+  COROSRED PyTorch Training Complete! Total time: 0.00 minutes.
+  Saved standalone model artifact to /content/telos_xla_test/corosred-resumed/
+======================================================================
+eval torch.Size([1, 8, 32]) 0.039317771792411804
+{
+  "ar": {
+    "resume_max_abs": 0.0,
+    "evaluation_device": "xla:0"
+  },
+  "mdlm": {
+    "resume_max_abs": 0.002088441513478756,
+    "evaluation_device": "xla:0"
+  },
+  "undlm": {
+    "resume_max_abs": 0.002079796977341175,
+    "evaluation_device": "xla:0"
+  },
+  "corosred": {
+    "resume_max_abs": 0.0017927661538124084,
+    "evaluation_device": "xla:0"
+  }
+}

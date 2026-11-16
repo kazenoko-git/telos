@@ -40,7 +40,7 @@ class OpenAIAPIAdapter(BaseModelAdapter):
         self.system_prompt = system_prompt
         self.timeout = timeout
 
-    def _make_http_request(self, endpoint: str, payload: Dict[str, Any], max_retries: int = 5) -> Dict[str, Any]:
+    def _make_http_request(self, endpoint: str, payload: Dict[str, Any], max_retries: int = 5, request_trace=None) -> Dict[str, Any]:
         """Performs a robust HTTP POST with exponential backoff retry on 429/5xx."""
         url = f"{self.api_base}{endpoint}"
         body_bytes = json.dumps(payload).encode("utf-8")
@@ -54,11 +54,17 @@ class OpenAIAPIAdapter(BaseModelAdapter):
 
         delay = 1.0
         for attempt in range(max_retries):
+            attempt_start = time.perf_counter()
             try:
                 with urllib.request.urlopen(req, timeout=self.timeout) as response:
-                    return json.loads(response.read().decode("utf-8"))
+                    result = json.loads(response.read().decode("utf-8"))
+                    if request_trace is not None:
+                        request_trace.append({'attempt': attempt + 1, 'http_status': response.status, 'client_ms': (time.perf_counter() - attempt_start) * 1000})
+                    return result
             except urllib.error.HTTPError as err:
                 status = err.code
+                if request_trace is not None:
+                    request_trace.append({'attempt': attempt + 1, 'http_status': status, 'client_ms': (time.perf_counter() - attempt_start) * 1000})
                 error_body = err.read().decode("utf-8", errors="replace")
                 # Retry on rate limits (429) or transient server errors (500, 502, 503, 504)
                 if status in (429, 500, 502, 503, 504) and attempt < max_retries - 1:
@@ -69,6 +75,8 @@ class OpenAIAPIAdapter(BaseModelAdapter):
                     f"OpenAI API Error {status} from {url}: {error_body}"
                 ) from err
             except (urllib.error.URLError, TimeoutError) as net_err:
+                if request_trace is not None:
+                    request_trace.append({'attempt': attempt + 1, 'error': type(net_err).__name__})
                 if attempt < max_retries - 1:
                     time.sleep(delay)
                     delay = min(delay * 2, 30.0)
@@ -128,7 +136,7 @@ class OpenAIAPIAdapter(BaseModelAdapter):
                 if filtered_stop:
                     payload["stop"] = filtered_stop
 
-            resp = self._make_http_request("/chat/completions", payload)
+            resp = self._make_http_request("/chat/completions", payload, max_retries=kwargs.get("request_attempts", 5), request_trace=kwargs.get("request_trace"))
             choices = resp.get("choices", [])
             if not choices:
                 return "", "unknown"
@@ -150,7 +158,7 @@ class OpenAIAPIAdapter(BaseModelAdapter):
             if stop:
                 payload["stop"] = stop
 
-            resp = self._make_http_request("/completions", payload)
+            resp = self._make_http_request("/completions", payload, max_retries=kwargs.get("request_attempts", 5), request_trace=kwargs.get("request_trace"))
             choices = resp.get("choices", [])
             if not choices:
                 return "", "unknown"

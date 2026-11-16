@@ -1,0 +1,21 @@
+============================================================================
+  TÉLOS UNIFIED TRAINER  |  Paradigm: AR
+  Hardware Backend:     MLX (gpu)
+  Target Parameters:    49,166,848 (~50M)
+  Batch Config:         batch_size=2, grad_accum=8 (effective=16 seqs / 16,384 tok)
+  Training Steps:       32 steps | LR: 4.00e-04 -> 4.00e-05 (warmup=50)
+  Checkpoint Dir:       /Users/ivansamuel/Documents/Projects/telos-mlx-pretrain/reports/mlx_pretrain_2026-11-16/runtime_long_abba/02_0.32.4/checkpoints (every 1000 steps)
+  [Experimental] Fused QKV/RoPE enabled; BF16 rounding may differ slightly.
+  [Experimental] Packed SwiGLU Metal VJP enabled; BF16 rounding may differ slightly.
+  [Hardware] Detected Apple M5 Pro (24.0GB Unified Memory)
+  [Hardware] Evaluation Policy: STEP
+  [Precision] MLX weights cast to bfloat16 (maintaining fp32 master weights).
+  Loading pre-tokenized dataset from /Users/ivansamuel/Documents/Projects/telos/data/english_corpus_5b.bin...
+  Checkpoint Directory: /Users/ivansamuel/Documents/Projects/telos-mlx-pretrain/reports/mlx_pretrain_2026-11-16/runtime_long_abba/02_0.32.4/checkpoints (Paradigm: AR)
+  [AR] Step      1/32 | Loss: 9.5149 | CE: 9.515 | LR: 8.00e-06 |   1.5 st/s |    25,055 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.26GB) | Swap: 9972.12M | ETA:  0.3m
+  [AR] Step     32/32 | Loss: 7.1566 | CE: 7.157 | LR: 2.56e-04 |   1.8 st/s |    29,471 tok/s | Metal Unified GPU: 0.49GB (Peak: 1.99GB) | Swap: 9972.12M | ETA:  0.0m
+======================================================================
+  AR Training Complete! Total time: 0.30 minutes.
+  Saved standalone model artifact to /Users/ivansamuel/Documents/Projects/telos-mlx-pretrain/reports/mlx_pretrain_2026-11-16/runtime_long_abba/02_0.32.4/checkpoints/
+======================================================================
+PROFILE_SUMMARY={"status": "complete", "updates": 32, "input_tokens_processed": 524288, "wall_seconds": 29.618522790959105, "errors": [], "final_system": {"time": 1794823671.867799, "swap_used_mb": 9972.12, "swap_free_mb": 1291.8799999999992, "memory_free_percent": 39, "gpu_system": {"Device Utilization %": 29, "Renderer Utilization %": 29, "Tiler Utilization %": 12, "In use system memory": 2563162112}}}

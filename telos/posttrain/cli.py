@@ -21,14 +21,29 @@ def main():
     parser.add_argument("--beta", type=float, default=0.1, help="DPO divergence scale")
     parser.add_argument("--max-length", type=int, default=None)
     parser.add_argument("--save-every", type=int, default=250, help="Checkpoint cadence; 0 disables intermediate checkpoints")
+    parser.add_argument("--resume", default=None, help="Full .resume.pt or .resume.npz checkpoint; repeat original run options")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--finetune", choices=["full", "lora", "qlora"], default="full")
+    parser.add_argument("--lora-rank", type=int, default=16)
+    parser.add_argument("--lora-alpha", type=float, default=32.0)
+    parser.add_argument("--lora-dropout", type=float, default=0.0)
+    parser.add_argument("--lora-targets", default=None, help="Comma-separated projection suffixes; default all transformer projections")
+    parser.add_argument("--precision", choices=["auto", "float32", "bf16", "fp16"], default="auto")
+    parser.add_argument("--compile", dest="compile_step", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--padding", choices=["auto", "batch", "fixed"], default="auto")
+    parser.add_argument("--cache-reference", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--reference-cache-size", type=int, default=128, help="Maximum cached DPO reference batches (MLX uses an equivalent per-response budget)")
     args = parser.parse_args()
     posttrain(
         args.checkpoint, args.data, args.output,
         method=args.method, tokenizer_path=args.tokenizer, hardware=args.hardware, devices=args.devices,
         max_steps=args.max_steps, batch_size=args.batch_size,
         learning_rate=args.learning_rate, beta=args.beta,
-        max_length=args.max_length, save_every=args.save_every, seed=args.seed,
+        max_length=args.max_length, save_every=args.save_every, seed=args.seed, resume=args.resume,
+        finetune=args.finetune, lora_rank=args.lora_rank, lora_alpha=args.lora_alpha,
+        lora_dropout=args.lora_dropout, lora_targets=args.lora_targets, precision=args.precision,
+        compile_step=args.compile_step, padding=args.padding, cache_reference=args.cache_reference,
+        reference_cache_size=args.reference_cache_size,
     )
 
 

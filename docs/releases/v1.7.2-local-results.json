@@ -1,0 +1,157 @@
+{
+  "release": "1.7.2",
+  "date": "2026-11-16",
+  "hardware": "Apple Silicon CPU/Metal for pytest; CPU for process harness",
+  "pytest": {
+    "passed": 330,
+    "skipped": 7,
+    "failed": 0
+  },
+  "process_harness": "PASS_FOR_LISTED_CHECKS_ONLY",
+  "cases": {
+    "pretrain-ar": {
+      "status": "PASS",
+      "interrupted_after_atomic_checkpoint": "pretrain-ar/train/checkpoint_step_1.pt",
+      "exit_code": -15,
+      "exact_match": true,
+      "tensor_leaves": 46
+    },
+    "pretrain-mdlm": {
+      "status": "PASS",
+      "interrupted_after_atomic_checkpoint": "pretrain-mdlm/train/checkpoint_step_1.pt",
+      "exit_code": -15,
+      "exact_match": true,
+      "tensor_leaves": 48
+    },
+    "pretrain-undlm": {
+      "status": "PASS",
+      "interrupted_after_atomic_checkpoint": "pretrain-undlm/train/checkpoint_step_1.pt",
+      "exit_code": -15,
+      "exact_match": true,
+      "tensor_leaves": 48
+    },
+    "pretrain-corosred": {
+      "status": "PASS",
+      "interrupted_after_atomic_checkpoint": "pretrain-corosred/train/checkpoint_step_1.pt",
+      "exit_code": -15,
+      "exact_match": true,
+      "tensor_leaves": 62
+    },
+    "sft-full-invariants": {
+      "status": "PASS",
+      "updated": true
+    },
+    "sft-full": {
+      "status": "PASS",
+      "interrupted_after_atomic_checkpoint": "sft-full/train/checkpoint_step_1.resume.pt",
+      "exit_code": -15,
+      "exact_match": true,
+      "tensor_leaves": 46
+    },
+    "sft-lora-invariants": {
+      "status": "PASS",
+      "frozen_tensor_leaves": 12,
+      "nonzero_adapter_update": true
+    },
+    "sft-lora": {
+      "status": "PASS",
+      "interrupted_after_atomic_checkpoint": "sft-lora/train/checkpoint_step_1.resume.pt",
+      "exit_code": -15,
+      "exact_match": true,
+      "tensor_leaves": 69
+    },
+    "sft-qlora-invariants": {
+      "status": "PASS",
+      "frozen_tensor_leaves": 26,
+      "nonzero_adapter_update": true
+    },
+    "sft-qlora": {
+      "status": "PASS",
+      "interrupted_after_atomic_checkpoint": "sft-qlora/train/checkpoint_step_1.resume.pt",
+      "exit_code": -15,
+      "exact_match": true,
+      "tensor_leaves": 83
+    },
+    "dpo-full-invariants": {
+      "status": "PASS",
+      "updated": true
+    },
+    "dpo-full": {
+      "status": "PASS",
+      "interrupted_after_atomic_checkpoint": "dpo-full/train/checkpoint_step_1.resume.pt",
+      "exit_code": -15,
+      "exact_match": true,
+      "tensor_leaves": 58
+    },
+    "dpo-lora-invariants": {
+      "status": "PASS",
+      "frozen_tensor_leaves": 12,
+      "nonzero_adapter_update": true
+    },
+    "dpo-lora": {
+      "status": "PASS",
+      "interrupted_after_atomic_checkpoint": "dpo-lora/train/checkpoint_step_1.resume.pt",
+      "exit_code": -15,
+      "exact_match": true,
+      "tensor_leaves": 95
+    },
+    "dpo-qlora-invariants": {
+      "status": "PASS",
+      "frozen_tensor_leaves": 26,
+      "nonzero_adapter_update": true
+    },
+    "dpo-qlora": {
+      "status": "PASS",
+      "interrupted_after_atomic_checkpoint": "dpo-qlora/train/checkpoint_step_1.resume.pt",
+      "exit_code": -15,
+      "exact_match": true,
+      "tensor_leaves": 123
+    }
+  },
+  "benchmark_diagnostic": {
+    "measured_updates": 7,
+    "elapsed_seconds": 0.019199625006876886,
+    "input_tokens": 896,
+    "tokens_per_second": 46667.57812608696,
+    "latency_ms": [
+      2.8502499917522073,
+      3.068750025704503,
+      2.598208957351744,
+      2.6143749710172415,
+      2.9139999533072114,
+      2.478457987308502,
+      2.5692919734865427
+    ],
+    "warmup_updates": 5,
+    "global_step": 12,
+    "scheduler_step": 12,
+    "max_parameter_change": 0.006289685145020485,
+    "compiled": false,
+    "sequence_length": 64,
+    "train_wall_seconds_including_warmup": 0.042287416057661176
+  },
+  "nf4_projection_probe": {
+    "device": "cpu",
+    "results": [
+      {
+        "recompute": false,
+        "dense_weight_retained_bytes": 1048576
+      },
+      {
+        "recompute": true,
+        "dense_weight_retained_bytes": 0
+      }
+    ],
+    "scope": "single projection; not whole-model peak memory"
+  },
+  "untested": [
+    "multi-device collectives and global token normalization",
+    "long-run convergence",
+    "representative corpus throughput",
+    "full-model QLoRA peak memory",
+    "physical v1.7.2 CUDA",
+    "physical v1.7.2 TPU",
+    "CUDA compile ABBA",
+    "device-side CUDA/TPU adapter export parity"
+  ]
+}

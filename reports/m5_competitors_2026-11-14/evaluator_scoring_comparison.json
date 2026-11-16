@@ -1,0 +1,90 @@
+{
+  "task": "GSM8K answer extraction/scoring only",
+  "lm_eval_version": "0.4.13",
+  "lm_eval_commit": "d6de81643928d653435c431bae19945d41d32520",
+  "lm_eval_task_yaml_sha256": "82eb1780b263bc040729032b3e076990c7933f42163c91e359f38820dd1d8833",
+  "shared_completion_count": 8,
+  "cases": [
+    {
+      "case": "marker-comma",
+      "completion": "#### 1,250",
+      "gold": "1250",
+      "telos_pass": true,
+      "lm_eval_strict_answer": "1,250",
+      "lm_eval_strict_pass": true,
+      "lm_eval_flexible_answer": "1,250",
+      "lm_eval_flexible_pass": true
+    },
+    {
+      "case": "answer-only",
+      "completion": "The answer is 42.",
+      "gold": "42",
+      "telos_pass": true,
+      "lm_eval_strict_answer": "[invalid]",
+      "lm_eval_strict_pass": false,
+      "lm_eval_flexible_answer": "42.",
+      "lm_eval_flexible_pass": true
+    },
+    {
+      "case": "marker-then-reconsider",
+      "completion": "#### 10\nAfter checking, final answer is 12.",
+      "gold": "10",
+      "telos_pass": true,
+      "lm_eval_strict_answer": "10",
+      "lm_eval_strict_pass": true,
+      "lm_eval_flexible_answer": "12.",
+      "lm_eval_flexible_pass": false
+    },
+    {
+      "case": "unmarked-final-number",
+      "completion": "Work: 2 + 3 = 5.",
+      "gold": "5",
+      "telos_pass": true,
+      "lm_eval_strict_answer": "[invalid]",
+      "lm_eval_strict_pass": false,
+      "lm_eval_flexible_answer": "5.",
+      "lm_eval_flexible_pass": true
+    },
+    {
+      "case": "fraction",
+      "completion": "#### 1/2",
+      "gold": "0.5",
+      "telos_pass": false,
+      "lm_eval_strict_answer": "1",
+      "lm_eval_strict_pass": false,
+      "lm_eval_flexible_answer": "2",
+      "lm_eval_flexible_pass": false
+    },
+    {
+      "case": "currency",
+      "completion": "The answer is $1,250.",
+      "gold": "1250",
+      "telos_pass": true,
+      "lm_eval_strict_answer": "[invalid]",
+      "lm_eval_strict_pass": false,
+      "lm_eval_flexible_answer": "$1,250.",
+      "lm_eval_flexible_pass": true
+    },
+    {
+      "case": "trailing-confidence",
+      "completion": "#### 42\nConfidence: 50",
+      "gold": "42",
+      "telos_pass": true,
+      "lm_eval_strict_answer": "42",
+      "lm_eval_strict_pass": true,
+      "lm_eval_flexible_answer": "50",
+      "lm_eval_flexible_pass": false
+    },
+    {
+      "case": "negative-decimal",
+      "completion": "Answer: -3.5",
+      "gold": "-3.5",
+      "telos_pass": true,
+      "lm_eval_strict_answer": "[invalid]",
+      "lm_eval_strict_pass": false,
+      "lm_eval_flexible_answer": "-3.5",
+      "lm_eval_flexible_pass": true
+    }
+  ],
+  "note": "Synthetic fixed completions exercise upstream GSM8K strict/flexible filters and T\u00e9los evaluator on identical strings; this is scorer behavior testing, not model evaluation or official GSM8K performance."
+}

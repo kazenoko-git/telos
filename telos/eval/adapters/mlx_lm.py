@@ -16,7 +16,14 @@ class MLXLMAdapter(BaseModelAdapter):
         import mlx_lm
 
         print(f"Loading MLX-LM model from: {model_path}...")
-        self.model, self.tokenizer = mlx_lm.load(model_path)
+        from pathlib import Path
+        revision = kwargs.get('revision')
+        if not Path(model_path).exists():
+            from huggingface_hub import snapshot_download
+            model_path = snapshot_download(model_path, revision=revision)
+        self.model_path = str(Path(model_path).resolve())
+        self.model_revision = Path(self.model_path).name if 'snapshots' in Path(self.model_path).parts else revision
+        self.model, self.tokenizer = mlx_lm.load(self.model_path)
 
     def generate(
         self,

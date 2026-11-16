@@ -17,6 +17,7 @@ if not metal_usable():
 
 import mlx.core as mx
 import mlx.nn as nn
+from .mlx_qkv_rope import experimental_qkv_rope
 
 
 _PACKED_SWIGLU_FORWARD = mx.fast.metal_kernel(
@@ -97,6 +98,29 @@ def _experimental_packed_swiglu_vjp(primals, cotangent, output):
     )[0]
 
 
+@mx.custom_function
+def _embedding_lookup(weight, indices):
+    return mx.take(weight, indices, axis=0)
+
+
+@_embedding_lookup.vjp
+def _embedding_lookup_vjp(primals, cotangent, output):
+    weight, indices = primals
+    # Native low-precision scatter-add rounds every repeated-token update.
+    # Accumulate lookup gradients in FP32, then round once to parameter dtype.
+    flat_indices = indices.reshape(-1)
+    updates = cotangent.reshape(-1, weight.shape[-1]).astype(mx.float32)
+    gradient = mx.zeros(weight.shape, dtype=mx.float32).at[flat_indices].add(updates)
+    return gradient.astype(weight.dtype), mx.zeros_like(indices)
+
+
+class MLXEmbedding(nn.Embedding):
+    def __call__(self, indices):
+        if self.weight.dtype in (mx.bfloat16, mx.float16):
+            return _embedding_lookup(self.weight, indices)
+        return super().__call__(indices)
+
+
 class MLXRMSNorm(nn.Module):
     """Root Mean Square Layer Normalization."""
 
@@ -148,6 +172,8 @@ class MLXBlock(nn.Module):
         self.kv_groups = n_heads // n_kv_heads
         self.is_causal = is_causal
         self.force_fused_attention = False
+        self.use_experimental_qkv_rope = False
+        object.__setattr__(self, "_qkv_rope_table", None)
 
         self.qkv_proj = nn.Linear(d_model, (n_heads + 2 * n_kv_heads) * self.head_dim, bias=False)
         self.out = nn.Linear(d_model, d_model, bias=False)
@@ -162,15 +188,20 @@ class MLXBlock(nn.Module):
         h = self.norm1(x)
 
         qkv = self.qkv_proj(h)
-        # Split using precomputed static index boundaries
-        q, k, v = mx.split(qkv, [self._q_end, self._k_end], axis=-1)
-        q = q.reshape(B, T, self.n_heads, self.head_dim).transpose(0, 2, 1, 3)
-        k = k.reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
-        v = v.reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
-
-        # Apply hardware-accelerated RoPE Metal kernel
-        q = mx.fast.rope(q, self.head_dim, traditional=True, base=10000.0, scale=1.0, offset=0)
-        k = mx.fast.rope(k, self.head_dim, traditional=True, base=10000.0, scale=1.0, offset=0)
+        table = self._qkv_rope_table
+        if (self.use_experimental_qkv_rope and table is not None
+                and self.head_dim == 64 and self.n_heads == self.n_kv_heads
+                and T <= table.shape[0] and qkv.dtype in (mx.float32, mx.bfloat16)
+                and mx.default_device() == mx.gpu):
+            q, k, v = experimental_qkv_rope(qkv, table[:T])
+        else:
+            # Split using precomputed static index boundaries.
+            q, k, v = mx.split(qkv, [self._q_end, self._k_end], axis=-1)
+            q = q.reshape(B, T, self.n_heads, self.head_dim).transpose(0, 2, 1, 3)
+            k = k.reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
+            v = v.reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
+            q = mx.fast.rope(q, self.head_dim, traditional=True, base=10000.0, scale=1.0, offset=0)
+            k = mx.fast.rope(k, self.head_dim, traditional=True, base=10000.0, scale=1.0, offset=0)
 
         scale = 1.0 / (self.head_dim ** 0.5)
         

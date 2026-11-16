@@ -36,7 +36,7 @@ from telos.diffusion.corosred import (
     crsr_phase_b_self_conditioned_loss_fn_mlx,
     corosred_unified_loss_fn_mlx,
 )
-from .schedule import COROSredSchedule
+from .schedule import COROSredSchedule, DynamicMetricTracker
 
 
 from .hardware import detect_apple_silicon_profile
@@ -56,6 +56,21 @@ class UnifiedMLXTrainer:
         self.m_cfg = cfg.setdefault("model", {})
         self.t_cfg = cfg.setdefault("training", {})
         self.c_cfg = cfg.setdefault("checkpoint", {})
+        self.experimental_qkv_rope = bool(self.t_cfg.get("experimental_qkv_rope", False))
+        if self.experimental_qkv_rope:
+            eligible = [layer for layer in getattr(self.model, "layers", ())
+                        if getattr(layer, "head_dim", None) == 64
+                        and getattr(layer, "n_heads", None) == getattr(layer, "n_kv_heads", None)]
+            if not eligible:
+                raise ValueError("experimental_qkv_rope requires equal Q/K/V heads with head dimension 64")
+            from telos.models.mlx_qkv_rope import make_rope_table
+            table = make_rope_table(int(self.m_cfg.get("seq_len", 512)))
+            for layer in eligible:
+                # Bypass Module.__setattr__: constants must stay outside both
+                # parameter and compiled model-state dictionaries.
+                object.__setattr__(layer, "_qkv_rope_table", table)
+                layer.use_experimental_qkv_rope = True
+            print("  [Experimental] Fused QKV/RoPE enabled; BF16 rounding may differ slightly.")
         self.experimental_packed_swiglu = bool(self.t_cfg.get("experimental_packed_swiglu", False))
         if self.experimental_packed_swiglu:
             enabled_modules = 0
@@ -133,13 +148,16 @@ class UnifiedMLXTrainer:
         configured_accum = int(self.t_cfg.get("gradient_accumulation", 1))
         if min(configured_bs, configured_accum) < 1:
             raise ValueError("batch_size and gradient_accumulation must be positive")
-        requested_chkpt = bool(self.t_cfg.get("gradient_checkpointing", False)
-                               or self.m_cfg.get("use_grad_checkpoint", False)
-                               or getattr(self.model, "use_grad_checkpoint", False))
+        policy = self.t_cfg.get("gradient_checkpointing", "auto")
+        if policy not in (True, False, "auto"):
+            raise ValueError("gradient_checkpointing must be true, false or auto")
+        requested_chkpt = policy is True or (policy == "auto" and bool(
+            self.m_cfg.get("use_grad_checkpoint", False)
+            or getattr(self.model, "use_grad_checkpoint", False)))
         param_count = sum(p.size for _, p in tree_flatten(self.model.parameters()))
         self.memory_plan = plan_training_batch(
             param_count, self.m_cfg, configured_bs * configured_accum,
-            self.memory_budget, checkpointing=requested_chkpt,
+            self.memory_budget, checkpointing=requested_chkpt, allow_checkpointing=policy is not False,
         )
         plan = self.memory_plan
         self.t_cfg["batch_size"] = plan["batch_size"]
@@ -172,11 +190,44 @@ class UnifiedMLXTrainer:
 
         if self.paradigm == "corosred":
             self.crsr_cfg = cfg.get("crsr", cfg.get("corosred", {}))
+            self.metric_tracker = DynamicMetricTracker(
+                trust_region=float(self.crsr_cfg.get("trust_region", .20)),
+                rebalance_temp=float(self.crsr_cfg.get("rebalance_temp", .25)))
             self.is_unified = bool(self.crsr_cfg.get("unified", True))
             raw_phase = self.crsr_cfg.get("phase", "UNIFIED" if self.is_unified else "A")
             self.phase = str(raw_phase).upper()
             if self.phase == "UNIFIED":
                 self.is_unified = True
+
+    def load_checkpoint(self, path):
+        from .checkpoint import read_resume, validate_resume
+        saved = read_resume(path)
+        validate_resume(saved, self.cfg, "mlx")
+        from mlx.utils import tree_flatten
+        self.model.load_weights(tree_flatten(saved["model"]), strict=True)
+        self._resume_state = saved
+
+    def _save_training_checkpoint(self, path, optimizer, step, next_row, signature):
+        from .checkpoint import (save_mlx_state, host_rng_state, tokenizer_signature, FORMAT_VERSION)
+        state = {
+            "resume_format": FORMAT_VERSION,
+            "backend": "mlx",
+            "global_step": step,
+            "config": self.cfg,
+            "dataset": signature,
+            "tokenizer": tokenizer_signature(self.cfg),
+            "next_row": next_row,
+            "model": self.model.parameters(),
+            "optimizer": optimizer.state,
+            "master_params": getattr(optimizer, "master_params", None),
+            "mlx_rng": list(mx.random.state),
+            "host_rng": host_rng_state(),
+            "reliability_metrics": getattr(self, "reliability_metrics", None),
+            "metric_tracker": vars(self.metric_tracker) if hasattr(self, "metric_tracker") else None,
+            "beta_idx": getattr(self, "beta_idx", None),
+            "beta_buffer": getattr(self, "beta_buffer", None),
+        }
+        save_mlx_state(path, state)
 
     def _sample_beta_timesteps(self, bs: int) -> mx.array:
         """Fetches bs timesteps directly from the pre-sampled device-resident Beta buffer without CPU copy."""
@@ -233,7 +284,7 @@ class UnifiedMLXTrainer:
                 loss_and_grad_fn = mx_nn.value_and_grad(self.model, corosred_unified_loss_fn_mlx)
                 compilation_targets = [self.model.state]
 
-                def microbatch_step_uncompiled(batch_seqs, alpha, beta, gamma):
+                def microbatch_step_uncompiled(batch_seqs, alpha, beta, gamma, mask_blend=0.0):
                     (loss, ce), grads = loss_and_grad_fn(
                         self.model,
                         batch_seqs,
@@ -241,6 +292,7 @@ class UnifiedMLXTrainer:
                         alpha=alpha,
                         beta=beta,
                         gamma=gamma,
+                        mask_blend=mask_blend,
                         mask_token_id=mask_token_id,
                         mask_prob=mask_prob,
                         k_amb=k_amb,
@@ -308,6 +360,7 @@ class UnifiedMLXTrainer:
                 dummy_seqs,
                 mx.array(0.85, dtype=mx.float32),
                 mx.array(0.15, dtype=mx.float32),
+                mx.array(0.0, dtype=mx.float32),
                 mx.array(0.0, dtype=mx.float32)
             )
         else:
@@ -355,6 +408,10 @@ class UnifiedMLXTrainer:
             "seq_len": self.seq_len,
             "steps": steps,
             "elapsed_seconds": elapsed,
+            "timing": "synchronized_completed_updates",
+            "warmup_updates": 5,
+            "valid_measurement": steps > 0,
+            "token_unit": "input_tokens",
             "tokens_processed": tokens_processed,
             "steps_per_sec": sps,
             "tokens_per_sec": tps,
@@ -400,12 +457,15 @@ class UnifiedMLXTrainer:
             if dtype is None:
                 dtype = np.int32 if "mac" in str(train_bin) or self.vocab_size > 65536 else np.uint16
 
+            d_cfg["train_path"] = str(train_bin.resolve())
             raw_data = np.memmap(train_bin, dtype=dtype, mode="r")
             n_seqs = len(raw_data) // self.seq_len
             dataset_matrix = raw_data[:n_seqs * self.seq_len].reshape(n_seqs, self.seq_len)
         elif use_synthetic:
             print("  Notice: Using synthetic dataset stream...")
-            dataset_matrix = np.random.randint(0, self.vocab_size, (10000, self.seq_len), dtype=np.uint16)
+            dataset_matrix = np.random.RandomState(self.seed).randint(
+                0, self.vocab_size, (10000, self.seq_len),
+                dtype=np.int32 if self.vocab_size > 65536 else np.uint16)
         else:
             raise FileNotFoundError(
                 f"No training data found at '{train_bin}'. Run 'telos dataprep' to generate token data, "
@@ -417,7 +477,8 @@ class UnifiedMLXTrainer:
         max_lr = float(self.t_cfg.get("max_lr", 3e-4))
         min_lr = float(self.t_cfg.get("min_lr", 3e-5))
         weight_decay = float(self.t_cfg.get("weight_decay", 0.1))
-        if self.t_cfg.get("autotune", False):
+        saved = getattr(self, "_resume_state", None)
+        if self.t_cfg.get("autotune", False) and saved is None:
             from .mlx_tuning import tune_mlx_batch
             report = tune_mlx_batch(self, dataset_matrix)
             plan = report["selected"]["plan"]
@@ -450,10 +511,17 @@ class UnifiedMLXTrainer:
         # Benchmark duration strictly capped at 300.0 seconds (5 minutes)
         max_bench_duration = min(float(benchmark_duration), 300.0)
 
+        from .checkpoint import dataset_signature, validate_resume, restore_host_rng, atomic_write
+        signature = dataset_signature(dataset_matrix)
+        if resume_step and saved is None:
+            raise ValueError("A step number alone cannot resume training; load a complete checkpoint first")
         idx_ptr = 0
-        if resume_step > 0:
-            seqs_consumed = resume_step * (bs * grad_accum)
-            idx_ptr = seqs_consumed % len(dataset_matrix)
+        if saved is not None:
+            validate_resume(saved, self.cfg, "mlx", signature)
+            if resume_step not in (0, saved["global_step"]):
+                raise ValueError("Requested resume step differs from checkpoint")
+            resume_step = saved["global_step"]
+            idx_ptr = saved["next_row"]
 
         optimizer = mx_optim.AdamW(
             learning_rate=max_lr,
@@ -461,6 +529,23 @@ class UnifiedMLXTrainer:
             betas=[0.9, 0.95],
             bias_correction=True
         )
+
+        if saved is not None:
+            self.reliability_metrics = saved.get("reliability_metrics")
+            if saved.get("metric_tracker") is not None:
+                vars(self.metric_tracker).update(saved["metric_tracker"])
+            optimizer.state = saved["optimizer"]
+            if saved["master_params"] is not None:
+                optimizer.master_params = saved["master_params"]
+            optimizer.init(getattr(optimizer, "master_params", self.model.trainable_parameters()))
+            if saved["beta_idx"] is not None:
+                self.beta_idx = saved["beta_idx"]
+                self.beta_buffer = saved["beta_buffer"]
+            restore_host_rng(saved["host_rng"])
+            # MLX 0.31+ exposes a read-only random-state sentinel. The two
+            # uint32 words are the high/low halves of the seed key.
+            high, low = saved["mlx_rng"][0].tolist()
+            mx.random.seed((int(high) << 32) | int(low))
 
         uncompiled_step_fn, compilation_targets = self._setup_training_functions()
         compilation_targets.append(mx.random.state)
@@ -473,6 +558,11 @@ class UnifiedMLXTrainer:
             fused=bool(self.t_cfg.get("fused_step", True)),
             accumulation_step=accumulation_step,
         )
+
+        # Restored Adam moments have already undergone their first-step cast.
+        # Repeating initialization would change the resumed optimizer trajectory.
+        if saved is not None and resume_step > 0:
+            training_step._initialized = True
 
         ckpt_dir_name = f"checkpoints/{self.paradigm}"
         if self.paradigm == "corosred":
@@ -508,12 +598,12 @@ class UnifiedMLXTrainer:
         eval_micro = (self.hw_profile.eval_policy == "eager")
 
         start_time = time.time()
-        bench_start_time = None
-        latencies = []
-        bench_steps = 0
+        from .benchmark_timing import BenchmarkTimer
+        benchmark_timer = BenchmarkTimer(mx.synchronize) if benchmark else None
 
         for step in range(resume_step + 1, max_steps + 1):
-            t_step_start = time.perf_counter()
+            if benchmark_timer is not None:
+                benchmark_timer.begin()
 
             lr = self._get_lr(step, warmup_steps, max_steps, max_lr, min_lr)
             optimizer.learning_rate = lr
@@ -522,10 +612,22 @@ class UnifiedMLXTrainer:
             global_targets_np, idx_ptr = get_global_targets_contiguous(dataset_matrix, idx_ptr, bs * grad_accum, self.seq_len)
 
             if self.paradigm == "corosred" and (getattr(self, "is_unified", False) or self.phase == "UNIFIED"):
-                w = self.schedule.get_weights(step)
+                from .mlx_reliability import reliability_metrics
+                measured_acc, measured_auc, measured_causal, measured_infill = reliability_metrics(
+                    self.model, mx.array(global_targets_np[:bs], dtype=mx.int32))
+                previous = getattr(self, "reliability_metrics", None)
+                self.reliability_metrics = (measured_acc, measured_auc) if previous is None else (
+                    .95 * previous[0] + .05 * measured_acc, .95 * previous[1] + .05 * measured_auc)
+                w = self.schedule.get_weights(step, *self.reliability_metrics)
+                # The head must learn before its competence can gate routing.
+                w["gamma"] = self.schedule.gamma_max
+                self.metric_tracker.update_losses(measured_causal, measured_infill)
+                if self.crsr_cfg.get("adaptive_rebalance", False):
+                    w["alpha"], w["beta"], _ = self.metric_tracker.get_balanced_weights(w["alpha"], w["beta"])
                 alpha_mx = mx.array(w["alpha"], dtype=mx.float32)
                 beta_mx = mx.array(w["beta"], dtype=mx.float32)
                 gamma_mx = mx.array(w["gamma"], dtype=mx.float32)
+                blend_mx = mx.array(w["mask_blend"], dtype=mx.float32)
 
             def batch_gen():
                 # Slice lazily from the numpy array per microbatch to cut resident MLX batch memory ~grad_accum×
@@ -536,7 +638,7 @@ class UnifiedMLXTrainer:
                         t_vals = self._sample_beta_timesteps(bs)
                         yield (batch_seqs, t_vals)
                     elif self.paradigm == "corosred" and (getattr(self, "is_unified", False) or self.phase == "UNIFIED"):
-                        yield (batch_seqs, alpha_mx, beta_mx, gamma_mx)
+                        yield (batch_seqs, alpha_mx, beta_mx, gamma_mx, blend_mx)
                     else:
                         yield batch_seqs
 
@@ -547,22 +649,12 @@ class UnifiedMLXTrainer:
                 asynchronous=not benchmark and bool(self.t_cfg.get("async_eval", False)),
             )
 
-            step_time_ms = (time.perf_counter() - t_step_start) * 1000.0
-
-            # For benchmark mode: 5 warmup steps before collecting benchmark timers
-            if benchmark:
-                if step >= resume_step + 5 and bench_start_time is None:
-                    bench_start_time = time.time()
-                elif bench_start_time is not None:
-                    latencies.append(step_time_ms)
-                    bench_steps += 1
-                    # Check benchmark duration condition
-                    if (time.time() - bench_start_time) >= max_bench_duration:
-                        bench_elapsed = time.time() - bench_start_time
-                        self._print_benchmark_report(bench_steps, bench_elapsed, latencies, bs, grad_accum)
-                        return
-
-
+            if benchmark_timer is not None:
+                benchmark_timer.end()
+                if benchmark_timer.steps and benchmark_timer.elapsed >= max_bench_duration:
+                    self._print_benchmark_report(benchmark_timer.steps, benchmark_timer.elapsed,
+                                                 benchmark_timer.latencies, bs, grad_accum)
+                    return
 
             if step % 50 == 0 or step == 1 or step == max_steps or (benchmark and step % 10 == 0):
                 training_step.synchronize()
@@ -585,21 +677,27 @@ class UnifiedMLXTrainer:
                     log_msg += f" | ETA: {eta_mins:>4.1f}m"
                 print(log_msg, flush=True)
 
-            if not benchmark and step % self.c_cfg.get("save_every_steps", 1000) == 0:
+            save_interval = self.c_cfg.get("save_every_steps", 1000)
+            if not benchmark and save_interval > 0 and step % save_interval == 0:
                 training_step.synchronize()
                 ckpt_file = ckpt_dir / f"checkpoint_step_{step}.safetensors"
-                self.model.save_weights(str(ckpt_file))
+                atomic_write(ckpt_file, lambda temporary: self.model.save_weights(temporary))
+                self._save_training_checkpoint(
+                    ckpt_dir / f"checkpoint_step_{step}.resume.npz", optimizer, step, idx_ptr, signature)
+
                 print(f"  [Checkpoint] Saved weights to {ckpt_file}")
 
         training_step.synchronize()
         total_time = time.time() - start_time
         if benchmark:
-            bench_elapsed = time.time() - (bench_start_time if bench_start_time else start_time)
-            self._print_benchmark_report(bench_steps, bench_elapsed, latencies, bs, grad_accum)
+            self._print_benchmark_report(benchmark_timer.steps, benchmark_timer.elapsed,
+                                         benchmark_timer.latencies, bs, grad_accum)
             return
 
         final_weights = ckpt_dir / "model.safetensors"
-        self.model.save_weights(str(final_weights))
+        atomic_write(final_weights, lambda temporary: self.model.save_weights(temporary))
+        self._save_training_checkpoint(
+            ckpt_dir / "checkpoint_final.resume.npz", optimizer, max_steps, idx_ptr, signature)
 
         with open(ckpt_dir / "config.json", "w", encoding="utf-8") as f:
             json.dump(self.cfg, f, indent=2, default=str)

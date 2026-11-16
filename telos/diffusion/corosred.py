@@ -231,6 +231,7 @@ if MLX_AVAILABLE:
         k_amb: int = 5,
         causal_ratio: float = 0.60,
         special_token_lut: mx.array | None = None,
+        mask_blend=0.0,
     ):
         """
         Unified Multi-Objective Loss Function (Apple Silicon / MLX):
@@ -292,7 +293,7 @@ if MLX_AVAILABLE:
             # Assign ground truth labels: 1.0 if greedy prediction matches target, 0.0 otherwise
             labels = mx.where(is_exact_match, mx.ones_like(shift_r_scores), mx.zeros_like(shift_r_scores))
             # Compute raw binary cross entropy loss with logits
-            bce_raw = mx_nn.losses.binary_cross_entropy(shift_r_scores, labels, with_logits=True)
+            bce_raw = mx_nn.losses.binary_cross_entropy(shift_r_scores, labels, with_logits=True, reduction="none")
 
             # Ambiguity exclusion: filter out positions where target is in top-k but not rank 1
             is_ambiguous = mx.logical_and(is_target_in_top_k, mx.logical_not(is_exact_match))
@@ -312,7 +313,16 @@ if MLX_AVAILABLE:
         if B_m > 0:
             # Generate uniform random mask positions for infill sequences
             rand_probs = mx.random.uniform(shape=(B_m, T))
-            mask_positions = rand_probs < mask_prob
+            random_mask = rand_probs < mask_prob
+            if has_rel:
+                _, infill_scores = model(batch_infill, mask_override=True, return_reliability=True)
+                confidence = mx.concatenate([mx.full((B_m, 1), 1e9), infill_scores[:, :-1]], axis=1)
+                ranks = mx.argsort(mx.argsort(mx.stop_gradient(confidence), axis=-1), axis=-1)
+                targeted = ranks < max(1, int((T - 1) * mask_prob))
+                choose_targeted = mx.random.uniform(shape=(B_m, T)) < mask_blend
+                mask_positions = mx.where(choose_targeted, targeted, random_mask)
+            else:
+                mask_positions = random_mask
             # Never mask sequence start BOS token
             mask_positions[:, 0] = False
 

@@ -93,6 +93,51 @@ telos pretrain --paradigm corosred --params 50M --tokens 2.5B --causal-ratio 0.6
 telos pretrain --paradigm ar --params 100M --tokens 5B --hardware xla --devices 8 --data data/python_corpus_5b.bin
 ```
 
+### Resuming pretraining
+
+Resume from a complete checkpoint without repeating the original configuration:
+
+```bash
+# Apple Silicon / MLX
+telos pretrain --resume checkpoints/ar/checkpoint_step_1000.resume.npz
+
+# PyTorch CPU or a single CUDA device
+telos pretrain --resume checkpoints/ar/checkpoint_step_1000.pt
+```
+
+Télos restores the model, optimizer moments, fp32 master weights when used,
+learning-rate position, random generators, diffusion sampling state, and the next
+unconsumed data row. COROSred also restores its metric tracker and routing cache
+on PyTorch. Checkpoints are written atomically so a failed save preserves the
+previous complete file. MLX continues to export `.safetensors` weights for evaluation;
+its separate `.resume.npz` checkpoint contains the complete training state.
+
+Resume uses the saved architecture, objective, batching, seed, and original total
+step budget. `--checkpoint-dir` can select a new output directory. `--data` can
+relocate the same corpus; its token contents, shape, and dtype must match the saved
+fingerprint. Changed data, tokenizers, backends, and incompatible configurations
+are rejected. Custom tokenizer files must remain available at their recorded paths.
+Data fingerprints read the full corpus once when training starts.
+
+v1.5.5 supports pretraining resume with the original CUDA/XLA worker topology.
+Keep every rank checkpoint together: rank zero uses the normal `.pt` filename;
+other workers use `.rankN.pt`. Each worker restores its own RNG, optimizer and cursor.
+A topology change or missing rank file aborts resume. XLA stochastic updates use
+step-indexed seeds to avoid depending on graph-tracing RNG consumption; their
+physical TPU continuation retest is still outstanding. CPU interruption tests are bit-exact; native MLX tests
+verify state restoration and continuation, with rounding tolerance for parallel GPU
+reductions. Identical numerical results across hardware or runtime versions are not
+guaranteed. CUDA and single-device XLA paths require hardware validation.
+
+Only checkpoints written with complete training state can resume.
+Stochastic XLA continuation across the v1.5.5 seeding change is not equivalent to
+an uninterrupted older run; begin a new run to validate the new seed strategy. Older
+checkpoints and exported weights can initialize a new run with `--init-checkpoint`.
+The legacy `--resume-step N` syntax resolves a complete checkpoint in the selected
+checkpoint directory; it no longer skips updates with fresh training state.
+After an interruption, resume the most recent completed checkpoint; work after that
+checkpoint is repeated. `--save-every 0` disables intermediate saves.
+
 ---
 
 ## 4. Post-training (`telos posttrain`)
@@ -233,3 +278,26 @@ uv publish --publish-url https://test.pypi.org/legacy/
 # Publish to PyPI
 uv publish
 ```
+
+### Resuming SFT and DPO (v1.5.5)
+
+Post-training writes full `.resume.pt` (CPU/CUDA/XLA) or `.resume.npz` (MLX)
+checkpoints alongside exported model weights. Repeat the original source checkpoint,
+data and training options, adding the full resume checkpoint:
+
+```bash
+telos posttrain --method dpo --checkpoint checkpoints/ar/checkpoint_final.pt \
+  --data data/preferences.jsonl --output checkpoints/ar-dpo-resumed \
+  --hardware cuda --devices 2 --max-steps 1000 --batch-size 4 \
+  --resume checkpoints/ar-dpo/checkpoint_step_250.resume.pt
+```
+
+The model, optimizer, random generators, sampler and frozen DPO reference are
+restored. Data, tokenizer, run settings and worker identity are checked before
+continuation. XLA writes one resume file per rank. CUDA post-training uses one
+process with DataParallel across the selected GPUs; batch size is per GPU.
+`--devices auto` selects all visible CUDA GPUs. MLX remains a single-device backend.
+
+CPU and native MLX SFT/DPO interruption tests pass. Multi-GPU CUDA and physical
+TPU post-training/resume remain hardware-unverified. Simulated rank tests do not
+establish collective or physical multi-device correctness.

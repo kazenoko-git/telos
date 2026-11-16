@@ -25,6 +25,11 @@ def sandbox_command(
     Supported hosts must provide macOS ``sandbox-exec`` or Linux ``bwrap``.
     The function fails closed if neither backend is available.
     """
+    # Resolve the entry point before applying a restrictive read policy. A
+    # virtualenv can traverse intermediate symlinks outside its runtime roots.
+    command = list(command)
+    entry = shutil.which(command[0]) or command[0]
+    command[0] = str(Path(entry).resolve())
     scratch = Path(scratch_dir).resolve()
     scratch.mkdir(parents=True, exist_ok=True)
     executable_paths = tuple(dict.fromkeys(
@@ -65,6 +70,9 @@ def sandbox_command(
             rules.append("(allow process-fork)")
         rules.extend(f"(allow file-read* (subpath {json.dumps(root)}))" for root in sorted(read_roots))
         rules.extend([
+            # dyld opens the root directory as an anchor for runtime lookup.
+            # A literal permits this directory only, never its descendants.
+            '(allow file-read-data (literal "/"))',
             '(allow file-read* (literal "/dev/null"))',
             '(allow file-write* (literal "/dev/null"))',
             f"(allow file-write* (subpath {json.dumps(str(scratch))}))",

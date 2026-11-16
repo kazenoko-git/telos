@@ -19,6 +19,7 @@ class TelosConfig:
     tied_embeddings: bool = True # Tie input embeddings with output linear projection
     is_causal: bool = False      # Causal autoregressive mask vs bidirectional diffusion
     use_reliability_head: bool = False  # Scalar reliability head for COROSred
+    packed_projections: bool = False  # Pack QKV and SwiGLU GEMMs; canonical checkpoints
     use_grad_checkpoint: bool = False   # Enable gradient checkpointing across transformer layers
 
     def __post_init__(self):

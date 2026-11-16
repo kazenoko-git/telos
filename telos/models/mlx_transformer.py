@@ -9,7 +9,7 @@ if not metal_usable():
 
 import mlx.core as mx
 import mlx.nn as nn
-from .mlx_components import MLXBlock, MLXRMSNorm
+from .mlx_components import MLXBlock, MLXRMSNorm, MLXEmbedding
 
 class MLXTelosTransformer(nn.Module):
     """Unified Telos Transformer for Apple Silicon (MLX)."""
@@ -38,7 +38,7 @@ class MLXTelosTransformer(nn.Module):
         
         # Default n_kv_heads to n_heads (standard Multi-Head Attention) if not explicitly set for GQA
         actual_kv_heads = n_heads if n_kv_heads is None else n_kv_heads
-        self.emb = nn.Embedding(vocab_size, d_model)
+        self.emb = MLXEmbedding(vocab_size, d_model)
         self.layers = [MLXBlock(d_model, n_heads, actual_kv_heads, is_causal=is_causal) for _ in range(n_layers)]
         self.norm = MLXRMSNorm(d_model)
         
@@ -151,9 +151,9 @@ class MLXTelosTransformer(nn.Module):
         target_logits = mx.sum(hidden.astype(mx.float32) * target_weight, axis=-1)
         return (log_partition - target_logits).reshape(input_ids.shape)
 
-    def __call__(self, x, return_reliability: bool = False, mask_override=None, is_causal: bool | None = None):
+    def __call__(self, x, return_reliability: bool = False, mask_override=None, is_causal: bool | None = None, next_token_only: bool = False):
         h = self.hidden_states(x, mask_override=mask_override, is_causal=is_causal)
-        logits = self.logits_from_hidden(h)
+        logits = self.logits_from_hidden(h[:, :-1] if next_token_only else h)
         if return_reliability:
             if self.reliability_head is None:
                 raise ValueError("return_reliability=True requested but use_reliability_head was not enabled.")

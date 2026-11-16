@@ -160,3 +160,11 @@ def tokenizer_path():
 
     asset = resources.files("telos.assets").joinpath("tokenizer_0.json")
     return str(asset)
+
+
+def test_checkpoint_directory_excludes_adapter_and_resume_sidecars(tmp_path):
+    from telos.posttrain.trainer import _checkpoint_file
+    for name in ['checkpoint_step_2.pt','checkpoint_step_10.pt','checkpoint_step_10.resume.pt',
+                 'checkpoint_step_10.adapter.pt','checkpoint_step_10.resume.rank1.pt']:
+        (tmp_path/name).touch()
+    assert _checkpoint_file(tmp_path).name == 'checkpoint_step_10.pt'

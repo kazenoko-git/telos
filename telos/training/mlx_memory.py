@@ -66,10 +66,11 @@ def effective_batch_divisors(effective_batch):
     return sorted(divisors)
 
 
-def plan_training_batch(parameter_count, model, effective_batch, budget, *, checkpointing=False):
+def plan_training_batch(parameter_count, model, effective_batch, budget, *, checkpointing=False, allow_checkpointing=True):
     """Pick the largest fitting exact microbatch; checkpoint only if necessary."""
     sizes = effective_batch_divisors(effective_batch)
-    for use_checkpoint in ([True] if checkpointing else [False, True]):
+    modes = [True] if checkpointing else ([False, True] if allow_checkpointing else [False])
+    for use_checkpoint in modes:
         for size in reversed(sizes):
             estimate = estimate_training_bytes(parameter_count, model, size, checkpointing=use_checkpoint)
             if estimate <= budget.allocation_bytes:

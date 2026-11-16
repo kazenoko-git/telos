@@ -145,6 +145,11 @@ class ExperimentalAccumulationStep(MLXTrainingStep):
         compiled = mx.compile(accumulate) if compiled_accumulation else None
 
         def execute(*positional, **keywords):
+            # Production step gained profiling/accumulation hooks; this isolated
+            # implementation owns its own evaluation and accumulation policy.
+            if keywords.pop("stage_profile", None) is not None:
+                raise ValueError("Experimental accumulation does not support stage profiling")
+            keywords.pop("accumulation_step_fn", None)
             return execute_mlx_training_step(
                 *positional, **keywords, pipeline_accumulation=pipeline_accumulation,
                 accumulate_fn=compiled, defer_last_microbatch=defer_last_microbatch,

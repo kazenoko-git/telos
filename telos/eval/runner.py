@@ -36,6 +36,7 @@ from .adapters import BaseModelAdapter, load_adapter
 from .polyglot_eval import execute_polyglot_task, clean_polyglot_completion
 from .reasoning_eval import evaluate_gsm8k_sample, evaluate_arc_sample, evaluate_competition_math_sample
 from .cyber_eval import evaluate_cybersecurity_challenge
+from .display import EvaluationProgress, display_mode, write_html_report
 from telos.data.tokenizer import load_tokenizer
 from telos.models import TelosConfig
 
@@ -49,8 +50,9 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
         mlx_file = cp / "model.safetensors"
         pt_file = cp / "checkpoint_final.pt"
         if not pt_file.exists():
-            pt_files = sorted(cp.glob("checkpoint_step_*.pt"))
-            pt_file = pt_files[-1] if pt_files else pt_file
+            native_files = [(int(match.group(1)), path) for path in cp.iterdir()
+                            if (match := re.fullmatch(r"checkpoint_step_(\d+)\.(?:pt|safetensors)", path.name))]
+            pt_file = max(native_files, key=lambda item: item[0])[1] if native_files else pt_file
 
         if mlx_file.exists():
             cp = mlx_file
@@ -116,7 +118,7 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
                 emb_shape = f.get_slice("emb.weight").get_shape()
                 vocab_size = emb_shape[0]
                 d_model = emb_shape[1]
-            if "layers.0.qkv_proj.weight" in keys:
+            if "layers.0.qkv_proj.weight" in keys and "n_heads" not in m_cfg:
                 qkv_shape = f.get_slice("layers.0.qkv_proj.weight").get_shape()
                 qkv_out = qkv_shape[0]
                 # QKV projection = 3 * n_heads * head_dim (head_dim = 64)
@@ -145,7 +147,9 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
                 n_layers=n_layers,
                 n_heads=n_heads,
                 n_kv_heads=n_kv_heads,
-                tied_embeddings=True,
+                tied_embeddings=bool(m_cfg.get("tied_embeddings", True)),
+                packed_projections=bool(m_cfg.get("packed_projections", False)),
+                max_seq_len=int(m_cfg.get("max_seq_len", m_cfg.get("seq_len") or 512)),
                 is_causal=is_causal,
                 use_reliability_head=use_reliability_head,
             )
@@ -166,7 +170,8 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
                 n_layers=n_layers,
                 n_heads=n_heads,
                 n_kv_heads=n_kv_heads,
-                tied_embeddings=True,
+                tied_embeddings=bool(m_cfg.get("tied_embeddings", True)),
+                max_seq_len=int(m_cfg.get("max_seq_len", m_cfg.get("seq_len") or 512)),
                 is_causal=is_causal,
                 use_reliability_head=use_reliability_head,
             )
@@ -194,7 +199,9 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
             n_layers=n_layers,
             n_heads=n_heads,
             n_kv_heads=n_kv_heads,
-            tied_embeddings=True,
+            tied_embeddings=bool(m_cfg.get("tied_embeddings", True)),
+            packed_projections=bool(m_cfg.get("packed_projections", False)),
+            max_seq_len=int(m_cfg.get("max_seq_len", m_cfg.get("seq_len") or 512)),
             is_causal=is_causal,
             use_reliability_head=use_reliability_head,
         )
@@ -223,8 +230,10 @@ def _evaluate_single_probe_type(
     """Executes a single pass (infill or causal) of the contextual probes."""
     results = []
     category_stats: Dict[str, Dict[str, Any]] = {}
+    progress = EvaluationProgress('Probes · ' + probe_type, len(probes_list))
+    progress.update(0, 0)
 
-    for probe in probes_list:
+    for probe_idx, probe in enumerate(probes_list, 1):
         cat = probe.get("category", "General")
         prompt = probe["prompt"]
         target_str = probe["target"]
@@ -306,6 +315,7 @@ def _evaluate_single_probe_type(
             "top1": is_top1,
             "top5": is_top5,
         })
+        progress.update(probe_idx, sum(r['top1'] for r in results), detail=cat)
 
     total_count = len(results)
     overall_top1 = sum(r["top1"] for r in results) / max(total_count, 1) * 100.0
@@ -669,6 +679,9 @@ def evaluate_functional(
     is_cyber = "cyber" in suite
     is_polyglot = any(x in suite for x in ["csharp", "cs", "java", "js", "javascript", "ts", "typescript", "rust", "react"])
 
+    progress = EvaluationProgress(suite + mode_label, len(tasks))
+    progress.update(0, 0)
+
     for idx, task in enumerate(tasks, 1):
         cat = task.get("category", task.get("subject", task.get("domain", "General")))
         if cat not in category_stats:
@@ -811,8 +824,7 @@ def evaluate_functional(
             "extended_metrics": comp_metrics,
         })
 
-        if idx % 10 == 0 or idx == len(tasks):
-            print(f"  [{idx}/{len(tasks)}] Completed... Current Pass@1: {round(outcome_counts[ExecutionResult.PASSED.value]/idx*100, 1)}%")
+        progress.update(idx, outcome_counts[ExecutionResult.PASSED.value], detail=cat)
 
     total_tasks = len(tasks)
     passed_total = outcome_counts[ExecutionResult.PASSED.value]
@@ -1007,6 +1019,34 @@ def _evaluate_single(
     **kwargs
 ) -> Dict[str, Any]:
     """Evaluates a single model checkpoint across requested benchmark types."""
+    if suite == 'document512':
+        from .documents.runner import evaluate_documents, atomic_write
+        models = list(checkpoint) if isinstance(checkpoint, (list, tuple)) else [checkpoint]
+        reports = []
+        if output_path and Path(output_path).exists() and not kwargs.get('resume'):
+            raise FileExistsError('Output exists; choose a new path or use --resume')
+        if len(models) > 1 and kwargs.get('resume'):
+            raise ValueError('Document resume requires one model per output file')
+        for model in models:
+            adapter = load_adapter(str(model), backend=kwargs.get('backend', 'auto'),
+                                   api_base=kwargs.get('api_base'), api_key=kwargs.get('api_key'),
+                                   concurrency=kwargs.get('concurrency', 1), device=kwargs.get('device', 'auto'),
+                                   torch_dtype=kwargs.get('torch_dtype', 'bfloat16'), quantization=kwargs.get('quantization'),
+                                   revision=kwargs.get('model_revision'))
+            report = evaluate_documents(adapter, tracks=kwargs.get('track', 'direct_qa'),
+                                        output=output_path if len(models) == 1 else None,
+                                        resume=kwargs.get('resume', False), max_tasks=max_tasks,
+                                        max_new_tokens=kwargs.get('max_new_tokens', 256), temperature=kwargs.get('temperature', 0.0),
+                                        prompt_format=kwargs.get('document_prompt', 'instruction'), thinking=kwargs.get('thinking', False), case_ids=kwargs.get('case_ids'))
+            reports.append(report)
+        if len(reports) == 1:
+            return reports[0]
+        result = {'schema': 'telos.eval.documents.collection.v1', 'runs': reports}
+        if output_path:
+            if Path(output_path).exists():
+                raise FileExistsError('Output exists; use a different output path')
+            atomic_write(output_path, result)
+        return result
     b_type = str(kwargs.get("type", benchmark_type)).lower()
     lang = str(language).lower()
 
@@ -1048,17 +1088,7 @@ def _evaluate_single(
         # Local Télos Checkpoint
         model, backend, vocab_size = load_model_from_checkpoint(checkpoint)
         dev = kwargs.get("device", "auto")
-        if hasattr(model, "to"):
-            try:
-                import torch
-                if dev and dev != "auto":
-                    model = model.to(torch.device(dev))
-                elif torch.cuda.is_available():
-                    model = model.to(torch.device("cuda:0"))
-                elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-                    model = model.to(torch.device("mps"))
-            except Exception:
-                pass
+        model = _place_native_model(model, backend, dev)
 
     if tokenizer_path is None:
         if vocab_size == 8192 and (PROJECT_ROOT / "configs" / "tokenizer_mac.json").exists():
@@ -1347,6 +1377,25 @@ def print_multimodel_scorecard(multi_reports: Dict[str, Any], mode: str):
     print("=" * 115 + "\n")
 
 
+def _place_native_model(model, backend, device="auto"):
+    """Resolve native evaluation placement without hiding requested-device errors."""
+    if backend == "mlx":
+        if device not in (None, "auto", "mlx"):
+            raise ValueError("MLX checkpoints require MLX evaluation")
+        return model
+    import torch
+    from telos.training.xla_utils import get_xla_device, is_tpu_environment
+    if device in ("xla", "tpu") or (device in (None, "auto") and is_tpu_environment()):
+        target = get_xla_device()
+    elif device not in (None, "auto"):
+        target = torch.device(device)
+    elif torch.cuda.is_available():
+        target = torch.device("cuda:0")
+    else:
+        target = torch.device("cpu")
+    return model.to(target)
+
+
 def evaluate(
     checkpoint: str | Path | list[str | Path] | tuple[str | Path, ...],
     mode: str = "probes",
@@ -1367,6 +1416,9 @@ def evaluate(
     Supports evaluating a single checkpoint or multiple checkpoints side-by-side across
     benchmark types ('all', 'code', 'linguistic', 'tooluse') and languages ('auto', 'english', 'python').
     """
+    if suite == 'document512':
+        return _evaluate_single(checkpoint=checkpoint, mode=mode, suite=suite,
+                                max_tasks=max_tasks, output_path=output_path, **kwargs)
     b_type = str(kwargs.get("type", benchmark_type)).lower()
 
     if isinstance(checkpoint, (list, tuple)):
@@ -1450,6 +1502,12 @@ def evaluate(
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == 'documents':
+        from .documents.cli import main as documents_main
+        return documents_main(sys.argv[2:])
+    if len(sys.argv) > 1 and sys.argv[1] == 'report':
+        from .display import main as report_main
+        return report_main(sys.argv[2:])
     parser = argparse.ArgumentParser(description="Télos Next-Generation Universal Evaluation Suite")
     parser.add_argument(
         "--checkpoint", "--checkpoints", "--model", "--models",
@@ -1469,7 +1527,7 @@ def main():
     parser.add_argument("--api-base", type=str, default=None, help="Base URL for OpenAI-compatible REST server (e.g. http://localhost:8000/v1)")
     parser.add_argument("--api-key", type=str, default=None, help="API key for OpenAI or Gemini")
     parser.add_argument("--concurrency", type=int, default=8, help="Number of concurrent worker threads for API models")
-    parser.add_argument("--device", type=str, default="auto", help="Torch device ('auto', 'cpu', 'cuda', 'mps')")
+    parser.add_argument("--device", type=str, default="auto", help="Native device ('auto', 'cpu', 'cuda', 'xla', 'mlx')")
     parser.add_argument("--torch-dtype", type=str, default="bfloat16", help="Precision for HuggingFace models ('bfloat16', 'float16', 'float32')")
     parser.add_argument("--quantization", type=str, default=None, choices=["4bit", "8bit", None], help="Quantization for HF models")
     parser.add_argument(
@@ -1498,7 +1556,7 @@ def main():
             "humaneval", "mbpp", "public_standard",
             "humaneval_cs", "humaneval_java", "humaneval_js", "humaneval_ts", "humaneval_rust",
             "react", "gsm8k", "arc", "gpqa", "gpqa_diamond", "mmlu", "mmlu_science",
-            "competition_math", "cyber", "tooluse"
+            "competition_math", "cyber", "tooluse", "document512"
         ],
         help="Benchmark suite track. Default is 'private_unseen'."
     )
@@ -1530,29 +1588,46 @@ def main():
     parser.add_argument("--timeout", type=float, default=3.0, help="Sandbox subprocess timeout in seconds")
     parser.add_argument("--tokenizer", type=str, default=None, help="Path to BPE tokenizer JSON")
     parser.add_argument("--output", type=str, default=None, help="Path to save output JSON report")
+    parser.add_argument("--html-report", type=Path, help="Also save a portable cream evaluation notebook")
+    parser.add_argument("--display", choices=['auto', 'plain', 'off'], default='auto', help="Live progress: adaptive terminal, plain log records, or off")
+    parser.add_argument('--case-ids', nargs='+', help='Explicit document task subset; use a new output for recovery runs')
+    parser.add_argument('--track', choices=['direct_qa', 'extraction', 'calculator', 'all'], default='direct_qa', help='Separate document512 track; all shares one extraction generation with the calculator')
+    parser.add_argument('--document-prompt', choices=['instruction', 'native-template'], default='instruction', help='Document prompt rendering; native-template requires tokenizer template/instructions support')
+    parser.add_argument('--max-new-tokens', type=int, default=256, help='Document generation token budget')
+    parser.add_argument('--temperature', type=float, default=0.0, help='Document generation temperature')
+    parser.add_argument('--thinking', action='store_true', help='Enable thinking in supported local document chat templates')
+    parser.add_argument('--model-revision', help='Pin a local HF/MLX model revision')
+    parser.add_argument('--resume', action='store_true', help='Resume a document output only when its fingerprint matches')
     args = parser.parse_args()
 
-    evaluate(
-        checkpoint=args.checkpoints,
-        mode=args.mode,
-        suite=args.suite,
-        probe_type=args.probe_type,
-        num_probes=args.num_probes,
-        max_tasks=args.max_tasks,
-        timeout=args.timeout,
-        tokenizer_path=args.tokenizer,
-        output_path=args.output,
-        benchmark_type=args.benchmark_type,
-        language=args.language,
-        prompt_mode=args.prompt_mode,
-        backend=args.backend,
-        api_base=args.api_base,
-        api_key=args.api_key,
-        concurrency=args.concurrency,
-        device=args.device,
-        torch_dtype=args.torch_dtype,
-        quantization=args.quantization,
-    )
+    with display_mode(args.display):
+        result = evaluate(
+            checkpoint=args.checkpoints,
+            mode=args.mode,
+            suite=args.suite,
+            probe_type=args.probe_type,
+            num_probes=args.num_probes,
+            max_tasks=args.max_tasks,
+            timeout=args.timeout,
+            tokenizer_path=args.tokenizer,
+            output_path=args.output,
+            benchmark_type=args.benchmark_type,
+            language=args.language,
+            prompt_mode=args.prompt_mode,
+            backend=args.backend,
+            api_base=args.api_base,
+            api_key=args.api_key,
+            concurrency=args.concurrency,
+            device=args.device,
+            torch_dtype=args.torch_dtype,
+            quantization=args.quantization,
+            track=args.track, document_prompt=args.document_prompt,
+            max_new_tokens=args.max_new_tokens, temperature=args.temperature,
+            thinking=args.thinking, model_revision=args.model_revision, resume=args.resume, case_ids=args.case_ids,
+        )
+    if args.html_report:
+        write_html_report(result, args.html_report, title='Télos evaluation', source=Path(args.output).name if args.output else 'telos eval')
+        print(f"[OK] Saved evaluation display to {args.html_report}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,53 @@
+{
+  "arguments": {
+    "params": "50M",
+    "tokens": 131072,
+    "seq_len": 256,
+    "microbatch": 8,
+    "grad_accum": 8,
+    "data": "/Users/ivansamuel/Documents/Projects/telos/data/english_corpus_5b.bin",
+    "output": "reports/mlx_pretrain_2026-11-16/stage",
+    "max_mlx_gib": 3.2,
+    "critical_memory_free_percent": 25,
+    "critical_swap_free_mib": 768.0,
+    "stage_profile": true,
+    "fused_step": true,
+    "compile_microbatch": true,
+    "async_stage_eval": false,
+    "fused_vocab_loss": false,
+    "experimental_packed_swiglu": true,
+    "experimental_qkv_rope": true,
+    "compiled_accumulation": false,
+    "force_fused_attention": true,
+    "trim_ar_final_token": false,
+    "fused_vocab_chunk_size": 256
+  },
+  "device": {
+    "device_name": "Apple M5 Pro",
+    "max_recommended_working_set_size": 19069665280,
+    "memory_size": 25769803776,
+    "architecture": "applegpu_g17s",
+    "max_buffer_length": 14302248960,
+    "resource_limit": 499000
+  },
+  "mlx_version": "0.32.2",
+  "commit": "9ea78b71280332632519bbc1374cfcabb50580e7",
+  "initial_system": {
+    "time": 1794820507.2212648,
+    "swap_used_mb": 9235.25,
+    "swap_free_mb": 1004.75,
+    "memory_free_percent": 42,
+    "gpu_system": {
+      "Device Utilization %": 46,
+      "Renderer Utilization %": 46,
+      "Tiler Utilization %": 17,
+      "In use system memory": 2240053248
+    }
+  },
+  "pid": 28099,
+  "limitations": [
+    "GPU utilization is system-wide, including other applications.",
+    "No dedicated Neural Accelerator occupancy counter exposed in this session.",
+    "MLX memory limit is advisory; memory-pressure and swap-headroom guards stop at update boundaries."
+  ]
+}

@@ -59,6 +59,21 @@ def detect_apple_silicon_profile(user_policy: str = "auto") -> HardwareProfile:
     )
 
 
+def cuda_has_native_bf16(device=None) -> bool:
+    """Query the selected GPU, explicitly excluding software BF16 emulation."""
+    import torch
+    if not torch.cuda.is_available():
+        return False
+    selected = torch.cuda.current_device() if device is None else device
+    with torch.cuda.device(selected):
+        try:
+            return bool(torch.cuda.is_bf16_supported(including_emulation=False))
+        except TypeError:
+            # Compatibility with older torch builds lacking the keyword.
+            major, _ = torch.cuda.get_device_capability(selected)
+            return major >= 8 and bool(torch.cuda.is_bf16_supported())
+
+
 def detect_cuda_profile() -> HardwareProfile:
     """Detects CUDA multi-GPU topology and sets optimal precision (bf16 vs fp16)."""
     import torch
@@ -70,7 +85,7 @@ def detect_cuda_profile() -> HardwareProfile:
     total_mem_gb = sum(torch.cuda.get_device_properties(i).total_memory for i in range(n_gpus)) / (1024 ** 3)
     
     # Check native BF16 support (Ampere/Ada/Hopper support bf16, Turing T4 uses fp16 + GradScaler)
-    has_bf16 = torch.cuda.is_bf16_supported()
+    has_bf16 = all(cuda_has_native_bf16(i) for i in range(n_gpus))
     precision = "bf16" if has_bf16 else "fp16"
 
     return HardwareProfile(

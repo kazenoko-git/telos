@@ -38,3 +38,37 @@ def test_checkpoint_gradients_match_uncheckpointed(precision):
             rtol=0.02 if precision == "bfloat16" else 1e-4,
             atol=2e-5 if precision == "bfloat16" else 2e-6,
         )
+
+
+@pytest.mark.parametrize("precision", ["float32", "bfloat16"])
+@pytest.mark.parametrize("compiled", [False, True])
+def test_checkpoint_gradients_match_in_same_execution_mode(precision, compiled):
+    mx.random.seed(42)
+    kwargs = dict(vocab_size=128, d_model=64, n_layers=2, n_heads=2, precision=precision, is_causal=True)
+    plain = MLXTelosTransformer(**kwargs)
+    checkpointed = MLXTelosTransformer(**kwargs, use_grad_checkpoint=True)
+    checkpointed.update(plain.parameters())
+    tokens = mx.random.randint(4, 128, (2, 16))
+
+    def loss(model):
+        return cross_entropy(model(tokens)[:, :-1], tokens[:, 1:], reduction="mean")
+
+    def reference():
+        return nn.value_and_grad(plain, loss)(plain)
+    # Isolate checkpointing by comparing the same execution mode. A BF16
+    # compiler can move rounding boundaries independently of checkpointing.
+    ref_fn = mx.compile(reference, inputs=[plain.state]) if compiled else reference
+    ref_loss, ref_grad = ref_fn()
+    def candidate():
+        return nn.value_and_grad(checkpointed, loss)(checkpointed)
+    actual_fn = mx.compile(candidate, inputs=[checkpointed.state]) if compiled else candidate
+    actual_loss, actual_grad = actual_fn()
+    np.testing.assert_allclose(np.array(actual_loss), np.array(ref_loss), atol=2e-6)
+    for (name, expected), (actual_name, actual) in zip(tree_flatten(ref_grad), tree_flatten(actual_grad)):
+        assert name == actual_name
+        assert mx.abs(actual).sum().item() > 0, f"Checkpointing disconnected {name}"
+        np.testing.assert_allclose(
+            np.array(actual.astype(mx.float32)), np.array(expected.astype(mx.float32)),
+            rtol=0.02 if precision == "bfloat16" else 1e-4,
+            atol=2e-5 if precision == "bfloat16" else 2e-6,
+        )
