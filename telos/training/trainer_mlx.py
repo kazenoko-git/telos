@@ -151,6 +151,7 @@ class UnifiedMLXTrainer:
         policy = self.t_cfg.get("gradient_checkpointing", "auto")
         if policy not in (True, False, "auto"):
             raise ValueError("gradient_checkpointing must be true, false or auto")
+        self.checkpointing_policy = policy
         requested_chkpt = policy is True or (policy == "auto" and bool(
             self.m_cfg.get("use_grad_checkpoint", False)
             or getattr(self.model, "use_grad_checkpoint", False)))
@@ -159,6 +160,15 @@ class UnifiedMLXTrainer:
             param_count, self.m_cfg, configured_bs * configured_accum,
             self.memory_budget, checkpointing=requested_chkpt, allow_checkpointing=policy is not False,
         )
+        previous = self.t_cfg.get("memory_plan")
+        if (previous and previous.get("batch_size") == configured_bs
+                and previous.get("grad_accum") == configured_accum
+                and previous.get("checkpointing") == requested_chkpt):
+            required = max(previous["estimated_peak_bytes"], previous.get("measured_peak_bytes", 0))
+            if required > self.memory_budget.allocation_bytes:
+                raise RuntimeError("Saved memory plan no longer fits this machine's training budget")
+            # Keep checkpoint configuration identity, including measured metadata.
+            self.memory_plan = dict(previous)
         plan = self.memory_plan
         self.t_cfg["batch_size"] = plan["batch_size"]
         self.t_cfg["gradient_accumulation"] = plan["grad_accum"]

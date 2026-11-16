@@ -91,3 +91,13 @@ def test_measured_training_saves_selected_memory_plan(tmp_path, monkeypatch):
     assert plan['batch_size'] == 2
     assert plan['measured_peak_bytes'] + GIB <= plan['memory_ceiling_bytes']
     assert plan == trainer.memory_plan
+    from copy import deepcopy
+    restored = UnifiedMLXTrainer('ar', MLXTelosTransformer(**saved['model']), deepcopy(saved))
+    restored.load_checkpoint(tmp_path / 'checkpoint' / 'checkpoint_final.resume.npz')
+    assert restored.memory_plan == plan
+
+
+def test_explicit_checkpoint_off_prevents_fallback():
+    with pytest.raises(RuntimeError, match='microbatch 1'):
+        plan_training_batch(10_000_000, {**MODEL, 'seq_len': 2048}, 8,
+                            training_memory_budget(4 * GIB), allow_checkpointing=False)

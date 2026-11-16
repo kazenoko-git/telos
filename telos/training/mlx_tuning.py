@@ -86,7 +86,8 @@ def tune_mlx_batch(trainer, dataset_matrix):
     # Always measure the configured baseline, including non-power-of-two sizes.
     baseline = BatchPlan(current, effective // current, checkpointing)
     plans = [baseline] + [p for p in plans if p != baseline]
-    if training.get("autotune_checkpointing", True):
+    if (training.get("autotune_checkpointing", True)
+            and getattr(trainer, "checkpointing_policy", "auto") is not False):
         if not checkpointing:
             plans += [BatchPlan(p.batch_size, p.grad_accum, True) for p in plans if p.batch_size >= current]
         elif trainer.auto_enabled_checkpointing:
