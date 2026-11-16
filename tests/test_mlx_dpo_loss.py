@@ -17,5 +17,3 @@ def test_dpo_has_correct_gradient_when_policy_matches_reference():
             lambda chosen: _mlx_preference_loss(chosen, zero, zero, zero, .1))(mx.array([value]))
         assert mx.isfinite(loss).item()
         assert mx.all(mx.isfinite(gradient)).item()
-
-
