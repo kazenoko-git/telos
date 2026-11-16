@@ -426,6 +426,18 @@ class UnifiedMLXTrainer:
             self.t_cfg["gradient_checkpointing"] = plan["checkpointing"]
             self.m_cfg["use_grad_checkpoint"] = plan["checkpointing"]
             self.model.use_grad_checkpoint = plan["checkpointing"]
+            self.memory_plan.update(
+                batch_size=plan["batch_size"], grad_accum=plan["grad_accum"],
+                checkpointing=plan["checkpointing"],
+                measured_peak_bytes=report["selected"]["peak_memory_bytes"],
+            )
+            from .mlx_memory import estimate_training_bytes
+            from mlx.utils import tree_flatten
+            self.memory_plan["estimated_peak_bytes"] = estimate_training_bytes(
+                sum(p.size for _, p in tree_flatten(self.model.parameters())),
+                self.m_cfg, plan["batch_size"], checkpointing=plan["checkpointing"],
+            )
+            self.t_cfg["memory_plan"] = dict(self.memory_plan)
             self.autotune_report = report
             report_dir = Path("logs")
             report_dir.mkdir(exist_ok=True)

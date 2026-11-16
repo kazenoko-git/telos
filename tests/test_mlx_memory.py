@@ -65,3 +65,29 @@ def test_trainer_applies_plan_without_changing_effective_batch():
     assert cfg['training']['gradient_accumulation'] == 1
     assert trainer.memory_plan['effective_batch'] == 8
     assert trainer.memory_plan['estimated_peak_bytes'] + GIB <= trainer.memory_budget.ceiling_bytes
+
+
+def test_measured_training_saves_selected_memory_plan(tmp_path, monkeypatch):
+    import json
+    mx = pytest.importorskip('mlx.core')
+    if not mx.metal.is_available():
+        pytest.skip('Metal required')
+    from telos.models.mlx_transformer import MLXTelosTransformer
+    from telos.training.trainer_mlx import UnifiedMLXTrainer
+
+    monkeypatch.chdir(tmp_path)
+    cfg = dict(model=dict(vocab_size=128, d_model=64, n_layers=1, n_heads=1,
+                          seq_len=16, is_causal=True),
+               data=dict(synthetic=True),
+               training=dict(batch_size=1, gradient_accumulation=2, max_steps=2,
+                             max_lr=1e-3, weight_decay=.1, autotune=True,
+                             autotune_candidates=[1, 2], autotune_checkpointing=False),
+               checkpoint=dict(checkpoint_dir=str(tmp_path / 'checkpoint')))
+    trainer = UnifiedMLXTrainer('ar', MLXTelosTransformer(**cfg['model']), cfg)
+    trainer.train()
+    saved = json.loads((tmp_path / 'checkpoint' / 'config.json').read_text())
+    plan = saved['training']['memory_plan']
+    assert plan['effective_batch'] == plan['batch_size'] * plan['grad_accum'] == 2
+    assert plan['batch_size'] == 2
+    assert plan['measured_peak_bytes'] + GIB <= plan['memory_ceiling_bytes']
+    assert plan == trainer.memory_plan

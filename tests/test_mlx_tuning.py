@@ -99,3 +99,20 @@ def test_smaller_batches_can_drop_automatic_checkpointing(monkeypatch, auto_enab
     mlx_tuning.tune_mlx_batch(trainer, np.zeros((8, 4), dtype=np.int32))
     assert [p.batch_size for p in seen if not p.checkpointing] == expected
     assert all(p.effective_batch == 8 for p in seen)
+
+
+def test_memory_policy_chooses_largest_fitting_batch_even_if_slower():
+    trials = [
+        dict(status='ok', tokens_per_second=200, peak_memory_bytes=100,
+             plan=dict(batch_size=2, grad_accum=8, checkpointing=False)),
+        dict(status='ok', tokens_per_second=150, peak_memory_bytes=900,
+             plan=dict(batch_size=8, grad_accum=2, checkpointing=False)),
+        dict(status='ok', tokens_per_second=300, peak_memory_bytes=1001,
+             plan=dict(batch_size=16, grad_accum=1, checkpointing=False)),
+    ]
+    assert select_trial(trials, memory_budget_bytes=1000, prefer_largest_batch=True) is trials[1]
+
+
+def test_candidates_include_every_divisor_and_full_effective_batch():
+    assert [p.batch_size for p in batch_plans(30)] == [1, 2, 3, 5, 6, 10, 15, 30]
+    assert batch_plans(1024)[-1].batch_size == 1024

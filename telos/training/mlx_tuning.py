@@ -14,6 +14,8 @@ import sys
 import tempfile
 import time
 
+from .mlx_memory import effective_batch_divisors, estimate_training_bytes, training_memory_budget
+
 
 @dataclass(frozen=True)
 class BatchPlan:
@@ -30,32 +32,37 @@ def batch_plans(effective_batch, *, candidates=None, checkpointing=False):
     """Only exact divisors: never silently change the optimization batch."""
     if effective_batch < 1:
         raise ValueError("effective_batch must be positive")
-    candidates = candidates if candidates is not None else [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
+    candidates = candidates if candidates is not None else effective_batch_divisors(effective_batch)
     sizes = sorted({int(n) for n in candidates if int(n) > 0 and effective_batch % int(n) == 0})
     return [BatchPlan(n, effective_batch // n, checkpointing) for n in sizes]
 
 
-def select_trial(trials, *, memory_budget_bytes):
-    """Choose measured throughput; prefer lower memory within 2% of the best."""
+def select_trial(trials, *, memory_budget_bytes, prefer_largest_batch=False):
+    """Choose a fitting trial by largest batch, or the legacy throughput policy."""
     valid = [t for t in trials if t.get("status") == "ok"
              and math.isfinite(t.get("tokens_per_second", float("nan")))
              and t["tokens_per_second"] > 0
              and t.get("peak_memory_bytes", math.inf) <= memory_budget_bytes]
     if not valid:
         raise RuntimeError("No tuning trial completed within the memory budget; lower the effective batch or context length")
+    if prefer_largest_batch:
+        return max(valid, key=lambda t: (t['plan']['batch_size'],
+                                        not t['plan']['checkpointing'],
+                                        -t['peak_memory_bytes']))
     best = max(t["tokens_per_second"] for t in valid)
     return min((t for t in valid if t["tokens_per_second"] >= 0.98 * best),
                key=lambda t: (t["peak_memory_bytes"], -t["tokens_per_second"]))
 
 
-def measure_plans(plans, runner, *, memory_budget_bytes):
+def measure_plans(plans, runner, *, memory_budget_bytes, prefer_largest_batch=False):
     """Generic measurement boundary for future backbones and task adapters."""
     trials = []
     for plan in plans:
         result = dict(runner(plan))
         result["plan"] = asdict(plan)
         trials.append(result)
-    return {"selected": select_trial(trials, memory_budget_bytes=memory_budget_bytes), "trials": trials}
+    return {"selected": select_trial(trials, memory_budget_bytes=memory_budget_bytes,
+                                     prefer_largest_batch=prefer_largest_batch), "trials": trials}
 
 
 def tune_mlx_batch(trainer, dataset_matrix):
@@ -87,9 +94,12 @@ def tune_mlx_batch(trainer, dataset_matrix):
             # Smaller trials may fit without recomputing every block.
             plans += [BatchPlan(p.batch_size, p.grad_accum, False) for p in plans if p.batch_size < current]
     info = mx.device_info()
-    budget = int(training.get("autotune_memory_gb", 0) * 1024**3)
-    if not budget:
-        budget = int(min(info["max_recommended_working_set_size"] * 0.75, info["memory_size"] * 0.60))
+    cap_gb = float(training.get("autotune_memory_gb", 0))
+    memory = training_memory_budget(
+        info["memory_size"], recommended_bytes=info.get("max_recommended_working_set_size"),
+        limit_bytes=int(cap_gb * 1024**3) if cap_gb > 0 else None,
+    )
+    budget = memory.allocation_bytes
     params = sum(p.size for _, p in tree_flatten(trainer.model.parameters()))
     print(f"  [Autotune] Fixed effective batch: {effective}; allocation budget: {budget / 1024**3:.1f} GiB", flush=True)
     with tempfile.TemporaryDirectory(prefix="telos-mlx-tune-") as directory:
@@ -104,17 +114,8 @@ def tune_mlx_batch(trainer, dataset_matrix):
             "measure_steps": int(training.get("autotune_measure_steps", 3)),
         }
         def runner(plan):
-            # Conservative screening, not a throughput prediction. Checkpointed
-            # blocks retain their inputs plus a layer's working intermediates.
-            m = cfg["model"]
-            layers = m["n_layers"]
-            activation_factor = layers + 8 if plan.checkpointing else layers * 16
-            estimate = params * 20 + plan.batch_size * trainer.seq_len * (
-                m["d_model"] * activation_factor + trainer.vocab_size * 6)
-            # This intentionally errs low on candidates. Past 100M/context128
-            # runs, the observed peak exceeded the unadjusted estimate by up
-            # to 1.6x, before the host had to start swapping.
-            estimate = int(estimate * 1.8)
+            estimate = estimate_training_bytes(params, cfg["model"], plan.batch_size,
+                                               checkpointing=plan.checkpointing)
             if estimate > budget:
                 result = {"status": "skipped_estimate", "estimated_memory_bytes": estimate}
             else:
@@ -141,8 +142,10 @@ def tune_mlx_batch(trainer, dataset_matrix):
             print(f"  [Autotune] BS={plan.batch_size}, accum={plan.grad_accum}, checkpoint={plan.checkpointing}: {result['status']} {speed:,.0f} tok/s", flush=True)
             return result
 
-        report = measure_plans(plans, runner, memory_budget_bytes=budget)
-    report.update(effective_batch=effective, memory_budget_bytes=budget, device=info["device_name"],
+        report = measure_plans(plans, runner, memory_budget_bytes=budget, prefer_largest_batch=True)
+    report.update(effective_batch=effective, memory_budget_bytes=budget,
+                  headroom_bytes=memory.headroom_bytes, memory_ceiling_bytes=memory.ceiling_bytes,
+                  selection_policy="largest_fitting_microbatch", device=info["device_name"],
                   mlx_version=mx.__version__, sequence_length=trainer.seq_len,
                   data_source="representative training-data sample", parameter_count=params)
     return report
@@ -196,13 +199,14 @@ def _run_trial(spec):
         loss, _ = step(batches(), grad_accum=plan.grad_accum, eval_every_microbatch=True)
         if mx.get_peak_memory() > spec["budget"]:
             return {"status": "over_budget", "peak_memory_bytes": mx.get_peak_memory()}
+    warmup_peak = mx.get_peak_memory()
     mx.reset_peak_memory()
     times = []
     for _ in range(max(3, spec["measure_steps"])):
         start = time.perf_counter()
         loss, _ = step(batches(), grad_accum=plan.grad_accum, eval_every_microbatch=True)
         times.append(time.perf_counter() - start)
-    peak = mx.get_peak_memory()
+    peak = max(warmup_peak, mx.get_peak_memory())
     if not math.isfinite(loss.item()):
         return {"status": "nonfinite_loss"}
     elapsed = sum(times)
