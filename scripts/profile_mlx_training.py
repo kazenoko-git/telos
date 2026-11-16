@@ -58,6 +58,8 @@ def main():
                         help="Use tiled tied-embedding output projection and cross-entropy")
     parser.add_argument("--experimental-packed-swiglu", action="store_true",
                         help="Use the experimental packed SwiGLU Metal VJP")
+    parser.add_argument("--experimental-qkv-rope", action="store_true",
+                        help="Use fused QKV unpacking and rotary embedding")
     parser.add_argument("--compiled-accumulation", action="store_true",
                         help="Compile each later microbatch backward pass together with gradient accumulation")
     parser.add_argument("--force-fused-attention", action="store_true",
@@ -96,6 +98,7 @@ def main():
     initial = system_sample()
     metadata = {
         "arguments": vars(args), "device": mx.device_info(), "mlx_version": mx.__version__,
+        "mlx_module": mx.__file__,
         "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
         "initial_system": initial, "pid": os.getpid(),
         "limitations": ["GPU utilization is system-wide, including other applications.",
@@ -196,6 +199,7 @@ def main():
                   data_path=args.data, synthetic=False, autotune=False, fused_step=args.fused_step, async_eval=False,
                   fused_vocab_loss=args.fused_vocab_loss,
                   experimental_packed_swiglu=args.experimental_packed_swiglu,
+                  experimental_qkv_rope=args.experimental_qkv_rope,
                   fused_vocab_chunk_size=args.fused_vocab_chunk_size,
                   compiled_accumulation=args.compiled_accumulation,
                   max_lr=4e-4, min_lr=4e-5, weight_decay=0.01,
