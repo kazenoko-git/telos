@@ -24,7 +24,7 @@ autotuning is disabled or batch sizes were supplied explicitly.
 
 Existing explicit gradient checkpointing stays enabled. Otherwise the planner
 first tries microbatches without checkpointing. If even microbatch 1 cannot fit,
-it retries with checkpointing. If that still fails, it raises an error before
+it retries with checkpointing unless checkpointing was explicitly disabled. If that still fails, it raises an error before
 training: accumulation cannot make the model and optimizer state themselves fit.
 Reduce the model or context length in that case.
 
@@ -74,5 +74,6 @@ Coverage includes budget arithmetic, fixed headroom, capped budgets, exact
 non-power-of-two batches, accumulation and checkpoint fallback, untrainable
 models, measured candidate selection, isolated tuning state, existing update
 parity/RNG checks, and a two-update synthetic training run that tunes and saves
-the final memory plan. This is functional validation, not a new throughput or
+the final memory plan. The combined v1.7.4 validation is recorded in
+`docs/releases/v1.7.4-validation.md`. This is functional validation, not a new throughput or
 large-model peak-memory benchmark.

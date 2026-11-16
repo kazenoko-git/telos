@@ -132,6 +132,11 @@ CUDA/XLA `--precision auto` chooses BF16 where natively supported (CUDA otherwis
 
 Pretraining supports opt-in `--packed-projections` on PyTorch, `--experimental-qkv-rope` on MLX, and `--fused-vocab-loss --fused-vocab-chunk-size 256` for tiled AR loss on both. Tiling trades recomputation for lower vocabulary activation memory. Choose activation checkpointing explicitly with `--gradient-checkpointing auto|on|off`. Benchmark JSON reports synchronized completed-update timing, five excluded warmup updates, input-token units and whether enough updates were measured.
 
+MLX pretraining now chooses a fitting microbatch within 60% of system RAM,
+including at least 1 GiB of headroom, and preserves the effective batch through
+variable accumulation. See [memory planning](docs/mlx-memory-planning.md) for
+estimation limits, checkpointing policy and measured tuning.
+
 See [v1.7 optimization and validation notes](docs/optimization-v1.7.0.md) for hardware limits and local evidence.
 
 Evaluation suite preparation uses scripts from the source repository. If you installed only the package, first obtain a matching source checkout:

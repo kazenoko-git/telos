@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.4] - 2026-11-16
+
+### Added
+- Plan MLX pretraining microbatches within 60% of system RAM, including at least 1 GiB of headroom. Preserve effective batch size through variable gradient accumulation; use checkpointing when necessary and permitted.
+- Select the largest fitting measured microbatch under the same allocation budget, including warmup peaks. Save estimated and measured memory-plan metadata.
+- Merge the MLX pretraining profiling tools and matched runtime investigation, retaining their workload-specific evidence and limitations.
+
+### Fixed
+- Preserve explicit activation-checkpointing policies and measured memory-plan identity across checkpoint loading.
+
+### Validation
+- See `docs/releases/v1.7.4-validation.md` for combined-code checks. Memory estimates and MLX allocation limits are advisory; this release makes no new throughput or exact peak-memory guarantee.
+
 ## [1.7.3] - 2026-11-16
 
 ### Fixed
@@ -255,7 +268,7 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
   virtualized, or sandboxed macOS sessions): `telos train`, `telos bench` and
   `telos test` fall back to the PyTorch CPU path instead of aborting the process.
 
-[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.7.3...HEAD
+[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.7.4...HEAD
 [1.5.5]: https://github.com/kazenoko-git/telos/compare/v1.5.4...v1.5.5
 [1.5.4]: https://github.com/kazenoko-git/telos/compare/v1.5.3...v1.5.4
 [1.5.3]: https://github.com/kazenoko-git/telos/compare/v1.5.2...v1.5.3
@@ -266,3 +279,5 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
 [1.0.0]: https://github.com/kazenoko-git/telos/releases/tag/v1.0.0
 
 [1.7.3]: https://github.com/kazenoko-git/telos/releases/tag/v1.7.3
+
+[1.7.4]: https://github.com/kazenoko-git/telos/compare/v1.7.3...v1.7.4
