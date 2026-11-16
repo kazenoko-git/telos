@@ -23,8 +23,9 @@ if MLX_AVAILABLE:
         shift_targets_2d = batch_seqs[:, 1:]
         if getattr(model, "fused_vocab_loss_enabled", False):
             ce_per_token = model.output_cross_entropy(
-                batch_seqs[:, :-1], shift_targets_2d,
+                batch_seqs, shift_targets_2d,
                 chunk_size=getattr(model, "fused_vocab_chunk_size", 256),
+                next_token_only=True,
             )
         else:
             # Skip the final vocabulary projection: its logits have no

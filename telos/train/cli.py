@@ -251,6 +251,11 @@ def train(
 
     m_cfg = cfg["model"]
     t_cfg = cfg["training"]
+    chunk_axis = t_cfg.get("fused_vocab_chunk_axis", "vocab")
+    if chunk_axis not in {"vocab", "token"}:
+        raise ValueError("fused_vocab_chunk_axis must be vocab or token")
+    if chunk_axis == "token" and backend != "mlx":
+        raise ValueError("Token-chunked projection loss is supported only on MLX")
 
     if not kwargs.get("_is_spawned", False):
 
@@ -445,7 +450,9 @@ def main():
     parser.add_argument("--fused-vocab-loss", action=argparse.BooleanOptionalAction, default=None,
                         help="Experimental tiled tied-embedding output projection and AR loss (default: disabled)")
     parser.add_argument("--fused-vocab-chunk-size", type=int, default=None,
-                        help="Vocabulary tile width for --fused-vocab-loss (default: 256)")
+                        help="Tile size along the chosen projection-loss chunk axis (default: 256)")
+    parser.add_argument("--fused-vocab-chunk-axis", choices=["vocab", "token"], default=None,
+                        help="Experimental MLX projection-loss tiling axis (default: vocab)")
     parser.add_argument("--experimental-packed-swiglu", action=argparse.BooleanOptionalAction, default=None,
                         help="Experimental packed SwiGLU Metal VJP; may change BF16 rounding (default: disabled)")
     parser.add_argument("--experimental-qkv-rope", action=argparse.BooleanOptionalAction, default=None,
@@ -528,6 +535,7 @@ def main():
             fused_step=args.fused_step,
             fused_vocab_loss=args.fused_vocab_loss,
             fused_vocab_chunk_size=args.fused_vocab_chunk_size,
+            fused_vocab_chunk_axis=args.fused_vocab_chunk_axis,
             experimental_packed_swiglu=args.experimental_packed_swiglu,
             experimental_qkv_rope=args.experimental_qkv_rope,
             compiled_accumulation=args.compiled_accumulation,

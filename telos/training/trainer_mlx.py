@@ -94,6 +94,9 @@ class UnifiedMLXTrainer:
             print("  [Experimental] Forced fused SDPA enabled; full-model throughput gain is unconfirmed.")
         self.model.fused_vocab_loss_enabled = bool(self.t_cfg.get("fused_vocab_loss", False))
         self.model.fused_vocab_chunk_size = int(self.t_cfg.get("fused_vocab_chunk_size", 256))
+        self.model.fused_vocab_chunk_axis = self.t_cfg.get("fused_vocab_chunk_axis", "vocab")
+        if self.model.fused_vocab_chunk_axis not in {"vocab", "token"}:
+            raise ValueError("fused_vocab_chunk_axis must be vocab or token")
         if self.model.fused_vocab_chunk_size < 1:
             raise ValueError("fused_vocab_chunk_size must be positive")
         if self.model.fused_vocab_loss_enabled and self.paradigm != "ar":

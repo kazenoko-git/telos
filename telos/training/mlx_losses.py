@@ -70,16 +70,20 @@ def _metal_cross_entropy(logits, targets):
     )[0]
 
 
-@_metal_cross_entropy.vjp
-def _cross_entropy_vjp(primals, cotangent, output):
-    logits, targets = primals
-    gradient = _backward(
-        inputs=[logits, targets, output, cotangent],
+def _metal_cross_entropy_gradient(logits, targets, loss, cotangent):
+    """First-order per-token CE VJP, also used by token-chunked projection."""
+    return _backward(
+        inputs=[logits, targets, loss, cotangent],
         template=[("V", logits.shape[-1]), ("N", logits.size), ("T", logits.dtype)],
         grid=(logits.size, 1, 1), threadgroup=(256, 1, 1),
         output_shapes=[logits.shape], output_dtypes=[logits.dtype],
     )[0]
-    return gradient, mx.zeros_like(targets)
+
+
+@_metal_cross_entropy.vjp
+def _cross_entropy_vjp(primals, cotangent, output):
+    logits, targets = primals
+    return _metal_cross_entropy_gradient(logits, targets, output, cotangent), mx.zeros_like(targets)
 
 
 def cross_entropy(logits, targets, *, reduction="none"):

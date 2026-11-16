@@ -118,38 +118,29 @@ class MLXTelosTransformer(nn.Module):
         hidden = self.hidden_states(input_ids)
         return self.logits_from_hidden(hidden[:, :-1, :])
 
-    def output_cross_entropy(self, input_ids, targets, *, chunk_size=256):
-        """Exact tied-head CE without building the full token-by-vocabulary matrix.
+    def output_cross_entropy(self, input_ids, targets, *, chunk_size=256,
+                             chunk_axis=None, next_token_only=False):
+        """Experimental tied-head CE with recomputed token/vocabulary tiles.
 
-        The output projection is evaluated in vocabulary tiles. Checkpointed
-        tile reductions recompute their logits in backward, keeping activation
-        memory proportional to ``tokens * chunk_size``. This is experimental:
-        it currently supports tied embeddings, class-index targets and
-        first-order training only.
+        Both paths keep FP32 loss reductions. BF16 tile gradient sums can differ
+        from a full projection's GEMM reduction; first-order training only.
         """
         if not self.tied_embeddings:
             raise ValueError("Tiled output cross entropy currently requires tied embeddings")
         if chunk_size < 1:
             raise ValueError("chunk_size must be positive")
-
+        axis = getattr(self, "fused_vocab_chunk_axis", "vocab") if chunk_axis is None else chunk_axis
+        if axis not in {"vocab", "token"}:
+            raise ValueError("chunk_axis must be vocab or token")
+        from telos.training.mlx_vocab_loss import (
+            tiled_projection_cross_entropy, token_chunked_projection_cross_entropy,
+        )
         hidden = self.hidden_states(input_ids, is_causal=True)
-        hidden = hidden.reshape(-1, self.d_model)
-        targets = targets.reshape(-1)
-        weight = self.emb.weight
-
-        def tile_logsumexp(x, w):
-            tile_logits = mx.matmul(x, w.T)
-            return mx.logsumexp(tile_logits.astype(mx.float32), axis=-1)
-
-        log_partition = None
-        for start in range(0, self.vocab_size, chunk_size):
-            tile = weight[start : start + chunk_size]
-            tile_lse = mx.checkpoint(tile_logsumexp)(hidden, tile)
-            log_partition = tile_lse if log_partition is None else mx.logaddexp(log_partition, tile_lse)
-
-        target_weight = mx.take(weight, targets, axis=0).astype(mx.float32)
-        target_logits = mx.sum(hidden.astype(mx.float32) * target_weight, axis=-1)
-        return (log_partition - target_logits).reshape(input_ids.shape)
+        if next_token_only:
+            hidden = hidden[:, :-1, :]
+        function = (token_chunked_projection_cross_entropy if axis == "token"
+                    else tiled_projection_cross_entropy)
+        return function(hidden, self.emb.weight, targets, chunk_size=chunk_size)
 
     def __call__(self, x, return_reliability: bool = False, mask_override=None, is_causal: bool | None = None, next_token_only: bool = False):
         h = self.hidden_states(x, mask_override=mask_override, is_causal=is_causal)
