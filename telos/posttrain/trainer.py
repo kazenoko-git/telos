@@ -357,6 +357,15 @@ def _mlx_loss(model, input_ids, labels):
     return -mx.sum(logps) / mx.maximum(mx.sum(mask), 1.0)
 
 
+def _mlx_preference_loss(chosen, rejected, ref_chosen, ref_rejected, beta):
+    import mlx.core as mx
+
+    margin = beta * ((chosen - rejected) - (ref_chosen - ref_rejected))
+    # The abs/maximum expansion has the wrong autodiff derivative at zero,
+    # exactly where an initially identical policy/reference pair starts.
+    return mx.mean(mx.logaddexp(0.0, -margin))
+
+
 def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config, records, tokenizer,
                    out_dir, *, method, max_steps, batch_size, learning_rate, beta,
                    max_length, save_every, seed, resume=None, options=None):
@@ -449,8 +458,7 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
 
     def dpo_loss(active_model, ids, labels, ref_chosen, ref_rejected):
         c_logps, r_logps = mx.split(_mlx_logps(active_model, ids, labels), 2)
-        margin = beta * ((c_logps - r_logps) - (ref_chosen - ref_rejected))
-        return mx.mean(mx.maximum(-margin, 0.0) + mx.log1p(mx.exp(-mx.abs(margin))))
+        return _mlx_preference_loss(c_logps, r_logps, ref_chosen, ref_rejected, beta)
 
     loss_fn = _mlx_loss if method == "sft" else dpo_loss
     value_and_grad = nn.value_and_grad(model, loss_fn)
