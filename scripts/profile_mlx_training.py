@@ -45,11 +45,15 @@ def main():
     parser.add_argument("--grad-accum", type=int, default=8)
     parser.add_argument("--data", default="data/english_corpus_5b.bin")
     parser.add_argument("--output", required=True)
+    parser.add_argument("--save-initial-weights", action="store_true",
+                        help="Save and hash model weights before the first update")
     parser.add_argument("--max-mlx-gib", type=float, default=4.0)
     parser.add_argument("--critical-memory-free-percent", type=int, default=12)
     parser.add_argument("--critical-swap-free-mib", type=float, default=512.0)
     parser.add_argument("--critical-swap-growth-mib", type=float, default=None,
                         help="Stop after sustained system swap growth from the initial sample")
+    parser.add_argument("--swap-growth-baseline-updates", type=int, default=0,
+                        help="Establish swap-growth baseline after this fixed warmup; hard guards remain active")
     parser.add_argument("--stage-profile", action="store_true",
                         help="Synchronize between stages to measure update work separately")
     parser.add_argument("--fused-step", action=argparse.BooleanOptionalAction, default=True,
@@ -74,6 +78,8 @@ def main():
     parser.add_argument("--fused-vocab-chunk-axis", choices=["vocab", "token"], default="vocab")
     parser.add_argument("--vocab-size", type=int, default=8192)
     args = parser.parse_args()
+    if args.swap_growth_baseline_updates < 0:
+        parser.error("swap-growth-baseline-updates must be nonnegative")
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=False)
 
@@ -105,6 +111,7 @@ def main():
     metadata = {
         "arguments": vars(args), "device": mx.device_info(), "mlx_version": mx.__version__,
         "mlx_module": mx.__file__,
+        "attention_backward_env": os.environ.get("MLX_SDPA_VJP_FALLBACK"),
         "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
         "initial_system": initial, "pid": os.getpid(),
         "limitations": ["GPU utilization is system-wide, including other applications.",
@@ -148,6 +155,7 @@ def main():
     stop = threading.Event()
     memory_stop = threading.Event()
     errors = []
+    growth_baseline = [initial["swap_used_mb"] if args.swap_growth_baseline_updates == 0 else None]
 
     def monitor():
         critical_memory_samples = 0
@@ -159,8 +167,8 @@ def main():
                     critical = (
                         sample["memory_free_percent"] <= args.critical_memory_free_percent
                         or sample["swap_free_mb"] <= args.critical_swap_free_mib
-                        or (args.critical_swap_growth_mib is not None and
-                            sample["swap_used_mb"] - initial["swap_used_mb"] >= args.critical_swap_growth_mib)
+                        or (args.critical_swap_growth_mib is not None and growth_baseline[0] is not None and
+                            sample["swap_used_mb"] - growth_baseline[0] >= args.critical_swap_growth_mib)
                     )
                     critical_memory_samples = critical_memory_samples + 1 if critical else 0
                     if critical_memory_samples >= 3:
@@ -191,10 +199,21 @@ def main():
         def measured_step(step, *positional, **keywords):
             nonlocal count, last_step
             last_step = step
+            if count == 0 and args.save_initial_weights:
+                import hashlib
+                initial_weights = output / "initial.safetensors"
+                step.model.save_weights(str(initial_weights))
+                metadata["initial_weights_sha256"] = hashlib.sha256(initial_weights.read_bytes()).hexdigest()
+                (output / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
             begin = time.perf_counter()
             result = original(step, *positional, **keywords)
             elapsed = time.perf_counter() - begin
             count += 1
+            if count == args.swap_growth_baseline_updates:
+                baseline_sample = system_sample()
+                growth_baseline[0] = baseline_sample["swap_used_mb"]
+                metadata["swap_growth_baseline"] = {"update": count, **baseline_sample}
+                (output / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
             record = {"step": count, "time": time.time(), "training_step_seconds": elapsed,
                       "mlx_active_bytes": mx.get_active_memory(), "mlx_peak_bytes": mx.get_peak_memory(),
                       "mlx_cache_bytes": mx.get_cache_memory(),
