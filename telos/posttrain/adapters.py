@@ -14,6 +14,15 @@ NF4 = (-1.0, -0.6961928, -0.52507305, -0.3949175, -0.28444138,
        0.2461123, 0.33791524, 0.44070983, 0.562617, 0.72295684, 1.0)
 
 
+def _checkpoint_nf4(project, inputs):
+    if inputs.device.type == 'xla':
+        # XLA's wrapper supplies graph barriers, XLA autocast and RNG handling.
+        from torch_xla.utils.checkpoint import checkpoint
+        return checkpoint(project, inputs, use_reentrant=True)
+    from torch.utils.checkpoint import checkpoint
+    return checkpoint(project, inputs, use_reentrant=False)
+
+
 class NF4Linear(nn.Module):
     """Frozen blockwise NF4 matrix; packed storage, FP32 scales/reductions."""
     def __init__(self, linear, block_size=64):
@@ -40,8 +49,14 @@ class NF4Linear(nn.Module):
         values = self.codebook[indices].reshape(-1, self.block_size) * self.scales[:, None]
         return values.flatten()[:self.in_features * self.out_features].reshape(self.out_features, self.in_features)
 
+    def _project(self, inputs):
+        return F.linear(inputs, self.dequantize().to(inputs.dtype),
+                        self.bias.to(inputs.dtype) if self.bias is not None else None)
+
     def forward(self, x):
-        return F.linear(x, self.dequantize().to(x.dtype), self.bias.to(x.dtype) if self.bias is not None else None)
+        if torch.is_grad_enabled() and x.requires_grad:
+            return _checkpoint_nf4(self._project, x)
+        return self._project(x)
 
 
 class LoRALinear(nn.Module):

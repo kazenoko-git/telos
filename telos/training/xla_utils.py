@@ -29,12 +29,42 @@ def is_xla_initialized() -> bool:
     return _CACHED_XLA_DEVICE is not None
 
 
+def normalize_single_chip_tpu_environment() -> bool:
+    """Repair known v5e-1 host defaults before PJRT initialization.
+
+    Require an explicit accelerator identifier. Do not infer chip count from
+    a substring (v5e-16), process count or an arbitrary VM name.
+    """
+    accelerator = os.environ.get("TPU_ACCELERATOR_TYPE", "").strip().lower()
+    if accelerator != "v5e-1":
+        return False
+    for key in ("TPU_NUM_DEVICES", "WORLD_SIZE", "PJRT_LOCAL_PROCESS_COUNT"):
+        value = os.environ.get(key)
+        if value is not None and value != "1":
+            raise RuntimeError(f"Single-chip v5e-1 conflicts with {key}={value}; refusing topology override")
+    if os.environ.get("TPU_PROCESS_BOUNDS", "1,1,1") != "1,1,1":
+        raise RuntimeError("Single-chip v5e-1 conflicts with TPU_PROCESS_BOUNDS; refusing topology override")
+    hosts = [item.strip() for item in os.environ.get("TPU_WORKER_HOSTNAMES", "").split(",") if item.strip()]
+    if len(hosts) > 1:
+        raise RuntimeError("Single-chip v5e-1 conflicts with multiple TPU workers; refusing topology override")
+    # Only replace the documented default or already normalized bounds. Other
+    # explicit values are an inconsistent configuration, not grounds to guess.
+    for key in ("TPU_CHIPS_PER_HOST_BOUNDS", "TPU_CHIPS_PER_PROCESS_BOUNDS"):
+        value = os.environ.get(key)
+        if value is not None and value not in {"1,1,1", "2,2,1"}:
+            raise RuntimeError(f"Unexpected {key}={value} for v5e-1; refusing topology override")
+    os.environ["TPU_CHIPS_PER_HOST_BOUNDS"] = "1,1,1"
+    os.environ["TPU_CHIPS_PER_PROCESS_BOUNDS"] = "1,1,1"
+    return True
+
+
 def clean_tpu_environment():
     """
     Cleans conflicting Kaggle/GCP environment variables that trigger fatal
     SliceBuilder port lookup crashes in PyTorch-XLA PJRT multiprocessing,
     and configures LibTPU runtime flags to eliminate host CPU busy-polling.
     """
+    normalize_single_chip_tpu_environment()
     if os.environ.get("TPU_PROCESS_ADDRESSES", "").strip().lower() == "local":
         os.environ.pop("TPU_PROCESS_ADDRESSES", None)
     if "CLOUD_TPU_TASK_ID" in os.environ and "TPU_NAME" not in os.environ:
@@ -108,6 +138,8 @@ def get_xla_world_size() -> int:
     # If XLA is not yet initialized in this process, read environment variables first
     # to avoid premature ComputationClient initialization before the trainer starts.
     if not is_xla_initialized():
+        if normalize_single_chip_tpu_environment():
+            return 1
         for env_k in ("TPU_NUM_DEVICES", "WORLD_SIZE", "PJRT_LOCAL_PROCESS_COUNT"):
             if env_k in os.environ:
                 try:

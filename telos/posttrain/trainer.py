@@ -22,6 +22,12 @@ from .resume import PosttrainResume
 from telos.training.checkpoint import atomic_write
 
 
+def _seed_host_rng(seed):
+    import numpy as np
+    random.seed(seed)
+    np.random.seed(seed)
+
+
 def _atomic_torch_save(state, path):
     atomic_write(path, lambda temporary: torch.save(state, temporary))
 
@@ -179,7 +185,8 @@ def _torch_precision(device, precision):
             raise ValueError("CPU post-training supports float32 precision")
         return None
     if precision == "auto":
-        precision = "bf16" if device.type == "xla" or torch.cuda.is_bf16_supported() else "fp16"
+        from telos.training.hardware import cuda_has_native_bf16
+        precision = "bf16" if device.type == "xla" or cuda_has_native_bf16(device) else "fp16"
     if device.type == "cuda" and precision == "bf16" and not torch.cuda.is_bf16_supported():
         raise ValueError("BF16 was requested but this CUDA device does not support it")
     if device.type == "xla" and precision == "fp16":
@@ -389,6 +396,7 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         model.set_dtype(mx.bfloat16 if options["precision"] == "bf16" else mx.float32)
     mx.eval(model.parameters())
 
+    _seed_host_rng(seed)
     mx.random.seed(seed)
     _apply_adapters(model, options, "mlx")
     model.train()
@@ -526,6 +534,7 @@ def _xla_posttrain_worker(index, arguments):
     import torch_xla.runtime as xr
 
     rank, world_size, process_world = _xla_topology(xr, arguments["devices"])
+    _seed_host_rng(arguments["seed"] + rank)
     torch.manual_seed(arguments["seed"] + rank)
     xm.set_rng_state(arguments["seed"] + rank)
     device = xm.xla_device()
@@ -653,6 +662,8 @@ def _posttrain_xla(arguments):
     # Always launch the complete XLA runtime. Each worker validates its ordinal;
     # there is no rank-zero fallback if runtime identity cannot be read.
     os.environ.setdefault("PJRT_DEVICE", "TPU")
+    from telos.training.xla_utils import clean_tpu_environment
+    clean_tpu_environment()
     import torch_xla
     if hasattr(torch_xla, "launch"):
         torch_xla.launch(_xla_posttrain_worker, args=(arguments,))
@@ -813,7 +824,7 @@ def _posttrain(
         )
     max_length = min(max_length or model.config.max_seq_len, model.config.max_seq_len)
     records = _read_records(data, method)
-    random.seed(seed)
+    _seed_host_rng(seed)
     torch.manual_seed(seed)
     if device.type == "cuda":
         torch.cuda.manual_seed_all(seed)

@@ -37,7 +37,7 @@ pip install "telos-ml[dev]"
 - **Discrete Diffusion & Autoregressive Paradigms**: Unified implementations of Masked Diffusion Language Models (MDLM), Uniform Noise Diffusion (UNDLM), Causal Autoregressive (AR), and Confidence-Routed Selective ReDiffusion (COROSred).
 - **Multi-Backend Hardware Acceleration**:
   - **Apple Silicon**: Native Metal execution via Apple MLX (`mlx.core`).
-  - **NVIDIA CUDA**: Scaled PyTorch training with FlashAttention-2, mixed-precision (bfloat16), and master weight accumulation.
+  - **NVIDIA CUDA**: Scaled PyTorch training with FlashAttention-2, mixed precision (native BF16 or scaled FP16), and master weight accumulation.
   - **Google Cloud TPU**: Multi-core single-chip and Pod scaling with PJRT runtime.
 - **Apple Foundation Models (AFM) Bridge**: Direct Python access to Apple's native on-device language models on macOS Sequoia via compiled Swift IPC.
 - **Evaluation & Benchmarks**: 100 contextual probes, code execution suites (HumanEval, MBPP), cybersecurity audits, and tool-use verification.
@@ -74,7 +74,7 @@ telos afm status
 
 For preference optimization, use `telos posttrain --method dpo` with JSONL records containing `prompt`, `chosen`, and `rejected` strings. Select `--hardware mlx`, `cuda`, `xla`, or `cpu`; Apple Silicon post-training uses MLX rather than PyTorch MPS. `telos train` remains an alias for `telos pretrain`.
 
-With v1.7.0, add `--finetune lora` or `--finetune qlora` for adapter training. Configure `--lora-rank`, `--lora-alpha`, `--lora-dropout` and `--lora-targets`. Saves include merged native weights, adapter-only weights and complete resume state. PyTorch QLoRA uses portable packed NF4; MLX uses native affine int4. Embeddings/output heads remain unquantized; double quantization and paged optimizers are not implemented. CUDA/TPU hardware validation is still required. See the repository README for distributed training and precision options.
+With v1.7.0, add `--finetune lora` or `--finetune qlora` for adapter training. Configure `--lora-rank`, `--lora-alpha`, `--lora-dropout` and `--lora-targets`. Saves include merged native weights, adapter-only weights and complete resume state. PyTorch QLoRA uses portable packed NF4; MLX uses native affine int4. Embeddings/output heads remain unquantized; double quantization and paged optimizers are not implemented. v1.7.2 recomputes frozen NF4 weights during backward to reduce autograd retention and selects native CUDA precision automatically. Physical CUDA/TPU v1.7.2 reruns remain pending; the repository release validation notes audit the earlier single-device report. See the repository README for distributed training and precision options.
 
 ---
 

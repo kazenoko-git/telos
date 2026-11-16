@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.2] - 2026-11-16
+
+### Fixed
+- Exclude emulated BF16 from CUDA automatic precision selection; T4 uses scaled FP16. Inspect all GPUs in pretraining profiles and retain explicit BF16 opt-in.
+- Normalize verified single-chip v5e TPU bounds before topology detection and the post-training launcher. Refuse conflicting metadata; preserve unknown and multi-chip topologies.
+- Recompute frozen NF4 projections during backward instead of retaining dense dequantized matrices for input gradients.
+- Seed Python/NumPy post-training RNGs before resume restoration, making full state reproducible across fresh control processes.
+
+### Validation
+- Replace the external zero-LR benchmark loop with a packaged runner using production updates, scheduler/weight-change assertions, synchronized aggregate timing and matched compile off/on/on/off runs.
+- Add a fail-closed full-checkpoint comparator, real process termination/restart tests for all pretraining objectives and full/LoRA/QLoRA SFT/DPO, frozen adapter/buffer checks and an NF4 retention/allocator probe.
+- Preserve subprocess logs, commands, source/fixture hashes and environment/import provenance. Correct the historical hardware report's unsupported performance, resume, memory and distributed claims in `docs/releases/v1.7.2-validation.md`.
+- Physical v1.7.2 CUDA/TPU reruns remain pending; short historical single-device runs do not establish multi-rank correctness or representative training performance.
+
 ## [1.7.1] - 2026-11-15
 
 ### Fixed

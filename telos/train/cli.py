@@ -176,6 +176,10 @@ def train(
         raise ValueError("Use resume_checkpoint alone; it restores both weights and training state")
     if resume_step < 0:
         raise ValueError("Resume step must be nonnegative")
+    if hardware in {"auto", "xla", "tpu"}:
+        from telos.training.xla_utils import is_tpu_environment, clean_tpu_environment
+        if hardware in {"xla", "tpu"} or is_tpu_environment():
+            clean_tpu_environment()
     cfg = build_config(
         default_cadence=default_cadence,
         paradigm=paradigm,
