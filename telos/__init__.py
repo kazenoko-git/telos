@@ -10,7 +10,7 @@ except PackageNotFoundError:
     try:
         __version__ = _pkg_version("telos")
     except PackageNotFoundError:
-        __version__ = "1.7.2"
+        __version__ = "1.7.3"
 
 from . import dataprep
 from . import train
