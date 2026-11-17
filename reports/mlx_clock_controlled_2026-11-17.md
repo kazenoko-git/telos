@@ -1,5 +1,9 @@
 # MLX async accumulation: randomized clock/thermal follow-up — 2026-11-17
 
+Release update: async was subsequently enabled by default for v1.7.6 following
+the release decision. See [release validation](../docs/releases/v1.7.6-validation.md).
+The measurements and decision at the time of this report are preserved below.
+
 Async was faster in this follow-up: **37,191 input tok/s synchronous versus
 39,047 async (+4.99%)**, winning 41 of 44 adjacent comparisons. The previous
 separate-process result of −3.97% does not establish a consistent async penalty.

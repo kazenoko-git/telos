@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.6] - 2026-11-17
+
 ### Added
-- Experimental, default-off bounded asynchronous MLX gradient accumulation, configurable with `--async-accumulation` or `training.async_accumulation`.
+- Bounded asynchronous MLX gradient accumulation, enabled by default. Disable with `--no-async-accumulation` or `training.async_accumulation: false`. Eager memory policy and stage profiling retain synchronous accumulation.
 - Warmed GPU timeline capture, CPU/command-buffer correlation, hardware telemetry, and interleaved/sustained MLX comparison tools.
 
 ### Fixed
@@ -18,10 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make the MLX profiling cache configurable with `--cache-mib`, defaulting to 256 MiB after repeated short-run validation.
 
 ### Validation
-- Four 768-update runs preserved model, optimizer, master-weight and MLX-RNG array state exactly with bounded memory, but did not establish a stable sustained speedup. Async remains opt-in and v1.7.6 promotion is deferred; see `reports/mlx_async_sustained_2026-11-17.md`.
+- Four 768-update runs preserved model, optimizer, master-weight and MLX-RNG array state exactly with bounded memory, but did not establish a stable sustained speedup. This separate-process measurement is retained alongside the clock/thermal follow-up; see `reports/mlx_async_sustained_2026-11-17.md`.
 
-- Two complementary 1,536-update randomized switchbacks favored async by 4.99% overall, preserving exact saved array states. Strict clock/thermal matching favored async but missed planned coverage (10 pairs versus 16 required, with fewer than eight in each trial); clocks were not locked. Keep async opt-in pending the release decision. See `reports/mlx_clock_controlled_2026-11-17.md`.
-- Full suite after the checkpoint retention fix: 398 passed, 7 skipped.
+- Two complementary 1,536-update randomized switchbacks favored async by 4.99% overall, preserving exact saved array states. Strict clock/thermal matching favored async but missed planned coverage (10 pairs versus 16 required, with fewer than eight in each trial); clocks were not locked. Enable async by default following the release decision; the result does not establish always-on thermal behavior or gains across all workloads. See `reports/mlx_clock_controlled_2026-11-17.md`.
+- Full suite after the checkpoint retention fix: 399 passed, 7 skipped after the default change.
 
 ## [1.7.5] - 2026-11-16
 

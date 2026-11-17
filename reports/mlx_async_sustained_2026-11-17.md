@@ -1,5 +1,9 @@
 # Sustained MLX accumulation comparison — 2026-11-17
 
+Release update: async was subsequently enabled by default for v1.7.6 following
+the release decision. See [release validation](../docs/releases/v1.7.6-validation.md).
+The measurements and decision at the time of this report are preserved below.
+
 Follow-up: [randomized clock/thermal comparison](mlx_clock_controlled_2026-11-17.md)
 found a positive async effect with insufficient strict-match coverage. The results
 below retain the original separate-process observations.
