@@ -83,17 +83,19 @@ def save_mlx_state(path, state):
     """Store a nested state tree and JSON structure together in one atomic NPZ."""
     import mlx.core as mx
     arrays = {}
-    def encode(value):
+    # Pass arrays explicitly: a recursive closure that captures this dictionary
+    # keeps every saved tensor alive until Python's cyclic GC happens to run.
+    def encode(value, arrays):
         if isinstance(value, mx.array):
             key = f"array_{len(arrays)}"
             arrays[key] = value
             return {"array": key}
         if isinstance(value, dict):
-            return {"dict": [[key, encode(item)] for key, item in value.items()]}
+            return {"dict": [[key, encode(item, arrays)] for key, item in value.items()]}
         if isinstance(value, (list, tuple)):
-            return {"list": [encode(item) for item in value]}
+            return {"list": [encode(item, arrays) for item in value]}
         return {"value": value}
-    structure = encode(state)
+    structure = encode(state, arrays)
     arrays["structure"] = mx.array(list(json.dumps(structure).encode()), dtype=mx.uint8)
     mx.eval(*arrays.values())
     atomic_write(path, lambda temporary: mx.savez(temporary, **arrays))
