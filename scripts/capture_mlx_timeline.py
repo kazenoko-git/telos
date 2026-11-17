@@ -50,10 +50,11 @@ def worker(args):
         import inspect
         if 'async_accumulation' not in inspect.signature(MLXTrainingStep.__init__).parameters:
             raise ValueError('Scheduled source must support async_accumulation')
-    if args.async_accumulation:
+    import inspect
+    if 'async_accumulation' in inspect.signature(MLXTrainingStep.__init__).parameters:
         original_init=MLXTrainingStep.__init__
         def async_init(step,*positional,**keywords):
-            keywords['async_accumulation']=True
+            keywords['async_accumulation']=args.async_accumulation
             original_init(step,*positional,**keywords)
         MLXTrainingStep.__init__=async_init
     original = MLXTrainingStep.__call__

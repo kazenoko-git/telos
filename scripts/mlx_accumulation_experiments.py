@@ -137,6 +137,7 @@ class ExperimentalAccumulationStep(MLXTrainingStep):
 
     def __init__(self, *args, pipeline_accumulation=False, compiled_accumulation=False,
                  defer_last_microbatch=False, **kwargs):
+        kwargs.setdefault("async_accumulation", False)
         super().__init__(*args, **kwargs)
 
         def accumulate(previous, current):
