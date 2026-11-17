@@ -22,6 +22,10 @@ def digest(path):
 def paired_summary(pairs,seed=20261117):
     if not pairs:return dict(pairs=0)
     logs=[math.log(p['async_rate']/p['sync_rate']) for p in pairs]
+    if len(logs)==1:
+        return dict(pairs=1,geometric_gain_pct=100*math.expm1(logs[0]),
+            bootstrap_95_pct=None,positive_pairs=int(logs[0]>0),
+            caveat='One pair cannot estimate a confidence interval.')
     rng=random.Random(seed)
     bootstrap=sorted(statistics.mean(rng.choices(logs,k=len(logs))) for _ in range(10000))
     return dict(pairs=len(pairs),geometric_gain_pct=100*math.expm1(statistics.mean(logs)),

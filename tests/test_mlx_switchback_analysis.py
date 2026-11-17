@@ -56,3 +56,8 @@ def test_paired_bootstrap_uses_pairs_and_reports_positive_constant_effect():
     assert all(math.isclose(x,5) for x in result['bootstrap_95_pct'])
     assert result['pairs']==result['positive_pairs']==8
     assert paired_summary([])=={'pairs':0}
+
+
+def test_one_pair_does_not_report_a_zero_width_confidence_interval():
+    result=paired_summary([dict(sync_rate=100,async_rate=105)])
+    assert result['pairs']==1 and result['bootstrap_95_pct'] is None
