@@ -1,5 +1,9 @@
 # Sustained MLX accumulation comparison — 2026-11-17
 
+Follow-up: [randomized clock/thermal comparison](mlx_clock_controlled_2026-11-17.md)
+found a positive async effect with insufficient strict-match coverage. The results
+below retain the original separate-process observations.
+
 **Decision: keep asynchronous accumulation off by default and hold v1.7.6.**
 The sustained comparison did not reproduce a stable speedup. Correctness and
 memory stability passed, but async was 4.0% slower in the pooled measurement,
