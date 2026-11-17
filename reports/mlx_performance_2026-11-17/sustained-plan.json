@@ -1,0 +1,25 @@
+{
+  "updates": 768,
+  "warmup": 64,
+  "order": [
+    "sync",
+    "async",
+    "async",
+    "sync"
+  ],
+  "cache_mib": 256,
+  "acceptance": {
+    "completed_workers": 4,
+    "paired_speedup_min_pct": 2,
+    "pooled_speedup_min_pct": 2,
+    "positive_gain_in_each_aligned_64_update_window": true,
+    "max_last_third_active_memory_growth_mib": 32,
+    "max_last_third_retained_cache_growth_mib": 32,
+    "max_peak_memory_overhead_mib": 384,
+    "model_and_optimizer_rng_state_comparison_required": true
+  },
+  "notes": [
+    "Windows compare equal update indices; no Instruments tracing.",
+    "All guards remain unchanged. Limits are decision criteria for this workload, not universal guarantees."
+  ]
+}
