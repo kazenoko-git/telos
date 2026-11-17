@@ -48,6 +48,7 @@ class HardwareMonitor:
         self.previous=self.snapshot(self.subscription,self.channels,None)
         if not self.previous:raise RuntimeError('Initial IOReport snapshot unavailable')
         self.previous_time=time.monotonic()
+        self.previous_epoch_ns=time.time_ns()
         data=subprocess.check_output(['ioreg','-a','-r','-n','pmgr'],timeout=5)
         def find(obj):
             if isinstance(obj,dict):
@@ -77,13 +78,16 @@ class HardwareMonitor:
         return buf.value.decode() if self.decode(pointer,buf,len(buf),0x08000100) else ''
 
     def sample(self):
-        now=time.monotonic();current=self.snapshot(self.subscription,self.channels,None)
+        now=time.monotonic();end_epoch_ns=time.time_ns()
+        current=self.snapshot(self.subscription,self.channels,None)
         if not current:raise RuntimeError('IOReport snapshot unavailable')
         delta=self.delta(self.previous,current,None)
         if not delta:
             self.release(current)
             raise RuntimeError('IOReport delta unavailable')
         dt=now-self.previous_time
+        start_epoch_ns=self.previous_epoch_ns
+        self.previous_epoch_ns=end_epoch_ns
         self.release(self.previous);self.previous=current;self.previous_time=now
         key=self.s('IOReportChannels');array=self.value(delta,key);self.release(key)
         if not array:
@@ -110,7 +114,8 @@ class HardwareMonitor:
         if coverage==1:
             freq=sum(f*v for f,v in zip(table,active))/sum(active)
         thermal=int(self.msg_int(self.process_info,self.thermal_selector))
-        return dict(time=time.time(),interval_seconds=dt,gpu_active_frequency_mhz=freq,
+        return dict(time=end_epoch_ns/1e9,window_start_epoch_ns=start_epoch_ns,
+            window_end_epoch_ns=end_epoch_ns,interval_seconds=dt,gpu_active_frequency_mhz=freq,
             gpu_frequency_mapping_coverage=coverage,
             gpu_active_pstate_index=sum((i+1)*v for i,v in enumerate(active))/sum(active) if sum(active)>0 else None,
             gpu_frequency_table_mhz=self.gpu_mhz,gpu_active_residency=sum(active)/sum(v for _,v in gpu) if gpu and sum(v for _,v in gpu)>0 else None,
