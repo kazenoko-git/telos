@@ -122,6 +122,7 @@ def execute_mlx_training_step(
     eval_every_microbatch: bool = False,
     stage_profile: dict | None = None,
     accumulation_step_fn=None,
+    async_accumulation: bool = False,
 ):
     if stage_profile is not None:
         async_stage_eval = bool(stage_profile.get("async_stage_eval", False))
@@ -144,6 +145,10 @@ def execute_mlx_training_step(
     accum_grads = None
     accum_loss = mx.array(0.0, dtype=mx.float32)
     accum_ce = mx.array(0.0, dtype=mx.float32)
+    pending_microbatch = None
+    # The eager policy remains authoritative on memory-constrained devices;
+    # synchronized stage timing must also retain its existing boundaries.
+    pipeline = async_accumulation and grad_accum > 1 and not eval_every_microbatch and stage_profile is None
 
     for i in range(grad_accum):
         stage_start = time.perf_counter() if stage_profile is not None else None
@@ -214,7 +219,17 @@ def execute_mlx_training_step(
                 stage_profile["accumulation_sync_wait_seconds"] += sync_elapsed
                 stage_profile["materialization_seconds"] += time.perf_counter() - stage_start
             else:
-                mx.eval(accum_grads, accum_loss, accum_ce)
+                if pipeline:
+                    # Snapshot array handles: later accumulation replaces the
+                    # tree. Submit the next microbatch before waiting for the
+                    # previous one, retaining at most two submitted evaluations.
+                    arrays = tuple(value for _, value in tree_flatten((accum_grads, accum_loss, accum_ce)))
+                    mx.async_eval(*arrays)
+                    if pending_microbatch is not None:
+                        mx.eval(*pending_microbatch)
+                    pending_microbatch = arrays
+                else:
+                    mx.eval(accum_grads, accum_loss, accum_ce)
 
     optimizer_start = time.perf_counter() if stage_profile is not None else None
     use_master_weights = getattr(model, "use_master_weights", False)

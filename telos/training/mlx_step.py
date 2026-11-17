@@ -23,16 +23,19 @@ class MLXTrainingStep:
     contract. Accumulated runs retain the reference bounded-memory path. The
     optional asynchronous path holds at most one previous step on the host;
     call ``synchronize`` before measuring elapsed time or saving checkpoints.
+    ``async_accumulation`` independently opts into a bounded one-microbatch-ahead
+    pipeline. Accumulated updates still return completed optimizer state.
     """
 
     def __init__(self, model, optimizer, microbatch_step, *, grad_clip=1.0, fused=True,
-                 accumulation_step=None):
+                 accumulation_step=None, async_accumulation=False):
         self.model = model
         self.optimizer = optimizer
         self.microbatch_step = microbatch_step
         self.grad_clip = grad_clip
         self.fused = fused
         self.accumulation_step = accumulation_step
+        self.async_accumulation = async_accumulation
         self._initialized = False
         self._full_step = None
         self._pending = None
@@ -68,6 +71,7 @@ class MLXTrainingStep:
                 grad_accum, self.grad_clip, not self._initialized, eval_every_microbatch,
                 stage_profile=getattr(self, "stage_profile", None),
                 accumulation_step_fn=self.accumulation_step,
+                async_accumulation=self.async_accumulation,
             )
             self._initialized = True
             return result
