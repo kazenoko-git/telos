@@ -460,7 +460,7 @@ def main():
     parser.add_argument("--compiled-accumulation", action=argparse.BooleanOptionalAction, default=None,
                         help="Compile backward with gradient accumulation (experimental; default: disabled)")
     parser.add_argument("--async-accumulation", action=argparse.BooleanOptionalAction, default=None,
-                        help="Bounded one-microbatch-ahead MLX accumulation (experimental; default: disabled)")
+                        help="Bounded one-microbatch-ahead MLX accumulation (default: enabled; disable with --no-async-accumulation)")
     parser.add_argument("--force-fused-attention", action=argparse.BooleanOptionalAction, default=None,
                         help="Force fused MLX SDPA (experimental; full-model gain is unconfirmed)")
     parser.add_argument("--tokenizer", type=str, default=None, help="Path to custom BPE tokenizer JSON or HF model")

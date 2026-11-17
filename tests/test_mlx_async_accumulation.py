@@ -34,7 +34,7 @@ def exercise(asynchronous,accumulation,compiled,master,eager=False):
     opt=optim.AdamW(1e-3,betas=[.9,.95],bias_correction=True)
     step=MLXTrainingStep(model,opt,mx.compile(micro,inputs=state,outputs=state),
         accumulation_step=build_mlx_accumulation_step(micro,state) if compiled else None,
-        async_accumulation=asynchronous,grad_clip=.1)
+        **({} if asynchronous is None else {"async_accumulation": asynchronous}),grad_clip=.1)
     losses=[]
     for lr in (1e-3,0.0,2e-3):
         opt.learning_rate=lr
@@ -110,3 +110,22 @@ def test_clipped_accumulated_gradients_match_explicit_reference(asynchronous):
     execute_mlx_training_step(model,opt,micro,iter(batches),8,.1,True,async_accumulation=asynchronous)
     actual=snapshot(opt.observed)
     for key in expected:np.testing.assert_allclose(actual[key],expected[key],rtol=1e-6,atol=1e-7)
+
+
+def test_default_dispatches_async_and_explicit_false_disables_it(monkeypatch):
+    original = mx.async_eval
+    calls = []
+    def dispatch(*arrays):
+        calls.append(1)
+        return original(*arrays)
+    monkeypatch.setattr(mx, "async_eval", dispatch)
+    default_losses, default_state = exercise(None, 8, True, True)
+    assert calls
+    calls.clear()
+    sync_losses, sync_state = exercise(False, 8, True, True)
+    assert not calls
+    for actual, expected in zip(default_losses, sync_losses):
+        for key in expected:
+            np.testing.assert_allclose(actual[key], expected[key], rtol=3e-5, atol=3e-6)
+    for key in sync_state:
+        np.testing.assert_allclose(default_state[key], sync_state[key], rtol=3e-5, atol=3e-6)

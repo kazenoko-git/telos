@@ -122,7 +122,7 @@ def execute_mlx_training_step(
     eval_every_microbatch: bool = False,
     stage_profile: dict | None = None,
     accumulation_step_fn=None,
-    async_accumulation: bool = False,
+    async_accumulation: bool = True,
 ):
     if stage_profile is not None:
         async_stage_eval = bool(stage_profile.get("async_stage_eval", False))
