@@ -263,24 +263,28 @@ def execute_mlx_training_step(
             stage_profile["optimizer_update_seconds"] = time.perf_counter() - optimizer_start
         return accum_loss, accum_ce
 
-    # Fused accumulation scaling and norm clipping
-    if grad_clip > 0.0:
-        accum_grads, _ = clip_grad_norm_mlx(accum_grads, max_norm=grad_clip, scale=float(grad_accum))
-    else:
-        accum_grads = tree_map(lambda g: g / float(grad_accum), accum_grads)
-
+    # Keep scaling/clipping in the compiled update. Pass their controls explicitly
+    # so cached updates honor changes in accumulation count or clipping policy.
     compiled_opt = getattr(optimizer, "_compiled_opt_update", None)
     if compiled_opt is None:
         if use_master_weights:
             # Compiled update applying float32 gradients to master weights and projecting to bfloat16 model
-            def update_fn(master_dict, g):
+            def update_fn(master_dict, g, clip, scale):
+                if clip > 0.0:
+                    g, _ = clip_grad_norm_mlx(g, max_norm=clip, scale=scale)
+                else:
+                    g = tree_map(lambda value: value / scale, g)
                 new_master = optimizer.apply_gradients(g, master_dict)
                 new_model = tree_map(lambda p: p.astype(mx.bfloat16), new_master)
                 return new_master, new_model
 
             compiled_opt = mx.compile(update_fn, inputs=[optimizer.state], outputs=[optimizer.state])
         else:
-            def update_fn(grads_inner):
+            def update_fn(grads_inner, clip, scale):
+                if clip > 0.0:
+                    grads_inner, _ = clip_grad_norm_mlx(grads_inner, max_norm=clip, scale=scale)
+                else:
+                    grads_inner = tree_map(lambda value: value / scale, grads_inner)
                 optimizer.update(model, grads_inner)
                 return model.parameters(), optimizer.state
 
@@ -288,11 +292,11 @@ def execute_mlx_training_step(
         optimizer._compiled_opt_update = compiled_opt
 
     if use_master_weights:
-        optimizer.master_params, new_model = compiled_opt(optimizer.master_params, accum_grads)
+        optimizer.master_params, new_model = compiled_opt(optimizer.master_params, accum_grads, grad_clip, float(grad_accum))
         model.update(new_model)
         mx.eval(optimizer.master_params, model.parameters(), optimizer.state, accum_loss, accum_ce)
     else:
-        compiled_opt(accum_grads)
+        compiled_opt(accum_grads, grad_clip, float(grad_accum))
         mx.eval(model.parameters(), optimizer.state, accum_loss, accum_ce)
 
     if stage_profile is not None:
