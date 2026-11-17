@@ -69,8 +69,8 @@ def main():
         grads = tree_map(lambda p: mx.full(p.shape, .001, dtype=p.dtype), model.parameters())
         loss = mx.array(1.)
         mx.eval(grads, loss)
-        def micro(_):
-            return loss, loss, grads
+        def micro(_, grad_values=grads, loss_value=loss):
+            return loss_value, loss_value, grad_values
         mx.reset_peak_memory()
         durations = []
         hardware = []
