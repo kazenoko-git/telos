@@ -48,6 +48,8 @@ def main():
     parser.add_argument("--save-initial-weights", action="store_true",
                         help="Save and hash model weights before the first update")
     parser.add_argument("--max-mlx-gib", type=float, default=4.0)
+    parser.add_argument("--cache-mib", type=int, default=256,
+                        help="Reusable MLX buffer cache in MiB (default: 256)")
     parser.add_argument("--critical-memory-free-percent", type=int, default=12)
     parser.add_argument("--critical-swap-free-mib", type=float, default=512.0)
     parser.add_argument("--critical-swap-growth-mib", type=float, default=None,
@@ -70,6 +72,8 @@ def main():
                         help="Use fused QKV unpacking and rotary embedding")
     parser.add_argument("--compiled-accumulation", action="store_true",
                         help="Compile each later microbatch backward pass together with gradient accumulation")
+    parser.add_argument("--async-accumulation", action="store_true",
+                        help="Use bounded one-microbatch-ahead accumulation (experimental)")
     parser.add_argument("--force-fused-attention", action="store_true",
                         help="Force MLX fused SDPA for a diagnostic comparison")
     parser.add_argument("--trim-ar-final-token", action="store_true",
@@ -78,6 +82,8 @@ def main():
     parser.add_argument("--fused-vocab-chunk-axis", choices=["vocab", "token"], default="vocab")
     parser.add_argument("--vocab-size", type=int, default=8192)
     args = parser.parse_args()
+    if args.cache_mib <= 0:
+        parser.error("--cache-mib must be positive")
     if args.swap_growth_baseline_updates < 0:
         parser.error("swap-growth-baseline-updates must be nonnegative")
     output = Path(args.output).resolve()
@@ -106,7 +112,7 @@ def main():
         MLXTelosTransformer.next_token_logits = trimmed_next_token_logits
 
     mx.set_memory_limit(int(args.max_mlx_gib * 1024**3))
-    mx.set_cache_limit(128 * 1024**2)
+    mx.set_cache_limit(args.cache_mib * 1024**2)
     initial = system_sample()
     metadata = {
         "arguments": vars(args), "device": mx.device_info(), "mlx_version": mx.__version__,
@@ -243,6 +249,7 @@ def main():
                   vocab_size=args.vocab_size,
                   autotune_memory_gb=args.max_mlx_gib,
                   compiled_accumulation=args.compiled_accumulation,
+                  async_accumulation=args.async_accumulation,
                   max_lr=4e-4, min_lr=4e-5, weight_decay=0.01,
                   checkpoint_dir=str(output / "checkpoints"), save_every=1000, seed=42)
             status = "complete"
