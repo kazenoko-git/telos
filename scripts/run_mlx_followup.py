@@ -52,7 +52,8 @@ def main():
         with (root/f'{index:02d}.log').open('w') as log:
             proc=subprocess.run(command,stdout=log,stderr=subprocess.STDOUT,timeout=max(240,args.updates*1.5+120))
         capture=json.loads((trial/'capture.json').read_text())
-        valid=proc.returncode==0 and capture.get('training_summary',{}).get('status')=='complete'
+        valid=(proc.returncode==0 and capture.get('worker_returncode')==0
+            and capture.get('training_summary',{}).get('status')=='complete')
         rows=[json.loads(x) for x in (trial/'host_steps.jsonl').read_text().splitlines()] if (trial/'host_steps.jsonl').exists() else []
         warm=rows[args.warmup_updates:]
         elapsed=sum((r['end_monotonic_ns']-r['start_monotonic_ns'])/1e9 for r in warm)
