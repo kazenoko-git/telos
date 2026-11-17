@@ -31,6 +31,12 @@ def load_profile(source):
 
 def worker(args):
     profile = load_profile(args.source)
+    schedule=None
+    if args.mode_schedule:
+        schedule=json.loads(args.mode_schedule.read_text())
+        if (schedule['block_updates']<=0 or len(schedule['modes'])*schedule['block_updates']!=args.updates
+                or any(type(mode) is not bool for mode in schedule['modes'])):
+            raise ValueError('Mode schedule must cover every update with boolean modes')
     import mlx.core as mx
     set_cache_limit=mx.set_cache_limit
     cache_calls=[]
@@ -40,6 +46,10 @@ def worker(args):
         return set_cache_limit(args.cache_mib*1024**2)
     mx.set_cache_limit=cache_limit_override
     from telos.training.mlx_step import MLXTrainingStep
+    if schedule is not None:
+        import inspect
+        if 'async_accumulation' not in inspect.signature(MLXTrainingStep.__init__).parameters:
+            raise ValueError('Scheduled source must support async_accumulation')
     if args.async_accumulation:
         original_init=MLXTrainingStep.__init__
         def async_init(step,*positional,**keywords):
@@ -53,6 +63,8 @@ def worker(args):
         def measured(step, *positional, **keywords):
             nonlocal count, last_step
             last_step = step
+            if schedule is not None:
+                step.async_accumulation=schedule['modes'][count//schedule['block_updates']]
             begin, wall = time.perf_counter_ns(), time.time_ns()
             cpu = time.process_time_ns()
             result = original(step, *positional, **keywords)
@@ -60,6 +72,8 @@ def worker(args):
             stream.write(json.dumps(dict(step=count, start_monotonic_ns=begin,
                 end_monotonic_ns=time.perf_counter_ns(), start_epoch_ns=wall,
                 end_epoch_ns=time.time_ns(), process_cpu_ns=time.process_time_ns()-cpu,
+                async_accumulation=bool(getattr(step,'async_accumulation',False)),
+                schedule_block=(count-1)//schedule['block_updates'] if schedule else None,
                 peak_rss_bytes=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss))+'\n')
             return result
         MLXTrainingStep.__call__ = measured
@@ -109,6 +123,9 @@ def main():
     parser.add_argument('--async-accumulation', action='store_true')
     parser.add_argument('--save-training-state', action='store_true')
     parser.add_argument('--timeout-seconds',type=float,default=150)
+    parser.add_argument('--mode-schedule',type=Path)
+    parser.add_argument('--require-ac-power',action='store_true')
+    parser.add_argument('--max-thermal-state',type=int,choices=[0,1,2,3])
     parser.add_argument('--template', default='Time Profiler')
     parser.add_argument('--instrument', action='append', default=None)
     parser.add_argument('--worker', action='store_true', help=argparse.SUPPRESS)
@@ -116,11 +133,14 @@ def main():
     if args.instrument is None:
         args.instrument=['GPU','Metal Application'] if args.template=='Time Profiler' else []
     args.source, args.data, args.output = args.source.resolve(), args.data.resolve(), args.output.resolve()
+    if args.mode_schedule:args.mode_schedule=args.mode_schedule.resolve()
     if args.worker:
         return worker(args)
     if not 0 < args.seconds <= 5 or not 0 < args.warmup < args.updates:
         parser.error('Use a trace of at most five seconds and leave updates after warmup')
     if args.timeout_seconds<=0:parser.error('--timeout-seconds must be positive')
+    if (args.require_ac_power or args.max_thermal_state is not None) and not args.hardware_monitor:
+        parser.error('Power/thermal controls require --hardware-monitor')
     args.output.mkdir(parents=True, exist_ok=False)
     profile = load_profile(args.source)
     initial = profile.system_sample()
@@ -145,6 +165,7 @@ def main():
         '--updates',str(args.updates),'--cache-mib',str(args.cache_mib)]
     if args.async_accumulation:command.append('--async-accumulation')
     if args.save_training_state:command.append('--save-training-state')
+    if args.mode_schedule:command.extend(['--mode-schedule',str(args.mode_schedule)])
     child = trace = None
     hardware=None
     if args.hardware_monitor:
@@ -175,10 +196,16 @@ def main():
                     record=hardware.sample()
                     record['completed_steps']=len(rows)
                     record['processes']=subprocess.check_output(['ps','-axo','pid=,pcpu=,rss=,comm='],text=True,timeout=5)
-                    if len(rows)%5==0:
+                    if args.require_ac_power or len(rows)%5==0:
                         record['power_source']=subprocess.check_output(['pmset','-g','batt'],text=True,timeout=5)
                     with (args.output/'hardware.jsonl').open('a') as stream:
                         stream.write(json.dumps(record)+'\n')
+                    if args.require_ac_power and "Now drawing from 'AC Power'" not in record['power_source']:
+                        report['status']='power_source_changed'
+                        break
+                    if args.max_thermal_state is not None and record['thermal_state']>args.max_thermal_state:
+                        report['status']='thermal_guard'
+                        break
                 if (sample['memory_free_percent'] < 25 or sample['swap_free_mb'] < 256
                         or sample['swap_used_mb']-initial['swap_used_mb'] > 512):
                     report['status']='observer_memory_guard'
@@ -213,7 +240,8 @@ def main():
         summary=args.output/'training/summary.json'
         if summary.exists():
             report['training_summary']=json.loads(summary.read_text())
-            if args.no_trace and report['training_summary']['status']=='complete' and report['worker_returncode']==0:
+            if (args.no_trace and report['status'] not in ('observer_memory_guard','power_source_changed','thermal_guard','timeout')
+                    and report['training_summary']['status']=='complete' and report['worker_returncode']==0):
                 report['status']='untraced_complete'
         if report.get('trace_returncode')==0:
             with (args.output/'export.log').open('w') as log:
