@@ -210,7 +210,7 @@ def build_config(
         t_cfg.setdefault("autotune", final_backend == "mlx" and batch_size is None and grad_accum is None)
     for option in ("autotune_candidates", "autotune_memory_gb", "autotune_checkpointing",
                    "autotune_warmup_steps", "autotune_measure_steps", "autotune_trial_timeout",
-                   "fused_step", "async_eval", "compiled_accumulation", "fused_vocab_loss",
+                   "fused_step", "async_eval", "compiled_accumulation", "async_accumulation", "fused_vocab_loss",
                    "fused_vocab_chunk_size", "fused_vocab_chunk_axis", "experimental_packed_swiglu", "force_fused_attention",
                    "experimental_qkv_rope", "packed_projections", "gradient_checkpointing", "xla_cleanup_every"):
         if kwargs.get(option) is not None:

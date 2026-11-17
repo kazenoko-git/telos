@@ -570,6 +570,7 @@ class UnifiedMLXTrainer:
             self.model, optimizer, compiled_step, grad_clip=self.grad_clip,
             fused=bool(self.t_cfg.get("fused_step", True)),
             accumulation_step=accumulation_step,
+            async_accumulation=bool(self.t_cfg.get("async_accumulation", False)),
         )
 
         # Restored Adam moments have already undergone their first-step cast.

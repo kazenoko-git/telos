@@ -459,6 +459,8 @@ def main():
                         help="Experimental fused QKV/RoPE for equal heads of dimension 64 (default: disabled)")
     parser.add_argument("--compiled-accumulation", action=argparse.BooleanOptionalAction, default=None,
                         help="Compile backward with gradient accumulation (experimental; default: disabled)")
+    parser.add_argument("--async-accumulation", action=argparse.BooleanOptionalAction, default=None,
+                        help="Bounded one-microbatch-ahead MLX accumulation (experimental; default: disabled)")
     parser.add_argument("--force-fused-attention", action=argparse.BooleanOptionalAction, default=None,
                         help="Force fused MLX SDPA (experimental; full-model gain is unconfirmed)")
     parser.add_argument("--tokenizer", type=str, default=None, help="Path to custom BPE tokenizer JSON or HF model")
@@ -539,6 +541,7 @@ def main():
             experimental_packed_swiglu=args.experimental_packed_swiglu,
             experimental_qkv_rope=args.experimental_qkv_rope,
             compiled_accumulation=args.compiled_accumulation,
+            async_accumulation=args.async_accumulation,
             packed_projections=args.packed_projections,
             gradient_checkpointing={"auto": "auto", "on": True, "off": False}.get(args.gradient_checkpointing),
             force_fused_attention=args.force_fused_attention,
