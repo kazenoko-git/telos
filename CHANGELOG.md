@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Experimental, default-off bounded asynchronous MLX gradient accumulation, configurable with `--async-accumulation` or `training.async_accumulation`.
+- Warmed GPU timeline capture, CPU/command-buffer correlation, hardware telemetry, and interleaved/sustained MLX comparison tools.
+
+### Changed
+- Make the MLX profiling cache configurable with `--cache-mib`, defaulting to 256 MiB after repeated short-run validation.
+
+### Validation
+- Four 768-update runs preserved model, optimizer, master-weight and MLX-RNG array state exactly with bounded memory, but did not establish a stable sustained speedup. Async remains opt-in and v1.7.6 promotion is deferred; see `reports/mlx_async_sustained_2026-11-17.md`.
+
 ## [1.7.5] - 2026-11-16
 
 ### Fixed
