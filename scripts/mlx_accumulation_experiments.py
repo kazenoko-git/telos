@@ -150,6 +150,8 @@ class ExperimentalAccumulationStep(MLXTrainingStep):
             if keywords.pop("stage_profile", None) is not None:
                 raise ValueError("Experimental accumulation does not support stage profiling")
             keywords.pop("accumulation_step_fn", None)
+            if keywords.pop("async_accumulation", False):
+                raise ValueError("Experimental accumulation cannot combine its policy with production async accumulation")
             return execute_mlx_training_step(
                 *positional, **keywords, pipeline_accumulation=pipeline_accumulation,
                 accumulate_fn=compiled, defer_last_microbatch=defer_last_microbatch,

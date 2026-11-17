@@ -11,6 +11,16 @@ from mlx.utils import tree_flatten
 from telos.training.mlx_step import MLXTrainingStep
 from scripts.mlx_accumulation_experiments import ExperimentalAccumulationStep
 
+
+def test_experiment_rejects_combined_production_async_policy():
+    model = nn.Linear(8, 4)
+    step = ExperimentalAccumulationStep(
+        model, optim.AdamW(1e-3), lambda batch: None,
+        pipeline_accumulation=True, async_accumulation=True,
+    )
+    with pytest.raises(ValueError, match="production async accumulation"):
+        step([mx.ones((3, 8))] * 2, grad_accum=2)
+
 @pytest.mark.parametrize('master', [False, True])
 @pytest.mark.parametrize('accumulation', [2, 8])
 @pytest.mark.parametrize('mode', ['pipeline_accumulation', 'compiled_accumulation', 'defer_last_microbatch'])
