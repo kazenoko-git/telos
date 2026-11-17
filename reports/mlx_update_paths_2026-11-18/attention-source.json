@@ -1,0 +1,7 @@
+{
+  "url": "https://raw.githubusercontent.com/ml-explore/mlx/v0.32.2/mlx/backend/metal/scaled_dot_product_attention.cpp",
+  "sha256": "215ebac6495706cf01a2635c4dcec29802e130165ed8704f212d789679d2e673",
+  "training_forward_predicate": "  if (is_training) {\n    // It's faster for training on Metal to use the unfused SDPA for both\n    // forward and backward.\n    return true;\n  }",
+  "backward_predicate": "bool ScaledDotProductAttentionVJP::use_fallback(const array& q, Stream s) {\n  return true;\n}\n\nvoid ScaledDotProductAttentionVJP::eval_gpu(\n    const std::vector<array>& inputs,\n    std::vector<array>& outputs) {\n  throw std::runtime_error(\"NYI\");",
+  "note": "Verify installed graph separately. Prior native/fallback study used isolated MLX 0.32.4, not installed 0.32.2."
+}
