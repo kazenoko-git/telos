@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Stream large plain-text/code files in bounded chunks, cap tokenizer batches by character volume, and write each encoding directly instead of building a flattened Python token list.
+- Preserve short trailing chunks and apply license cleanup only at document starts.
+
+### Added
+- Dataprep `--chunk-chars` and `--max-batch-chars` memory controls; default to eight chunks per batch in both corpus CLIs. See `docs/dataprep.md` for boundary behavior and record-reader limits.
+
 ## [1.7.7] - 2026-11-18
 
 ### Changed

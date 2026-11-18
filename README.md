@@ -68,6 +68,8 @@ telos pretrain --paradigm ar --params 50M --tokens 300M --data data/corpus.bin \
   --checkpoint-dir checkpoints/ar
 ```
 
+Corpus preparation uses bounded text chunks and batches; see [memory controls and chunking behavior](docs/dataprep.md).
+
 Resume pretraining using the saved configuration and original total training budget:
 
 ```bash
