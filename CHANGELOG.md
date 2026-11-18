@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.7] - 2026-11-18
+
 ### Changed
+- Enable compiled MLX accumulation by default; disable with `--no-compiled-accumulation` or `training.compiled_accumulation: false`.
 - Compile accumulated-gradient scaling and clipping with the MLX optimizer update. Preserve explicit clipping/accumulation controls, first-step moment initialization and master-weight behavior.
 
 ### Added
@@ -16,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Validation
 - Compiled accumulation with async measured +43.8% pooled throughput on one planner-selected 1×64 workload, with identical saved numerical arrays; clocks varied and the option remains separately configurable.
 - The optimizer boundary probe used 18.9% less update time. Short full-training replays preserved exact numerical arrays; clock differences prevent a stable end-to-end speed claim. 401 tests passed, 7 skipped; see `reports/mlx_update_paths_2026-11-18.md`.
+
+- Two 1,536-update complementary switchbacks preserved all 347 saved numerical arrays exactly and flat active memory. Compiled won 43/44 pairs; strict clock/thermal matching yielded only four accepted pairs, below planned coverage. The release decision accepts this limitation; see `docs/releases/v1.7.7-validation.md`.
 
 ## [1.7.6] - 2026-11-17
 
