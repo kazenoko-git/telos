@@ -134,6 +134,8 @@ MLX pretraining uses compiled and bounded asynchronous gradient accumulation by 
 
 Pretraining supports opt-in `--packed-projections` on PyTorch, `--experimental-qkv-rope` on MLX, and `--fused-vocab-loss --fused-vocab-chunk-size 256` for tiled AR loss on both. MLX additionally accepts `--fused-vocab-chunk-axis token` (default: `vocab`). These MLX projection/loss paths are experimental: BF16 gradient reductions can change, and the measured compiled head workloads used more memory and ran slower than the full projection. They remain disabled by default; tiling alone does not guarantee lower peak allocation. See [the measured limits](reports/mlx_fusion_2026-11-16/REPORT.md). Choose activation checkpointing explicitly with `--gradient-checkpointing auto|on|off`. Benchmark JSON reports synchronized completed-update timing, five excluded warmup updates, input-token units and whether enough updates were measured.
 
+Add `--fused-vocab-loss --fused-vocab-chunk-axis metal` for opt-in MLX fused projection and cross entropy in tied-head FP32 or BF16 AR pretraining. The kernel keeps logits and their derivatives in threadgroup memory. On M5 Pro, the largest tested BF16 head used 62% less peak MLX allocation than the full projection and took 2.2× as long. Atomic gradient accumulation can vary in the last bits. See [v1.7.8 validation](docs/releases/v1.7.8-validation.md).
+
 MLX pretraining now chooses a fitting microbatch within 60% of system RAM,
 including at least 1 GiB of headroom, and preserves the effective batch through
 variable accumulation. See [memory planning](docs/mlx-memory-planning.md) for

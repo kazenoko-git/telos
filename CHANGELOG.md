@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.8] - 2026-11-18
+
+### Added
+- Opt-in MLX Metal projection and cross entropy for tied-head AR pretraining. Enable with `--fused-vocab-loss --fused-vocab-chunk-axis metal`. M5 tensor operations accelerate aligned FP32 and BF16 heads, and a SIMD kernel covers other shapes and Metal devices.
+
+### Validation
+- At 2,048 tokens and a 65,024-token vocabulary in BF16 on M5 Pro, optimized fusion used 270 MiB and 54.74 ms per head call. The full head used 703 MiB and 24.92 ms. The original fused kernel used 294 MiB and 202.57 ms. See [v1.7.8 validation](docs/releases/v1.7.8-validation.md).
+
 ## [1.7.7] - 2026-11-18
 
 ### Changed
@@ -318,7 +326,7 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
   virtualized, or sandboxed macOS sessions): `telos train`, `telos bench` and
   `telos test` fall back to the PyTorch CPU path instead of aborting the process.
 
-[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.7.5...HEAD
+[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.7.8...HEAD
 [1.5.5]: https://github.com/kazenoko-git/telos/compare/v1.5.4...v1.5.5
 [1.5.4]: https://github.com/kazenoko-git/telos/compare/v1.5.3...v1.5.4
 [1.5.3]: https://github.com/kazenoko-git/telos/compare/v1.5.2...v1.5.3
@@ -332,3 +340,4 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
 
 [1.7.4]: https://github.com/kazenoko-git/telos/compare/v1.7.3...v1.7.4
 [1.7.5]: https://github.com/kazenoko-git/telos/compare/v1.7.4...v1.7.5
+[1.7.8]: https://github.com/kazenoko-git/telos/compare/v1.7.7...v1.7.8
