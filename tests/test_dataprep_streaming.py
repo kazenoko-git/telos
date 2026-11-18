@@ -134,3 +134,25 @@ def test_real_tokenizer_output_matches_independent_chunk_encoding(tmp_path):
     prep.prepare_dataset(source, output, tokenizer_path=tokenizer_path,
                          chunk_chars=64, max_batch_chars=128)
     np.testing.assert_array_equal(np.fromfile(output, dtype=np.uint16), expected)
+
+
+def test_cli_forwards_memory_limits(monkeypatch):
+    import sys
+    calls = []
+    monkeypatch.setattr(prep, "prepare_dataset", lambda **kwargs: calls.append(kwargs))
+    monkeypatch.setattr(sys, "argv", ["telos dataprep", "--chunk-chars", "64",
+                                    "--max-batch-chars", "128", "--batch-size", "3"])
+    prep.main()
+    assert calls[0]["chunk_chars"] == 64
+    assert calls[0]["max_batch_chars"] == 128
+    assert calls[0]["batch_size"] == 3
+
+
+def test_legacy_builder_forwards_memory_limits(monkeypatch):
+    from scripts.shared import build_tokenized_corpus as builder
+    calls = []
+    monkeypatch.setattr(builder, "prepare_dataset", lambda **kwargs: calls.append(kwargs))
+    builder.build_corpus(chunk_chars=64, max_batch_chars=128)
+    assert calls[0]["batch_size"] == 8
+    assert calls[0]["chunk_chars"] == 64
+    assert calls[0]["max_batch_chars"] == 128
