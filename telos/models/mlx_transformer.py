@@ -120,24 +120,23 @@ class MLXTelosTransformer(nn.Module):
 
     def output_cross_entropy(self, input_ids, targets, *, chunk_size=256,
                              chunk_axis=None, next_token_only=False):
-        """Experimental tied-head CE with recomputed token/vocabulary tiles.
-
-        Both paths keep FP32 loss reductions. BF16 tile gradient sums can differ
-        from a full projection's GEMM reduction; first-order training only.
-        """
+        """Tied-head CE with FP32 reductions and recomputed first-order gradients."""
         if not self.tied_embeddings:
-            raise ValueError("Tiled output cross entropy currently requires tied embeddings")
+            raise ValueError("Fused output cross entropy currently requires tied embeddings")
         if chunk_size < 1:
             raise ValueError("chunk_size must be positive")
         axis = getattr(self, "fused_vocab_chunk_axis", "vocab") if chunk_axis is None else chunk_axis
-        if axis not in {"vocab", "token"}:
-            raise ValueError("chunk_axis must be vocab or token")
-        from telos.training.mlx_vocab_loss import (
-            tiled_projection_cross_entropy, token_chunked_projection_cross_entropy,
-        )
+        if axis not in {"vocab", "token", "metal"}:
+            raise ValueError("chunk_axis must be vocab, token or metal")
         hidden = self.hidden_states(input_ids, is_causal=True)
         if next_token_only:
             hidden = hidden[:, :-1, :]
+        if axis == "metal":
+            from telos.training.mlx_fused_projection import fused_projection_cross_entropy
+            return fused_projection_cross_entropy(hidden, self.emb.weight, targets)
+        from telos.training.mlx_vocab_loss import (
+            tiled_projection_cross_entropy, token_chunked_projection_cross_entropy,
+        )
         function = (token_chunked_projection_cross_entropy if axis == "token"
                     else tiled_projection_cross_entropy)
         return function(hidden, self.emb.weight, targets, chunk_size=chunk_size)

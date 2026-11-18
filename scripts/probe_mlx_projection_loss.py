@@ -3,11 +3,12 @@ import argparse,json,os,time
 from pathlib import Path
 os.environ.setdefault('MLX_ENABLE_TF32','0')
 import mlx.core as mx
+from telos.training.mlx_fused_projection import fused_projection_cross_entropy
 from telos.training.mlx_losses import cross_entropy
 from telos.training.mlx_vocab_loss import tiled_projection_cross_entropy,token_chunked_projection_cross_entropy
 
 parser=argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--variant',choices=['full','vocab','token'],required=True)
+parser.add_argument('--variant',choices=['full','vocab','token','metal'],required=True)
 parser.add_argument('--chunk-size',type=int,default=256)
 parser.add_argument('--vocab',type=int,required=True)
 parser.add_argument('--rows',type=int,default=2048)
@@ -23,9 +24,12 @@ t=mx.random.randint(0,args.vocab,(args.rows,))
 cot=mx.random.uniform(low=-1.,high=1.,shape=(args.rows,))/args.rows
 mx.eval(h,w,t,cot)
 def full(x,weight):return mx.sum(cross_entropy(x@weight.T,t,reduction='none')*cot)
-def candidate(x,weight):
-    function=token_chunked_projection_cross_entropy if args.variant=='token' else tiled_projection_cross_entropy
-    return mx.sum(function(x,weight,t,chunk_size=args.chunk_size)*cot)
+def losses(x, weight):
+    if args.variant == 'metal':
+        return fused_projection_cross_entropy(x, weight, t)
+    function = token_chunked_projection_cross_entropy if args.variant == 'token' else tiled_projection_cross_entropy
+    return function(x, weight, t, chunk_size=args.chunk_size)
+def candidate(x,weight):return mx.sum(losses(x, weight)*cot)
 reference=mx.compile(mx.value_and_grad(full,argnums=(0,1)))
 function=reference if args.variant=='full' else mx.compile(mx.value_and_grad(candidate,argnums=(0,1)))
 a,ga=reference(h,w);b,gb=function(h,w);mx.eval(a,b,ga,gb)
@@ -33,10 +37,9 @@ expected_losses=cross_entropy(h@w.T,t,reduction='none')
 if args.variant=='full':
     actual_losses=expected_losses
 else:
-    loss_function=token_chunked_projection_cross_entropy if args.variant=='token' else tiled_projection_cross_entropy
-    actual_losses=loss_function(h,w,t,chunk_size=args.chunk_size)
+    actual_losses=losses(h,w)
 loss_max_abs=mx.max(mx.abs(expected_losses-actual_losses)).item()
-assert loss_max_abs<1e-5,loss_max_abs
+assert loss_max_abs < (5e-5 if args.variant == 'metal' else 1e-5), loss_max_abs
 del expected_losses,actual_losses
 error=[]
 assert abs((a-b).item())<1e-5,(a.item(),b.item())

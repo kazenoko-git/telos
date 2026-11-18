@@ -95,10 +95,13 @@ class UnifiedMLXTrainer:
         self.model.fused_vocab_loss_enabled = bool(self.t_cfg.get("fused_vocab_loss", False))
         self.model.fused_vocab_chunk_size = int(self.t_cfg.get("fused_vocab_chunk_size", 256))
         self.model.fused_vocab_chunk_axis = self.t_cfg.get("fused_vocab_chunk_axis", "vocab")
-        if self.model.fused_vocab_chunk_axis not in {"vocab", "token"}:
-            raise ValueError("fused_vocab_chunk_axis must be vocab or token")
+        if self.model.fused_vocab_chunk_axis not in {"vocab", "token", "metal"}:
+            raise ValueError("fused_vocab_chunk_axis must be vocab, token or metal")
         if self.model.fused_vocab_chunk_size < 1:
             raise ValueError("fused_vocab_chunk_size must be positive")
+        if (self.model.fused_vocab_loss_enabled and self.model.fused_vocab_chunk_axis == "metal"
+                and not self.model.tied_embeddings):
+            raise ValueError("fused_vocab_loss requires tied embeddings")
         if self.model.fused_vocab_loss_enabled and self.paradigm != "ar":
             raise ValueError("fused_vocab_loss is currently supported only for AR training")
 

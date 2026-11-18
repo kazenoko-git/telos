@@ -252,8 +252,10 @@ def train(
     m_cfg = cfg["model"]
     t_cfg = cfg["training"]
     chunk_axis = t_cfg.get("fused_vocab_chunk_axis", "vocab")
-    if chunk_axis not in {"vocab", "token"}:
-        raise ValueError("fused_vocab_chunk_axis must be vocab or token")
+    if chunk_axis not in {"vocab", "token", "metal"}:
+        raise ValueError("fused_vocab_chunk_axis must be vocab, token or metal")
+    if chunk_axis == "metal" and backend != "mlx":
+        raise ValueError("Metal projection loss is supported only on MLX")
     if chunk_axis == "token" and backend != "mlx":
         raise ValueError("Token-chunked projection loss is supported only on MLX")
 
@@ -448,11 +450,11 @@ def main():
     parser.add_argument("--fused-step", action=argparse.BooleanOptionalAction, default=None,
                         help="Compile the full MLX update for accumulation=1 (default: enabled)")
     parser.add_argument("--fused-vocab-loss", action=argparse.BooleanOptionalAction, default=None,
-                        help="Experimental tiled tied-embedding output projection and AR loss (default: disabled)")
+                        help="Experimental tied-embedding output projection and AR loss (default: disabled)")
     parser.add_argument("--fused-vocab-chunk-size", type=int, default=None,
                         help="Tile size along the chosen projection-loss chunk axis (default: 256)")
-    parser.add_argument("--fused-vocab-chunk-axis", choices=["vocab", "token"], default=None,
-                        help="Experimental MLX projection-loss tiling axis (default: vocab)")
+    parser.add_argument("--fused-vocab-chunk-axis", choices=["vocab", "token", "metal"], default=None,
+                        help="Experimental MLX projection-loss tiling mode (default: vocab)")
     parser.add_argument("--experimental-packed-swiglu", action=argparse.BooleanOptionalAction, default=None,
                         help="Experimental packed SwiGLU Metal VJP; may change BF16 rounding (default: disabled)")
     parser.add_argument("--experimental-qkv-rope", action=argparse.BooleanOptionalAction, default=None,
