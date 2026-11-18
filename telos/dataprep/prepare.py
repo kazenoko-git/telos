@@ -5,7 +5,6 @@ Hugging Face datasets, or synthetic stream) into memory-mapped binary token arra
 """
 
 import os
-import sys
 import re
 import json
 import argparse
@@ -90,81 +89,91 @@ def strip_license_header(code: str) -> str:
     return code
 
 
+# Unicode characters, rather than bytes: each chunk is at most 1 MiB in UTF-8.
+DEFAULT_CHUNK_CHARS = 256 * 1024
+DEFAULT_BATCH_CHARS = 1024 * 1024
+
+
+def _clean_text_chunks(chunks):
+    """Clean the opening chunk only; preserve subsequent whitespace and short tails."""
+    chunks = iter(chunks)
+    first = next(chunks, "")
+    second = next(chunks, None)
+    first = strip_license_header(first)
+    if second is None:
+        if len(first.strip()) >= 20:
+            yield first
+        return
+    if first:
+        yield first
+    yield second
+    yield from chunks
+
+
+def _string_chunks(text, chunk_chars):
+    return (text[start:start + chunk_chars] for start in range(0, len(text), chunk_chars))
+
+
 def iterate_text_sources(
     source_path: str | Path | None = None,
     dataset_name: str | None = None,
     dataset_split: str = "train",
     text_key: str = "content",
     extensions: list[str] | None = None,
-    limit_docs: int | None = None
+    limit_docs: int | None = None,
+    chunk_chars: int = DEFAULT_CHUNK_CHARS,
 ):
+    """Yield bounded text chunks; limit_docs counts source files or records.
+
+    Plain files are read incrementally, including files without newlines. JSONL
+    and HF records are decoded by their readers before their text is chunked.
     """
-    Yields raw text documents from various sources:
-    1. Directory of code files (recursively matching extensions)
-    2. Single text file (.txt, .py, etc.)
-    3. JSONL file (extracting text_key)
-    4. Hugging Face dataset
-    """
+    if chunk_chars <= 0:
+        raise ValueError("chunk_chars must be positive")
     doc_count = 0
     exts = tuple(extensions or [".py", ".txt", ".md", ".json", ".rs", ".js", ".ts", ".c", ".cpp"])
 
-    # Source 1: Hugging Face dataset
-    if dataset_name:
-        from datasets import load_dataset
-        ds = load_dataset(dataset_name, split=dataset_split, streaming=True)
-        for row in ds:
-            text = row.get(text_key) or row.get("text") or row.get("code") or ""
-            if text.strip():
-                clean_text = strip_license_header(text)
-                if len(clean_text.strip()) >= 20:
-                    yield clean_text
-                    doc_count += 1
-                    if limit_docs and doc_count >= limit_docs:
-                        return
+    def documents():
+        if dataset_name:
+            from datasets import load_dataset
+            ds = load_dataset(dataset_name, split=dataset_split, streaming=True)
+            for row in ds:
+                text = row.get(text_key) or row.get("text") or row.get("code") or ""
+                yield _string_chunks(text, chunk_chars)
+        elif source_path:
+            p = Path(source_path)
+            if not p.exists():
+                raise FileNotFoundError(f"Source path not found: {source_path}")
+            if p.is_dir():
+                paths = (Path(root) / name for root, _, files in os.walk(p)
+                         for name in files if name.endswith(exts))
+            elif p.suffix == ".jsonl":
+                with open(p, "r", encoding="utf-8", errors="ignore") as stream:
+                    for line in stream:
+                        if line.strip():
+                            row = json.loads(line)
+                            text = row.get(text_key) or row.get("text") or row.get("code") or ""
+                            yield _string_chunks(text, chunk_chars)
+                return
+            else:
+                paths = [p]
+            for path in paths:
+                try:
+                    with open(path, "r", encoding="utf-8", errors="ignore") as stream:
+                        yield iter(lambda: stream.read(chunk_chars), "")
+                except OSError:
+                    if not p.is_dir():
+                        raise
 
-    # Source 2: Local path (Directory, Text File, or JSONL)
-    elif source_path:
-        p = Path(source_path)
-        if not p.exists():
-            raise FileNotFoundError(f"Source path not found: {source_path}")
-
-        if p.is_dir():
-            for root, _, files in os.walk(p):
-                for f in files:
-                    if f.endswith(exts):
-                        f_path = Path(root) / f
-                        try:
-                            with open(f_path, "r", encoding="utf-8", errors="ignore") as fl:
-                                content = fl.read()
-                                if content.strip():
-                                    clean_content = strip_license_header(content)
-                                    if len(clean_content.strip()) >= 20:
-                                        yield clean_content
-                                        doc_count += 1
-                                        if limit_docs and doc_count >= limit_docs:
-                                            return
-                        except Exception:
-                            continue
-
-        elif p.suffix == ".jsonl":
-            with open(p, "r", encoding="utf-8", errors="ignore") as fl:
-                for line in fl:
-                    line = line.strip()
-                    if line:
-                        data = json.loads(line)
-                        content = data.get(text_key) or data.get("text") or data.get("code") or ""
-                        if content.strip():
-                            yield content
-                            doc_count += 1
-                            if limit_docs and doc_count >= limit_docs:
-                                return
-        else:
-            with open(p, "r", encoding="utf-8", errors="ignore") as fl:
-                content = fl.read()
-                if content.strip():
-                    clean_content = strip_license_header(content)
-                    if len(clean_content.strip()) >= 20:
-                        yield clean_content
+    for chunks in documents():
+        emitted = False
+        for chunk in _clean_text_chunks(chunks):
+            emitted = True
+            yield chunk
+        if emitted:
+            doc_count += 1
+            if limit_docs and doc_count >= limit_docs:
+                return
 
 
 def prepare_dataset(
