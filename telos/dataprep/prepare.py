@@ -342,7 +342,11 @@ def main():
     parser.add_argument("--vocab-size", type=int, default=8192, help="Vocabulary size")
     parser.add_argument("--synthetic", action="store_true", help="Generate synthetic token stream directly")
     parser.add_argument("--tokens", type=int, default=None, help="Target total tokens (e.g. 15000000000 for 15B)")
-    parser.add_argument("--batch-size", type=int, default=2000, help="Batch size for parallel Rust tokenization")
+    parser.add_argument("--batch-size", type=int, default=8, help="Maximum text chunks per tokenizer batch (default: 8)")
+    parser.add_argument("--chunk-chars", type=int, default=DEFAULT_CHUNK_CHARS,
+                        help="Maximum Unicode characters per text chunk (default: 262144)")
+    parser.add_argument("--max-batch-chars", type=int, default=DEFAULT_BATCH_CHARS,
+                        help="Maximum Unicode characters per tokenizer batch (default: 1048576)")
     parser.add_argument("--dtype", type=str, default="uint16", choices=["uint16", "uint32"], help="Data type for token storage")
 
     args = parser.parse_args()
@@ -358,6 +362,8 @@ def main():
         synthetic=args.synthetic,
         synthetic_tokens=args.tokens or 100_000,
         batch_size=args.batch_size,
+        chunk_chars=args.chunk_chars,
+        max_batch_chars=args.max_batch_chars,
         max_tokens=args.tokens,
         dtype=args.dtype,
     )
