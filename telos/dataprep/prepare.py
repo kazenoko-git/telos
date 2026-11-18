@@ -176,6 +176,21 @@ def iterate_text_sources(
                 return
 
 
+def _text_batches(chunks, batch_size, max_batch_chars):
+    """Bound concurrent tokenizer inputs by both count and character volume."""
+    batch = []
+    chars = 0
+    for chunk in chunks:
+        if batch and (len(batch) >= batch_size or chars + len(chunk) > max_batch_chars):
+            yield batch
+            batch = []
+            chars = 0
+        batch.append(chunk)
+        chars += len(chunk)
+    if batch:
+        yield batch
+
+
 def prepare_dataset(
     corpus: str | Path | None = None,
     output_path: str | Path = "data/python_corpus.bin",
@@ -188,14 +203,19 @@ def prepare_dataset(
     synthetic: bool = False,
     synthetic_tokens: int = 100_000,
     seq_len: int = 512,
-    batch_size: int = 2000,
+    batch_size: int = 8,
     max_tokens: int | None = None,
-    dtype: str = "uint16"
+    dtype: str = "uint16",
+    chunk_chars: int = DEFAULT_CHUNK_CHARS,
+    max_batch_chars: int = DEFAULT_BATCH_CHARS,
 ) -> str:
     """
     High-efficiency tokenization and binary packaging pipeline.
-    Writes tokens in contiguous uint16 chunks directly to disk.
+    Bounds text chunks and tokenizer batches, then writes each encoding directly.
+    One tokenizer instance is reused for the complete run.
     """
+    if batch_size <= 0 or chunk_chars <= 0 or max_batch_chars <= 0:
+        raise ValueError("batch_size, chunk_chars, and max_batch_chars must be positive")
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if max_tokens is not None and max_tokens < 0:
@@ -266,47 +286,33 @@ def prepare_dataset(
     if max_tokens is not None:
         print(f"  [DataPrep] Target token limit: {max_tokens:,} tokens (~{max_tokens * (2 if np_dtype == np.uint16 else 4) / (1024**3):.2f} GB)")
     total_tokens = 0
-    buffer = []
 
-    pbar = tqdm(total=max_tokens, unit="tokens", unit_scale=True, desc="Tokenizing")
-    with open(output_path, "wb") as out_f:
-        for doc in iterate_text_sources(corpus, dataset_name, dataset_split, text_key):
-            clean_doc = strip_license_header(doc)
-            if len(clean_doc.strip()) >= 20:
-                buffer.append(clean_doc)
-            if len(buffer) >= batch_size:
-                encodings = tok.encode_batch(buffer)
-                flat_tokens = []
-                for enc in encodings:
-                    flat_tokens.extend(enc.ids)
-                if max_tokens is not None:
-                    flat_tokens = flat_tokens[:max(0, max_tokens - total_tokens)]
-                if flat_tokens:
-                    arr = np.array(flat_tokens, dtype=np_dtype)
-                    out_f.write(arr.tobytes())
-                    num_tok = len(flat_tokens)
-                    total_tokens += num_tok
-                    pbar.update(num_tok)
-                buffer = []
-                if max_tokens is not None and total_tokens >= max_tokens:
-                    break
-
-        # Flush remainder
-        if buffer and (max_tokens is None or total_tokens < max_tokens):
-            encodings = tok.encode_batch(buffer)
-            flat_tokens = []
-            for enc in encodings:
-                flat_tokens.extend(enc.ids)
-            if flat_tokens:
-                if max_tokens is not None and (total_tokens + len(flat_tokens) > max_tokens):
-                    flat_tokens = flat_tokens[:max_tokens - total_tokens]
-                arr = np.array(flat_tokens, dtype=np_dtype)
-                out_f.write(arr.tobytes())
-                num_tok = len(flat_tokens)
-                total_tokens += num_tok
-                pbar.update(num_tok)
-
-    pbar.close()
+    with tqdm(total=max_tokens, unit="tokens", unit_scale=True, desc="Tokenizing") as pbar:
+        with open(output_path, "wb") as out_f:
+            if max_tokens != 0:
+                chunks = iterate_text_sources(
+                    corpus, dataset_name, dataset_split, text_key,
+                    chunk_chars=min(chunk_chars, max_batch_chars),
+                )
+                for batch in _text_batches(chunks, batch_size, max_batch_chars):
+                    encodings = tok.encode_batch(batch)
+                    for enc in encodings:
+                        ids = enc.ids
+                        if max_tokens is not None:
+                            remaining = max_tokens - total_tokens
+                            if len(ids) > remaining:
+                                ids = ids[:remaining]
+                        if ids:
+                            arr = np.asarray(ids, dtype=np_dtype)
+                            arr.tofile(out_f)
+                            total_tokens += len(arr)
+                            pbar.update(len(arr))
+                        if max_tokens is not None and total_tokens >= max_tokens:
+                            break
+                    # Release Rust encodings before allocating the next batch.
+                    del encodings, enc, ids
+                    if max_tokens is not None and total_tokens >= max_tokens:
+                        break
 
     # Save metadata sidecar
     meta = {
