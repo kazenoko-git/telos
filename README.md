@@ -91,7 +91,7 @@ telos posttrain --method dpo --checkpoint checkpoints/ar-sft \
 
 SFT JSONL records use `prompt` and `response` string fields. DPO records use `prompt`, `chosen`, and `rejected`. Use a PyTorch `.pt` checkpoint for CUDA or XLA, and a native MLX or PyTorch checkpoint for MLX. PyTorch MPS is not used. `telos train` remains an alias for `telos pretrain`.
 
-Resume SFT or DPO by repeating the original run options and adding its complete training-state checkpoint:
+Resume post-training by repeating the original run options and adding its complete training-state checkpoint:
 
 ```bash
 telos posttrain --method sft --checkpoint checkpoints/ar \
@@ -101,6 +101,24 @@ telos posttrain --method sft --checkpoint checkpoints/ar \
 
 This example uses MLX state; CPU/CUDA/XLA post-training uses `.resume.pt` instead of `.resume.npz`. DPO resume also restores the original frozen reference model. Keep the original data, tokenizer, method, and training settings.
 
+
+### Reinforcement learning with GRPO (v1.8.0)
+
+Train a causal checkpoint from prompts and verifiable rewards. Each rollout batch samples a group of completions per prompt, scores them, and uses their group-relative rewards for clipped policy updates.
+
+```jsonl
+{"prompt":"What is 2 + 2? Respond with the integer only.","answer":"4"}
+```
+
+```bash
+telos posttrain --method grpo --checkpoint checkpoints/ar-sft \
+  --data data/verifiable.jsonl --output checkpoints/ar-grpo \
+  --hardware mlx --batch-size 2 --group-size 8 --max-new-tokens 32
+```
+
+`--reward exact` compares the full decoded completion and answer after Unicode NFC and whitespace normalization. Use `--reward module:function` to run a local Python verifier that accepts `(record, completion)` and returns a finite scalar. A custom verifier can use any fields in the JSONL record. Keep its implementation and inputs fixed when resuming.
+
+`--batch-size` counts prompts, `--group-size` counts completions per prompt, and `--max-steps` counts rollout batches. `--policy-updates` controls how many optimizer updates reuse each batch and defaults to two. `--clip-epsilon` defaults to 0.2. Use `--beta 0` to omit the frozen reference and its KL penalty. The log reports mean reward and the share of groups with identical rewards, which have zero reward advantage. GRPO uses single-device MLX, CUDA or CPU and dropout-free rollouts and updates. Full, LoRA and QLoRA modes use the same native export and resume workflow.
 
 ### LoRA and QLoRA (v1.7.0)
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-18
+
+### Added
+- Online GRPO reinforcement learning for causal checkpoints on single-device MLX, CUDA and CPU. Supports sampled completion groups, exact-match and custom Python rewards, clipped policy updates, optional frozen-reference KL, full/LoRA/QLoRA training and complete checkpoint resume.
+
+### Validation
+- CPU and MLX learned a synthetic verified one-token task. Full training-state replay passed on CPU full training, MLX BF16 full training and MLX QLoRA. Physical CUDA and real-dataset learning remain unverified. See [v1.8.0 validation](docs/releases/v1.8.0-validation.md).
+
 ## [1.7.8] - 2026-11-18
 
 ### Added
@@ -326,7 +334,7 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
   virtualized, or sandboxed macOS sessions): `telos train`, `telos bench` and
   `telos test` fall back to the PyTorch CPU path instead of aborting the process.
 
-[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.7.8...HEAD
+[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.8.0...HEAD
 [1.5.5]: https://github.com/kazenoko-git/telos/compare/v1.5.4...v1.5.5
 [1.5.4]: https://github.com/kazenoko-git/telos/compare/v1.5.3...v1.5.4
 [1.5.3]: https://github.com/kazenoko-git/telos/compare/v1.5.2...v1.5.3
@@ -341,3 +349,4 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
 [1.7.4]: https://github.com/kazenoko-git/telos/compare/v1.7.3...v1.7.4
 [1.7.5]: https://github.com/kazenoko-git/telos/compare/v1.7.4...v1.7.5
 [1.7.8]: https://github.com/kazenoko-git/telos/compare/v1.7.7...v1.7.8
+[1.8.0]: https://github.com/kazenoko-git/telos/compare/v1.7.8...v1.8.0

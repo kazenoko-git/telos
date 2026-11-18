@@ -76,6 +76,8 @@ For preference optimization, use `telos posttrain --method dpo` with JSONL recor
 
 On MLX, `--fused-vocab-loss --fused-vocab-chunk-axis metal` enables experimental fused projection and cross entropy for tied-head AR pretraining. Large tested workloads reduced peak MLX allocation and took longer than the full projection.
 
+For online reinforcement learning, use `telos posttrain --method grpo` with JSONL `prompt` and `answer` fields. GRPO samples completions, scores them with exact match or a custom Python verifier, and trains on their group-relative rewards. It supports single-device MLX, CUDA and CPU. See the [GRPO quickstart](https://github.com/kazenoko-git/telos#reinforcement-learning-with-grpo-v180).
+
 With v1.7.0, add `--finetune lora` or `--finetune qlora` for adapter training. Configure `--lora-rank`, `--lora-alpha`, `--lora-dropout` and `--lora-targets`. Saves include merged native weights, adapter-only weights and complete resume state. PyTorch QLoRA uses portable packed NF4; MLX uses native affine int4. Embeddings/output heads remain unquantized; double quantization and paged optimizers are not implemented. v1.7.2 recomputes frozen NF4 weights during backward to reduce autograd retention and selects native CUDA precision automatically. v1.7.3 fixes MLX DPO gradients at zero preference margin, stages batches directly as int32 and reuses reference response scores across shuffled batches. Physical CUDA/TPU v1.7.2 reruns remain pending; the repository release validation notes audit the earlier single-device report. See the repository README for distributed training and precision options.
 
 ---
