@@ -61,6 +61,8 @@ prepare_dataset(
 ## Local validation (2026-11-18)
 
 The targeted dataprep, dataloader and release-note tests passed (33 tests).
+On the v1.8.1 release checkout, the full suite passed (445 passed, 7 skipped);
+wheel/sdist contents and a packaged-wheel dataprep smoke also passed.
 Regression coverage includes guarded bounded reads, Unicode and short tails,
 JSONL/HF chunking, document limits, character/count batch limits, exact token
 prefixes and metadata, tokenizer reuse, CLI forwarding and real BPE output.
