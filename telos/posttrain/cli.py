@@ -1,4 +1,4 @@
-"""Command-line interface for SFT and DPO post-training."""
+"""Command-line interface for SFT, DPO and GRPO post-training."""
 
 import argparse
 
@@ -7,18 +7,18 @@ from .trainer import posttrain
 
 def main():
     parser = argparse.ArgumentParser(description="Post-train a causal Télos checkpoint")
-    parser.add_argument("--method", choices=["sft", "dpo"], default="sft")
+    parser.add_argument("--method", choices=["sft", "dpo", "grpo"], default="sft")
     parser.add_argument("--checkpoint", required=True, help="Native Telos .pt/.safetensors checkpoint or directory")
-    parser.add_argument("--data", required=True, help="JSONL: prompt/response for SFT; prompt/chosen/rejected for DPO")
+    parser.add_argument("--data", required=True, help="JSONL: prompt/response for SFT; prompt/chosen/rejected for DPO; prompt/answer for GRPO")
     parser.add_argument("--output", required=True, help="Output directory for post-trained checkpoints")
     parser.add_argument("--tokenizer", default=None, help="Tokenizer JSON path (defaults to checkpoint setting or bundled tokenizer)")
     parser.add_argument("--hardware", "--device", dest="hardware", choices=["auto", "mlx", "cuda", "xla", "cpu"], default="auto",
                         help="Training backend; Apple Silicon uses MLX (not PyTorch MPS)")
     parser.add_argument("--devices", default="auto", help="XLA device count to require, or auto for the full runtime")
-    parser.add_argument("--max-steps", type=int, default=1000)
+    parser.add_argument("--max-steps", type=int, default=1000, help="Training steps (rollout batches for GRPO)")
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--learning-rate", type=float, default=2e-5)
-    parser.add_argument("--beta", type=float, default=0.1, help="DPO divergence scale")
+    parser.add_argument("--beta", type=float, default=0.1, help="DPO divergence scale or GRPO reference KL weight")
     parser.add_argument("--max-length", type=int, default=None)
     parser.add_argument("--save-every", type=int, default=250, help="Checkpoint cadence; 0 disables intermediate checkpoints")
     parser.add_argument("--resume", default=None, help="Full .resume.pt or .resume.npz checkpoint; repeat original run options")
@@ -33,6 +33,11 @@ def main():
     parser.add_argument("--padding", choices=["auto", "batch", "fixed"], default="auto")
     parser.add_argument("--cache-reference", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--reference-cache-size", type=int, default=128, help="Maximum cached DPO reference batches (MLX uses an equivalent per-response budget)")
+    parser.add_argument("--group-size", type=int, default=4, help="GRPO completions per prompt")
+    parser.add_argument("--max-new-tokens", type=int, default=32, help="GRPO completion token limit")
+    parser.add_argument("--policy-updates", type=int, default=2, help="GRPO optimizer updates per rollout batch")
+    parser.add_argument("--clip-epsilon", type=float, default=0.2, help="GRPO policy ratio clipping radius")
+    parser.add_argument("--reward", default="exact", help="GRPO verifier: exact or module:function")
     args = parser.parse_args()
     posttrain(
         args.checkpoint, args.data, args.output,
@@ -44,6 +49,8 @@ def main():
         lora_dropout=args.lora_dropout, lora_targets=args.lora_targets, precision=args.precision,
         compile_step=args.compile_step, padding=args.padding, cache_reference=args.cache_reference,
         reference_cache_size=args.reference_cache_size,
+        group_size=args.group_size, max_new_tokens=args.max_new_tokens,
+        policy_updates=args.policy_updates, clip_epsilon=args.clip_epsilon, reward=args.reward,
     )
 
 

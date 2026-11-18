@@ -4,7 +4,7 @@ Routes subcommands:
   telos dataprep ...  -> High-efficiency data preparation
   telos pretrain ...  -> Pretrain models with supported objectives/backends
   telos train ...     -> Compatibility alias for pretrain
-  telos posttrain ... -> Supervised and preference post-training
+  telos posttrain ... -> Supervised, preference and reinforcement learning post-training
   telos eval ...      -> 100 contextual probes and model evaluation
   telos bench ...     -> 5-minute hardware throughput benchmark
   telos afm ...       -> Apple on-device Foundation Models (status, generate)
@@ -38,7 +38,7 @@ def main():
         print("  dataprep   Prepare raw text, code directories, JSONL, or HF datasets into binary token stream (.bin)")
         print("  pretrain   Unified model pretraining (AR, MDLM, UNDLM, COROSred, custom)")
         print("  train      Alias for pretrain")
-        print("  posttrain  Post-train a causal Telos checkpoint (SFT or DPO)")
+        print("  posttrain  Post-train a causal Telos checkpoint (SFT, DPO or GRPO)")
         print("  eval       High-end evaluation suite (100 contextual probes, code sampling, perplexity)")
         print("  eval documents  Export/replay the packaged 512-task document suite")
         print("  eval report  Turn saved evaluation JSON into a portable cream report (--output report.html)")

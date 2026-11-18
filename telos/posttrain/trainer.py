@@ -1,4 +1,4 @@
-"""SFT and DPO post-training for native Télos PyTorch checkpoints."""
+"""SFT, DPO and GRPO post-training for native Télos checkpoints."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import platform
 import os
 import random
 import hashlib
+import math
 import re
 from contextlib import nullcontext
 from pathlib import Path
@@ -18,6 +19,7 @@ import torch.nn.functional as F
 
 from telos.data.tokenizer import load_tokenizer
 from telos.eval.runner import load_model_from_checkpoint
+from . import grpo
 from .resume import PosttrainResume
 from telos.training.checkpoint import atomic_write
 
@@ -62,9 +64,13 @@ def _checkpoint_config(path: Path) -> dict[str, Any]:
     return {}
 
 
-def _read_records(path: str | Path, method: str) -> list[dict[str, str]]:
-    required = {"prompt", "response"} if method == "sft" else {"prompt", "chosen", "rejected"}
-    records: list[dict[str, str]] = []
+def _read_records(path: str | Path, method: str, reward="exact") -> list[dict[str, Any]]:
+    required = {
+        "sft": {"prompt", "response"},
+        "dpo": {"prompt", "chosen", "rejected"},
+        "grpo": {"prompt", "answer"} if reward == "exact" else {"prompt"},
+    }[method]
+    records = []
     with Path(path).open("r", encoding="utf-8") as stream:
         for line_number, line in enumerate(stream, 1):
             if not line.strip():
@@ -77,7 +83,7 @@ def _read_records(path: str | Path, method: str) -> list[dict[str, str]]:
                 raise ValueError(f"Line {line_number} must be an object with fields: {', '.join(sorted(required))}")
             if not all(isinstance(row[key], str) for key in required):
                 raise ValueError(f"Line {line_number} fields {', '.join(sorted(required))} must be strings")
-            records.append({key: row[key] for key in required})
+            records.append(row if method == "grpo" else {key: row[key] for key in required})
     if not records:
         raise ValueError(f"No usable records found in {path}")
     return records
@@ -232,13 +238,17 @@ def _cuda_device_ids(devices, available):
     return list(range(count))
 
 
-def _sequence_logps(model, input_ids, labels):
+def _torch_token_logps(model, input_ids, labels):
     logits = model(input_ids, mask_override=True, next_token_only=True).float()
     targets = labels[:, 1:]
     valid = targets.ne(-100)
     safe_targets = targets.masked_fill(~valid, 0)
     token_logps = F.log_softmax(logits, dim=-1).gather(-1, safe_targets.unsqueeze(-1)).squeeze(-1)
-    return (token_logps * valid).sum(dim=-1)
+    return token_logps * valid
+
+
+def _sequence_logps(model, input_ids, labels):
+    return _torch_token_logps(model, input_ids, labels).sum(dim=-1)
 
 
 def _resolve_backend(name: str) -> str:
@@ -338,7 +348,7 @@ def _mlx_parameters_from_pytorch(state_dict):
     return {key: mx.array(value.numpy()) for key, value in _map_pytorch_parameter_names(state_dict).items()}
 
 
-def _mlx_logps(model, input_ids, labels):
+def _mlx_token_logps(model, input_ids, labels):
     import mlx.core as mx
 
     from telos.training.mlx_losses import cross_entropy
@@ -346,7 +356,12 @@ def _mlx_logps(model, input_ids, labels):
     targets = labels[:, 1:]
     valid = (targets != -100).astype(mx.float32)
     safe_targets = mx.maximum(targets, 0)
-    return -mx.sum(cross_entropy(logits, safe_targets, reduction="none") * valid, axis=-1)
+    return -cross_entropy(logits, safe_targets, reduction="none") * valid
+
+
+def _mlx_logps(model, input_ids, labels):
+    import mlx.core as mx
+    return mx.sum(_mlx_token_logps(model, input_ids, labels), axis=-1)
 
 
 def _mlx_loss(model, input_ids, labels):
@@ -408,8 +423,9 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
     _seed_host_rng(seed)
     mx.random.seed(seed)
     _apply_adapters(model, options, "mlx")
-    model.train()
-    reference = copy.deepcopy(model) if method == "dpo" else None
+    # Rollouts and policy scoring share the same dropout-free distribution.
+    model.train(method != "grpo")
+    reference = copy.deepcopy(model) if method == "dpo" or (method == "grpo" and beta) else None
     if reference is not None:
         reference.eval()
     optimizer = optim.AdamW(learning_rate=learning_rate)
@@ -425,6 +441,8 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
     session.restore(model, optimizer, reference, randomizer)
     master_params = getattr(optimizer, 'master_params', master_params)
     final_path = out_dir / "model.safetensors"
+    if final_path.resolve() == checkpoint_path.resolve():
+        raise ValueError("Output checkpoint must not overwrite the starting checkpoint")
     if resume is None and (final_path.exists() or any(out_dir.glob("checkpoint_step_*.safetensors"))):
         raise FileExistsError(f"Output directory already contains MLX checkpoints: {out_dir}")
 
@@ -453,7 +471,12 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         (out_dir / "config.json").write_text(json.dumps(cfg, indent=2, default=str), encoding="utf-8")
         return path
 
-    prepared = _prepare_records(records, tokenizer, max_length, method)
+    rl = options.get("grpo")
+    if rl:
+        prepared, eos, pad = grpo.prepare_prompts(records, tokenizer, max_length, rl["max_new_tokens"])
+        reward = grpo.reward_function(rl["reward"])
+    else:
+        prepared = _prepare_records(records, tokenizer, max_length, method)
     fixed = options["padding"] != "batch"
     from .mlx_batches import collate_mlx, ReferenceScores
     if method == "dpo":
@@ -467,7 +490,21 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         c_logps, r_logps = mx.split(_mlx_logps(active_model, ids, labels), 2)
         return _mlx_preference_loss(c_logps, r_logps, ref_chosen, ref_rejected, beta)
 
-    loss_fn = _mlx_loss if method == "sft" else dpo_loss
+    def sample(ids, positions):
+        hidden = model.hidden_states(mx.array(ids), is_causal=True)
+        last = hidden[mx.arange(len(positions)), mx.array(positions)]
+        logits = model.logits_from_hidden(last).astype(mx.float32)
+        tokens = mx.random.categorical(logits)
+        chosen = mx.take_along_axis(logits, tokens[:, None], axis=-1).squeeze(-1)
+        logps = chosen - mx.logsumexp(logits, axis=-1)
+        mx.eval(tokens, logps)
+        return tokens.tolist(), logps.tolist()
+
+    def grpo_loss(active_model, ids, labels, old, ref, advantages):
+        policy = _mlx_token_logps(active_model, ids, labels)
+        return grpo.mlx_loss(policy, old, ref, labels, advantages, beta, rl["clip_epsilon"])
+
+    loss_fn = {"sft": _mlx_loss, "dpo": dpo_loss, "grpo": grpo_loss}[method]
     value_and_grad = nn.value_and_grad(model, loss_fn)
     optimizer.init(master_params if master_params is not None else model.trainable_parameters())
     state = [model.state, optimizer.state, mx.random.state]
@@ -476,6 +513,8 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
 
     def update(*args):
         loss, grads = value_and_grad(model, *args)
+        if rl:
+            grads, _ = optim.clip_grad_norm(grads, 1.0)
         if master_params is not None:
             master_params.update(optimizer.apply_gradients(grads, master_params))
             model.update(tree_map(lambda value: value.astype(mx.bfloat16), master_params))
@@ -488,22 +527,38 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         options["reference_cache_size"] if options["cache_reference"] else 0, batch_size)
     for step in range(session.step + 1, max_steps + 1):
         batch = randomizer.choices(prepared, k=batch_size)
-        rows = _response_rows(batch, "response") if method == "sft" else (
-            _response_rows(batch, "chosen") + _response_rows(batch, "rejected"))
-        ids, labels = collate_mlx(rows, max_length, fixed=fixed)
-        if method == "sft":
-            loss = step_fn(ids, labels)
+        metrics = ""
+        if rl:
+            rows, action_logps, advantages, mean_reward, uniform = grpo.collect_rollouts(
+                batch, tokenizer, eos, pad, rl["group_size"], rl["max_new_tokens"], sample, reward,
+            )
+            ids, labels = collate_mlx(rows, max_length, fixed=fixed)
+            old = mx.array(grpo.collate_old_logps(rows, action_logps, ids.shape[1]))
+            ref = _mlx_token_logps(reference, ids, labels) if reference is not None else old
+            advantages = mx.array(advantages)
+            mx.eval(old, ref, advantages)
+            for _ in range(rl["policy_updates"]):
+                loss = step_fn(ids, labels, old, ref, advantages)
+                mx.eval(model.trainable_parameters(), optimizer.state, loss,
+                        master_params if master_params is not None else [])
+            metrics = f" reward={mean_reward:.4g} uniform_groups={uniform:.1%}"
         else:
-            for item, key in zip(rows, [row["_chosen_key"] for row in batch] +
-                                      [row["_rejected_key"] for row in batch]):
-                item["_reference_key"] = key
-            ref = ref_cache.get(rows, ids.shape[1], lambda: _mlx_logps(reference, ids, labels))
-            ref_c, ref_r = mx.split(ref, 2)
-            loss = step_fn(ids, labels, ref_c, ref_r)
-        mx.eval(model.trainable_parameters(), optimizer.state, loss,
-                master_params if master_params is not None else [])
+            rows = _response_rows(batch, "response") if method == "sft" else (
+                _response_rows(batch, "chosen") + _response_rows(batch, "rejected"))
+            ids, labels = collate_mlx(rows, max_length, fixed=fixed)
+            if method == "sft":
+                loss = step_fn(ids, labels)
+            else:
+                for item, key in zip(rows, [row["_chosen_key"] for row in batch] +
+                                          [row["_rejected_key"] for row in batch]):
+                    item["_reference_key"] = key
+                ref = ref_cache.get(rows, ids.shape[1], lambda: _mlx_logps(reference, ids, labels))
+                ref_c, ref_r = mx.split(ref, 2)
+                loss = step_fn(ids, labels, ref_c, ref_r)
+            mx.eval(model.trainable_parameters(), optimizer.state, loss,
+                    master_params if master_params is not None else [])
         if step == 1 or step % 10 == 0 or step == max_steps:
-            print(f"[{method.upper()}/MLX] step {step}/{max_steps} loss={loss.item():.4f}", flush=True)
+            print(f"[{method.upper()}/MLX] step {step}/{max_steps} loss={loss.item():.4f}{metrics}", flush=True)
         if save_every and step % save_every == 0 and step != max_steps:
             save(step)
     result = save(max_steps, final=True)
@@ -710,13 +765,19 @@ def _posttrain(
     padding: str = "auto",
     cache_reference: bool = True,
     reference_cache_size: int = 128,
+    group_size: int = 4,
+    max_new_tokens: int = 32,
+    policy_updates: int = 2,
+    clip_epsilon: float = 0.2,
+    reward: str = "exact",
 ) -> Path:
-    """Run full, LoRA or quantized LoRA SFT/DPO and export a native checkpoint."""
+    """Run SFT, DPO or online GRPO and export a native checkpoint."""
     method = method.lower()
-    if method not in {"sft", "dpo"}:
-        raise ValueError("method must be 'sft' or 'dpo'")
-    if max_steps < 1 or batch_size < 1 or learning_rate <= 0 or beta <= 0 or save_every < 0:
-        raise ValueError("steps, batch size, learning rate, beta, and save cadence must be valid positive values")
+    if method not in {"sft", "dpo", "grpo"}:
+        raise ValueError("method must be 'sft', 'dpo' or 'grpo'")
+    if (max_steps < 1 or batch_size < 1 or not math.isfinite(learning_rate) or learning_rate <= 0
+            or not math.isfinite(beta) or beta < 0 or (beta == 0 and method != "grpo") or save_every < 0):
+        raise ValueError("Invalid steps, batch size, learning rate, beta, or save cadence")
 
     options = _adapter_options(finetune, lora_rank, lora_alpha, lora_dropout, lora_targets)
     if padding not in {"auto", "batch", "fixed"}:
@@ -725,6 +786,21 @@ def _posttrain(
         raise ValueError("Invalid precision or reference cache size")
     options.update(precision=precision, compile_step=compile_step, padding=padding,
                    cache_reference=cache_reference, reference_cache_size=reference_cache_size)
+    backend_name = _resolve_backend(hardware)
+    if method == "grpo":
+        distributed_cuda = (
+            backend_name == "cuda" and torch.distributed.is_initialized()
+            and torch.distributed.get_world_size() > 1
+        )
+        if backend_name == "xla" or distributed_cuda or (devices != "auto" and int(devices) != 1):
+            raise ValueError("GRPO supports single-device MLX, CUDA and CPU")
+        if finetune != "full" and lora_dropout:
+            raise ValueError("GRPO requires zero LoRA dropout")
+        if (group_size < 2 or max_new_tokens < 1 or policy_updates < 1
+                or not 0 < clip_epsilon < 1 or (max_length is not None and max_length <= max_new_tokens)):
+            raise ValueError("Invalid GRPO group size, completion budget, policy updates or clip epsilon")
+        options["grpo"] = dict(group_size=group_size, max_new_tokens=max_new_tokens,
+                               policy_updates=policy_updates, clip_epsilon=clip_epsilon, reward=reward)
     checkpoint_path = _checkpoint_file(checkpoint)
     digest = hashlib.sha256()
     with checkpoint_path.open("rb") as source:
@@ -733,7 +809,6 @@ def _posttrain(
     options["base_sha256"] = digest.hexdigest()
     options["base_checkpoint"] = str(checkpoint_path.resolve())
     source_config = _checkpoint_config(checkpoint_path)
-    backend_name = _resolve_backend(hardware)
     options["quantization"] = "affine_int4_group64" if backend_name == "mlx" and finetune == "qlora" else ("nf4_block64" if finetune == "qlora" else None)
     print(f"[POSTTRAIN] method={method.upper()} backend={backend_name}", flush=True)
     if devices != "auto" and int(devices) < 1:
@@ -794,7 +869,7 @@ def _posttrain(
         if len(tokenizer.get_vocab()) != vocab_size:
             raise ValueError(f"Tokenizer has {len(tokenizer.get_vocab())} entries but checkpoint expects {vocab_size}")
         max_length = min(max_length or configured_length, configured_length)
-        records = _read_records(data, method)
+        records = _read_records(data, method, reward)
         out_dir = Path(output)
         out_dir.mkdir(parents=True, exist_ok=True)
         if resume is None and ((out_dir / "model.safetensors").exists() or any(out_dir.glob("checkpoint_step_*.safetensors"))):
@@ -833,7 +908,7 @@ def _posttrain(
             "use the tokenizer from pretraining"
         )
     max_length = min(max_length or model.config.max_seq_len, model.config.max_seq_len)
-    records = _read_records(data, method)
+    records = _read_records(data, method, reward)
     _seed_host_rng(seed)
     torch.manual_seed(seed)
     if device.type == "cuda":
@@ -843,7 +918,7 @@ def _posttrain(
     model.to(device)
     amp_dtype = _torch_precision(device, precision)
     reference = None
-    if method == "dpo":
+    if method == "dpo" or (method == "grpo" and beta):
         reference = copy.deepcopy(model).eval()
         for parameter in reference.parameters():
             parameter.requires_grad_(False)
@@ -852,13 +927,13 @@ def _posttrain(
         # Frozen reference has no gradient synchronization and stays rank-local.
         device_ids = [device.index]
     elif backend_name == "cuda":
-        device_ids = _cuda_device_ids(devices, torch.cuda.device_count())
+        device_ids = _cuda_device_ids(1 if method == "grpo" else devices, torch.cuda.device_count())
         if len(device_ids) > 1:
             model = _CudaParallelModel(model, device_ids=device_ids)
             if reference is not None:
                 reference = _CudaParallelModel(reference, device_ids=device_ids)
             batch_size *= len(device_ids)
-    model.train()
+    model.train(method != "grpo")
     optimizer = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad), lr=learning_rate,
                                   **({"fused": True} if device.type == "cuda" else {}))
     scaler = torch.amp.GradScaler("cuda", enabled=device.type == "cuda" and amp_dtype == torch.float16)
@@ -917,42 +992,78 @@ def _posttrain(
             torch.distributed.barrier()
         return output_path
 
-    prepared = _prepare_records(records, tokenizer, max_length, method)
+    rl = options.get("grpo")
+    if rl:
+        prepared, eos, pad = grpo.prepare_prompts(records, tokenizer, max_length, rl["max_new_tokens"])
+        reward_fn = grpo.reward_function(rl["reward"])
+    else:
+        prepared = _prepare_records(records, tokenizer, max_length, method)
     fixed = padding == "fixed" or (padding == "auto" and compile_step and device.type == "cuda")
     active_model = torch.compile(model) if compile_step and device.type == "cuda" else model
     ref_cache = {}
-    for step in range(session.step + 1, max_steps + 1):
-        global_batch = randomizer.choices(prepared, k=batch_size * world_size)
-        batch = global_batch[rank * batch_size:(rank + 1) * batch_size]
-        optimizer.zero_grad(set_to_none=True)
-        rows = _response_rows(batch, "response") if method == "sft" else (
-            _response_rows(batch, "chosen") + _response_rows(batch, "rejected"))
-        input_ids, labels = _collate(rows, tokenizer, max_length, device, fixed=fixed)
-        with _autocast(device, amp_dtype):
-            if method == "sft":
-                logits = active_model(input_ids, mask_override=True, next_token_only=True).float()
-                loss = _sft_loss(logits, labels, device, world_size)
-            else:
-                key = tuple(tuple(row["_encoded"][0]) + tuple(row["_encoded"][1]) for row in rows)
-                if not cache_reference or key not in ref_cache:
-                    with torch.no_grad():
-                        ref = _sequence_logps(reference, input_ids, labels)
-                    if cache_reference and len(ref_cache) < reference_cache_size:
-                        ref_cache[key] = ref.detach()
-                else:
-                    ref = ref_cache[key]
-                policy = _sequence_logps(active_model, input_ids, labels)
-                ref_chosen, ref_rejected = ref.chunk(2)
-                policy_chosen, policy_rejected = policy.chunk(2)
-                logits = beta * ((policy_chosen - policy_rejected) - (ref_chosen - ref_rejected))
-                loss = -F.logsigmoid(logits).mean()
+
+    def update(loss):
         scaler.scale(loss).backward()
         scaler.unscale_(optimizer)
         torch.nn.utils.clip_grad_norm_((p for p in model.parameters() if p.requires_grad), 1.0)
         scaler.step(optimizer)
         scaler.update()
+
+    @torch.no_grad()
+    def sample(ids, positions):
+        with _autocast(device, amp_dtype):
+            logits = model(torch.as_tensor(ids, device=device, dtype=torch.long), mask_override=True,
+                           logit_positions=torch.tensor(positions, device=device))
+        logps = logits.float().log_softmax(dim=-1)
+        tokens = torch.multinomial(logps.exp(), 1)
+        return tokens.squeeze(-1).tolist(), logps.gather(-1, tokens).squeeze(-1).tolist()
+
+    for step in range(session.step + 1, max_steps + 1):
+        global_batch = randomizer.choices(prepared, k=batch_size * world_size)
+        batch = global_batch[rank * batch_size:(rank + 1) * batch_size]
+        metrics = ""
+        if rl:
+            rows, action_logps, advantages, mean_reward, uniform = grpo.collect_rollouts(
+                batch, tokenizer, eos, pad, rl["group_size"], rl["max_new_tokens"], sample, reward_fn,
+            )
+            input_ids, labels = _collate(rows, tokenizer, max_length, device, fixed=fixed)
+            advantages = torch.as_tensor(advantages, device=device)
+            old = torch.as_tensor(grpo.collate_old_logps(rows, action_logps, input_ids.shape[1]), device=device)
+            with torch.no_grad(), _autocast(device, amp_dtype):
+                ref = _torch_token_logps(reference, input_ids, labels) if reference is not None else old
+            for _ in range(rl["policy_updates"]):
+                optimizer.zero_grad(set_to_none=True)
+                with _autocast(device, amp_dtype):
+                    policy = _torch_token_logps(active_model, input_ids, labels)
+                    loss = grpo.torch_loss(policy, old, ref, labels, advantages, beta, rl["clip_epsilon"])
+                update(loss)
+            metrics = f" reward={mean_reward:.4g} uniform_groups={uniform:.1%}"
+        else:
+            optimizer.zero_grad(set_to_none=True)
+            rows = _response_rows(batch, "response") if method == "sft" else (
+                _response_rows(batch, "chosen") + _response_rows(batch, "rejected"))
+            input_ids, labels = _collate(rows, tokenizer, max_length, device, fixed=fixed)
+            with _autocast(device, amp_dtype):
+                if method == "sft":
+                    logits = active_model(input_ids, mask_override=True, next_token_only=True).float()
+                    loss = _sft_loss(logits, labels, device, world_size)
+                else:
+                    key = tuple(tuple(row["_encoded"][0]) + tuple(row["_encoded"][1]) for row in rows)
+                    if not cache_reference or key not in ref_cache:
+                        with torch.no_grad():
+                            ref = _sequence_logps(reference, input_ids, labels)
+                        if cache_reference and len(ref_cache) < reference_cache_size:
+                            ref_cache[key] = ref.detach()
+                    else:
+                        ref = ref_cache[key]
+                    policy = _sequence_logps(active_model, input_ids, labels)
+                    ref_chosen, ref_rejected = ref.chunk(2)
+                    policy_chosen, policy_rejected = policy.chunk(2)
+                    logits = beta * ((policy_chosen - policy_rejected) - (ref_chosen - ref_rejected))
+                    loss = -F.logsigmoid(logits).mean()
+            update(loss)
         if rank == 0 and (step == 1 or step % 10 == 0 or step == max_steps):
-            print(f"[{method.upper()}] step {step}/{max_steps} loss={loss.item():.4f}", flush=True)
+            print(f"[{method.upper()}] step {step}/{max_steps} loss={loss.item():.4f}{metrics}", flush=True)
         if save_every and step % save_every == 0 and step != max_steps:
             save(step)
 
@@ -963,10 +1074,12 @@ def _posttrain(
 
 
 def posttrain(*args, **kwargs):
-    """SFT/DPO entry point; torchrun owns one CUDA device per process."""
+    """Post-training entry point; SFT/DPO can use one CUDA device per torchrun process."""
     owned_group = False
     distributed = int(os.environ.get("WORLD_SIZE", "1")) > 1 and "LOCAL_RANK" in os.environ
     if distributed:
+        if kwargs.get("method", "sft").lower() == "grpo":
+            raise ValueError("GRPO supports single-device MLX, CUDA and CPU")
         backend = _resolve_backend(kwargs.get("hardware", "auto"))
         if backend != "cuda":
             raise ValueError("torchrun post-training requires the CUDA backend; XLA uses its native launcher")
