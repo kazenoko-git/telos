@@ -458,7 +458,7 @@ def main():
     parser.add_argument("--experimental-qkv-rope", action=argparse.BooleanOptionalAction, default=None,
                         help="Experimental fused QKV/RoPE for equal heads of dimension 64 (default: disabled)")
     parser.add_argument("--compiled-accumulation", action=argparse.BooleanOptionalAction, default=None,
-                        help="Compile backward with gradient accumulation (experimental; default: disabled)")
+                        help="Compile backward with gradient accumulation (default: enabled; disable with --no-compiled-accumulation)")
     parser.add_argument("--async-accumulation", action=argparse.BooleanOptionalAction, default=None,
                         help="Bounded one-microbatch-ahead MLX accumulation (default: enabled; disable with --no-async-accumulation)")
     parser.add_argument("--force-fused-attention", action=argparse.BooleanOptionalAction, default=None,

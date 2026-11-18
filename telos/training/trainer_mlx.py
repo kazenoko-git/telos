@@ -564,7 +564,7 @@ class UnifiedMLXTrainer:
         compilation_targets.append(mx.random.state)
         compiled_step = mx.compile(uncompiled_step_fn, inputs=compilation_targets, outputs=compilation_targets)
         accumulation_step = None
-        if self.t_cfg.get("compiled_accumulation", False):
+        if self.t_cfg.get("compiled_accumulation", True):
             accumulation_step = build_mlx_accumulation_step(uncompiled_step_fn, compilation_targets)
         training_step = MLXTrainingStep(
             self.model, optimizer, compiled_step, grad_clip=self.grad_clip,
