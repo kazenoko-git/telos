@@ -73,7 +73,8 @@ def test_compiled_random_state_advances_and_replays():
 
 
 @pytest.mark.parametrize('master', [False, True])
-def test_async_accumulated_updates_preserve_full_state(master):
+@pytest.mark.parametrize('accumulations', [(2, 4, 2, 4), (2, 1, 2, 1)])
+def test_async_accumulated_updates_preserve_full_state(master, accumulations):
     def run(asynchronous):
         mx.random.seed(921)
         model = nn.Linear(8, 4)
@@ -91,7 +92,7 @@ def test_async_accumulated_updates_preserve_full_state(master):
         from telos.training.mlx_step import build_training_step
         step = build_training_step(model, opt, micro, [model.state, mx.random.state], {}, grad_clip=.1)
         losses = []
-        for index, (accum, lr) in enumerate([(2, .001), (4, .002), (2, 0.), (4, .0001)]):
+        for index, (accum, lr) in enumerate(zip(accumulations, [.001, .002, 0., .0001])):
             opt.learning_rate = lr
             losses.append(step((mx.full((3, 8), i + .5) for i in range(accum)),
                                grad_accum=accum, asynchronous=asynchronous))

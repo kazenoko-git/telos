@@ -78,6 +78,9 @@ class MLXTrainingStep:
             raise ValueError("grad_accum must be positive")
         batches = iter(batches)
         if not self._initialized or grad_accum != 1 or not self.fused:
+            # Accumulated updates can replace the master-weight dictionary.
+            # Rebuild a later fused step instead of retaining its old closure.
+            self._full_step = None
             defer_update = (asynchronous and self._initialized and not eval_every_microbatch
                             and getattr(self, "stage_profile", None) is None)
             if not defer_update:
@@ -88,7 +91,7 @@ class MLXTrainingStep:
                 stage_profile=getattr(self, "stage_profile", None),
                 accumulation_step_fn=self.accumulation_step,
                 async_accumulation=self.async_accumulation,
-                optimizer_eval=self._submit if defer_update else None,
+                **({"optimizer_eval": self._submit} if defer_update else {}),
             )
             self._initialized = True
             return result
