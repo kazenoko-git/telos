@@ -19,9 +19,15 @@ def make_trainer(tmp_path, **training):
 
 
 @pytest.mark.parametrize('clip', [0, -1])
-def test_disabled_clipping_keeps_nonzero_updates(tmp_path, monkeypatch, clip):
+@pytest.mark.parametrize('scaled', [False, True])
+def test_disabled_clipping_keeps_nonzero_updates(tmp_path, monkeypatch, clip, scaled):
     model, cfg = make_trainer(tmp_path, grad_clip=clip)
     trainer = UnifiedPyTorchTrainer('ar', model, cfg, 'cpu')
+    if scaled:
+        from types import SimpleNamespace
+        trainer.use_scaler = True
+        trainer.scaler = SimpleNamespace(scale=lambda loss: loss, unscale_=lambda opt: None,
+            step=lambda opt: opt.step(), update=lambda: None, state_dict=lambda: {})
     before = model.tok_embeddings.weight.detach().clone()
     def forbidden(*args, **kwargs):
         raise AssertionError('Disabled clipping must not touch gradients')

@@ -92,7 +92,8 @@ class UnifiedPyTorchTrainer:
 
         self.vocab_size = self.m_cfg.get("vocab_size", 8192)
         self.seq_len = self.m_cfg.get("seq_len", 512)
-        self.precision = self.t_cfg.get("precision", "bf16")
+        self.precision = str(self.t_cfg.get("precision", "bf16")).lower()
+        self.precision = {"bfloat16": "bf16", "float16": "fp16"}.get(self.precision, self.precision)
 
         # Build special token LUT manually for PyTorch
         self.special_lut = torch.zeros(self.vocab_size, dtype=torch.bool)
