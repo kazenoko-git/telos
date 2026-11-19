@@ -116,3 +116,50 @@ def test_memory_policy_chooses_largest_fitting_batch_even_if_slower():
 def test_candidates_include_every_divisor_and_full_effective_batch():
     assert [p.batch_size for p in batch_plans(30)] == [1, 2, 3, 5, 6, 10, 15, 30]
     assert batch_plans(1024)[-1].batch_size == 1024
+
+
+@pytest.mark.parametrize('policy,async_eval,compiled', [('eager', True, False), ('step', True, True)])
+def test_trial_uses_training_compilation_and_dispatch(tmp_path, monkeypatch, policy, async_eval, compiled):
+    import numpy as np
+    mx = pytest.importorskip('mlx.core')
+    if not mx.metal.is_available():
+        pytest.skip('Metal required')
+    from telos.models.mlx_transformer import MLXTelosTransformer
+    from telos.training import mlx_step, mlx_tuning
+    weights, sample = tmp_path / 'weights.safetensors', tmp_path / 'sample.npy'
+    cfg = {
+        'model': dict(vocab_size=32, d_model=64, n_layers=1, n_heads=2, seq_len=8, is_causal=True),
+        'training': dict(precision='bfloat16', batch_size=2, gradient_accumulation=2,
+                         max_lr=.001, weight_decay=.1, compiled_accumulation=compiled,
+                         async_accumulation=False, async_eval=async_eval),
+    }
+    model = MLXTelosTransformer(**cfg['model'])
+    model.save_weights(str(weights))
+    np.save(sample, np.full((4, 8), 7, dtype=np.int32))
+    build = mlx_step.build_training_step
+    seen = []
+    def wrapped(*args, **kwargs):
+        actual = build(*args, **kwargs)
+        assert (actual.accumulation_step is not None) == compiled
+        assert actual.async_accumulation is False
+        class Observed:
+            def __call__(self, *batch, **options):
+                seen.append(options)
+                return actual(*batch, **options)
+            def synchronize(self):
+                return actual.synchronize()
+        return Observed()
+    monkeypatch.setattr(mlx_step, 'build_training_step', wrapped)
+    budget = 2 * 1024**3
+    old_memory = mx.set_memory_limit(budget)
+    old_cache = mx.set_cache_limit(128 * 1024**2)
+    try:
+        report = mlx_tuning._run_trial(dict(cfg=cfg, paradigm='ar', weights=str(weights), sample=str(sample),
+            plan=dict(batch_size=2, grad_accum=2, checkpointing=False), eval_policy=policy,
+            budget=budget, warmup_steps=3, measure_steps=3))
+    finally:
+        mx.set_memory_limit(old_memory)
+        mx.set_cache_limit(old_cache)
+    assert report['status'] == 'ok'
+    assert seen and all(x['eval_every_microbatch'] == (policy == 'eager') for x in seen)
+    assert all(x['asynchronous'] == async_eval for x in seen)
