@@ -16,8 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Optional accumulated MLX optimizer overlap; remains disabled by default after no measured speed benefit.
-- Optional dynamic XLA AdamW controls and physical TPU compilation, numerical, gradient and checkpoint validation scripts. TPU hardware acceptance remains pending.
+- Optional dynamic XLA AdamW controls and physical TPU compilation, numerical, gradient and checkpoint validation scripts. Native AdamW remains the default.
 - Configurable MLX COROSred reliability probe cadence; changing feedback cadence can alter training trajectories.
+
+
+### Validation
+- Physical short AR trainer runs passed on a single TPU v5e-1 runtime (BF16) and Kaggle 2× T4 DDP (BF16 request falling back to FP16 with GradScaler): 49.17M parameters, T=256, microbatch 8, accumulation 4, and exact checkpoint/resume reported by notebook comparisons. CUDA replicas also matched model, optimizer and scaler state; no overflow updates were skipped.
+- Small TPU optimizer checks found compilation stability for both native and candidate AdamW. No sustained throughput, DDP scaling, long-run stability, or non-AR hardware acceptance is claimed. See [v1.8.2 validation](docs/releases/v1.8.2-validation.md) for archived evidence and limits.
 
 
 ## [1.8.1] - 2026-11-18

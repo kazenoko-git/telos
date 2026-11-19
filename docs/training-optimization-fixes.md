@@ -10,7 +10,10 @@ where the available evidence does not justify a default change.
 | MLX autotuning | Training and tuning share compiled step construction, compiled accumulation, asynchronous accumulation and the selected evaluation policy. Trials also honor `async_eval` and include the final fence in timing. | Trials remain isolated from training. Selecting a different batch plan can change accumulation rounding or stochastic execution order; equal effective batch alone does not promise bitwise identity across plans. |
 | MLX optimizer overlap | Accumulated updates support `training.async_eval: true`, with array-handle snapshots, bounded dispatch and explicit checkpoint/logging fences. Eager evaluation and stage profiling keep their synchronization boundaries. | Exact losses, model, optimizer, master-weight and MLX RNG arrays matched in the local ABBA comparison. Default remains false. |
 | COROSred diagnostics | Removed overwritten metric work; explicit `compute_metrics=False` skips diagnostic reductions without removing BCE normalization. Trainer requests metrics on tracking and logging steps. MLX probe cadence is configurable. | Skipping PyTorch diagnostics preserved loss, gradients and RNG exactly in the regression test. Probe cadence and feedback cadence changes can change future gradients and remain optional. |
-| XLA LR graph specialization | Added optional `XLAAdamW`, transferring changing decay and bias-correction controls as device data rather than using changing scalar constants in optimizer expressions. The host LR scheduler is unchanged. | Preserves the exact host LR sequence and AdamW mathematics, but arithmetic ordering can change FP32 rounding. Physical TPU compilation and throughput are unverified; default remains native AdamW. |
+| XLA LR graph specialization | Added optional `XLAAdamW`, transferring changing decay and bias-correction controls as device data rather than using changing scalar constants in optimizer expressions. The host LR scheduler is unchanged. | Preserves the exact host LR sequence and AdamW mathematics, but arithmetic ordering can change FP32 rounding. Physical small FP32 checks passed; native AdamW also remained compilation-stable on Torch-XLA 2.9.0. The representative BF16 full-trainer check used native AdamW. No sustained speed benefit is established; default remains native AdamW. |
+
+Physical TPU and CUDA follow-up: see [v1.8.2 validation](releases/v1.8.2-validation.md)
+for the tested AR configurations, exact replay summaries, and evidence limits.
 
 ## Configuration
 
@@ -66,14 +69,22 @@ python scripts/validate_xla_dynamic_optimizer.py --device xla \
 ```
 
 The validator records actual `CompileTime` counts and fails if compilation
-continues after four updates. Successful physical validation is required before
-claiming that the LR recompilation problem is solved on a supported TPU build.
-CUDA native precision and GradScaler dispatch were tested using mocks on this
-Mac; physical CUDA throughput and mixed-precision behavior remain unverified.
+continues after four updates. The subsequent physical TPU check passed, but
+native AdamW was also compilation-stable in the small FP32 comparison. These
+results do not establish a need for the candidate optimizer.
+
+Subsequent physical checks passed for the native AR trainer on a single TPU
+v5e-1 runtime (BF16) and Kaggle two-T4 DDP (requested BF16 falling back to FP16
+with GradScaler), including accumulation and exact checkpoint/resume summaries.
+See the linked release validation for scope; sustained performance remains
+unmeasured.
 
 ## Regression result
 
-The full local suite passed: **449 passed, 7 skipped** (`.venv/bin/python -m
+The initial local fix suite passed: **449 passed, 7 skipped** (`.venv/bin/python -m
 pytest -q`). Skips are not evidence of physical CUDA or TPU acceptance. No
 existing test tolerances were relaxed. Unrelated working-tree changes were
 preserved.
+
+The integrated v1.8.2 release checkout subsequently passed **464 tests, with
+7 skipped**. Hardware results are documented separately in the release validation.
