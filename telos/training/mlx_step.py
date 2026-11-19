@@ -16,6 +16,18 @@ def build_mlx_accumulation_step(microbatch_step, compilation_targets):
     return mx.compile(accumulate, inputs=compilation_targets, outputs=compilation_targets)
 
 
+def build_training_step(model, optimizer, microbatch_step, compilation_targets, training, *, grad_clip):
+    """Use identical compilation and dispatch options in training and tuning."""
+    compiled = mx.compile(microbatch_step, inputs=compilation_targets, outputs=compilation_targets)
+    accumulation = (build_mlx_accumulation_step(microbatch_step, compilation_targets)
+                    if training.get("compiled_accumulation", True) else None)
+    return MLXTrainingStep(
+        model, optimizer, compiled, grad_clip=grad_clip,
+        fused=bool(training.get("fused_step", True)), accumulation_step=accumulation,
+        async_accumulation=bool(training.get("async_accumulation", True)),
+    )
+
+
 class MLXTrainingStep:
     """Fuse forward, backward, clipping and Adam update for one microbatch.
 
