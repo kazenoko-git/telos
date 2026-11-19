@@ -1,0 +1,92 @@
+  [Notice] Hardware lacks native BF16 support. Automatically falling back to FP16 with GradScaler.
+  [Notice] Hardware lacks native BF16 support. Automatically falling back to FP16 with GradScaler.
+  [Hardware] Multi-GPU DDP initialized across 2 processes.
+/usr/local/lib/python3.13/dist-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+  return func(*args, **kwargs)
+  Loading pre-tokenized dataset from /kaggle/working/telos-v182/cuda-results/tokens.bin...
+  Checkpoint Directory: /kaggle/working/telos-v182/cuda-results/interrupted (Paradigm: AR)
+  [AR] Step      1/16 | Loss: 9.1138 | CE: 9.114 | LR: 1.25e-04 |   1.2 st/s |    19,099 tok/s | ETA:  0.2m
+  [AR] Step      2/16 | Loss: 9.0938 | CE: 9.094 | LR: 2.50e-04 |   1.6 st/s |    26,389 tok/s | ETA:  0.1m
+  [AR] Step      3/16 | Loss: 9.1114 | CE: 9.111 | LR: 3.75e-04 |   1.8 st/s |    30,291 tok/s | ETA:  0.1m
+  [AR] Step      4/16 | Loss: 9.1086 | CE: 9.109 | LR: 5.00e-04 |   2.0 st/s |    32,697 tok/s | ETA:  0.1m
+  [AR] Step      5/16 | Loss: 9.1176 | CE: 9.118 | LR: 6.25e-04 |   2.1 st/s |    34,344 tok/s | ETA:  0.1m
+
+  [Checkpoint Step      8] Saving checkpoint weights to /kaggle/working/telos-v182/cuda-results/interrupted/checkpoint_step_8.pt...
+{
+  "status": "PASS",
+  "phase": "interrupted",
+  "rank": 0,
+  "world_size": 2,
+  "device": "cuda:0",
+  "parameter_count": 49166848,
+  "requested_precision": "bf16",
+  "actual_precision": "fp16",
+  "projection_dtypes": [
+    "torch.float16"
+  ],
+  "grad_scaler_enabled": true,
+  "final_scale": 65536.0,
+  "grad_clip": 0.0,
+  "microbatch_per_gpu": 8,
+  "accumulation": 4,
+  "global_effective_batch": 64,
+  "start_step": 0,
+  "end_step": 8,
+  "forward_calls": 32,
+  "optimizer_step_attempts": 8,
+  "actual_optimizer_updates": 8,
+  "overflow_skipped_updates": 0,
+  "gradient_norms": [
+    0.7915051579475403,
+    0.7785432934761047,
+    0.7983618974685669,
+    0.7820290923118591,
+    0.7315335273742676,
+    0.6960543394088745,
+    0.649124026298523,
+    0.5706578493118286
+  ],
+  "first_token": 4,
+  "peak_allocated_bytes": 2150935040,
+  "peak_reserved_bytes": 2220883968,
+  "wall_seconds_including_startup_and_checkpoints": 10.142294320000019
+}
+{
+  "status": "PASS",
+  "phase": "interrupted",
+  "rank": 1,
+  "world_size": 2,
+  "device": "cuda:1",
+  "parameter_count": 49166848,
+  "requested_precision": "bf16",
+  "actual_precision": "fp16",
+  "projection_dtypes": [
+    "torch.float16"
+  ],
+  "grad_scaler_enabled": true,
+  "final_scale": 65536.0,
+  "grad_clip": 0.0,
+  "microbatch_per_gpu": 8,
+  "accumulation": 4,
+  "global_effective_batch": 64,
+  "start_step": 0,
+  "end_step": 8,
+  "forward_calls": 32,
+  "optimizer_step_attempts": 8,
+  "actual_optimizer_updates": 8,
+  "overflow_skipped_updates": 0,
+  "gradient_norms": [
+    0.7915051579475403,
+    0.7785432934761047,
+    0.7983618974685669,
+    0.7820290923118591,
+    0.7315335273742676,
+    0.6960543394088745,
+    0.649124026298523,
+    0.5706578493118286
+  ],
+  "first_token": 36,
+  "peak_allocated_bytes": 2150935040,
+  "peak_reserved_bytes": 2220883968,
+  "wall_seconds_including_startup_and_checkpoints": 10.142390491000015
+}

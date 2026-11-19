@@ -1,0 +1,67 @@
+  [Hardware] Detected PyTorch-XLA TPU Topology (1 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  Loading pre-tokenized dataset from /content/telos-v182/full-trainer-results/tokens.bin...
+  Checkpoint Directory: /content/telos-v182/full-trainer-results/reference (Paradigm: AR)
+  [AR] Step      1/16 | Loss: 9.1120 | CE: 9.112 | LR: 1.25e-04 |   0.0 st/s |        83 tok/s | ETA: 24.7m
+  [AR] Step      2/16 | Loss: 9.1126 | CE: 9.113 | LR: 2.50e-04 |   0.0 st/s |        88 tok/s | ETA: 21.7m
+  [AR] Step      3/16 | Loss: 9.1108 | CE: 9.111 | LR: 3.75e-04 |   0.0 st/s |       132 tok/s | ETA: 13.5m
+  [AR] Step      4/16 | Loss: 9.1330 | CE: 9.133 | LR: 5.00e-04 |   0.0 st/s |       175 tok/s | ETA:  9.3m
+  [AR] Step      5/16 | Loss: 9.1316 | CE: 9.132 | LR: 6.25e-04 |   0.0 st/s |       219 tok/s | ETA:  6.9m
+
+  [Checkpoint Step      8] Saving checkpoint weights to /content/telos-v182/full-trainer-results/reference/checkpoint_step_8.pt...
+  [Checkpoint Step      8] Successfully saved weights to /content/telos-v182/full-trainer-results/reference/checkpoint_step_8.pt
+
+  [AR] Step     10/16 | Loss: 9.1050 | CE: 9.105 | LR: 8.68e-04 |   0.1 st/s |       418 tok/s | ETA:  2.0m
+  [AR] Step     16/16 | Loss: 9.0997 | CE: 9.100 | LR: 1.00e-04 |   0.1 st/s |       662 tok/s | ETA:  0.0m
+
+  [Checkpoint Step     16] Saving checkpoint weights to /content/telos-v182/full-trainer-results/reference/checkpoint_step_16.pt...
+  [Checkpoint Step     16] Successfully saved weights to /content/telos-v182/full-trainer-results/reference/checkpoint_step_16.pt
+
+======================================================================
+  AR PyTorch Training Complete! Total time: 3.40 minutes.
+  Saved standalone model artifact to /content/telos-v182/full-trainer-results/reference/
+======================================================================
+/content/telos-v182/full_trainer_tpu_check.py:141: DeprecationWarning: Use torch_xla.sync instead
+  xm.mark_step()
+{
+  "status": "PASS",
+  "phase": "reference",
+  "parameter_count": 49166848,
+  "device": "xla:0",
+  "precision": "bf16",
+  "parameter_dtype": "float32",
+  "projection_dtypes": [
+    "torch.bfloat16"
+  ],
+  "microbatch": 8,
+  "gradient_accumulation": 4,
+  "sequence_length": 256,
+  "start_step": 0,
+  "end_step": 16,
+  "optimizer_updates": 16,
+  "forward_calls": 64,
+  "gradient_norms": [
+    0.9999991655349731,
+    0.9999991059303284,
+    0.9999991655349731,
+    0.9999991655349731,
+    0.9999991655349731,
+    0.9688990116119385,
+    0.8953912258148193,
+    0.837348461151123,
+    0.7372458577156067,
+    0.6771302223205566,
+    0.6024497151374817,
+    0.6094004511833191,
+    0.5483685731887817,
+    0.5733840465545654,
+    0.5037677884101868,
+    0.4958548843860626
+  ],
+  "wall_seconds_including_compilation_and_checkpoints": 209.88669464099985,
+  "memory": {
+    "bytes_used": 1904617984,
+    "bytes_limit": 16909336576,
+    "peak_bytes_used": 2101395968
+  }
+}

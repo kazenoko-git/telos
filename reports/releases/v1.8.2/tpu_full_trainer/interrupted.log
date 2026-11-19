@@ -1,0 +1,47 @@
+  [Hardware] Detected PyTorch-XLA TPU Topology (1 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  Loading pre-tokenized dataset from /content/telos-v182/full-trainer-results/tokens.bin...
+  Checkpoint Directory: /content/telos-v182/full-trainer-results/interrupted (Paradigm: AR)
+  [AR] Step      1/16 | Loss: 9.1120 | CE: 9.112 | LR: 1.25e-04 |   0.0 st/s |        81 tok/s | ETA: 25.3m
+  [AR] Step      2/16 | Loss: 9.1126 | CE: 9.113 | LR: 2.50e-04 |   0.0 st/s |        87 tok/s | ETA: 21.9m
+  [AR] Step      3/16 | Loss: 9.1108 | CE: 9.111 | LR: 3.75e-04 |   0.0 st/s |       130 tok/s | ETA: 13.6m
+  [AR] Step      4/16 | Loss: 9.1330 | CE: 9.133 | LR: 5.00e-04 |   0.0 st/s |       173 tok/s | ETA:  9.5m
+  [AR] Step      5/16 | Loss: 9.1316 | CE: 9.132 | LR: 6.25e-04 |   0.0 st/s |       216 tok/s | ETA:  6.9m
+
+  [Checkpoint Step      8] Saving checkpoint weights to /content/telos-v182/full-trainer-results/interrupted/checkpoint_step_8.pt...
+/content/telos-v182/full_trainer_tpu_check.py:141: DeprecationWarning: Use torch_xla.sync instead
+  xm.mark_step()
+{
+  "status": "PASS",
+  "phase": "interrupted",
+  "parameter_count": 49166848,
+  "device": "xla:0",
+  "precision": "bf16",
+  "parameter_dtype": "float32",
+  "projection_dtypes": [
+    "torch.bfloat16"
+  ],
+  "microbatch": 8,
+  "gradient_accumulation": 4,
+  "sequence_length": 256,
+  "start_step": 0,
+  "end_step": 8,
+  "optimizer_updates": 8,
+  "forward_calls": 32,
+  "gradient_norms": [
+    0.9999991655349731,
+    0.9999991059303284,
+    0.9999991655349731,
+    0.9999991655349731,
+    0.9999991655349731,
+    0.9688990116119385,
+    0.8953912258148193,
+    0.837348461151123
+  ],
+  "wall_seconds_including_compilation_and_checkpoints": 196.46046097700014,
+  "memory": {
+    "bytes_used": 1904581632,
+    "bytes_limit": 16909336576,
+    "peak_bytes_used": 2101341696
+  }
+}

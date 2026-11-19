@@ -1,0 +1,50 @@
+  [Hardware] Detected PyTorch-XLA TPU Topology (1 Cores, Rank 0).
+  [Precision] TPU model parameters kept in float32 (AdamW updates preserved; forward pass autocast to bfloat16).
+  Loading pre-tokenized dataset from /content/telos-v182/full-trainer-results/tokens.bin...
+  Checkpoint Directory: /content/telos-v182/full-trainer-results/resumed (Paradigm: AR)
+  [AR] Step     10/16 | Loss: 9.1050 | CE: 9.105 | LR: 8.68e-04 |   0.0 st/s |       165 tok/s | ETA:  5.0m
+  [AR] Step     16/16 | Loss: 9.0997 | CE: 9.100 | LR: 1.00e-04 |   0.1 st/s |       645 tok/s | ETA:  0.0m
+
+  [Checkpoint Step     16] Saving checkpoint weights to /content/telos-v182/full-trainer-results/resumed/checkpoint_step_16.pt...
+  [Checkpoint Step     16] Successfully saved weights to /content/telos-v182/full-trainer-results/resumed/checkpoint_step_16.pt
+
+======================================================================
+  AR PyTorch Training Complete! Total time: 1.80 minutes.
+  Saved standalone model artifact to /content/telos-v182/full-trainer-results/resumed/
+======================================================================
+/content/telos-v182/full_trainer_tpu_check.py:141: DeprecationWarning: Use torch_xla.sync instead
+  xm.mark_step()
+{
+  "status": "PASS",
+  "phase": "resumed",
+  "parameter_count": 49166848,
+  "device": "xla:0",
+  "precision": "bf16",
+  "parameter_dtype": "float32",
+  "projection_dtypes": [
+    "torch.bfloat16"
+  ],
+  "microbatch": 8,
+  "gradient_accumulation": 4,
+  "sequence_length": 256,
+  "start_step": 8,
+  "end_step": 16,
+  "optimizer_updates": 8,
+  "forward_calls": 32,
+  "gradient_norms": [
+    0.7372458577156067,
+    0.6771302223205566,
+    0.6024497151374817,
+    0.6094004511833191,
+    0.5483685731887817,
+    0.5733840465545654,
+    0.5037677884101868,
+    0.4958548843860626
+  ],
+  "wall_seconds_including_compilation_and_checkpoints": 113.81423778399994,
+  "memory": {
+    "bytes_used": 1245401600,
+    "bytes_limit": 16909336576,
+    "peak_bytes_used": 1638895616
+  }
+}
