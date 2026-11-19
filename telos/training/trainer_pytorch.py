@@ -342,7 +342,11 @@ class UnifiedPyTorchTrainer:
         if use_fused:
             opt_kwargs["fused"] = True
 
-        self.optimizer = torch.optim.AdamW(
+        optimizer_class = torch.optim.AdamW
+        if self.is_tpu and self.t_cfg.get("xla_dynamic_optimizer", False):
+            from .xla_optimizer import XLAAdamW
+            optimizer_class = XLAAdamW
+        self.optimizer = optimizer_class(
             [
                 {"params": decay_params, "weight_decay": self.weight_decay},
                 {"params": no_decay_params, "weight_decay": 0.0},
