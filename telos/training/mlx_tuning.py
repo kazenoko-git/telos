@@ -184,6 +184,7 @@ def _run_trial(spec):
                       betas=[0.9, 0.95], bias_correction=True)
     step = build_training_step(model, opt, fn, state, cfg["training"], grad_clip=trainer.grad_clip)
     eval_micro = trainer.hw_profile.eval_policy == "eager"
+    asynchronous = bool(cfg["training"].get("async_eval", False))
     sample = np.load(spec["sample"])
     def batches():
         for i in range(plan.grad_accum):
@@ -191,15 +192,17 @@ def _run_trial(spec):
             if trainer.paradigm in {"mdlm", "undlm"}:
                 yield x, trainer._sample_beta_timesteps(plan.batch_size)
             elif trainer.paradigm == "corosred" and trainer.is_unified:
-                c = cfg["corosred"]
+                c = trainer.crsr_cfg
                 # Include the reliability-head backward even when its schedule
                 # has not yet activated, avoiding an optimistic phase estimate.
-                yield x, mx.array(c["alpha_max"]), mx.array(c["beta_max"]), mx.array(c["gamma_max"]), mx.array(0.0)
+                yield (x, mx.array(c.get("alpha_max", .85)), mx.array(c.get("beta_max", .70)),
+                       mx.array(c.get("gamma_max", .10)), mx.array(0.0))
             else:
                 yield x
     loss = None
     for _ in range(max(3, spec["warmup_steps"])):
-        loss, _ = step(batches(), grad_accum=plan.grad_accum, eval_every_microbatch=eval_micro)
+        loss, _ = step(batches(), grad_accum=plan.grad_accum, eval_every_microbatch=eval_micro,
+                       asynchronous=asynchronous)
         if mx.get_peak_memory() > spec["budget"]:
             return {"status": "over_budget", "peak_memory_bytes": mx.get_peak_memory()}
     step.synchronize()
@@ -208,8 +211,12 @@ def _run_trial(spec):
     times = []
     for _ in range(max(3, spec["measure_steps"])):
         start = time.perf_counter()
-        loss, _ = step(batches(), grad_accum=plan.grad_accum, eval_every_microbatch=eval_micro)
+        loss, _ = step(batches(), grad_accum=plan.grad_accum, eval_every_microbatch=eval_micro,
+                       asynchronous=asynchronous)
         times.append(time.perf_counter() - start)
+    fence_start = time.perf_counter()
+    step.synchronize()
+    times[-1] += time.perf_counter() - fence_start
     peak = max(warmup_peak, mx.get_peak_memory())
     if not math.isfinite(loss.item()):
         return {"status": "nonfinite_loss"}
