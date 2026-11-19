@@ -123,6 +123,7 @@ def execute_mlx_training_step(
     stage_profile: dict | None = None,
     accumulation_step_fn=None,
     async_accumulation: bool = True,
+    optimizer_eval=None,
 ):
     if stage_profile is not None:
         async_stage_eval = bool(stage_profile.get("async_stage_eval", False))
@@ -291,13 +292,14 @@ def execute_mlx_training_step(
             compiled_opt = mx.compile(update_fn, inputs=[model.state, optimizer.state], outputs=[model.state, optimizer.state])
         optimizer._compiled_opt_update = compiled_opt
 
+    evaluate_optimizer = optimizer_eval or mx.eval
     if use_master_weights:
         optimizer.master_params, new_model = compiled_opt(optimizer.master_params, accum_grads, grad_clip, float(grad_accum))
         model.update(new_model)
-        mx.eval(optimizer.master_params, model.parameters(), optimizer.state, accum_loss, accum_ce)
+        evaluate_optimizer(optimizer.master_params, model.parameters(), optimizer.state, accum_loss, accum_ce)
     else:
         compiled_opt(accum_grads, grad_clip, float(grad_accum))
-        mx.eval(model.parameters(), optimizer.state, accum_loss, accum_ce)
+        evaluate_optimizer(model.parameters(), optimizer.state, accum_loss, accum_ce)
 
     if stage_profile is not None:
         mx.synchronize()
