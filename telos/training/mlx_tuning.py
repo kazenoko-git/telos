@@ -110,6 +110,7 @@ def tune_mlx_batch(trainer, dataset_matrix):
         np.save(root / "sample.npy", sample)
         spec = {
             "cfg": cfg, "paradigm": trainer.paradigm,
+            "eval_policy": getattr(getattr(trainer, "hw_profile", None), "eval_policy", "auto"),
             "weights": str(root / "weights.safetensors"), "sample": str(root / "sample.npy"),
             "budget": budget, "warmup_steps": int(training.get("autotune_warmup_steps", 3)),
             "measure_steps": int(training.get("autotune_measure_steps", 3)),
@@ -159,10 +160,12 @@ def _run_trial(spec):
     import mlx.optimizers as optim
     from telos.models.mlx_transformer import MLXTelosTransformer
     from .trainer_mlx import UnifiedMLXTrainer
-    from .mlx_step import MLXTrainingStep
+    from .mlx_step import build_training_step
 
     cfg = copy.deepcopy(spec["cfg"])
     plan = BatchPlan(**spec["plan"])
+    cfg["training"]["batch_size"] = plan.batch_size
+    cfg["training"]["gradient_accumulation"] = plan.grad_accum
     cfg["training"]["gradient_checkpointing"] = plan.checkpointing
     cfg["model"]["use_grad_checkpoint"] = plan.checkpointing
     mx.set_memory_limit(spec["budget"])
@@ -172,16 +175,15 @@ def _run_trial(spec):
     precision = model_cfg.pop("precision", cfg["training"].get("precision", "bfloat16"))
     model = MLXTelosTransformer(**model_cfg, precision=precision)
     model.load_weights(spec["weights"])
-    trainer = UnifiedMLXTrainer(spec["paradigm"], model, cfg)
+    trainer = UnifiedMLXTrainer(spec["paradigm"], model, cfg, eval_policy=spec.get("eval_policy", "auto"))
     # The coordinator has already chosen checkpointing for this measurement.
     model.use_grad_checkpoint = plan.checkpointing
     fn, state = trainer._setup_training_functions()
     state.append(mx.random.state)
-    fn = mx.compile(fn, inputs=state, outputs=state)
     opt = optim.AdamW(cfg["training"]["max_lr"], weight_decay=cfg["training"]["weight_decay"],
                       betas=[0.9, 0.95], bias_correction=True)
-    step = MLXTrainingStep(model, opt, fn, grad_clip=trainer.grad_clip,
-                           fused=cfg["training"].get("fused_step", True))
+    step = build_training_step(model, opt, fn, state, cfg["training"], grad_clip=trainer.grad_clip)
+    eval_micro = trainer.hw_profile.eval_policy == "eager"
     sample = np.load(spec["sample"])
     def batches():
         for i in range(plan.grad_accum):
@@ -192,20 +194,21 @@ def _run_trial(spec):
                 c = cfg["corosred"]
                 # Include the reliability-head backward even when its schedule
                 # has not yet activated, avoiding an optimistic phase estimate.
-                yield x, mx.array(c["alpha_max"]), mx.array(c["beta_max"]), mx.array(c["gamma_max"])
+                yield x, mx.array(c["alpha_max"]), mx.array(c["beta_max"]), mx.array(c["gamma_max"]), mx.array(0.0)
             else:
                 yield x
     loss = None
     for _ in range(max(3, spec["warmup_steps"])):
-        loss, _ = step(batches(), grad_accum=plan.grad_accum, eval_every_microbatch=True)
+        loss, _ = step(batches(), grad_accum=plan.grad_accum, eval_every_microbatch=eval_micro)
         if mx.get_peak_memory() > spec["budget"]:
             return {"status": "over_budget", "peak_memory_bytes": mx.get_peak_memory()}
+    step.synchronize()
     warmup_peak = mx.get_peak_memory()
     mx.reset_peak_memory()
     times = []
     for _ in range(max(3, spec["measure_steps"])):
         start = time.perf_counter()
-        loss, _ = step(batches(), grad_accum=plan.grad_accum, eval_every_microbatch=True)
+        loss, _ = step(batches(), grad_accum=plan.grad_accum, eval_every_microbatch=eval_micro)
         times.append(time.perf_counter() - start)
     peak = max(warmup_peak, mx.get_peak_memory())
     if not math.isfinite(loss.item()):
