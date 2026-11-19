@@ -842,11 +842,16 @@ class UnifiedPyTorchTrainer:
                     is_log_step = (
                         step <= 5
                         or (step <= 50 and step % 10 == 0)
-                        or step % 50 == 0
+                        or step % 25 == 0
                         or step == self.max_steps
                         or (benchmark and step % 10 == 0)
                     )
-                    eval_metrics = (i == grad_accum - 1) and is_log_step
+                    default_metric_cadence = 25 if self.is_tpu else 1
+                    metric_cadence = int(self.crsr_cfg.get("cadence", self.t_cfg.get("cadence",
+                        self.crsr_cfg.get("default_cadence", self.t_cfg.get("default_cadence", default_metric_cadence)))) or default_metric_cadence)
+                    metric_due = step == 1 or step % metric_cadence == 0
+                    # CPU tracker updates historically happen on every microbatch.
+                    eval_metrics = ((i == grad_accum - 1) and (is_log_step or metric_due)) or self.device.type == "cpu"
                     # DDP gradient accumulation optimization: disable all-reduce on non-final microbatches
                     sync_ctx = self.model.no_sync() if (getattr(self, "is_ddp", False) and i < grad_accum - 1) else nullcontext()
                     with sync_ctx:

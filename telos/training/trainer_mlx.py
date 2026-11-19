@@ -624,15 +624,17 @@ class UnifiedMLXTrainer:
 
             if self.paradigm == "corosred" and (getattr(self, "is_unified", False) or self.phase == "UNIFIED"):
                 from .mlx_reliability import reliability_metrics
-                measured_acc, measured_auc, measured_causal, measured_infill = reliability_metrics(
-                    self.model, mx.array(global_targets_np[:bs], dtype=mx.int32))
-                previous = getattr(self, "reliability_metrics", None)
-                self.reliability_metrics = (measured_acc, measured_auc) if previous is None else (
-                    .95 * previous[0] + .05 * measured_acc, .95 * previous[1] + .05 * measured_auc)
+                probe_cadence = max(1, int(self.crsr_cfg.get("reliability_cadence", 1)))
+                if getattr(self, "reliability_metrics", None) is None or step == 1 or step % probe_cadence == 0:
+                    measured_acc, measured_auc, measured_causal, measured_infill = reliability_metrics(
+                        self.model, mx.array(global_targets_np[:bs], dtype=mx.int32))
+                    previous = getattr(self, "reliability_metrics", None)
+                    self.reliability_metrics = (measured_acc, measured_auc) if previous is None else (
+                        .95 * previous[0] + .05 * measured_acc, .95 * previous[1] + .05 * measured_auc)
+                    self.metric_tracker.update_losses(measured_causal, measured_infill)
                 w = self.schedule.get_weights(step, *self.reliability_metrics)
                 # The head must learn before its competence can gate routing.
                 w["gamma"] = self.schedule.gamma_max
-                self.metric_tracker.update_losses(measured_causal, measured_infill)
                 if self.crsr_cfg.get("adaptive_rebalance", False):
                     w["alpha"], w["beta"], _ = self.metric_tracker.get_balanced_weights(w["alpha"], w["beta"])
                 alpha_mx = mx.array(w["alpha"], dtype=mx.float32)
