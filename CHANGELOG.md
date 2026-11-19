@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.2] - 2026-11-19
+
+### Fixed
+- Honor disabled gradient clipping and native CUDA BF16 support consistently.
+- Align MLX autotuning with training compilation, evaluation and asynchronous timing.
+- Skip unused COROSred diagnostic reductions while preserving reliability loss normalization.
+
+### Added
+- Optional accumulated MLX optimizer overlap; remains disabled by default after no measured speed benefit.
+- Optional dynamic XLA AdamW controls and physical TPU compilation, numerical, gradient and checkpoint validation scripts. TPU hardware acceptance remains pending.
+- Configurable MLX COROSred reliability probe cadence; changing feedback cadence can alter training trajectories.
+
+
 ## [1.8.1] - 2026-11-18
 
 ### Fixed
