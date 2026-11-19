@@ -128,3 +128,48 @@ def test_mlx_unified_loss_weighting_contract():
     )
     assert not mx.isnan(total_loss).item()
     assert abs(total_loss.item() - pooled_ce.item()) < 1e-6
+
+
+@pytest.mark.parametrize('cadence,expected', [(1, 6), (3, 3)])
+def test_reliability_probe_cadence_survives_resume(tmp_path, monkeypatch, cadence, expected):
+    import numpy as np
+    mx = pytest.importorskip('mlx.core')
+    if not mx.metal.is_available():
+        pytest.skip('Metal required')
+    from copy import deepcopy
+    from telos.models import MLXTelosTransformer
+    from telos.training.trainer_mlx import UnifiedMLXTrainer
+    from telos.training import mlx_reliability
+    calls = []
+    real_probe = mlx_reliability.reliability_metrics
+    def probe(*args):
+        calls.append(1)
+        return real_probe(*args)
+    monkeypatch.setattr(mlx_reliability, 'reliability_metrics', probe)
+    cfg = {
+        'model': dict(vocab_size=32, d_model=64, n_layers=1, n_heads=2, seq_len=8),
+        'training': dict(max_steps=6, batch_size=2, gradient_accumulation=2, seed=17,
+                         precision='bfloat16', max_lr=.001, warmup_steps=1),
+        'corosred': dict(reliability_cadence=cadence),
+        'data': dict(synthetic=True),
+        'checkpoint': dict(checkpoint_dir=str(tmp_path), save_every_steps=2),
+    }
+    def make():
+        mx.random.seed(19)
+        model = MLXTelosTransformer(vocab_size=32, d_model=64, n_layers=1, n_heads=2,
+                                    use_reliability_head=True, is_causal=True)
+        return UnifiedMLXTrainer('corosred', model, deepcopy(cfg))
+    original = make()
+    original.train()
+    assert len(calls) == expected
+    from telos.training.checkpoint import load_mlx_state
+    from mlx.utils import tree_flatten
+    saved = load_mlx_state(tmp_path / 'checkpoint_final.resume.npz')
+    resumed = make()
+    resumed.load_checkpoint(tmp_path / 'checkpoint_step_2.resume.npz')
+    resumed.train()
+    actual = load_mlx_state(tmp_path / 'checkpoint_final.resume.npz')
+    assert actual['reliability_metrics'] == saved['reliability_metrics']
+    for key in ('model', 'optimizer', 'master_params', 'mlx_rng'):
+        for (_, a), (_, b) in zip(tree_flatten(saved[key]), tree_flatten(actual[key])):
+            np.testing.assert_array_equal(np.asarray(a.astype(mx.float32)), np.asarray(b.astype(mx.float32)))

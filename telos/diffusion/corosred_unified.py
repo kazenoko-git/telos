@@ -244,37 +244,30 @@ def corosred_unified_step_pytorch(
             content_mask = (shift_targets >= 4)
             valid_mask = valid_mask & content_mask
 
-        # Batch classification accuracy (static shape scalar tensor on device)
-        valid_preds = (raw_r_scores[:, :-1] > 0.0).float()
-        correct_preds = (valid_preds == labels).float() * valid_mask.float()
-        valid_count = valid_mask.sum().float().clamp(min=1.0)
-        batch_lrh_acc = (correct_preds.sum() / valid_count)
-
-        # Balanced classification accuracy: 0.5 * (TPR + TNR), fully immune to ~9:1 class imbalance
-        # Evaluates to 0.50 under chance / constant predictions, establishing an uncorrupted discrimination baseline
+        # This denominator is also part of the differentiable reliability loss.
         valid_count = valid_mask.float().sum().clamp(min=1.0)
-
-        preds = (torch.sigmoid(raw_r_scores[:, :-1]) >= 0.5)
-        correct_preds = (preds == (labels > 0.5)) & valid_mask
-        batch_lrh_acc = correct_preds.float().sum() / valid_count
-
-        pos_mask = (labels > 0.5) & valid_mask
-        neg_mask = (labels <= 0.5) & valid_mask
-        tpr = (preds & pos_mask).float().sum() / pos_mask.float().sum().clamp(min=1.0)
-        tnr = ((~preds) & neg_mask).float().sum() / neg_mask.float().sum().clamp(min=1.0)
-        batch_lrh_bal_acc = 0.5 * (tpr + tnr)
-
-        if not is_accelerator:
-            batch_lrh_acc_val = float(batch_lrh_acc.item())
-            batch_lrh_bal_acc_val = float(batch_lrh_bal_acc.item())
-            flat_r = raw_r_scores[:, :-1][valid_mask]
-            flat_y = labels[valid_mask]
-            batch_lrh_auc_val = compute_vectorized_roc_auc(flat_r, flat_y)
-        else:
-            # Use balanced accuracy as 0D tensor proxy on accelerators to avoid device sync
-            batch_lrh_acc_val = batch_lrh_acc
-            batch_lrh_bal_acc_val = batch_lrh_bal_acc
-            batch_lrh_auc_val = batch_lrh_bal_acc
+        batch_lrh_acc_val = batch_lrh_bal_acc_val = batch_lrh_auc_val = None
+        # A direct call retains metrics by default. Explicit False skips only
+        # diagnostics, never labels, ambiguity filtering or BCE normalization.
+        if compute_metrics is not False:
+            preds = (torch.sigmoid(raw_r_scores[:, :-1]) >= 0.5)
+            correct_preds = (preds == (labels > 0.5)) & valid_mask
+            batch_lrh_acc = correct_preds.float().sum() / valid_count
+            pos_mask = (labels > 0.5) & valid_mask
+            neg_mask = (labels <= 0.5) & valid_mask
+            tpr = (preds & pos_mask).float().sum() / pos_mask.float().sum().clamp(min=1.0)
+            tnr = ((~preds) & neg_mask).float().sum() / neg_mask.float().sum().clamp(min=1.0)
+            batch_lrh_bal_acc = 0.5 * (tpr + tnr)
+            if not is_accelerator:
+                batch_lrh_acc_val = float(batch_lrh_acc.item())
+                batch_lrh_bal_acc_val = float(batch_lrh_bal_acc.item())
+                flat_r = raw_r_scores[:, :-1][valid_mask]
+                flat_y = labels[valid_mask]
+                batch_lrh_auc_val = compute_vectorized_roc_auc(flat_r, flat_y)
+            else:
+                batch_lrh_acc_val = batch_lrh_acc
+                batch_lrh_bal_acc_val = batch_lrh_bal_acc
+                batch_lrh_auc_val = batch_lrh_bal_acc
 
     # LRH Binary Cross Entropy Loss
     shift_r_scores = raw_r_scores[:, :-1]
@@ -339,7 +332,7 @@ def corosred_unified_step_pytorch(
 
     # 6. Metric Tracker Update
     if metric_tracker is not None:
-        if not is_accelerator:
+        if not is_accelerator and batch_lrh_acc_val is not None:
             metric_tracker.update_lrh(batch_lrh_acc_val, batch_lrh_auc_val)
             metric_tracker.update_losses(float(mean_causal_ce.item()), float(mean_infill_ce.item()))
 
@@ -350,9 +343,6 @@ def corosred_unified_step_pytorch(
         "causal_ce": mean_causal_ce.detach(),
         "infill_ce": mean_infill_ce.detach(),
         "r_loss": r_loss.detach(),
-        "lrh_acc": batch_lrh_acc_val,
-        "lrh_bal_acc": batch_lrh_bal_acc_val,
-        "lrh_auc": batch_lrh_auc_val,
         "alpha": alpha,
         "beta": beta,
         "gamma": gamma_nom,
@@ -360,4 +350,7 @@ def corosred_unified_step_pytorch(
         "rebal_clamped": rebal_telem.get("clamped", False),
     }
 
+    if batch_lrh_acc_val is not None:
+        metrics.update(lrh_acc=batch_lrh_acc_val, lrh_bal_acc=batch_lrh_bal_acc_val,
+                       lrh_auc=batch_lrh_auc_val)
     return total_loss, metrics

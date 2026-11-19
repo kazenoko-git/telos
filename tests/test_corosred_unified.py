@@ -128,3 +128,23 @@ def test_corosred_unified_loss_weighting_contract(toy_model):
     assert torch.isclose(loss, expected_loss, atol=1e-5), (
         f"Loss weighting mismatch: loss={loss.item():.6f}, expected={expected_loss.item():.6f}"
     )
+
+
+def test_skipping_metrics_preserves_loss_gradients_and_rng(toy_model):
+    batch = torch.randint(4, 128, (4, 16))
+    weights = {'alpha': .7, 'beta': .3, 'gamma': .1}
+    def run(compute):
+        toy_model.zero_grad(set_to_none=True)
+        torch.manual_seed(73)
+        loss, metrics = corosred_unified_step_pytorch(
+            toy_model, batch, 128, weights, compute_metrics=compute)
+        loss.backward()
+        grads = {name: p.grad.clone() for name, p in toy_model.named_parameters() if p.grad is not None}
+        return loss.detach(), grads, torch.get_rng_state(), metrics
+    expected, actual = run(True), run(False)
+    torch.testing.assert_close(actual[0], expected[0], rtol=0, atol=0)
+    for name in expected[1]:
+        torch.testing.assert_close(actual[1][name], expected[1][name], rtol=0, atol=0)
+    assert torch.equal(actual[2], expected[2])
+    assert 'lrh_acc' in expected[3] and 'lrh_acc' not in actual[3]
+    assert 'r_loss' in actual[3]
