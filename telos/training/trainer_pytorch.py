@@ -160,7 +160,8 @@ class UnifiedPyTorchTrainer:
             self.is_spmd = False
             self.n_gpus = torch.cuda.device_count()
             # Check native BF16 support (e.g. Turing T4 does not support BF16, Ampere/Ada/Hopper do)
-            if not torch.cuda.is_bf16_supported() and self.precision == "bf16":
+            from .hardware import cuda_has_native_bf16
+            if self.precision in ("bf16", "bfloat16") and not cuda_has_native_bf16(self.device):
                 print("  [Notice] Hardware lacks native BF16 support. Automatically falling back to FP16 with GradScaler.")
                 self.precision = "fp16"
         else:
@@ -864,7 +865,8 @@ class UnifiedPyTorchTrainer:
 
                 if self.use_scaler:
                     self.scaler.unscale_(self.optimizer)
-                    nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
+                    if self.grad_clip > 0:
+                        nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
                     self.scaler.step(self.optimizer)
                     self.scaler.update()
                 elif self.is_tpu:
@@ -893,7 +895,8 @@ class UnifiedPyTorchTrainer:
                     xm.mark_step()
 
                 else:
-                    nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
+                    if self.grad_clip > 0:
+                        nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
                     self.optimizer.step()
 
                 self.optimizer.zero_grad()
