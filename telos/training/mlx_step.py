@@ -36,7 +36,8 @@ class MLXTrainingStep:
     optional asynchronous path holds at most one previous step on the host;
     call ``synchronize`` before measuring elapsed time or saving checkpoints.
     ``async_accumulation`` defaults to a bounded one-microbatch-ahead
-    pipeline. Accumulated updates still return completed optimizer state.
+    pipeline. Asynchronous accumulated updates use the same explicit fence
+    contract as single-microbatch updates.
     """
 
     def __init__(self, model, optimizer, microbatch_step, *, grad_clip=1.0, fused=True,
@@ -77,13 +78,17 @@ class MLXTrainingStep:
             raise ValueError("grad_accum must be positive")
         batches = iter(batches)
         if not self._initialized or grad_accum != 1 or not self.fused:
-            self.synchronize()
+            defer_update = (asynchronous and self._initialized and not eval_every_microbatch
+                            and getattr(self, "stage_profile", None) is None)
+            if not defer_update:
+                self.synchronize()
             result = execute_mlx_training_step(
                 self.model, self.optimizer, self.microbatch_step, batches,
                 grad_accum, self.grad_clip, not self._initialized, eval_every_microbatch,
                 stage_profile=getattr(self, "stage_profile", None),
                 accumulation_step_fn=self.accumulation_step,
                 async_accumulation=self.async_accumulation,
+                optimizer_eval=self._submit if defer_update else None,
             )
             self._initialized = True
             return result
@@ -98,14 +103,18 @@ class MLXTrainingStep:
         # Store array values, never mutable dictionaries captured by compilation.
         arrays = [v for _, v in tree_flatten(targets)]
         if asynchronous:
-            mx.async_eval(*arrays)
-            if self._pending is not None:
-                mx.eval(*self._pending)
-            self._pending = arrays
+            self._submit(*arrays)
         else:
             mx.eval(*arrays)
             self._pending = None
         return result
+
+    def _submit(self, *targets):
+        arrays = tuple(value for _, value in tree_flatten(targets))
+        mx.async_eval(*arrays)
+        if self._pending is not None:
+            mx.eval(*self._pending)
+        self._pending = arrays
 
     def synchronize(self):
         if self._pending is not None:

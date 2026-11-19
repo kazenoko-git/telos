@@ -70,3 +70,39 @@ def test_compiled_random_state_advances_and_replays():
     first, second = run(), run()
     assert len(set(first)) == 5
     np.testing.assert_allclose(first, second, rtol=0, atol=0)
+
+
+@pytest.mark.parametrize('master', [False, True])
+def test_async_accumulated_updates_preserve_full_state(master):
+    def run(asynchronous):
+        mx.random.seed(921)
+        model = nn.Linear(8, 4)
+        model.use_master_weights = master
+        if master:
+            model.set_dtype(mx.bfloat16)
+        opt = optim.AdamW(1e-3, betas=[.9, .95], bias_correction=True)
+        def loss(m, x):
+            value = mx.mean((m(x).astype(mx.float32) * mx.random.uniform(shape=(3, 4))) ** 2)
+            return value, value
+        grad = nn.value_and_grad(model, loss)
+        def micro(x):
+            (a, b), g = grad(model, x)
+            return a, b, g
+        from telos.training.mlx_step import build_training_step
+        step = build_training_step(model, opt, micro, [model.state, mx.random.state], {}, grad_clip=.1)
+        losses = []
+        for index, (accum, lr) in enumerate([(2, .001), (4, .002), (2, 0.), (4, .0001)]):
+            opt.learning_rate = lr
+            losses.append(step((mx.full((3, 8), i + .5) for i in range(accum)),
+                               grad_accum=accum, asynchronous=asynchronous))
+            assert (step._pending is not None) == (asynchronous and index > 0)
+        step.synchronize()
+        assert step._pending is None
+        state = [losses, model.parameters(), opt.state, getattr(opt, 'master_params', {}), list(mx.random.state)]
+        mx.eval(state)
+        return {k: np.asarray(v.astype(mx.float32) if v.dtype == mx.bfloat16 else v).copy()
+                for k, v in tree_flatten(state)}
+    expected, actual = run(False), run(True)
+    assert actual.keys() == expected.keys()
+    for key in expected:
+        np.testing.assert_array_equal(actual[key], expected[key], err_msg=key)
