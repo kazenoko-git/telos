@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.4] - 2026-11-20
+
+### Fixed
+- Replace `sigmoid(x) >= 0.5` with `x >= 0.0` in the COROSred reliability threshold check.
+- Hoist RoPE `cos`/`sin` dtype casts and unsqueezes once per `TelosTransformer.forward`, and remove the dead `is_xla` check in the forward path.
+- Use native `F.rms_norm` in PyTorch `RMSNorm` (with FP32-variance fallback), single-shot `F.cross_entropy(..., reduction="mean")` in `ar_loss_fn_pytorch`, and broadcast `expand`+`reshape` instead of `repeat_interleave` for GQA.
+- Replace full `torch.argsort` with `torch.topk(..., largest=False)` in `RoutingMaskCache.refresh`.
+- Stage `CUDAPrefetcher` pinned host buffers in `int32` when token dtypes fit, enable cuDNN TF32 and `cudnn.benchmark`, and pass `gradient_as_bucket_view=True` to `DistributedDataParallel`.
+
+### Validation
+- Local PyTorch structural regressions passed as part of the full suite: **471 passed, 7 skipped**. Physical CUDA throughput remains unverified until hardware runs.
+
+- Precision handling, disabled clipping, and unused diagnostic fixes shipped in v1.8.2. See [v1.8.4 validation](docs/releases/v1.8.4-validation.md).
+
+
 ## [1.8.3] - 2026-11-20
 
 ### Fixed
@@ -376,7 +391,7 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
   virtualized, or sandboxed macOS sessions): `telos train`, `telos bench` and
   `telos test` fall back to the PyTorch CPU path instead of aborting the process.
 
-[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.8.3...HEAD
+[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.8.4...HEAD
 [1.5.5]: https://github.com/kazenoko-git/telos/compare/v1.5.4...v1.5.5
 [1.5.4]: https://github.com/kazenoko-git/telos/compare/v1.5.3...v1.5.4
 [1.5.3]: https://github.com/kazenoko-git/telos/compare/v1.5.2...v1.5.3
