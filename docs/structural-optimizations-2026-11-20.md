@@ -13,14 +13,15 @@ Two repeat runs of `scratch/exp_v18x_candidates.py` on M5 Pro (MLX 0.32.2,
 - **MLX 3D QKV + RoPE Metal kernel:** `+8.58%` then `+0.52%` (did not hold).
 - **MLX online-softmax CE kernel:** `+10.47% / +15.32%` isolated, but `+0.12% / -0.38%` end-to-end on 50M AR with a `0.0017` final BF16 loss shift.
 
-## Surviving MLX Lead (Pending Fresh-Process Metal Validation)
+## Promoted MLX Memory Fix (Fresh-Process ABBA Validated)
 
-- **`mlx_reliability.py` (`reliability_metrics`):** Measured `+5.08% / +5.53%`
-  in the shared-process harness, but shared-process peak memory rose due to
-  evaluating both causal and infill graphs simultaneously. A fresh-process ABBA
-  validator (`scratch/validate_mlx_reliability.py`) evaluates causal outputs and
-  releases causal logits before the infill pass, and remains pending
-  non-sandboxed Metal execution before any MLX edit is promoted.
+- **`mlx_reliability.py` (`reliability_metrics`):** Fresh-process ABBA
+  validation (`scratch/validate_mlx_reliability.py`, `d_model=512`, 14 layers,
+  `vocab=8192`, `T=256`, `batch=8`) confirmed:
+  - **Exact parity:** `max_diff = 0.0` across all four returned metrics (`accuracy`, `auc`, `causal_ce`, `infill_ce`).
+  - **Peak MLX allocation:** reduced from `771.06 MB` to `674.47 MB` (`-12.53%`, `-96.59 MB`) deterministically across both fresh-process optimized trials by using `next_token_only=True`, Metal `cross_entropy`, and materializing/releasing causal logits before the infill pass.
+  - **Latency:** no speed advantage is claimed (optimized trials measured `33.443 ms` and `27.497 ms` vs. baseline `28.788 ms` and `29.046 ms`, pooled `-5.37%` due to the first-trial spike).
+- **Full suite before this commit:** `458 passed, 7 skipped in 16.36s` on Apple M5 Pro.
 
 ## Implemented PyTorch / CUDA / XLA Structural Changes
 
