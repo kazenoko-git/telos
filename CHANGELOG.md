@@ -7,12 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.3] - 2026-11-20
+
 ### Fixed
 - Stream large plain-text/code files in bounded chunks, cap tokenizer batches by character volume, and write each encoding directly instead of building a flattened Python token list.
 - Preserve short trailing chunks and apply license cleanup only at document starts.
+- Align MLX microbatch tuning with compiled accumulation, asynchronous accumulation, evaluation policy, and fenced async timing.
+- Reduce MLX COROSred `reliability_metrics` peak allocation by using `next_token_only=True`, Metal `cross_entropy`, and materializing/releasing causal logits before the infill pass.
 
 ### Added
 - Dataprep `--chunk-chars` and `--max-batch-chars` memory controls; default to eight chunks per batch in both corpus CLIs. See `docs/dataprep.md` for boundary behavior and record-reader limits.
+- Opt-in MLX accumulated optimizer overlap (`training.async_eval: true`) with array-handle snapshots and explicit checkpoint/logging fences.
+- Configurable MLX COROSred probe cadence (`corosred.reliability_cadence`) and parity coverage in `tests/test_mlx_reliability_parity.py`.
+
+### Validation
+- Fresh-process M5 Pro ABBA validation of `mlx_reliability.py` (`d_model=512`, 14 layers, `vocab=8192`, `T=256`, `batch=8`) measured **-12.53% peak MLX memory** (`771.06 MB` to `674.47 MB`) with **0.0 exact parity** across all four metrics; no speed advantage is claimed.
+- Screened and rejected MLX FP32-fused clipping (`-22.9%`), 2D packed SwiGLU (`-51.3% / -0.04%`), 3D QKV+RoPE (unstable), and online-softmax CE on `V=8192` AR (`+0.12% / -0.38%` E2E with `0.0017` BF16 loss shift). See `docs/training-optimization-fixes.md` and `docs/structural-optimizations-2026-11-20.md`.
 
 ## [1.7.7] - 2026-11-18
 
