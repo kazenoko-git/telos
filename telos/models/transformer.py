@@ -87,8 +87,9 @@ class TelosTransformer(nn.Module):
         h = self.tok_embeddings(input_ids)
         h = self.dropout(h)
         cos, sin = self.rope(h, seq_len)
+        cos = cos.to(dtype=h.dtype).unsqueeze(0).unsqueeze(0)
+        sin = sin.to(dtype=h.dtype).unsqueeze(0).unsqueeze(0)
 
-        is_xla = h.device.type == "xla" or str(h.device).startswith("xla")
         for layer in self.layers:
             # Memory Optimization: Recompute activations during backward pass when gradient checkpointing is enabled
             if self.use_grad_checkpoint and self.training and torch.is_grad_enabled():

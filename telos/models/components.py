@@ -65,8 +65,14 @@ def _rotate_half(x: torch.Tensor) -> torch.Tensor:
 
 def apply_rope(q: torch.Tensor, k: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """Applies rotary position embeddings to query and key tensors."""
-    cos = cos.to(dtype=q.dtype).unsqueeze(0).unsqueeze(0)
-    sin = sin.to(dtype=q.dtype).unsqueeze(0).unsqueeze(0)
+    if cos.dtype != q.dtype:
+        cos = cos.to(dtype=q.dtype)
+    if sin.dtype != q.dtype:
+        sin = sin.to(dtype=q.dtype)
+    if cos.ndim == 2:
+        cos = cos.unsqueeze(0).unsqueeze(0)
+    if sin.ndim == 2:
+        sin = sin.unsqueeze(0).unsqueeze(0)
     q_embed = (q * cos) + (_rotate_half(q) * sin)
     k_embed = (k * cos) + (_rotate_half(k) * sin)
     return q_embed, k_embed
