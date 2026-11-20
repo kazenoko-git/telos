@@ -878,6 +878,13 @@ class UnifiedPyTorchTrainer:
                         else:
                             loss.backward()
                     last_metrics = metrics
+                    if self.is_tpu and self.t_cfg.get("xla_mark_step_per_microbatch", False) and i < grad_accum - 1:
+                        import torch_xla.core.xla_model as xm
+                        xm.mark_step()
+
+                default_cadence = int(self.crsr_cfg.get("default_cadence", self.t_cfg.get("default_cadence", 25 if self.is_tpu else 1)))
+                cadence = int(self.crsr_cfg.get("cadence", self.t_cfg.get("cadence", default_cadence)) or default_cadence)
+                pre_reduced_lrh = None
 
                 if self.use_scaler:
                     self.scaler.unscale_(self.optimizer)
@@ -908,6 +915,23 @@ class UnifiedPyTorchTrainer:
                         for p, mp in self.param_to_master:
                             p.data.copy_(mp.data.to(p.dtype))
 
+                    # Queue COROSred metric all-reduce before mark_step so it fuses into the step HLO graph.
+                    if getattr(self, "is_unified", False) and (step % cadence == 0 or step == 1) and last_metrics is not None:
+                        raw_auc = last_metrics.get("lrh_bal_acc", last_metrics.get("lrh_auc", None))
+                        raw_acc = last_metrics.get("lrh_acc", None)
+                        if isinstance(raw_auc, torch.Tensor):
+                            auc_t = raw_auc.detach().clone()
+                            acc_t = raw_acc.detach().clone() if isinstance(raw_acc, torch.Tensor) else None
+                            world_size = xm.xworld_size() if hasattr(xm, "xworld_size") else getattr(self, "world_size", 1)
+                            if world_size > 1:
+                                reduce_op = getattr(xm, "REDUCE_SUM", "sum")
+                                tensors_to_reduce = [auc_t] + ([acc_t] if acc_t is not None else [])
+                                reduced = xm.all_reduce(reduce_op, tensors_to_reduce, scale=1.0 / float(world_size))
+                                auc_t = reduced[0]
+                                if acc_t is not None:
+                                    acc_t = reduced[1]
+                            pre_reduced_lrh = (auc_t, acc_t)
+
                     xm.mark_step()
 
                 else:
@@ -923,29 +947,18 @@ class UnifiedPyTorchTrainer:
 
                 # Synchronized cadence all-reduce of LRH AUC / balanced accuracy across all 8 replicas.
                 # Executed synchronously by ALL ranks outside `if self.is_master` to ensure 100% identical schedule EMAs.
-                default_cadence = int(self.crsr_cfg.get("default_cadence", self.t_cfg.get("default_cadence", 25 if self.is_tpu else 1)))
-                cadence = int(self.crsr_cfg.get("cadence", self.t_cfg.get("cadence", default_cadence)) or default_cadence)
                 if getattr(self, "is_unified", False) and (step % cadence == 0 or step == 1) and last_metrics is not None:
                     raw_auc = last_metrics.get("lrh_bal_acc", last_metrics.get("lrh_auc", None))
                     raw_acc = last_metrics.get("lrh_acc", None)
                     if raw_auc is not None:
-                        if isinstance(raw_auc, torch.Tensor):
+                        if pre_reduced_lrh is not None:
+                            auc_t, acc_t = pre_reduced_lrh
+                            auc_val = float(auc_t.cpu().item())
+                            acc_val = float(acc_t.cpu().item()) if acc_t is not None else auc_val
+                        elif isinstance(raw_auc, torch.Tensor):
                             auc_t = raw_auc.detach().clone()
                             acc_t = raw_acc.detach().clone() if isinstance(raw_acc, torch.Tensor) else None
-
-                            # Cheap scalar all-reduce of 0D tensors across all replicas
-                            if self.is_tpu:
-                                import torch_xla.core.xla_model as xm
-                                # Use cached world_size or xworld_size() to avoid non-existent xrt_world_size attribute
-                                world_size = xm.xworld_size() if hasattr(xm, "xworld_size") else getattr(self, "world_size", 1)
-                                if world_size > 1:
-                                    reduce_op = getattr(xm, "REDUCE_SUM", "sum")
-                                    tensors_to_reduce = [auc_t] + ([acc_t] if acc_t is not None else [])
-                                    reduced = xm.all_reduce(reduce_op, tensors_to_reduce, scale=1.0 / float(world_size))
-                                    auc_t = reduced[0]
-                                    if acc_t is not None:
-                                        acc_t = reduced[1]
-                            elif getattr(self, "is_ddp", False):
+                            if getattr(self, "is_ddp", False):
                                 import torch.distributed as dist
                                 dist.all_reduce(auc_t, op=dist.ReduceOp.SUM)
                                 auc_t /= dist.get_world_size()
