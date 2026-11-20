@@ -140,8 +140,12 @@ class Attention(nn.Module):
 
         native_gqa = self.num_queries_per_kv > 1 and x.device.type == "cuda"
         if self.num_queries_per_kv > 1 and not native_gqa:
-            k = k.repeat_interleave(self.num_queries_per_kv, dim=1)
-            v = v.repeat_interleave(self.num_queries_per_kv, dim=1)
+            k = k[:, :, None, :, :].expand(
+                batch, self.n_kv_heads, self.num_queries_per_kv, seq_len, self.head_dim
+            ).reshape(batch, self.n_heads, seq_len, self.head_dim)
+            v = v[:, :, None, :, :].expand(
+                batch, self.n_kv_heads, self.num_queries_per_kv, seq_len, self.head_dim
+            ).reshape(batch, self.n_heads, seq_len, self.head_dim)
 
         causal_flag = is_causal_override if is_causal_override is not None else self.is_causal
 
