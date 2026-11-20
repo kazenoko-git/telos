@@ -249,7 +249,7 @@ def corosred_unified_step_pytorch(
         # A direct call retains metrics by default. Explicit False skips only
         # diagnostics, never labels, ambiguity filtering or BCE normalization.
         if compute_metrics is not False:
-            preds = (torch.sigmoid(raw_r_scores[:, :-1]) >= 0.5)
+            preds = (raw_r_scores[:, :-1] >= 0.0)
             correct_preds = (preds == (labels > 0.5)) & valid_mask
             batch_lrh_acc = correct_preds.float().sum() / valid_count
             pos_mask = (labels > 0.5) & valid_mask
