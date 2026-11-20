@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.5] - 2026-11-20
+
+### Added
+- Opt-in `XLAAdamW` (`training.xla_dynamic_optimizer: true`) supplying changing decay and bias-correction scalars as device data to avoid LR-driven XLA graph specialization, with CPU parity validator `scripts/validate_xla_dynamic_optimizer.py`.
+- Opt-in persistent XLA compilation cache helper (`configure_xla_persistent_cache` via `XLA_PERSISTENT_CACHE_PATH` or `training.xla_cache_dir`).
+- Opt-in per-microbatch XLA graph splitting (`training.xla_mark_step_per_microbatch: true`) and native `torch_xla.utils.checkpoint.checkpoint` dispatch on XLA devices.
+
+### Fixed
+- Fuse COROSred cadence `xm.all_reduce` before `xm.mark_step()` on TPU so metric reduction stays inside the main step HLO graph instead of launching a second graph execution.
+- Skip per-step `xm.set_rng_state` reseeding on deterministic AR runs (`dropout == 0.0`).
+
+### Validation
+- Verified `XLAAdamW` CPU parity (`1.19e-7` max diff vs. native `AdamW`) and mocked-XLA call-order/dispatch behavior (`tests/test_xla_optimizer.py`, `tests/test_xla_structural_optimizations.py`). Full suite: **459 passed, 7 skipped** on Apple M5 Pro. Physical TPU compilation counts and throughput remain unverified until hardware runs; see `docs/training-optimization-fixes.md` and `docs/structural-optimizations-2026-11-20.md`.
+
 ## [1.8.4] - 2026-11-20
 
 ### Fixed
