@@ -86,9 +86,8 @@ class RoutingMaskCache:
             total_k = max(1, int(T * mask_prob))
             k_targeted = max(1, int(total_k * self.k_targeted_ratio))
 
-            # Identify lowest-confidence token positions (ascending sort)
-            sorted_indices = torch.argsort(r_with_bos, dim=-1)
-            targeted_indices = sorted_indices[:, :k_targeted]
+            # Identify lowest-confidence token positions without full sort
+            targeted_indices = torch.topk(r_with_bos, k=k_targeted, dim=-1, largest=False).indices
 
             # Construct boolean mask tensor
             mask_positions = torch.zeros((B_total, T), dtype=torch.bool, device=upcoming_seqs.device)
