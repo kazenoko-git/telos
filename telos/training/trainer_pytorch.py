@@ -49,8 +49,11 @@ class UnifiedPyTorchTrainer:
             raise ImportError("PyTorch is not installed. Cannot use UnifiedPyTorchTrainer.")
 
         if torch.cuda.is_available():
-            # Enable TF32 for matrix multiplications on Ampere+ architectures
+            # Enable TF32 and cuDNN autotuning for static-shape training on Ampere+ GPUs
             torch.set_float32_matmul_precision("high")
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
+            torch.backends.cudnn.benchmark = True
 
         self.paradigm = paradigm.lower()
         self.crsr_cfg = cfg.get("crsr", cfg.get("corosred", {}))
@@ -212,7 +215,8 @@ class UnifiedPyTorchTrainer:
             self.model = nn.parallel.DistributedDataParallel(
                 self.model,
                 device_ids=[local_rank],
-                find_unused_parameters=find_unused
+                find_unused_parameters=find_unused,
+                gradient_as_bucket_view=True,
             )
             if self.is_master:
                 print(f"  [Hardware] Multi-GPU DDP initialized across {self.world_size} processes.")
