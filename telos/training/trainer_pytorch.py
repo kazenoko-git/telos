@@ -107,8 +107,10 @@ class UnifiedPyTorchTrainer:
             try:
                 # Use cached XLA device and consistent xla_model context to guarantee
                 # InitializeComputationClient() is invoked at most once per process lifetime.
-                from .xla_utils import get_xla_device, get_xla_world_size, is_xla_master, get_xla_spmd_mesh
+                from .xla_utils import (configure_xla_persistent_cache, get_xla_device,
+                                        get_xla_world_size, is_xla_master, get_xla_spmd_mesh)
                 self.device = get_xla_device()
+                configure_xla_persistent_cache(self.t_cfg.get("xla_cache_dir"))
                 self.is_tpu = True
                 self.spmd_mesh = get_xla_spmd_mesh()
                 self.is_spmd = self.spmd_mesh is not None
@@ -810,7 +812,7 @@ class UnifiedPyTorchTrainer:
 
         try:
             for step in range(resume_step + 1, self.max_steps + 1):
-                if self.is_tpu:
+                if self.is_tpu and (self.paradigm != "ar" or float(self.m_cfg.get("dropout", 0.0)) > 0.0):
                     import torch_xla.core.xla_model as xm
                     # Stateless per-update seeding survives XLA graph retracing.
                     xm.set_rng_state(self.seed + step * max(1, self.world_size) + self.rank, self.device)
