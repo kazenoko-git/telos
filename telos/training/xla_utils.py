@@ -86,6 +86,19 @@ def clean_tpu_environment():
     os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
 
+def configure_xla_persistent_cache(cache_dir: str | os.PathLike | None = None) -> str | None:
+    """Initializes the PyTorch/XLA persistent compilation cache when configured."""
+    target = cache_dir or os.environ.get("XLA_PERSISTENT_CACHE_PATH")
+    if not target:
+        return None
+    cache_path = str(Path(target).expanduser())
+    Path(cache_path).mkdir(parents=True, exist_ok=True)
+    import torch_xla.runtime as xr
+    if hasattr(xr, "initialize_cache"):
+        xr.initialize_cache(cache_path, readonly=False)
+    return cache_path
+
+
 def get_xla_device():
     """
     Returns the XLA device singleton.
@@ -106,6 +119,7 @@ def get_xla_device():
         pass
     import torch_xla.core.xla_model as xm
     _CACHED_XLA_DEVICE = xm.xla_device()
+    configure_xla_persistent_cache()
     return _CACHED_XLA_DEVICE
 
 
