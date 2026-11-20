@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.3] - 2026-11-20
+
+### Fixed
+- Reduce MLX COROSred `reliability_metrics` peak allocation by using `next_token_only=True`, Metal `cross_entropy`, and materializing/releasing causal logits before the infill pass.
+
+
+### Validation
+- Fresh-process M5 Pro ABBA validation of `mlx_reliability.py` (`d_model=512`, 14 layers, `vocab=8192`, `T=256`, `batch=8`) measured **-12.53% peak MLX memory** (`771.06 MB` to `674.47 MB`) with **0.0 exact parity** across all four metrics; no speed advantage is claimed.
+
+- Dataprep, MLX tuning, optimizer overlap and configurable probe cadence shipped in v1.8.1/v1.8.2 and remain available. See [v1.8.3 validation](docs/releases/v1.8.3-validation.md).
+
+
 ## [1.8.2] - 2026-11-19
 
 ### Fixed
@@ -364,7 +376,7 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
   virtualized, or sandboxed macOS sessions): `telos train`, `telos bench` and
   `telos test` fall back to the PyTorch CPU path instead of aborting the process.
 
-[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.8.3...HEAD
 [1.5.5]: https://github.com/kazenoko-git/telos/compare/v1.5.4...v1.5.5
 [1.5.4]: https://github.com/kazenoko-git/telos/compare/v1.5.3...v1.5.4
 [1.5.3]: https://github.com/kazenoko-git/telos/compare/v1.5.2...v1.5.3
