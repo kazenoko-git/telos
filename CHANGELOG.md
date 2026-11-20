@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.4] - 2026-11-20
+
+### Fixed
+- Honor disabled gradient clipping (`grad_clip <= 0`) on CUDA scaled and ordinary optimizer paths, and enforce native CUDA BF16 detection via `cuda_has_native_bf16(device)` with normalized precision aliases.
+- Skip unused COROSred diagnostic reductions when `compute_metrics=False`, remove overwritten metric work, and replace `sigmoid(x) >= 0.5` with `x >= 0.0`.
+- Hoist RoPE `cos`/`sin` dtype casts and unsqueezes once per `TelosTransformer.forward`, and remove the dead `is_xla` check in the forward path.
+- Use native `F.rms_norm` in PyTorch `RMSNorm` (with FP32-variance fallback), single-shot `F.cross_entropy(..., reduction="mean")` in `ar_loss_fn_pytorch`, and broadcast `expand`+`reshape` instead of `repeat_interleave` for GQA.
+- Replace full `torch.argsort` with `torch.topk(..., largest=False)` in `RoutingMaskCache.refresh`.
+- Stage `CUDAPrefetcher` pinned host buffers in `int32` when token dtypes fit, enable cuDNN TF32 and `cudnn.benchmark`, and pass `gradient_as_bucket_view=True` to `DistributedDataParallel`.
+
+### Validation
+- Verified forward and backward parity locally (`tests/test_pytorch_structural_optimizations.py`, `tests/test_training_optimization_fixes.py`); `F.rms_norm` reduced BF16 max error vs. FP32 reference from `0.1021` to `0.0628`, and single-shot AR CE, hoisted RoPE, and GQA expansion matched bitwise (`0.0` diff). Physical CUDA throughput remains unverified until hardware runs.
+
 ## [1.8.3] - 2026-11-20
 
 ### Fixed
