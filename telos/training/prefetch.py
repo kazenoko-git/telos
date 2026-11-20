@@ -23,9 +23,13 @@ class CUDAPrefetcher:
 
         def worker():
             try:
+                import numpy as np
                 torch.cuda.set_device(device)
+                # Stage in int32 when token dtype fits, halving pinned host RAM and PCIe H2D traffic.
+                src_dtype = getattr(dataset, "dtype", None)
+                stage_dtype = torch.int32 if src_dtype in (np.uint8, np.int16, np.uint16, np.int32) else torch.long
                 # Two buffers allow CPU filling while the previous transfer runs.
-                buffers = [torch.empty((batch_size, seq_len), dtype=torch.long, pin_memory=True) for _ in range(2)]
+                buffers = [torch.empty((batch_size, seq_len), dtype=stage_dtype, pin_memory=True) for _ in range(2)]
                 events = [None, None]
                 position = cursor
                 for step in range(steps):
@@ -35,11 +39,10 @@ class CUDAPrefetcher:
                     if events[slot] is not None:
                         events[slot].synchronize()  # CPU may now overwrite this staging buffer.
                     batch, _ = get_global_targets_contiguous(dataset, position, batch_size, seq_len)
-                    import numpy as np
                     np.copyto(buffers[slot].numpy(), batch, casting='unsafe')
                     position = (position + stride) % len(dataset)
                     with torch.cuda.stream(self.stream):
-                        device_batch = buffers[slot].to(device, non_blocking=True)
+                        device_batch = buffers[slot].to(device, dtype=torch.long, non_blocking=True)
                         ready = torch.cuda.Event()
                         ready.record(self.stream)
                     events[slot] = ready
