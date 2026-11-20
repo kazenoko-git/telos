@@ -25,8 +25,9 @@ Two repeat runs of `scratch/exp_v18x_candidates.py` on M5 Pro (MLX 0.32.2,
 
 ## Implemented PyTorch / CUDA / XLA Structural Changes
 
-All changes below were verified for forward and backward parity locally; physical
-CUDA and TPU throughput gains remain unverified until measured on hardware.
+Local coverage includes tensor regression tests, routing invariants, and mocked
+CUDA/XLA dispatch. This is not full hardware or end-to-end training parity.
+Physical CUDA and TPU throughput gains remain unverified until measured on hardware.
 
 | Area | Change | Local Verification |
 | --- | --- | --- |
@@ -38,3 +39,10 @@ CUDA and TPU throughput gains remain unverified until measured on hardware.
 | CUDA prefetcher (`prefetch.py`) | Stage pinned host buffers in `int32` when token dtype fits, casting to `torch.long` on copy stream | Exact `torch.long` output for `uint16`/`int32` |
 | CUDA trainer (`trainer_pytorch.py`) | Enable cuDNN TF32, `cudnn.benchmark = True`, and DDP `gradient_as_bucket_view=True` | Unit/regression suite |
 | XLA cache & graph hygiene (`xla_utils.py`, `trainer_pytorch.py`, `transformer.py`) | Opt-in `configure_xla_persistent_cache`, fuse COROSred `xm.all_reduce` before `xm.mark_step()`, skip per-step `xm.set_rng_state` on deterministic AR, opt-in `xla_mark_step_per_microbatch`, native `torch_xla` checkpointing | Mocked-XLA call-order & dispatch tests (`tests/test_xla_structural_optimizations.py`) |
+
+## Reconciled releases
+
+See `releases/v1.8.3-validation.md`, `releases/v1.8.4-validation.md`, and
+`releases/v1.8.5-validation.md` for the actual release checkout results. The
+counts above describe earlier local checkouts. Published v1.8.2 hardware
+validation is preserved separately and does not validate the new changes.

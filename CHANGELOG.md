@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.5] - 2026-11-20
+
+### Added
+- Opt-in persistent XLA compilation cache helper (`configure_xla_persistent_cache` via `XLA_PERSISTENT_CACHE_PATH` or `training.xla_cache_dir`).
+- Native `torch_xla.utils.checkpoint.checkpoint` dispatch on XLA devices.
+
+### Fixed
+- Fuse COROSred cadence `xm.all_reduce` before `xm.mark_step()` on TPU so metric reduction stays inside the main step HLO graph instead of launching a second graph execution.
+- Skip per-step `xm.set_rng_state` reseeding on deterministic AR runs (`dropout == 0.0`).
+
+### Validation
+- New XLA cache, graph ordering, and checkpoint dispatch are checked with mocks. Physical TPU compilation counts and throughput for these changes remain unverified. Dynamic `XLAAdamW` and per-microbatch graph splitting shipped in v1.8.2; its archived physical results remain available. See [v1.8.5 validation](docs/releases/v1.8.5-validation.md).
+
+
 ## [1.8.4] - 2026-11-20
 
 ### Fixed
@@ -391,7 +405,7 @@ First public release on PyPI as `telos-ml` (`pip install telos-ml`).
   virtualized, or sandboxed macOS sessions): `telos train`, `telos bench` and
   `telos test` fall back to the PyTorch CPU path instead of aborting the process.
 
-[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.8.4...HEAD
+[Unreleased]: https://github.com/kazenoko-git/telos/compare/v1.8.5...HEAD
 [1.5.5]: https://github.com/kazenoko-git/telos/compare/v1.5.4...v1.5.5
 [1.5.4]: https://github.com/kazenoko-git/telos/compare/v1.5.3...v1.5.4
 [1.5.3]: https://github.com/kazenoko-git/telos/compare/v1.5.2...v1.5.3
