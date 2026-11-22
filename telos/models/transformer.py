@@ -90,20 +90,24 @@ class TelosTransformer(nn.Module):
         cos = cos.to(dtype=h.dtype).unsqueeze(0).unsqueeze(0)
         sin = sin.to(dtype=h.dtype).unsqueeze(0).unsqueeze(0)
 
+        use_checkpoint = self.use_grad_checkpoint and self.training and torch.is_grad_enabled()
+        xla_checkpoint = None
+        if use_checkpoint and h.device.type == "xla":
+            try:
+                from torch_xla.utils.checkpoint import checkpoint as xla_checkpoint
+            except ImportError:
+                xla_checkpoint = None
+
         for layer in self.layers:
             # Memory Optimization: Recompute activations during backward pass when gradient checkpointing is enabled
-            if self.use_grad_checkpoint and self.training and torch.is_grad_enabled():
-                if h.device.type == "xla":
-                    try:
-                        from torch_xla.utils.checkpoint import checkpoint as xla_checkpoint
-                        h = xla_checkpoint(layer, h, cos, sin, mask_override)
-                        continue
-                    except ImportError:
-                        pass
-                h = torch.utils.checkpoint.checkpoint(
-                    layer, h, cos, sin, mask_override,
-                    use_reentrant=False
-                )
+            if use_checkpoint:
+                if xla_checkpoint is not None:
+                    h = xla_checkpoint(layer, h, cos, sin, mask_override)
+                else:
+                    h = torch.utils.checkpoint.checkpoint(
+                        layer, h, cos, sin, mask_override,
+                        use_reentrant=False
+                    )
             else:
                 h = layer(h, cos, sin, mask_override=mask_override)
 
