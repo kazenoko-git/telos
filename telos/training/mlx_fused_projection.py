@@ -266,27 +266,27 @@ _tensor_backward = mx.fast.metal_kernel(
     atomic_outputs=True,
     header=_TENSOR_HEADER + _TENSOR_ACCUMULATE,
     source=_TENSOR_PROJECT + r"""
-        threadgroup float row_tscore[BM], row_loss[BM], row_cot[BM], row_tgrad[BM];
-        threadgroup uint row_target[BM];
-        if (tid < BM && row + tid < R) {
-            uint r_abs = row + tid;
-            row_target[tid] = uint(targets[r_abs]);
-            row_tscore[tid] = target_scores[r_abs];
-            row_loss[tid] = loss[r_abs];
-            row_cot[tid] = cotangent[r_abs];
-            row_tgrad[tid] = target_gradient[r_abs];
-        }
-        threadgroup_barrier(mem_flags::mem_threadgroup);
-        for (uint i = tid; i < BM * BN; i += 128) {
-            uint lr = i / BN;
+        for (uint lr = simd; lr < BM; lr += 4) {
             uint r = row + lr;
-            uint v = col + i % BN;
-            float value = 0.0f;
-            if (r < R && v < V) {
-                float logp = (float(scores[i]) - row_tscore[lr]) - row_loss[lr];
-                value = v == row_target[lr] ? row_tgrad[lr] : exp(logp) * row_cot[lr];
+            if (r >= R) {
+                for (uint lc = lane; lc < BN; lc += 32)
+                    scores[lr * BN + lc] = T(0.0f);
+                continue;
             }
-            scores[i] = T(value);
+            uint row_target = uint(targets[r]);
+            float row_tscore = target_scores[r];
+            float row_loss = loss[r];
+            float row_cot = cotangent[r];
+            float row_tgrad = target_gradient[r];
+            for (uint lc = lane; lc < BN; lc += 32) {
+                uint v = col + lc;
+                float value = 0.0f;
+                if (v < V) {
+                    float logp = (float(scores[lr * BN + lc]) - row_tscore) - row_loss;
+                    value = v == row_target ? row_tgrad : exp(logp) * row_cot;
+                }
+                scores[lr * BN + lc] = T(value);
+            }
         }
         threadgroup_barrier(mem_flags::mem_threadgroup);
 
