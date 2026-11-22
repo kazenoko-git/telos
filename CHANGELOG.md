@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.8] - 2026-11-22
+
+### Added
+- `disable_lora_adapters` context managers in `telos/posttrain/adapters.py` and `telos/posttrain/mlx_adapters.py` to evaluate frozen base-model log-probs without duplicating base weights.
+- Unit and gradient-parity tests in `tests/test_v188_posttrain_optimizations.py`.
+
+### Fixed
+- Project only valid (`labels != -100`) hidden states through `output_projection` and use fused `-F.cross_entropy(..., reduction="none")` instead of materializing full FP32 `F.log_softmax` in `_torch_token_logps`.
+- Reuse the frozen base model via `disable_lora_adapters` instead of `copy.deepcopy(model)` for LoRA/QLoRA DPO and GRPO reference log-probs on PyTorch and MLX.
+- Skip zero-variance GRPO `policy_updates` when `beta == 0` and all group advantages are zero.
+- Use `int32` indices instead of `int64` in `NF4Linear.dequantize()` and enable CUDA TF32/cuDNN benchmark mode in post-training.
+
+### Validation
+- PyTorch CPU post-training and resume suite passed (`25 passed, 7 skipped`). Metal/CUDA throughput remains pending physical runs; see [v1.8.8 validation](docs/releases/v1.8.8-validation.md).
+
+
 ## [1.8.7] - 2026-11-22
 
 ### Added
