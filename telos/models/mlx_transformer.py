@@ -141,6 +141,13 @@ class MLXTelosTransformer(nn.Module):
                     else tiled_projection_cross_entropy)
         return function(hidden, self.emb.weight, targets, chunk_size=chunk_size)
 
+    def reliability_scores(self, x, mask_override=None, is_causal: bool | None = None):
+        """Compute scalar reliability scores without projecting vocabulary logits."""
+        if self.reliability_head is None:
+            raise ValueError("reliability_scores requested but use_reliability_head was not enabled.")
+        h = self.hidden_states(x, mask_override=mask_override, is_causal=is_causal)
+        return mx.squeeze(self.reliability_head(mx.stop_gradient(h)), -1)
+
     def __call__(self, x, return_reliability: bool = False, mask_override=None, is_causal: bool | None = None, next_token_only: bool = False):
         h = self.hidden_states(x, mask_override=mask_override, is_causal=is_causal)
         logits = self.logits_from_hidden(h[:, :-1] if next_token_only else h)
