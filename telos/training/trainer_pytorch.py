@@ -349,7 +349,11 @@ class UnifiedPyTorchTrainer:
             opt_kwargs["fused"] = True
 
         optimizer_class = torch.optim.AdamW
-        if self.is_tpu and self.t_cfg.get("xla_dynamic_optimizer", False):
+        if self.t_cfg.get("cautious_optimizer", False):
+            from .cautious_optimizer import CautiousAdamW
+            optimizer_class = CautiousAdamW
+            opt_kwargs.pop("fused", None)
+        elif self.is_tpu and self.t_cfg.get("xla_dynamic_optimizer", False):
             from .xla_optimizer import XLAAdamW
             optimizer_class = XLAAdamW
         self.optimizer = optimizer_class(
@@ -522,9 +526,12 @@ class UnifiedPyTorchTrainer:
 
         if self.paradigm == "ar":
             if self.t_cfg.get("fused_vocab_loss", False):
+                chunk_axis = str(self.t_cfg.get("fused_vocab_chunk_axis", "vocab"))
+                chunk_size = int(self.t_cfg.get("fused_vocab_chunk_size", 512 if chunk_axis == "token" else 256))
                 token_losses = self.model(batch_seqs, mask_override=True, next_token_only=True,
                                           loss_targets=batch_seqs[:, 1:],
-                                          vocab_chunk_size=int(self.t_cfg.get("fused_vocab_chunk_size", 256)))
+                                          vocab_chunk_size=chunk_size,
+                                          vocab_chunk_axis=chunk_axis)
                 loss = token_losses.mean()
                 return loss, {"loss": loss, "unweighted_ce": loss}
             logits = self.model(batch_seqs, mask_override=True, next_token_only=True)
@@ -840,6 +847,17 @@ class UnifiedPyTorchTrainer:
                         )
 
                 last_metrics = None
+                is_log_step = (
+                    step <= 5
+                    or (step <= 50 and step % 10 == 0)
+                    or step % 25 == 0
+                    or step == self.max_steps
+                    or (benchmark and step % 10 == 0)
+                )
+                default_metric_cadence = 25 if self.is_tpu else 1
+                metric_cadence = int(self.crsr_cfg.get("cadence", self.t_cfg.get("cadence",
+                    self.crsr_cfg.get("default_cadence", self.t_cfg.get("default_cadence", default_metric_cadence)))) or default_metric_cadence)
+                metric_due = step == 1 or step % metric_cadence == 0
 
                 for i in range(grad_accum):
                     batch_seqs = global_targets[i * bs : (i + 1) * bs]
@@ -850,17 +868,6 @@ class UnifiedPyTorchTrainer:
                         import torch_xla.distributed.spmd as xs
                         xs.mark_sharding(batch_seqs, self.spmd_mesh, ("data", None))
 
-                    is_log_step = (
-                        step <= 5
-                        or (step <= 50 and step % 10 == 0)
-                        or step % 25 == 0
-                        or step == self.max_steps
-                        or (benchmark and step % 10 == 0)
-                    )
-                    default_metric_cadence = 25 if self.is_tpu else 1
-                    metric_cadence = int(self.crsr_cfg.get("cadence", self.t_cfg.get("cadence",
-                        self.crsr_cfg.get("default_cadence", self.t_cfg.get("default_cadence", default_metric_cadence)))) or default_metric_cadence)
-                    metric_due = step == 1 or step % metric_cadence == 0
                     # CPU tracker updates historically happen on every microbatch.
                     eval_metrics = ((i == grad_accum - 1) and (is_log_step or metric_due)) or self.device.type == "cpu"
                     # DDP gradient accumulation optimization: disable all-reduce on non-final microbatches
