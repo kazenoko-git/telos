@@ -72,7 +72,11 @@ def clip_grad_norm_mlx(grads, max_norm: float = 1.0, scale: float = 1.0):
     clip_coef = max_norm / (effective_norm + 1e-6)
     # Fused coefficient: (1 / scale) * min(1, clip_coef)
     combined = mx.minimum(mx.array(1.0, dtype=mx.float32), clip_coef) / scale
-    clipped = tree_map(lambda g: g * combined.astype(g.dtype), grads)
+    combined_bf16 = combined.astype(mx.bfloat16)
+    clipped = tree_map(
+        lambda g: g * (combined_bf16 if g.dtype == mx.bfloat16 else (combined if g.dtype == mx.float32 else combined.astype(g.dtype))),
+        grads,
+    )
     return clipped, effective_norm
 
 def build_special_token_lut(vocab_size: int, special_tokens=(0, 1, 2, 3)):
@@ -191,10 +195,12 @@ def execute_mlx_training_step(
         if not use_compiled_accumulation:
             if accum_grads is None:
                 accum_grads = grads
+                accum_loss = loss
+                accum_ce = ce
             else:
                 accum_grads = tree_map(lambda a, b: a + b, accum_grads, grads)
-            accum_loss = accum_loss + loss
-            accum_ce = accum_ce + ce
+                accum_loss = accum_loss + loss
+                accum_ce = accum_ce + ce
         
         # Never retain an accumulation window of activation graphs. RAM-tier
         # heuristics cannot predict that window's size. Materialize each
