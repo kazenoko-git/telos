@@ -34,12 +34,13 @@ def compute_vectorized_roc_auc(scores: torch.Tensor, labels: torch.Tensor) -> fl
         if n_pos == 0 or n_neg == 0:
             return 0.50
 
-        # Sort scores ascending to assign rank (1-indexed ranks)
-        # Add tiny jitter to break ties consistently without sorting nondeterminism
-        ranks = torch.argsort(torch.argsort(s)) + 1
+        # Single sort avoids double argsort overhead while preserving exact rank-sum math
+        order = torch.argsort(s)
+        y_sorted = y[order]
+        ranks = torch.arange(1, y_sorted.numel() + 1, device=s.device, dtype=torch.float32)
 
         # Sum of ranks for positive class (R_1)
-        r1 = torch.sum(ranks[y == 1.0]).float().item()
+        r1 = torch.sum(ranks * (y_sorted == 1.0)).item()
 
         # Mann-Whitney U statistic: U = R_1 - (n_pos * (n_pos + 1)) / 2
         # AUC = U / (n_pos * n_neg)
