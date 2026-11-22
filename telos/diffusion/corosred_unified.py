@@ -69,11 +69,14 @@ class RoutingMaskCache:
 
         B_total, T = upcoming_seqs.shape
         with torch.no_grad():
-            causal_out = raw_model(upcoming_seqs, return_reliability=True, mask_override=True)
-            if isinstance(causal_out, tuple):
-                _, raw_r = causal_out
+            if hasattr(raw_model, "reliability_scores"):
+                raw_r = raw_model.reliability_scores(upcoming_seqs, mask_override=True)
             else:
-                return
+                causal_out = raw_model(upcoming_seqs, return_reliability=True, mask_override=True)
+                if isinstance(causal_out, tuple):
+                    _, raw_r = causal_out
+                else:
+                    return
 
             # Shift r_scores to align with next-token prediction
             r_scores = raw_r[:, :-1]
@@ -210,9 +213,12 @@ def corosred_unified_step_pytorch(
 
     # 2. Sub-batch 1: Causal Autoregressive Pass
     # Enables is_causal=True in SDPA (native fused FlashAttention-2 kernel)
-    causal_logits, raw_r_scores = model(causal_seqs, mask_override=True, return_reliability=True)
+    try:
+        causal_logits, raw_r_scores = model(causal_seqs, mask_override=True, return_reliability=True, next_token_only=True)
+    except TypeError:
+        causal_logits, raw_r_scores = model(causal_seqs, mask_override=True, return_reliability=True)
 
-    shift_logits = causal_logits[:, :-1, :]
+    shift_logits = causal_logits if causal_logits.shape[1] == T - 1 else causal_logits[:, :-1, :]
     shift_targets = causal_seqs[:, 1:]
 
     # Causal next-token cross entropy
@@ -297,16 +303,36 @@ def corosred_unified_step_pytorch(
             infill_seqs,
         )
 
-    infill_logits = model(corrupted_infill, mask_override=False, return_reliability=False)
-    infill_ce_flat = F.cross_entropy(
-        infill_logits.reshape(-1, vocab_size),
-        infill_seqs.reshape(-1),
-        reduction="none",
-    ).view(B_m, T)
-
-    masked_infill_ce = infill_ce_flat * mask_positions.float()
-    infill_loss_sum = masked_infill_ce.sum()
+    raw_model = getattr(model, "_orig_mod", model)
+    raw_model = getattr(raw_model, "module", raw_model)
     infill_token_count_t = mask_positions.sum().float().clamp(min=1.0)
+    can_sparse_project = (
+        device.type != "xla"
+        and model is raw_model
+        and hasattr(raw_model, "hidden_states")
+        and hasattr(raw_model, "output_projection")
+    )
+    if can_sparse_project:
+        infill_hidden = raw_model.hidden_states(corrupted_infill, mask_override=False)
+        masked_hidden = infill_hidden[mask_positions]
+        if masked_hidden.numel() > 0:
+            masked_logits = raw_model.output_projection(masked_hidden)
+            infill_loss_sum = F.cross_entropy(
+                masked_logits,
+                infill_seqs[mask_positions],
+                reduction="sum",
+            )
+        else:
+            infill_loss_sum = (infill_hidden.sum() * 0.0).float()
+    else:
+        infill_logits = model(corrupted_infill, mask_override=False, return_reliability=False)
+        infill_ce_flat = F.cross_entropy(
+            infill_logits.reshape(-1, vocab_size),
+            infill_seqs.reshape(-1),
+            reduction="none",
+        ).view(B_m, T)
+        masked_infill_ce = infill_ce_flat * mask_positions.float()
+        infill_loss_sum = masked_infill_ce.sum()
     mean_infill_ce = infill_loss_sum / infill_token_count_t
 
     # Schedule Weight Extraction
