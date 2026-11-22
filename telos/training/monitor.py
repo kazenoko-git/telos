@@ -93,12 +93,12 @@ class DualMetricMonitor:
 
             # 1. Causal Autoregressive Probe
             if has_reliability:
-                causal_logits, r_scores = raw_model(batch, mask_override=True, return_reliability=True)
+                causal_logits, r_scores = raw_model(batch, mask_override=True, return_reliability=True, next_token_only=True)
             else:
-                causal_logits = raw_model(batch, mask_override=True, return_reliability=False)
+                causal_logits = raw_model(batch, mask_override=True, return_reliability=False, next_token_only=True)
                 r_scores = None
 
-            shift_logits = causal_logits[:, :-1, :]
+            shift_logits = causal_logits if causal_logits.shape[1] == T - 1 else causal_logits[:, :-1, :]
             shift_targets = batch[:, 1:]
 
             causal_preds = shift_logits.argmax(dim=-1)
