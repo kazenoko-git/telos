@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.6] - 2026-11-22
+
+### Added
+- Opt-in token-chunked checkpointed cross-entropy (`token_chunked_cross_entropy` and `chunk_axis="token"`) in `telos/models/vocab_loss.py` and `UnifiedPyTorchTrainer`.
+- Opt-in `CautiousAdamW` optimizer (`training.cautious_optimizer: true`, ICLR 2026 sign-aligned update masking).
+- Unit tests (`tests/test_v186_pretraining_optimizations.py`) and M5 Pro Metal ABBA screening harness (`scratch/exp_v186_mlx_candidates.py`).
+
+### Fixed
+- Hoist XLA gradient checkpoint import out of the per-layer loop in `TelosTransformer.forward`.
+- Replace double `torch.argsort` with a single sort in `compute_vectorized_roc_auc`.
+- Hoist microbatch cadence invariants out of the accumulation loop in `UnifiedPyTorchTrainer`.
+- Hoist BF16 scale cast in `clip_grad_norm_mlx`, skip initial zero-add on first microbatch, and precompute attention scale in `MLXBlock`.
+- Refactor MLX Metal `cross_entropy` backward to row-per-threadgroup hoisted loads and hoist per-row scalars into threadgroup memory in M5 MPP fused projection CE backward.
+
+### Validation
+- PyTorch CPU unit/parity suite passed (`27 passed`). Token-chunked CE measured **1.31×** forward speedup and single-sort ROC-AUC measured **2.18×** speedup on CPU. Metal/CUDA/TPU hardware throughput remains pending physical runs; see [v1.8.6 validation](docs/releases/v1.8.6-validation.md).
+
+
 ## [1.8.5] - 2026-11-20
 
 ### Added
