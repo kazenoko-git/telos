@@ -239,11 +239,29 @@ def _cuda_device_ids(devices, available):
 
 
 def _torch_token_logps(model, input_ids, labels):
-    logits = model(input_ids, mask_override=True, next_token_only=True).float()
     targets = labels[:, 1:]
     valid = targets.ne(-100)
+    raw_model = getattr(model, "_orig_mod", model)
+    raw_model = getattr(raw_model, "module", raw_model)
+    can_sparse_project = (
+        input_ids.device.type != "xla"
+        and model is raw_model
+        and hasattr(raw_model, "hidden_states")
+        and hasattr(raw_model, "output_projection")
+    )
+    if can_sparse_project:
+        hidden = raw_model.hidden_states(input_ids, mask_override=True)[:, :-1]
+        out = torch.zeros(targets.shape, dtype=torch.float32, device=input_ids.device)
+        if valid.any():
+            valid_logits = raw_model.output_projection(hidden[valid]).float()
+            valid_logps = -F.cross_entropy(valid_logits, targets[valid], reduction="none")
+            out = out.masked_scatter(valid, valid_logps)
+        return out
+    logits = model(input_ids, mask_override=True, next_token_only=True).float()
     safe_targets = targets.masked_fill(~valid, 0)
-    token_logps = F.log_softmax(logits, dim=-1).gather(-1, safe_targets.unsqueeze(-1)).squeeze(-1)
+    token_logps = -F.cross_entropy(
+        logits.reshape(-1, logits.shape[-1]), safe_targets.reshape(-1), reduction="none",
+    ).reshape(targets.shape)
     return token_logps * valid
 
 
@@ -425,7 +443,9 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
     _apply_adapters(model, options, "mlx")
     # Rollouts and policy scoring share the same dropout-free distribution.
     model.train(method != "grpo")
-    reference = copy.deepcopy(model) if method == "dpo" or (method == "grpo" and beta) else None
+    need_ref = method == "dpo" or (method == "grpo" and beta)
+    use_lora_base_ref = need_ref and options["finetune"] in {"lora", "qlora"}
+    reference = copy.deepcopy(model) if (need_ref and not use_lora_base_ref) else None
     if reference is not None:
         reference.eval()
     optimizer = optim.AdamW(learning_rate=learning_rate)
@@ -534,13 +554,23 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
             )
             ids, labels = collate_mlx(rows, max_length, fixed=fixed)
             old = mx.array(grpo.collate_old_logps(rows, action_logps, ids.shape[1]))
-            ref = _mlx_token_logps(reference, ids, labels) if reference is not None else old
+            if reference is not None:
+                ref = _mlx_token_logps(reference, ids, labels)
+            elif use_lora_base_ref:
+                from .mlx_adapters import disable_lora_adapters
+                with disable_lora_adapters(model):
+                    ref = mx.stop_gradient(_mlx_token_logps(model, ids, labels))
+            else:
+                ref = old
             advantages = mx.array(advantages)
             mx.eval(old, ref, advantages)
-            for _ in range(rl["policy_updates"]):
-                loss = step_fn(ids, labels, old, ref, advantages)
-                mx.eval(model.trainable_parameters(), optimizer.state, loss,
-                        master_params if master_params is not None else [])
+            if beta == 0 and uniform >= 1.0:
+                loss = mx.array(0.0, dtype=mx.float32)
+            else:
+                for _ in range(rl["policy_updates"]):
+                    loss = step_fn(ids, labels, old, ref, advantages)
+                    mx.eval(model.trainable_parameters(), optimizer.state, loss,
+                            master_params if master_params is not None else [])
             metrics = f" reward={mean_reward:.4g} uniform_groups={uniform:.1%}"
         else:
             rows = _response_rows(batch, "response") if method == "sft" else (
@@ -552,7 +582,13 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
                 for item, key in zip(rows, [row["_chosen_key"] for row in batch] +
                                           [row["_rejected_key"] for row in batch]):
                     item["_reference_key"] = key
-                ref = ref_cache.get(rows, ids.shape[1], lambda: _mlx_logps(reference, ids, labels))
+                def _compute_mlx_ref():
+                    if reference is not None:
+                        return _mlx_logps(reference, ids, labels)
+                    from .mlx_adapters import disable_lora_adapters
+                    with disable_lora_adapters(model):
+                        return mx.stop_gradient(_mlx_logps(model, ids, labels))
+                ref = ref_cache.get(rows, ids.shape[1], _compute_mlx_ref)
                 ref_c, ref_r = mx.split(ref, 2)
                 loss = step_fn(ids, labels, ref_c, ref_r)
             mx.eval(model.trainable_parameters(), optimizer.state, loss,
@@ -914,11 +950,18 @@ def _posttrain(
     if device.type == "cuda":
         torch.cuda.manual_seed_all(seed)
 
+    if device.type == "cuda":
+        torch.set_float32_matmul_precision("high")
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        torch.backends.cudnn.benchmark = True
     _apply_adapters(model, options, backend_name)
     model.to(device)
     amp_dtype = _torch_precision(device, precision)
+    need_ref = method == "dpo" or (method == "grpo" and beta)
+    use_lora_base_ref = need_ref and options["finetune"] in {"lora", "qlora"} and not ddp
     reference = None
-    if method == "dpo" or (method == "grpo" and beta):
+    if need_ref and not use_lora_base_ref:
         reference = copy.deepcopy(model).eval()
         for parameter in reference.parameters():
             parameter.requires_grad_(False)
@@ -1030,13 +1073,26 @@ def _posttrain(
             advantages = torch.as_tensor(advantages, device=device)
             old = torch.as_tensor(grpo.collate_old_logps(rows, action_logps, input_ids.shape[1]), device=device)
             with torch.no_grad(), _autocast(device, amp_dtype):
-                ref = _torch_token_logps(reference, input_ids, labels) if reference is not None else old
-            for _ in range(rl["policy_updates"]):
-                optimizer.zero_grad(set_to_none=True)
-                with _autocast(device, amp_dtype):
-                    policy = _torch_token_logps(active_model, input_ids, labels)
-                    loss = grpo.torch_loss(policy, old, ref, labels, advantages, beta, rl["clip_epsilon"])
-                update(loss)
+                if reference is not None:
+                    ref = _torch_token_logps(reference, input_ids, labels)
+                elif use_lora_base_ref:
+                    from .adapters import disable_lora_adapters
+                    was_training = model.training
+                    model.eval()
+                    with disable_lora_adapters(model):
+                        ref = _torch_token_logps(model, input_ids, labels)
+                    model.train(was_training)
+                else:
+                    ref = old
+            if beta == 0 and uniform >= 1.0:
+                loss = torch.zeros((), device=device)
+            else:
+                for _ in range(rl["policy_updates"]):
+                    optimizer.zero_grad(set_to_none=True)
+                    with _autocast(device, amp_dtype):
+                        policy = _torch_token_logps(active_model, input_ids, labels)
+                        loss = grpo.torch_loss(policy, old, ref, labels, advantages, beta, rl["clip_epsilon"])
+                    update(loss)
             metrics = f" reward={mean_reward:.4g} uniform_groups={uniform:.1%}"
         else:
             optimizer.zero_grad(set_to_none=True)
@@ -1051,7 +1107,15 @@ def _posttrain(
                     key = tuple(tuple(row["_encoded"][0]) + tuple(row["_encoded"][1]) for row in rows)
                     if not cache_reference or key not in ref_cache:
                         with torch.no_grad():
-                            ref = _sequence_logps(reference, input_ids, labels)
+                            if reference is not None:
+                                ref = _sequence_logps(reference, input_ids, labels)
+                            else:
+                                from .adapters import disable_lora_adapters
+                                was_training = model.training
+                                model.eval()
+                                with disable_lora_adapters(model):
+                                    ref = _sequence_logps(model, input_ids, labels)
+                                model.train(was_training)
                         if cache_reference and len(ref_cache) < reference_cache_size:
                             ref_cache[key] = ref.detach()
                     else:
