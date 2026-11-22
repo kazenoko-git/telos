@@ -179,9 +179,10 @@ class MLXBlock(nn.Module):
         self.out = nn.Linear(d_model, d_model, bias=False)
         self.mlp = MLXSwiGLU(d_model)
 
-        # Precompute QKV split boundaries (static across all forward passes)
+        # Precompute QKV split boundaries and attention scale (static across all forward passes)
         self._q_end = n_heads * self.head_dim
         self._k_end = self._q_end + n_kv_heads * self.head_dim
+        self._scale = 1.0 / math.sqrt(self.head_dim)
 
     def __call__(self, x, mask_override=None):
         B, T, D = x.shape
@@ -203,7 +204,7 @@ class MLXBlock(nn.Module):
             q = mx.fast.rope(q, self.head_dim, traditional=True, base=10000.0, scale=1.0, offset=0)
             k = mx.fast.rope(k, self.head_dim, traditional=True, base=10000.0, scale=1.0, offset=0)
 
-        scale = 1.0 / (self.head_dim ** 0.5)
+        scale = self._scale
         
         # Determine mask mode: MLX fast SDPA expects "causal", None, or an mx.array mask
         if mask_override is True or mask_override == "causal":
