@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use `int32` indices instead of `int64` in `NF4Linear.dequantize()` and enable CUDA TF32/cuDNN benchmark mode in post-training.
 
 ### Validation
-- PyTorch CPU post-training and resume suite passed (`25 passed, 7 skipped`). Metal/CUDA throughput remains pending physical runs; see [v1.8.8 validation](docs/releases/v1.8.8-validation.md).
+- Full local suite passed (`486 passed, 7 skipped`), including MLX QLoRA GRPO rollout/resume parity; CI and wheel smoke tests passed on Python 3.10–3.13.
+- Apple M5 Pro measurements recorded exact output parity for the zero-copy MLX QLoRA reference, with 49.2% lower active model memory and 36.1% lower peak GPU memory. Physical CUDA throughput remains unverified; see [v1.8.8 validation](docs/releases/v1.8.8-validation.md).
 
 
 ## [1.8.7] - 2026-11-22
