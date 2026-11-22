@@ -45,7 +45,8 @@ class NF4Linear(nn.Module):
         self.register_buffer('bias', linear.bias.detach().clone() if linear.bias is not None else None)
 
     def dequantize(self):
-        indices = torch.stack((self.packed_weight & 15, self.packed_weight >> 4), -1).flatten().long()
+        # Use int32 indices to halve transient dequantization index memory.
+        indices = torch.stack((self.packed_weight & 15, self.packed_weight >> 4), -1).flatten().to(torch.int32)
         values = self.codebook[indices].reshape(-1, self.block_size) * self.scales[:, None]
         return values.flatten()[:self.in_features * self.out_features].reshape(self.out_features, self.in_features)
 
@@ -67,13 +68,31 @@ class LoRALinear(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.lora_a = nn.Parameter(torch.empty(rank, base.in_features, dtype=torch.float32))
         self.lora_b = nn.Parameter(torch.zeros(base.out_features, rank, dtype=torch.float32))
+        self.adapter_disabled = False
         nn.init.kaiming_uniform_(self.lora_a, a=math.sqrt(5))
         self.base.requires_grad_(False)
 
     def forward(self, x):
         result = self.base(x)
+        if self.adapter_disabled:
+            return result
         delta = F.linear(F.linear(self.dropout(x).to(self.lora_a.dtype), self.lora_a), self.lora_b)
         return result + (delta * self.scale).to(result.dtype)
+
+
+class disable_lora_adapters:
+    """Temporarily disable LoRA deltas to evaluate the frozen base model without deepcopy."""
+    def __init__(self, model):
+        self._modules = [m for m in model.modules() if isinstance(m, LoRALinear)]
+
+    def __enter__(self):
+        for m in self._modules:
+            m.adapter_disabled = True
+        return self
+
+    def __exit__(self, *exc):
+        for m in self._modules:
+            m.adapter_disabled = False
 
     def merged_weight(self):
         weight = self.base.dequantize() if isinstance(self.base, NF4Linear) else self.base.weight.float()
