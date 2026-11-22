@@ -134,11 +134,13 @@ def lexical_filter_executable_tokens(
         str_spans = [(m.start(), m.end()) for m in re.finditer(r'("[^\n"]*"|\'[^\n\']*\'|"[^\n"]*$|\'[^\n\']*$)', full_code)]
         literal_spans = comment_spans + doc_spans + str_spans
 
-        # Precompute character offset boundaries for each token
+        # Precompute character offset boundaries and decoded strings once per token
         curr_char = 0
         offsets: List[Tuple[int, int]] = []
+        decoded_tokens: List[str] = []
         for tid in sequence_ids:
             t_str = tokenizer.decode([tid])
+            decoded_tokens.append(t_str)
             s = curr_char
             e = curr_char + len(t_str)
             offsets.append((s, e))
@@ -147,13 +149,8 @@ def lexical_filter_executable_tokens(
         eligible: List[int] = []
         for i in range(actual_start, actual_end):
             tid = sequence_ids[i]
-            t_str = tokenizer.decode([tid])
-
-            # Exclude whitespace-only tokens
-            if not t_str.strip():
-                continue
-            # Exclude special tokens (Qwen special IDs start >= 151643)
-            if tid >= 151643:
+            # Exclude special tokens (Qwen special IDs start >= 151643) and whitespace-only tokens
+            if tid >= 151643 or not decoded_tokens[i].strip():
                 continue
 
             # Exclude tokens falling within comments or string literals
@@ -279,11 +276,11 @@ def interleaved_corosred_decode(
             sync_device(device)
             t_ar += (time.perf_counter() - t0)
 
-            # Check stop strings in decoded generated sequence
-            sync_device(device)
+            # Check stop strings using a bounded tail window to avoid O(N^2) prefix re-decoding
             t_ov0 = time.perf_counter()
-            gen_text = tokenizer.decode(current_sequence[prompt_len:])
-            if any(stop_s in gen_text for stop_s in config.stop_strings):
+            tail_start = max(prompt_len, len(current_sequence) - 16)
+            gen_tail = tokenizer.decode(current_sequence[tail_start:])
+            if any(stop_s in gen_tail for stop_s in config.stop_strings):
                 terminated = True
                 t_overhead += (time.perf_counter() - t_ov0)
                 break
@@ -331,27 +328,26 @@ def interleaved_corosred_decode(
 
             sync_device(device)
             t_ov2 = time.perf_counter()
-            for idx, pos in enumerate(eligible_positions):
-                pos_logits = batch_logits[idx, pos, :].float()
-                log_p = F.log_softmax(pos_logits, dim=-1)
-
-                orig_id = current_sequence[pos]
-                orig_logp = float(log_p[orig_id].item())
-
-                log_p_alt = log_p.clone()
-                log_p_alt[orig_id] = -float("inf")
-                best_alt_id = int(torch.argmax(log_p_alt).item())
-                best_alt_logp = float(log_p[best_alt_id].item())
-
-                delta_logp = best_alt_logp - orig_logp
-
+            # Vectorized probe: log_softmax partition cancels in log_p[alt] - log_p[orig] == logit[alt] - logit[orig]
+            n_elig = len(eligible_positions)
+            row_idx = torch.arange(n_elig, device=batch_logits.device)
+            pos_idx = torch.tensor(eligible_positions, dtype=torch.long, device=batch_logits.device)
+            orig_ids_list = [current_sequence[p] for p in eligible_positions]
+            orig_ids_t = torch.tensor(orig_ids_list, dtype=torch.long, device=batch_logits.device)
+            sel_logits = batch_logits[row_idx, pos_idx, :].float()
+            orig_vals = sel_logits[row_idx, orig_ids_t]
+            top2_vals, top2_ids = torch.topk(sel_logits, k=2, dim=-1)
+            is_top1 = top2_ids[:, 0] == orig_ids_t
+            best_alt_ids = torch.where(is_top1, top2_ids[:, 1], top2_ids[:, 0]).tolist()
+            deltas = (torch.where(is_top1, top2_vals[:, 1], top2_vals[:, 0]) - orig_vals).tolist()
+            for pos, orig_id, best_alt_id, delta_logp in zip(eligible_positions, orig_ids_list, best_alt_ids, deltas):
                 inspected_positions.append({
                     "position": pos,
                     "orig_id": orig_id,
                     "orig_token": tokenizer.decode([orig_id]),
                     "best_alt_id": best_alt_id,
                     "best_alt_token": tokenizer.decode([best_alt_id]),
-                    "delta_logp": delta_logp,
+                    "delta_logp": float(delta_logp),
                 })
             t_overhead += (time.perf_counter() - t_ov2)
 
@@ -433,20 +429,47 @@ def interleaved_corosred_decode(
             # STEP 4: AR KV-Cache Invalidation & Rebuild
             # ==========================================
             # Check if any committed token actually changed from the original sequence
-            tokens_changed = any(u["changed"] for u in refinement_updates)
-            if tokens_changed:
+            changed_positions = [u["position"] for u in refinement_updates if u["changed"]]
+            if changed_positions:
                 sync_device(device)
                 t_reb0 = time.perf_counter()
-
-                # Full-prefix rebuild of AR KV-cache up to current sequence length
-                full_tensor = torch.tensor([current_sequence], dtype=torch.long, device=device)
-                with torch.no_grad():
-                    rebuilt_logits, kv_cache = ar_model(
-                        full_tensor,
-                        is_causal=True,
-                        use_cache=True,
-                        start_pos=0,
+                min_edit = min(changed_positions)
+                can_truncate = (
+                    min_edit > 0
+                    and isinstance(kv_cache, (list, tuple))
+                    and len(kv_cache) > 0
+                    and all(
+                        isinstance(layer_kv, (list, tuple))
+                        and len(layer_kv) == 2
+                        and isinstance(layer_kv[0], torch.Tensor)
+                        and isinstance(layer_kv[1], torch.Tensor)
+                        and layer_kv[0].ndim >= 3
+                        and layer_kv[0].shape[-2] >= min_edit
+                        for layer_kv in kv_cache
                     )
+                )
+                with torch.no_grad():
+                    if can_truncate:
+                        truncated_kv = type(kv_cache)(
+                            type(layer_kv)((layer_kv[0][..., :min_edit, :], layer_kv[1][..., :min_edit, :]))
+                            for layer_kv in kv_cache
+                        )
+                        suffix_tensor = torch.tensor([current_sequence[min_edit:]], dtype=torch.long, device=device)
+                        rebuilt_logits, kv_cache = ar_model(
+                            suffix_tensor,
+                            is_causal=True,
+                            past_key_values=truncated_kv,
+                            start_pos=min_edit,
+                            use_cache=True,
+                        )
+                    else:
+                        full_tensor = torch.tensor([current_sequence], dtype=torch.long, device=device)
+                        rebuilt_logits, kv_cache = ar_model(
+                            full_tensor,
+                            is_causal=True,
+                            use_cache=True,
+                            start_pos=0,
+                        )
                 last_ar_logits = rebuilt_logits[0, -1, :].float()
 
                 sync_device(device)
