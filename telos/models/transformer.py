@@ -80,7 +80,7 @@ class TelosTransformer(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, input_ids: torch.Tensor, return_reliability: bool = False, mask_override: bool | None = None, next_token_only: bool = False, loss_targets: torch.Tensor | None = None, vocab_chunk_size: int = 256, *, logit_positions: torch.Tensor | None = None) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, input_ids: torch.Tensor, return_reliability: bool = False, mask_override: bool | None = None, next_token_only: bool = False, loss_targets: torch.Tensor | None = None, vocab_chunk_size: int = 256, vocab_chunk_axis: str = "vocab", *, logit_positions: torch.Tensor | None = None) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         batch, seq_len = input_ids.shape
         assert seq_len <= self.config.max_seq_len, f"Sequence length {seq_len} exceeds max allowed {self.config.max_seq_len}"
 
@@ -122,7 +122,7 @@ class TelosTransformer(nn.Module):
         if loss_targets is not None:
             from .vocab_loss import tiled_cross_entropy
             return tiled_cross_entropy(projected_hidden, self.output_projection.weight,
-                                       loss_targets, vocab_chunk_size)
+                                       loss_targets, vocab_chunk_size, chunk_axis=vocab_chunk_axis)
         logits = self.output_projection(projected_hidden)
         
         if return_reliability:
