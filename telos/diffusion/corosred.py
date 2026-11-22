@@ -257,15 +257,15 @@ if MLX_AVAILABLE:
         has_rel = getattr(model, "use_reliability_head", False) and getattr(model, "reliability_head", None) is not None
 
         if has_rel:
-            # Forward pass returning causal logits and unnormalized reliability scores
-            logits_c, raw_r_scores = model(batch_causal, mask_override="causal", return_reliability=True)
+            # Forward pass returning causal next-token logits and unnormalized reliability scores
+            logits_c, raw_r_scores = model(batch_causal, mask_override="causal", return_reliability=True, next_token_only=True)
         else:
-            # Forward pass returning causal logits only
-            logits_c = model(batch_causal, mask_override="causal", return_reliability=False)
+            # Forward pass returning causal next-token logits only
+            logits_c = model(batch_causal, mask_override="causal", return_reliability=False, next_token_only=True)
             raw_r_scores = None
 
         # Align causal logits with targets by shifting position by 1
-        shift_logits_c = logits_c[:, :-1, :]
+        shift_logits_c = logits_c if logits_c.shape[1] == T - 1 else logits_c[:, :-1, :]
         shift_targets_c = batch_causal[:, 1:]
 
         # Compute per-token cross entropy loss on causal slice
@@ -314,11 +314,16 @@ if MLX_AVAILABLE:
             # Generate uniform random mask positions for infill sequences
             rand_probs = mx.random.uniform(shape=(B_m, T))
             random_mask = rand_probs < mask_prob
-            if has_rel:
-                _, infill_scores = model(batch_infill, mask_override=True, return_reliability=True)
-                confidence = mx.concatenate([mx.full((B_m, 1), 1e9), infill_scores[:, :-1]], axis=1)
-                ranks = mx.argsort(mx.argsort(mx.stop_gradient(confidence), axis=-1), axis=-1)
-                targeted = ranks < max(1, int((T - 1) * mask_prob))
+            blend_active = True if isinstance(mask_blend, mx.array) else float(mask_blend) > 0.0
+            if has_rel and blend_active:
+                if hasattr(model, "reliability_scores"):
+                    infill_scores = model.reliability_scores(batch_infill, mask_override=True)
+                else:
+                    _, infill_scores = model(batch_infill, mask_override=True, return_reliability=True)
+                confidence = mx.stop_gradient(mx.concatenate([mx.full((B_m, 1), 1e9), infill_scores[:, :-1]], axis=1))
+                k_target = max(1, int((T - 1) * mask_prob))
+                thresh = mx.partition(confidence, k_target - 1, axis=-1)[:, k_target - 1 : k_target]
+                targeted = confidence <= thresh
                 choose_targeted = mx.random.uniform(shape=(B_m, T)) < mask_blend
                 mask_positions = mx.where(choose_targeted, targeted, random_mask)
             else:
@@ -451,8 +456,7 @@ if TORCH_AVAILABLE:
         fallback = torch.cat([torch.zeros((B, 1), device=batch_seqs.device, dtype=torch.bool), fallback[:, 1:]], dim=1)
         mask_positions = torch.where(no_mask, fallback, mask_positions)
 
-        if hasattr(torch, "clear_autocast_cache"):
-            torch.clear_autocast_cache()
+        # Retain PyTorch AMP weight cache across microbatches instead of clearing per call.
 
         corrupted_seqs = torch.where(
             mask_positions,
@@ -575,9 +579,6 @@ if TORCH_AVAILABLE:
                 base_seqs = batch_seqs
                 raw_r_scores = None
 
-        if hasattr(torch, "clear_autocast_cache"):
-            torch.clear_autocast_cache()
-
         # Determine mask positions:
         # If the Learned Reliability Head is available, route masks to low-confidence positions!
         if raw_r_scores is not None:
@@ -586,23 +587,23 @@ if TORCH_AVAILABLE:
             r_scores_with_bos = torch.cat([torch.full((B, 1), 1e9, device=batch_seqs.device, dtype=r_scores.dtype), r_scores], dim=1)
 
             # Strictly enforce 15% total mask budget (e.g. 76 tokens for seq_len=512)
-            total_k = int(T * mask_prob)
-            k_targeted = int(total_k * 0.70)  # 70% targeted at lowest-confidence positions
-            k_explore = total_k - k_targeted  # 30% uniform random exploration
+            total_k = max(1, int(T * mask_prob))
+            k_targeted = max(1, int(total_k * 0.70))  # 70% targeted at lowest-confidence positions
+            k_explore = max(0, total_k - k_targeted)  # 30% uniform random exploration
 
-            # 1. Target lowest k_targeted confidence tokens
-            sorted_indices = torch.argsort(r_scores_with_bos, dim=-1)
-            targeted_indices = sorted_indices[:, :k_targeted]
+            # 1. Target lowest k_targeted confidence tokens without full sort
+            targeted_indices = torch.topk(r_scores_with_bos, k=k_targeted, dim=-1, largest=False).indices
             mask_positions = torch.zeros((B, T), device=batch_seqs.device, dtype=torch.bool)
             mask_positions.scatter_(1, targeted_indices, True)
             mask_positions[:, 0] = False
 
-            # 2. Add k_explore uniform exploration positions
-            rand_scores = torch.rand((B, T), device=batch_seqs.device)
-            rand_scores = torch.where(mask_positions, torch.full((B, T), -1e9, device=batch_seqs.device), rand_scores)
-            rand_scores[:, 0] = -1e9
-            rand_indices = torch.argsort(rand_scores, dim=-1)[:, -k_explore:]
-            mask_positions.scatter_(1, rand_indices, True)
+            # 2. Add k_explore uniform exploration positions without full sort
+            if k_explore > 0:
+                rand_scores = torch.rand((B, T), device=batch_seqs.device)
+                rand_scores = torch.where(mask_positions, torch.full((B, T), -1e9, device=batch_seqs.device), rand_scores)
+                rand_scores[:, 0] = -1e9
+                rand_indices = torch.topk(rand_scores, k=k_explore, dim=-1, largest=True).indices
+                mask_positions.scatter_(1, rand_indices, True)
         else:
             rand_probs = torch.rand((B, T), device=batch_seqs.device)
             mask_positions = (rand_probs < mask_prob)
