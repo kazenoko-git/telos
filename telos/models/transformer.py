@@ -80,7 +80,8 @@ class TelosTransformer(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, input_ids: torch.Tensor, return_reliability: bool = False, mask_override: bool | None = None, next_token_only: bool = False, loss_targets: torch.Tensor | None = None, vocab_chunk_size: int = 256, vocab_chunk_axis: str = "vocab", *, logit_positions: torch.Tensor | None = None) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    def hidden_states(self, input_ids: torch.Tensor, mask_override: bool | None = None) -> torch.Tensor:
+        """Run embedding, transformer blocks, and final RMSNorm without the LM head."""
         batch, seq_len = input_ids.shape
         assert seq_len <= self.config.max_seq_len, f"Sequence length {seq_len} exceeds max allowed {self.config.max_seq_len}"
 
@@ -99,7 +100,6 @@ class TelosTransformer(nn.Module):
                 xla_checkpoint = None
 
         for layer in self.layers:
-            # Memory Optimization: Recompute activations during backward pass when gradient checkpointing is enabled
             if use_checkpoint:
                 if xla_checkpoint is not None:
                     h = xla_checkpoint(layer, h, cos, sin, mask_override)
@@ -111,8 +111,18 @@ class TelosTransformer(nn.Module):
             else:
                 h = layer(h, cos, sin, mask_override=mask_override)
 
+        return self.final_norm(h)
 
-        h = self.final_norm(h)
+    def reliability_scores(self, input_ids: torch.Tensor, mask_override: bool | None = None) -> torch.Tensor:
+        """Compute scalar reliability scores without projecting vocabulary logits."""
+        if self.reliability_head is None:
+            raise ValueError("reliability_scores requested but use_reliability_head was not enabled.")
+        h = self.hidden_states(input_ids, mask_override=mask_override)
+        return self.reliability_head(h.detach()).squeeze(-1)
+
+    def forward(self, input_ids: torch.Tensor, return_reliability: bool = False, mask_override: bool | None = None, next_token_only: bool = False, loss_targets: torch.Tensor | None = None, vocab_chunk_size: int = 256, vocab_chunk_axis: str = "vocab", *, logit_positions: torch.Tensor | None = None) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        batch = input_ids.shape[0]
+        h = self.hidden_states(input_ids, mask_override=mask_override)
         if logit_positions is not None:
             # Rollouts only need one logits row per sequence, including when
             # prompts have different lengths and are padded on the right.
