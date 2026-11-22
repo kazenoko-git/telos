@@ -18,12 +18,30 @@ class LoRALinear(nn.Module):
         self.lora_a = mx.random.uniform(-1 / math.sqrt(in_features), 1 / math.sqrt(in_features),
                                         (rank, in_features), dtype=mx.float32)
         self.lora_b = mx.zeros((base.weight.shape[0], rank), dtype=mx.float32)
+        self.adapter_disabled = False
         self.base.freeze()
 
     def __call__(self, x):
         out = self.base(x)
+        if self.adapter_disabled:
+            return out
         delta = (self.dropout(x).astype(mx.float32) @ self.lora_a.T) @ self.lora_b.T
         return out + (delta * self.scale).astype(out.dtype)
+
+
+class disable_lora_adapters:
+    """Temporarily disable MLX LoRA deltas to evaluate the frozen base model without deepcopy."""
+    def __init__(self, model):
+        self._modules = [m for _, m in model.named_modules() if isinstance(m, LoRALinear)]
+
+    def __enter__(self):
+        for m in self._modules:
+            m.adapter_disabled = True
+        return self
+
+    def __exit__(self, *exc):
+        for m in self._modules:
+            m.adapter_disabled = False
 
     def merged_weight(self):
         if isinstance(self.base, nn.QuantizedLinear):
