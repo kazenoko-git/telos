@@ -81,7 +81,7 @@ class PosttrainResume:
             from telos.training.checkpoint import save_mlx_state
             state.update(model=model.parameters(), optimizer=optimizer.state,
                          master=getattr(optimizer, 'master_params', None),
-                         reference=reference.parameters() if reference is not None else None,
+                         reference=reference.parameters() if reference is not None else {},
                          rng=list(mx.random.state))
             save_mlx_state(path, state)
         else:
