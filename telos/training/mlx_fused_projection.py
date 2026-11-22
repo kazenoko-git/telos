@@ -266,13 +266,25 @@ _tensor_backward = mx.fast.metal_kernel(
     atomic_outputs=True,
     header=_TENSOR_HEADER + _TENSOR_ACCUMULATE,
     source=_TENSOR_PROJECT + r"""
+        threadgroup float row_tscore[BM], row_loss[BM], row_cot[BM], row_tgrad[BM];
+        threadgroup uint row_target[BM];
+        if (tid < BM && row + tid < R) {
+            uint r_abs = row + tid;
+            row_target[tid] = uint(targets[r_abs]);
+            row_tscore[tid] = target_scores[r_abs];
+            row_loss[tid] = loss[r_abs];
+            row_cot[tid] = cotangent[r_abs];
+            row_tgrad[tid] = target_gradient[r_abs];
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
         for (uint i = tid; i < BM * BN; i += 128) {
-            uint r = row + i / BN;
+            uint lr = i / BN;
+            uint r = row + lr;
             uint v = col + i % BN;
             float value = 0.0f;
             if (r < R && v < V) {
-                float logp = (float(scores[i]) - target_scores[r]) - loss[r];
-                value = v == uint(targets[r]) ? target_gradient[r] : exp(logp) * cotangent[r];
+                float logp = (float(scores[i]) - row_tscore[lr]) - row_loss[lr];
+                value = v == row_target[lr] ? row_tgrad[lr] : exp(logp) * row_cot[lr];
             }
             scores[i] = T(value);
         }
