@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.7] - 2026-11-22
+
+### Added
+- `hidden_states()` and `reliability_scores()` helpers on `TelosTransformer` and `MLXTelosTransformer` to skip full-vocabulary LM head projections when only hidden states or reliability scores are needed.
+- Opt-in Fast-dLLM `confidence_threshold` parallel unmasking and Prophet `early_commit_margin` early-commit controls on `MDLMSampler` and `MLXMDLMSampler`.
+- Unit and gradient-parity tests in `tests/test_v187_diffusion_decoding_optimizations.py`.
+
+### Fixed
+- Project only masked tokens through `output_projection` in `corosred_unified_step_pytorch` (3.57× faster LM head+CE on CPU with 0.0 exact diff) and pass `next_token_only=True` on causal passes.
+- Skip full-vocabulary projection in `RoutingMaskCache.refresh` via `reliability_scores()`.
+- Eliminate wasted vocab projection and double `mx.argsort` in `corosred_unified_loss_fn_mlx`, remove per-microbatch `torch.clear_autocast_cache()`, and replace `torch.argsort` with `torch.topk` in COROSred Phase B/C.
+- Use `next_token_only=True` in `DualMetricMonitor.evaluate`.
+- Vectorize repetition penalty and slice masked positions before softmax/topk in `MDLMSampler`; compute top-2 margin on device in `MLXMDLMSampler`.
+- Vectorize interleaved COROSred probe without redundant `F.log_softmax`/`.clone()` (4.01× faster at V=8192), bound stop-string decoding to a tail window, decode lexical tokens once, and truncate AR KV-cache to the earliest edited position on rebuild.
+
+### Validation
+- PyTorch CPU diffusion and decoding suite passed (`12 passed, 3 skipped`). Metal/CUDA/TPU throughput remains pending physical runs; see [v1.8.7 validation](docs/releases/v1.8.7-validation.md).
+
+
 ## [1.8.6] - 2026-11-22
 
 ### Added
