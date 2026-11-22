@@ -48,15 +48,20 @@ _backward = mx.fast.metal_kernel(
     input_names=["logits", "targets", "loss", "cotangent"],
     output_names=["gradient"],
     source=r"""
-        uint idx = thread_position_in_grid.x;
-        if (idx >= N) return;
-        uint row = idx / V;
-        uint col = idx % V;
-        // Subtract the target logit first to avoid loss of precision when
-        // every logit has a large common offset.
-        float shifted = float(logits[idx]) - float(logits[row * V + targets[row]]);
-        float probability = exp(shifted - loss[row]);
-        gradient[idx] = T((probability - float(col == targets[row])) * cotangent[row]);
+        uint row = threadgroup_position_in_grid.x;
+        uint tid = thread_position_in_threadgroup.x;
+        uint base = row * V;
+        uint target = uint(targets[row]);
+        float target_logit = float(logits[base + target]);
+        float row_loss = loss[row];
+        float row_cot = cotangent[row];
+        for (uint col = tid; col < V; col += 256) {
+            // Subtract the target logit first to avoid loss of precision when
+            // every logit has a large common offset.
+            float shifted = float(logits[base + col]) - target_logit;
+            float probability = exp(shifted - row_loss);
+            gradient[base + col] = T((probability - float(col == target)) * row_cot);
+        }
     """,
 )
 
@@ -74,8 +79,8 @@ def _metal_cross_entropy_gradient(logits, targets, loss, cotangent):
     """First-order per-token CE VJP, also used by token-chunked projection."""
     return _backward(
         inputs=[logits, targets, loss, cotangent],
-        template=[("V", logits.shape[-1]), ("N", logits.size), ("T", logits.dtype)],
-        grid=(logits.size, 1, 1), threadgroup=(256, 1, 1),
+        template=[("V", logits.shape[-1]), ("T", logits.dtype)],
+        grid=(targets.size * 256, 1, 1), threadgroup=(256, 1, 1),
         output_shapes=[logits.shape], output_dtypes=[logits.dtype],
     )[0]
 
