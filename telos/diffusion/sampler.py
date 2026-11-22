@@ -43,7 +43,9 @@ class MDLMSampler:
         num_steps: int = 64,
         temperature: float = 1.0,
         repetition_penalty: float = 1.2,
-        schedule: str = "cosine"
+        schedule: str = "cosine",
+        confidence_threshold: float | None = None,
+        early_commit_margin: float | None = None,
     ):
         self.model = model
         self.mask_token_id = mask_token_id
@@ -51,6 +53,8 @@ class MDLMSampler:
         self.temperature = max(temperature, 1e-5)
         self.repetition_penalty = repetition_penalty
         self.schedule = schedule
+        self.confidence_threshold = confidence_threshold
+        self.early_commit_margin = early_commit_margin
 
     def _get_num_to_unmask(self, step: int, total_masked: int) -> int:
         if self.schedule == "cosine":
@@ -94,7 +98,8 @@ class MDLMSampler:
             current_mask = (seq == self.mask_token_id)
             current_mask[:, :prompt_len] = False
 
-            num_currently_masked = current_mask.sum().item()
+            masked_positions = current_mask[0].nonzero(as_tuple=False).squeeze(-1)
+            num_currently_masked = int(masked_positions.numel())
             if num_currently_masked == 0:
                 break
 
@@ -104,45 +109,65 @@ class MDLMSampler:
                 continue
 
             logits = self.model(seq)
-            logits = logits.clone()
-            logits[:, :, self.mask_token_id] = -float("inf")
+            # Slice only masked positions before repetition penalty, softmax, and topk.
+            masked_logits = logits[0, masked_positions].clone()
+            masked_logits[:, self.mask_token_id] = -float("inf")
 
             if self.repetition_penalty != 1.0:
-                gen_seq = seq[:, prompt_len:] if prompt_len is not None else seq
+                gen_seq = seq[0, prompt_len:] if prompt_len is not None else seq[0]
                 unmasked_tokens = gen_seq[(gen_seq != self.mask_token_id) & (gen_seq > 3)]
-                for tok_id in set(unmasked_tokens.tolist()):
-                    logits[:, :, tok_id] = torch.where(
-                        logits[:, :, tok_id] > 0,
-                        logits[:, :, tok_id] / self.repetition_penalty,
-                        logits[:, :, tok_id] * self.repetition_penalty
+                if unmasked_tokens.numel() > 0:
+                    unique_toks = torch.unique(unmasked_tokens)
+                    selected = masked_logits[:, unique_toks]
+                    penalized = torch.where(
+                        selected > 0,
+                        selected / self.repetition_penalty,
+                        selected * self.repetition_penalty,
                     )
+                    masked_logits[:, unique_toks] = penalized
 
-            scaled_logits = logits / self.temperature
-            probs = F.softmax(scaled_logits, dim=-1)
+            probs = F.softmax(masked_logits / self.temperature, dim=-1)
 
             top2_probs, top2_indices = torch.topk(probs, k=2, dim=-1)
-            margin_conf = top2_probs[:, :, 0] - top2_probs[:, :, 1]
-            argmax_tokens = top2_indices[:, :, 0]
+            margin_conf = top2_probs[:, 0] - top2_probs[:, 1]
+            argmax_tokens = top2_indices[:, 0]
 
-            if self.temperature > 0.05:
-                gumbel_noise = -torch.log(-torch.log(torch.rand_like(margin_conf) + 1e-8) + 1e-8)
-                confidence_scores = margin_conf + 0.1 * self.temperature * gumbel_noise
+            # Optional Prophet-style early commit when every remaining masked token has high top-2 margin.
+            if (self.early_commit_margin is not None
+                    and float(margin_conf.min().item()) >= self.early_commit_margin):
+                if self.temperature > 0.05:
+                    sampled_tokens = torch.multinomial(probs, num_samples=1).squeeze(-1)
+                else:
+                    sampled_tokens = argmax_tokens
+                seq[0, masked_positions] = sampled_tokens
+                already_unmasked_count += num_currently_masked
+                break
+
+            # Optional Fast-dLLM-style confidence-threshold parallel unmasking.
+            if self.confidence_threshold is not None:
+                high_conf_local = (top2_probs[:, 0] >= self.confidence_threshold).nonzero(as_tuple=False).squeeze(-1)
+                if high_conf_local.numel() > 0:
+                    chosen_local = high_conf_local
+                else:
+                    k = min(num_to_unmask_this_step, num_currently_masked)
+                    _, chosen_local = torch.topk(margin_conf, k=k)
             else:
-                confidence_scores = margin_conf.clone()
+                if self.temperature > 0.05:
+                    gumbel_noise = -torch.log(-torch.log(torch.rand_like(margin_conf) + 1e-8) + 1e-8)
+                    confidence_scores = margin_conf + 0.1 * self.temperature * gumbel_noise
+                else:
+                    confidence_scores = margin_conf
+                k = min(num_to_unmask_this_step, num_currently_masked)
+                _, chosen_local = torch.topk(confidence_scores, k=k)
 
-            confidence_scores[~current_mask] = -float("inf")
-
-            k = min(num_to_unmask_this_step, num_currently_masked)
-            _, topk_indices = torch.topk(confidence_scores[0], k=k)
-
+            chosen_positions = masked_positions[chosen_local]
             if self.temperature > 0.05:
-                selected_probs = probs[0, topk_indices]
-                sampled_tokens = torch.multinomial(selected_probs, num_samples=1).squeeze(-1)
+                sampled_tokens = torch.multinomial(probs[chosen_local], num_samples=1).squeeze(-1)
             else:
-                sampled_tokens = argmax_tokens[0, topk_indices]
+                sampled_tokens = argmax_tokens[chosen_local]
 
-            seq[0, topk_indices] = sampled_tokens
-            already_unmasked_count += k
+            seq[0, chosen_positions] = sampled_tokens
+            already_unmasked_count += int(chosen_positions.numel())
 
         return seq
 
@@ -156,7 +181,9 @@ class MLXMDLMSampler:
         mask_token_id: int,
         num_steps: int = 64,
         temperature: float = 0.8,
-        schedule: str = "cosine"
+        schedule: str = "cosine",
+        confidence_threshold: float | None = None,
+        early_commit_margin: float | None = None,
     ):
         if not MLX_AVAILABLE:
             raise ImportError("MLX is required for MLXMDLMSampler.")
@@ -165,6 +192,8 @@ class MLXMDLMSampler:
         self.num_steps = num_steps
         self.temperature = max(temperature, 1e-5)
         self.schedule = schedule
+        self.confidence_threshold = confidence_threshold
+        self.early_commit_margin = early_commit_margin
 
     def _get_num_to_unmask(self, step: int, total_masked: int) -> int:
         if self.schedule == "cosine":
@@ -201,36 +230,44 @@ class MLXMDLMSampler:
         for step in range(self.num_steps):
             mask_locs = (seq == self.mask_token_id)[0]
             mask_locs[:prompt_len] = False
-            num_masked = np.sum(mask_locs)
+            masked_idx = np.flatnonzero(mask_locs)
+            num_masked = int(masked_idx.size)
             if num_masked == 0:
                 break
 
             target_unmasked = self._get_num_to_unmask(step, total_masked)
-            k = min(target_unmasked - already_unmasked, int(num_masked))
+            k = min(target_unmasked - already_unmasked, num_masked)
             if k <= 0:
                 continue
 
-            logits_mx = self.model(mx.array(seq))
-            probs_mx = mx_nn.softmax(logits_mx.astype(mx.float32) / self.temperature, axis=-1)
-            mx.eval(probs_mx)
-            probs = np.array(probs_mx[0])  # [seq_len, vocab_size]
+            logits_mx = self.model(mx.array(seq))[0]
+            masked_logits = logits_mx[mx.array(masked_idx, dtype=mx.int32)].astype(mx.float32)
+            vocab_idx = mx.arange(masked_logits.shape[-1])[None, :]
+            masked_logits = mx.where(vocab_idx == self.mask_token_id, -1e9, masked_logits)
+            probs_mx = mx_nn.softmax(masked_logits / self.temperature, axis=-1)
 
-            # Set mask token prob to 0
-            probs[:, self.mask_token_id] = 0.0
+            # Compute top-2 margin and argmax on device instead of full-vocab CPU sort.
+            top2_probs = mx.topk(probs_mx, 2, axis=-1)
+            margin_mx = top2_probs[:, 0] - top2_probs[:, 1]
+            best_tokens_mx = mx.argmax(probs_mx, axis=-1)
+            mx.eval(margin_mx, top2_probs, best_tokens_mx)
 
-            # Confidence margin: top1 - top2
-            sorted_probs = np.sort(probs, axis=-1)
-            margin = sorted_probs[:, -1] - sorted_probs[:, -2]
-            
-            # Mask out non-masked positions
-            margin[~mask_locs] = -1e9
+            margin = np.array(margin_mx)
+            best_tokens = np.array(best_tokens_mx)
+            top1_probs = np.array(top2_probs[:, 0])
 
-            # Pick top k positions with highest confidence
-            top_k_pos = np.argsort(margin)[-k:]
-            
-            # Pick best token for those positions
-            best_tokens = np.argmax(probs[top_k_pos], axis=-1)
-            seq[0, top_k_pos] = best_tokens
-            already_unmasked += k
+            if self.early_commit_margin is not None and float(margin.min()) >= self.early_commit_margin:
+                seq[0, masked_idx] = best_tokens
+                already_unmasked += num_masked
+                break
+
+            if self.confidence_threshold is not None:
+                high_conf = np.flatnonzero(top1_probs >= self.confidence_threshold)
+                chosen_local = high_conf if high_conf.size > 0 else np.argpartition(margin, -k)[-k:]
+            else:
+                chosen_local = np.argpartition(margin, -k)[-k:]
+
+            seq[0, masked_idx[chosen_local]] = best_tokens[chosen_local]
+            already_unmasked += int(chosen_local.size)
 
         return mx.array(seq)
