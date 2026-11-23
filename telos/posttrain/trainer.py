@@ -217,6 +217,34 @@ def _sft_loss(logits, labels, device, world_size=1):
     return total / count.clamp_min(1)
 
 
+def _sft_loss_from_model(model, input_ids, labels, device, world_size=1):
+    """Project only valid (labels != -100) hidden states when not wrapped for XLA/DDP."""
+    raw_model = getattr(model, "_orig_mod", model)
+    raw_model = getattr(raw_model, "module", raw_model)
+    can_sparse_project = (
+        input_ids.device.type != "xla"
+        and model is raw_model
+        and hasattr(raw_model, "hidden_states")
+        and hasattr(raw_model, "output_projection")
+    )
+    if can_sparse_project:
+        hidden = raw_model.hidden_states(input_ids, mask_override=True)[:, :-1]
+        targets = labels[:, 1:]
+        valid = targets.ne(-100)
+        count = valid.sum().float()
+        if valid.any():
+            valid_logits = raw_model.output_projection(hidden[valid]).float()
+            total = F.cross_entropy(valid_logits, targets[valid], reduction="sum")
+        else:
+            total = hidden.sum().float() * 0.0
+        if torch.distributed.is_initialized():
+            torch.distributed.all_reduce(count)
+            count /= torch.distributed.get_world_size()
+        return total / count.clamp_min(1)
+    logits = model(input_ids, mask_override=True, next_token_only=True).float()
+    return _sft_loss(logits, labels, device, world_size)
+
+
 def _pair_logps(model, cids, clabels, rids, rlabels):
     scores = _sequence_logps(model, torch.cat((cids, rids)), torch.cat((clabels, rlabels)))
     return scores.chunk(2)
@@ -1142,8 +1170,7 @@ def _posttrain(
             input_ids, labels = _collate(rows, tokenizer, max_length, device, fixed=fixed)
             with _autocast(device, amp_dtype):
                 if method == "sft":
-                    logits = active_model(input_ids, mask_override=True, next_token_only=True).float()
-                    loss = _sft_loss(logits, labels, device, world_size)
+                    loss = _sft_loss_from_model(active_model, input_ids, labels, device, world_size)
                 else:
                     key = tuple(tuple(row["_encoded"][0]) + tuple(row["_encoded"][1]) for row in rows)
                     if not cache_reference or key not in ref_cache:
