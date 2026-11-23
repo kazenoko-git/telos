@@ -112,7 +112,7 @@ def main():
         out = self.base(x)
         if self.adapter_disabled:
             return out
-        h = x if self.dropout.p == 0 else self.dropout(x)
+        h = x if self.dropout._p_1 == 1 else self.dropout(x)
         delta = ((h.astype(mx.float32) @ self.lora_a.T) * self.scale) @ self.lora_b.T
         return out + delta.astype(out.dtype)
 
