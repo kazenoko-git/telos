@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Project only masked positions in PyTorch MDLM training (`1.103×` E2E on CPU, `0.0` loss/grad diff) and in `MDLMSampler` / `MLXMDLMSampler` (`1.055×` on CPU, exact token parity).
 - Use incremental KV-cache and tail-window stop checks in `_generate_greedy_completion` (`5.10×` faster on PyTorch CPU, exact token parity), and project only evaluated positions with `O(V)` rank counting in contextual probes, linguistic probes, and anti-cheat span evaluations (`1.27×` per probe on CPU, exact rank match).
 
+### Validation
+- Apple M5 Pro Metal GPU (`MLX 0.32.2`, 14-layer BF16 49M model, `B=4, G=4, prompt=64, max_new=32`): KV-cached shared-prefill GRPO rollouts measured **3.27× faster** (`246.10 ms → 75.26 ms`) and **-58.6% peak GPU memory** (`488.70 MB → 202.09 MB`, `0.04688` BF16 max logit diff).
+- Physical M5 Pro Metal test suite (`tests/test_grpo.py` + `tests/test_v189_optimizations.py`): **12 passed in 1.56s** (including MLX BF16 full and MLX QLoRA GRPO rollout/resume replay).
+- Eliminated on M5 Pro screening: `MLXLoRALinear` scale-before-up-projection (`54.23 ms → 53.27 ms`, `1.018×`, unchanged `1250.34 MB` peak memory — below threshold).
+
 ## [1.8.8] - 2026-11-22
 
 ### Added
