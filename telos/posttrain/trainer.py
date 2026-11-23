@@ -17,8 +17,8 @@ from typing import Any
 import torch
 import torch.nn.functional as F
 
-from telos.data.tokenizer import load_tokenizer
-from telos.eval.runner import load_model_from_checkpoint
+from telos.data.tokenizer import checkpoint_tokenizer_path, export_checkpoint_tokenizer, load_tokenizer
+from telos.models.checkpoint import load_model_from_checkpoint
 from . import grpo
 from .resume import PosttrainResume
 from telos.training.checkpoint import atomic_write
@@ -496,6 +496,7 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
 
     def save(step, final=False):
         path = final_path if final else out_dir / f"checkpoint_step_{step}.safetensors"
+        tokenizer_file = export_checkpoint_tokenizer(out_dir, tokenizer)
         mx.eval(model.parameters(), optimizer.state)
         from telos.training.checkpoint import atomic_write
         from .mlx_adapters import merged_weights, adapter_weights
@@ -515,6 +516,7 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
             "is_causal": True, "use_reliability_head": model.use_reliability_head,
         })
         cfg["paradigm"] = "ar"
+        cfg["data"] = {**(cfg.get("data") or {}), "tokenizer": tokenizer_file}
         cfg["posttrain"] = {"method": method, "source_checkpoint": str(checkpoint_path), "step": step, "backend": "mlx", "options": options}
         (out_dir / "config.json").write_text(json.dumps(cfg, indent=2, default=str), encoding="utf-8")
         return path
@@ -730,6 +732,8 @@ def _xla_posttrain_worker(index, arguments):
         xm.rendezvous(f"telos_posttrain_save_{step}_start")
         if rank == 0:
             config = copy.deepcopy(source_config)
+            config["data"] = {**(config.get("data") or {}),
+                              "tokenizer": export_checkpoint_tokenizer(out_dir, tokenizer)}
             config.setdefault("model", {}).update({
                 "vocab_size": model.config.vocab_size, "d_model": model.config.d_model,
                 "n_layers": model.config.n_layers, "n_heads": model.config.n_heads,
@@ -891,6 +895,7 @@ def _posttrain(
     options["base_sha256"] = digest.hexdigest()
     options["base_checkpoint"] = str(checkpoint_path.resolve())
     source_config = _checkpoint_config(checkpoint_path)
+    tokenizer_ref = checkpoint_tokenizer_path(checkpoint_path, source_config, tokenizer_path)
     options["quantization"] = "affine_int4_group64" if backend_name == "mlx" and finetune == "qlora" else ("nf4_block64" if finetune == "qlora" else None)
     print(f"[POSTTRAIN] method={method.upper()} backend={backend_name}", flush=True)
     if devices != "auto" and int(devices) < 1:
@@ -904,10 +909,6 @@ def _posttrain(
         paradigm = str(source_config.get("paradigm", model_config.get("paradigm", ""))).lower()
         if paradigm and paradigm not in {"ar", "corosred"}:
             raise ValueError(f"Post-training requires a causal AR checkpoint; checkpoint paradigm is {paradigm!r}")
-        data_config = source_config.get("data", {}) or {}
-        tokenizer_ref = tokenizer_path or data_config.get("tokenizer")
-        if tokenizer_ref is not None and not Path(tokenizer_ref).is_file():
-            raise FileNotFoundError(f"Tokenizer JSON not found: {tokenizer_ref}")
         _read_records(data, method)
         output_path = Path(output)
         output_path.mkdir(parents=True, exist_ok=True)
@@ -942,10 +943,6 @@ def _posttrain(
             model_config.setdefault("is_causal", True)
         else:
             model.config.max_seq_len = configured_length
-        data_config = source_config.get("data", {}) or {}
-        tokenizer_ref = tokenizer_path or data_config.get("tokenizer")
-        if tokenizer_ref is not None and not Path(tokenizer_ref).is_file():
-            raise FileNotFoundError(f"Tokenizer JSON not found: {tokenizer_ref}")
         tokenizer = load_tokenizer(tokenizer_ref)
         vocab_size = model.vocab_size if backend == "mlx" else model.config.vocab_size
         if len(tokenizer.get_vocab()) != vocab_size:
@@ -979,10 +976,6 @@ def _posttrain(
         raise ValueError("Requested devices must match the torchrun world size")
     # Adapt on CPU so NF4 quantization never synchronizes the training accelerator.
 
-    data_config = source_config.get("data", {}) or {}
-    tokenizer_ref = tokenizer_path or data_config.get("tokenizer")
-    if tokenizer_ref is not None and not Path(tokenizer_ref).is_file():
-        raise FileNotFoundError(f"Tokenizer JSON not found: {tokenizer_ref}")
     tokenizer = load_tokenizer(tokenizer_ref)
     if len(tokenizer.get_vocab()) != model.config.vocab_size:
         raise ValueError(
@@ -1068,6 +1061,8 @@ def _posttrain(
         if ddp:
             torch.distributed.barrier()
         if rank == 0:
+            saved_config["data"] = {**(saved_config.get("data") or {}),
+                                    "tokenizer": export_checkpoint_tokenizer(out_dir, tokenizer)}
             _atomic_torch_save({
                 "global_step": step,
                 "model_state_dict": _export_torch(model),
