@@ -41,28 +41,7 @@ def prepare_prompts(records, tokenizer, max_length, max_new_tokens):
     return prompts, eos, pad
 
 
-def collect_rollouts(batch, tokenizer, eos, pad, group_size, max_new_tokens, sample, reward):
-    """Sample one group per prompt. EOS is a policy action; padding is ignored."""
-    sequences = [prefix.copy() for _, prefix in batch for _ in range(group_size)]
-    prefix_lengths = [len(sequence) for sequence in sequences]
-    action_logps = [[] for _ in sequences]
-    active = list(range(len(sequences)))
-    for _ in range(max_new_tokens):
-        if not active:
-            break
-        lengths = [len(sequences[index]) for index in active]
-        ids = np.full((len(active), max(lengths)), pad, dtype=np.int32)
-        for row, index in enumerate(active):
-            ids[row, :lengths[row]] = sequences[index]
-        tokens, logps = sample(ids, [length - 1 for length in lengths])
-        unfinished = []
-        for index, token, logp in zip(active, tokens, logps, strict=True):
-            sequences[index].append(token)
-            action_logps[index].append(logp)
-            if token != eos:
-                unfinished.append(index)
-        active = unfinished
-
+def _score_rollouts(batch, sequences, prefix_lengths, action_logps, tokenizer, pad, group_size, reward):
     rows, rewards = [], []
     for index, (sequence, prefix_length) in enumerate(zip(sequences, prefix_lengths)):
         record, _ = batch[index // group_size]
@@ -85,6 +64,94 @@ def collect_rollouts(batch, tokenizer, eos, pad, group_size, max_new_tokens, sam
         rows, action_logps, advantages.ravel().astype(np.float32),
         float((scores / scores.size).sum()), float((spread == 0).mean()),
     )
+
+
+def collect_rollouts(batch, tokenizer, eos, pad, group_size, max_new_tokens, sample, reward):
+    """Sample one group per prompt. EOS is a policy action; padding is ignored."""
+    sequences = [prefix.copy() for _, prefix in batch for _ in range(group_size)]
+    prefix_lengths = [len(sequence) for sequence in sequences]
+    action_logps = [[] for _ in sequences]
+    active = list(range(len(sequences)))
+    for _ in range(max_new_tokens):
+        if not active:
+            break
+        lengths = [len(sequences[index]) for index in active]
+        ids = np.full((len(active), max(lengths)), pad, dtype=np.int32)
+        for row, index in enumerate(active):
+            ids[row, :lengths[row]] = sequences[index]
+        tokens, logps = sample(ids, [length - 1 for length in lengths])
+        unfinished = []
+        for index, token, logp in zip(active, tokens, logps, strict=True):
+            sequences[index].append(token)
+            action_logps[index].append(logp)
+            if token != eos:
+                unfinished.append(index)
+        active = unfinished
+
+    return _score_rollouts(batch, sequences, prefix_lengths, action_logps, tokenizer, pad, group_size, reward)
+
+
+def collect_rollouts_cached(
+    batch,
+    tokenizer,
+    eos,
+    pad,
+    group_size,
+    max_new_tokens,
+    prefill_fn,
+    decode_fn,
+    slice_cache_fn,
+    reward,
+):
+    """Sample one group per prompt using shared prompt prefill and incremental KV-cache.
+
+    Prompts are bucketed by length so every prefill and T=1 decode step runs
+    without padding or attention-mask overhead while preserving exact RoPE offsets.
+    """
+    sequences = [prefix.copy() for _, prefix in batch for _ in range(group_size)]
+    prefix_lengths = [len(sequence) for sequence in sequences]
+    action_logps = [[] for _ in sequences]
+
+    buckets: dict[int, list[int]] = {}
+    for prompt_idx, (_, prefix) in enumerate(batch):
+        buckets.setdefault(len(prefix), []).append(prompt_idx)
+
+    for prompt_indices in buckets.values():
+        prompt_ids = np.asarray([batch[i][1] for i in prompt_indices], dtype=np.int32)
+        active = [p_idx * group_size + g for p_idx in prompt_indices for g in range(group_size)]
+        tokens, logps, cache = prefill_fn(prompt_ids, group_size)
+
+        unfinished = []
+        keep_rows = []
+        last_tokens = []
+        for row, (seq_idx, token, logp) in enumerate(zip(active, tokens, logps, strict=True)):
+            sequences[seq_idx].append(token)
+            action_logps[seq_idx].append(logp)
+            if token != eos:
+                unfinished.append(seq_idx)
+                keep_rows.append(row)
+                last_tokens.append(token)
+
+        for _ in range(1, max_new_tokens):
+            if not unfinished:
+                break
+            if len(keep_rows) < len(active):
+                cache = slice_cache_fn(cache, keep_rows)
+            active = unfinished
+            step_ids = np.asarray(last_tokens, dtype=np.int32)[:, None]
+            tokens, logps, cache = decode_fn(step_ids, cache)
+            unfinished = []
+            keep_rows = []
+            last_tokens = []
+            for row, (seq_idx, token, logp) in enumerate(zip(active, tokens, logps, strict=True)):
+                sequences[seq_idx].append(token)
+                action_logps[seq_idx].append(logp)
+                if token != eos:
+                    unfinished.append(seq_idx)
+                    keep_rows.append(row)
+                    last_tokens.append(token)
+
+    return _score_rollouts(batch, sequences, prefix_lengths, action_logps, tokenizer, pad, group_size, reward)
 
 
 def collate_old_logps(rows, action_logps, width):
