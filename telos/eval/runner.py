@@ -523,26 +523,49 @@ def _generate_greedy_completion(
     # Bound max generation so sequence length never exceeds max_seq_len
     actual_max_new = min(max_new_tokens, max_seq_len - len(curr_ids))
 
-    for _ in range(actual_max_new):
+    is_causal = bool(
+        getattr(model, "is_causal", getattr(getattr(model, "config", None), "is_causal", False))
+    )
+    use_kv_cache = is_causal and hasattr(model, "hidden_states_with_cache")
+    kv_cache = None
+
+    for step_idx in range(actual_max_new):
         if backend == "mlx":
             import mlx.core as mx
-            x = mx.array([curr_ids], dtype=mx.int32)
-            logits = model(x)
-            next_tok = int(np.argmax(np.array(logits[0, -1].astype(mx.float32))))
+            if use_kv_cache:
+                step_ids = [curr_ids] if step_idx == 0 else [[curr_ids[-1]]]
+                h, kv_cache = model.hidden_states_with_cache(mx.array(step_ids, dtype=mx.int32), kv_cache=kv_cache, is_causal=True)
+                logits = model.logits_from_hidden(h[:, -1, :])
+                next_tok = int(mx.argmax(logits[0]).item())
+            else:
+                x = mx.array([curr_ids], dtype=mx.int32)
+                logits = model(x)
+                next_tok = int(mx.argmax(logits[0, -1]).item())
         else:
             import torch
             device = next(model.parameters()).device if hasattr(model, "parameters") else torch.device("cpu")
-            x = torch.tensor([curr_ids], dtype=torch.long, device=device)
             with torch.no_grad():
-                logits = model(x)
-            next_tok = int(torch.argmax(logits[0, -1]).item())
+                if use_kv_cache:
+                    step_ids = [curr_ids] if step_idx == 0 else [[curr_ids[-1]]]
+                    h, kv_cache = model.hidden_states_with_cache(
+                        torch.tensor(step_ids, dtype=torch.long, device=device),
+                        kv_cache=kv_cache,
+                        mask_override=True,
+                    )
+                    logits = model.output_projection(h[:, -1, :])
+                    next_tok = int(torch.argmax(logits[0]).item())
+                else:
+                    x = torch.tensor([curr_ids], dtype=torch.long, device=device)
+                    logits = model(x)
+                    next_tok = int(torch.argmax(logits[0, -1]).item())
 
         if next_tok in stop_set:
             break
         curr_ids.append(next_tok)
 
-        # Early stopping on function boundary
-        cur_text = tokenizer.decode(curr_ids[len(p_ids):])
+        # Early stopping on function boundary using a bounded tail window
+        tail_start = max(len(p_ids), len(curr_ids) - 16)
+        cur_text = tokenizer.decode(curr_ids[tail_start:])
         if any(sw in cur_text for sw in stop_words):
             break
 
