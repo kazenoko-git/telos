@@ -18,7 +18,7 @@ from telos.inference import TextGenerator
 MiB = 1024 ** 2
 TASKS = [
     ("square", "def square(x):\n    \"\"\"Return x squared.\"\"\"\n", "assert square(-3) == 9 and square(0) == 0 and square(7) == 49"),
-    ("is_even", "def is_even(n):\n    \"\"\"Return True if n is an even integer.\"\"\"\n", "assert is_even(0) is True and is_even(-4) is True and is_even(3) is False"),
+    ("is_even", "def is_even(n):\n    \"\"\"Return True if n is an even integer.\"\"\"\n", "assert is_even(0) is True and is_even(-4) is True and is_even(2) is True and is_even(-3) is False and is_even(3) is False"),
     ("reverse", "def reverse_string(text):\n    \"\"\"Return text with its characters in reverse order.\"\"\"\n", "assert reverse_string('abc') == 'cba' and reverse_string('') == '' and reverse_string('é🙂') == '🙂é'"),
     ("product", "def product(values):\n    \"\"\"Return the product of all values, or 1 when empty.\"\"\"\n", "assert product([]) == 1 and product([2, -3, 4]) == -24 and product([0, 7]) == 0"),
     ("unique", "def unique_in_order(values):\n    \"\"\"Return a list of distinct items, keeping first-appearance order.\"\"\"\n", "assert unique_in_order([]) == [] and unique_in_order([3, 1, 3, 2, 1]) == [3, 1, 2]"),
