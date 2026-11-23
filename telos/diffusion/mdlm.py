@@ -121,6 +121,65 @@ if TORCH_AVAILABLE:
 
         return total_loss, metrics
 
+    def mdlm_loss_from_model_pytorch(
+        model: torch.nn.Module,
+        masked_input_ids: torch.Tensor,
+        targets: torch.Tensor,
+        mask_positions: torch.Tensor,
+        t_values: torch.Tensor,
+        label_smoothing: float = 0.0,
+    ) -> tuple[torch.Tensor, dict[str, float]]:
+        """Compute 1/t reweighted MDLM CE projecting only masked positions when supported."""
+        raw_model = getattr(model, "_orig_mod", model)
+        raw_model = getattr(raw_model, "module", raw_model)
+        can_sparse_project = (
+            masked_input_ids.device.type != "xla"
+            and model is raw_model
+            and hasattr(raw_model, "hidden_states")
+            and hasattr(raw_model, "output_projection")
+        )
+        if not can_sparse_project:
+            logits = model(masked_input_ids, mask_override=False)
+            return mdlm_loss_pytorch(
+                logits, targets, mask_positions, t_values, label_smoothing=label_smoothing,
+            )
+
+        batch_size, seq_len = masked_input_ids.shape
+        hidden = raw_model.hidden_states(masked_input_ids, mask_override=False)
+        flat_mask = mask_positions.reshape(-1)
+        masked_count_per_example = mask_positions.sum(dim=1).float().clamp(min=1.0)
+
+        if flat_mask.any():
+            masked_hidden = hidden.reshape(-1, hidden.shape[-1])[flat_mask]
+            masked_logits = raw_model.output_projection(masked_hidden)
+            masked_targets = targets.reshape(-1)[flat_mask]
+            masked_ce = F.cross_entropy(
+                masked_logits,
+                masked_targets,
+                reduction="none",
+                label_smoothing=label_smoothing,
+            )
+            row_idx = (
+                torch.arange(batch_size, device=masked_input_ids.device)
+                .unsqueeze(1)
+                .expand(batch_size, seq_len)
+                .reshape(-1)[flat_mask]
+            )
+            per_example_sum = torch.zeros(batch_size, dtype=masked_ce.dtype, device=masked_input_ids.device)
+            per_example_sum.scatter_add_(0, row_idx, masked_ce)
+        else:
+            per_example_sum = hidden.sum(dim=(1, 2)).float() * 0.0
+
+        per_example_ce = per_example_sum / masked_count_per_example
+        t_weights = 1.0 / t_values.squeeze(-1).clamp(min=1e-3)
+        total_loss = (per_example_ce * t_weights).mean()
+        metrics = {
+            "loss": total_loss,
+            "unweighted_ce": per_example_ce.mean(),
+            "masked_tokens_avg": mask_positions.sum().float() / batch_size,
+        }
+        return total_loss, metrics
+
     def apply_masking(
         input_ids: torch.Tensor,
         t_values: torch.Tensor | None = None,
