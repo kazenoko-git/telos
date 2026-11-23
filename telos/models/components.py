@@ -125,7 +125,15 @@ class Attention(nn.Module):
         self.v_proj = nn.Linear(d_model, self.n_kv_heads * self.head_dim, bias=False)
         self.out_proj = nn.Linear(d_model, d_model, bias=False)
 
-    def forward(self, x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor, is_causal_override: bool | None = None) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        cos: torch.Tensor,
+        sin: torch.Tensor,
+        is_causal_override: bool | None = None,
+        kv_cache: tuple[torch.Tensor, torch.Tensor] | None = None,
+        return_kv: bool = False,
+    ) -> torch.Tensor | tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
         batch, seq_len, _ = x.shape
 
         if hasattr(self, "qkv_proj"):
@@ -138,19 +146,31 @@ class Attention(nn.Module):
 
         q, k = apply_rope(q, k, cos, sin)
 
+        if kv_cache is not None:
+            past_k, past_v = kv_cache
+            k = torch.cat((past_k, k), dim=2)
+            v = torch.cat((past_v, v), dim=2)
+        present_kv = (k, v) if return_kv else None
+
+        kv_len = k.shape[2]
         native_gqa = self.num_queries_per_kv > 1 and x.device.type == "cuda"
         if self.num_queries_per_kv > 1 and not native_gqa:
-            k = k[:, :, None, :, :].expand(
-                batch, self.n_kv_heads, self.num_queries_per_kv, seq_len, self.head_dim
-            ).reshape(batch, self.n_heads, seq_len, self.head_dim)
-            v = v[:, :, None, :, :].expand(
-                batch, self.n_kv_heads, self.num_queries_per_kv, seq_len, self.head_dim
-            ).reshape(batch, self.n_heads, seq_len, self.head_dim)
+            k_attn = k[:, :, None, :, :].expand(
+                batch, self.n_kv_heads, self.num_queries_per_kv, kv_len, self.head_dim
+            ).reshape(batch, self.n_heads, kv_len, self.head_dim)
+            v_attn = v[:, :, None, :, :].expand(
+                batch, self.n_kv_heads, self.num_queries_per_kv, kv_len, self.head_dim
+            ).reshape(batch, self.n_heads, kv_len, self.head_dim)
+        else:
+            k_attn, v_attn = k, v
 
         causal_flag = is_causal_override if is_causal_override is not None else self.is_causal
+        if kv_cache is not None and seq_len == 1:
+            # Incremental single-token decode attends to all cached keys plus self.
+            causal_flag = False
 
         out = F.scaled_dot_product_attention(
-            q, k, v,
+            q, k_attn, v_attn,
             attn_mask=None,
             dropout_p=self.dropout if self.training else 0.0,
             is_causal=causal_flag,
@@ -158,4 +178,7 @@ class Attention(nn.Module):
         )
 
         out = out.permute(0, 2, 1, 3).contiguous().view(batch, seq_len, self.d_model)
-        return self.out_proj(out)
+        proj = self.out_proj(out)
+        if return_kv:
+            return proj, present_kv
+        return proj
