@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Standalone native causal inference via `telos generate` and `telos.inference.TextGenerator`, with streaming, greedy and seeded sampling, stop strings, and checkpoint tokenizer and context validation.
+- Post-training exports include the tokenizer actually used by the run.
+
+### Performance
+- Native inference uses incremental KV decoding and projects only the active position. PyTorch also supports reserved KV storage to avoid reallocating the growing cache every token. See [inference validation](docs/releases/v1.9.0-inference-validation.md).
+
 ## [1.8.9] - 2026-11-23
 
 ### Added

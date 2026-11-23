@@ -42,6 +42,7 @@ These are workflow comparisons. Matched competitor training runs and evaluator p
 - **Get from corpus to training run:** prepare text, code, JSONL, or Hugging Face datasets as token streams, then train with a parameter budget and token target instead of assembling a training stack by hand.
 - **Continue from pretraining to post-training:** fine-tune causal Télos checkpoints on prompt/response JSONL or preference pairs, with output checkpoints that work with Télos evaluation tools.
 - **Resume interrupted training:** restore complete pretraining or SFT/DPO state from a compatible checkpoint. Exported model weights can initialize a new run; resuming an existing run requires its training-state checkpoint.
+- **Generate from a native model:** load an autoregressive checkpoint and stream a continuation on MLX or PyTorch.
 - **Run on the hardware you have:** use Apple Silicon through MLX, NVIDIA GPUs through PyTorch/CUDA, Google Cloud TPUs through PyTorch-XLA, or CPU for compatible workflows.
 - **Benchmark trained and external models:** run custom and public task suites for contextual code behavior, sandboxed code execution, reasoning, tool-use, cybersecurity, and other domains; inspect and save per-task results. Some suites must first be generated or fetched with the benchmark builder.
 - **Measure training throughput:** use the separate `telos bench` command for short hardware-throughput measurements. This is distinct from evaluating model quality on benchmark tasks.
@@ -187,6 +188,27 @@ telos bench --paradigm ar --params 50M --hardware mlx
 ```
 
 Explore the CLI with `telos --help` or see the [CLI guide](cli/README.md) for data preparation, training, evaluation, and hardware benchmark options.
+
+### Native inference
+
+```bash
+telos generate --checkpoint checkpoints/ar-sft --prompt "Explain Lagrange interpolation." \
+  --max-new-tokens 128 --temperature 0.7 --top-p 0.9 --seed 42 --stream
+```
+
+Use `--prompt-file -` to read from stdin. Output contains only the continuation. Generation is greedy by default. Repeat `--stop` to stop on multiple strings. Generation stops at the checkpoint's context limit, and an overlong prompt raises an error.
+
+Telos resolves the tokenizer from checkpoint metadata. New post-training exports include `tokenizer.json`. For an older checkpoint with a moved custom tokenizer, supply its JSON with `--tokenizer`. Use `--config` for weights exported without the original architecture metadata. Post-trained checkpoints prepend BOS by default, and `--bos` and `--no-bos` override that choice.
+
+```python
+from telos.inference import TextGenerator
+
+generator = TextGenerator.from_checkpoint("checkpoints/ar-sft")
+for chunk in generator.stream("Explain Lagrange interpolation.", max_new_tokens=128):
+    print(chunk, end="", flush=True)
+```
+
+Use `generator.generate(...)` to collect the continuation into a string. Inference supports native causal models and raw-text prompts. PyTorch offers reserved KV storage with `--cache static`. Both backends support `--cache dynamic` and `--cache off` for comparisons.
 
 ### Python API
 
