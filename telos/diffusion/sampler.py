@@ -108,9 +108,13 @@ class MDLMSampler:
             if num_to_unmask_this_step <= 0:
                 continue
 
-            logits = self.model(seq)
-            # Slice only masked positions before repetition penalty, softmax, and topk.
-            masked_logits = logits[0, masked_positions].clone()
+            if hasattr(self.model, "hidden_states") and hasattr(self.model, "output_projection"):
+                hidden = self.model.hidden_states(seq)
+                masked_logits = self.model.output_projection(hidden[0, masked_positions]).clone()
+            else:
+                logits = self.model(seq)
+                # Slice only masked positions before repetition penalty, softmax, and topk.
+                masked_logits = logits[0, masked_positions].clone()
             masked_logits[:, self.mask_token_id] = -float("inf")
 
             if self.repetition_penalty != 1.0:
@@ -240,10 +244,14 @@ class MLXMDLMSampler:
             if k <= 0:
                 continue
 
-            logits_mx = self.model(mx.array(seq))[0]
-            masked_logits = logits_mx[mx.array(masked_idx, dtype=mx.int32)].astype(mx.float32)
-            vocab_idx = mx.arange(masked_logits.shape[-1])[None, :]
-            masked_logits = mx.where(vocab_idx == self.mask_token_id, -1e9, masked_logits)
+            masked_idx_mx = mx.array(masked_idx, dtype=mx.int32)
+            if hasattr(self.model, "hidden_states") and hasattr(self.model, "logits_from_hidden"):
+                hidden = self.model.hidden_states(mx.array(seq))[0]
+                masked_logits = self.model.logits_from_hidden(hidden[masked_idx_mx]).astype(mx.float32)
+            else:
+                logits_mx = self.model(mx.array(seq))[0]
+                masked_logits = logits_mx[masked_idx_mx].astype(mx.float32)
+            masked_logits[:, self.mask_token_id] = -1e9
             probs_mx = mx_nn.softmax(masked_logits / self.temperature, axis=-1)
 
             # Compute top-2 margin and argmax on device instead of full-vocab CPU sort.
