@@ -108,6 +108,20 @@ class MLXTelosTransformer(nn.Module):
                 x = layer(x, effective_mask)
         return self.norm(x)
 
+    def hidden_states_with_cache(self, x, kv_cache=None, mask_override=None, is_causal: bool | None = None):
+        """Run transformer blocks with incremental KV-cache for autoregressive decoding."""
+        effective_mask = mask_override
+        if is_causal is not None:
+            effective_mask = "causal" if is_causal else None
+
+        x = self.emb(x)
+        new_caches = []
+        for idx, layer in enumerate(self.layers):
+            layer_cache = None if kv_cache is None else kv_cache[idx]
+            x, present_kv = layer(x, effective_mask, kv_cache=layer_cache, return_kv=True)
+            new_caches.append(present_kv)
+        return self.norm(x), new_caches
+
     def logits_from_hidden(self, hidden):
         if self.tied_embeddings:
             return self.emb.as_linear(hidden)
