@@ -89,3 +89,32 @@ def load_tokenizer(save_path: str | Path | None = None) -> Tokenizer:
         )
 
     return Tokenizer.from_file(str(target))
+
+
+def checkpoint_tokenizer_path(checkpoint, config, override=None):
+    """Resolve an explicit, checkpoint-relative or legacy tokenizer path."""
+    if override is not None:
+        candidates = [Path(override)]
+    elif configured := (config.get("data") or {}).get("tokenizer"):
+        path = Path(configured)
+        candidates = [Path(checkpoint).parent / path, path]
+    else:
+        sibling = Path(checkpoint).with_name("tokenizer.json")
+        return sibling if sibling.is_file() else None
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    raise FileNotFoundError(f"Tokenizer JSON not found: {candidates[0]}. Supply --tokenizer.")
+
+
+def export_checkpoint_tokenizer(directory, tokenizer):
+    """Publish the effective tokenizer without replacing a different artifact."""
+    from telos.training.checkpoint import atomic_write
+
+    path = directory / "tokenizer.json"
+    if path.exists():
+        if Tokenizer.from_file(str(path)).to_str() != tokenizer.to_str():
+            raise ValueError(f"Checkpoint directory contains a different tokenizer: {path}")
+    else:
+        atomic_write(path, lambda temporary: tokenizer.save(str(temporary)))
+    return path.name
