@@ -28,6 +28,7 @@ class TransformerBlock(nn.Module):
         mask_override: bool | None = None,
         kv_cache: tuple[torch.Tensor, torch.Tensor] | None = None,
         return_kv: bool = False,
+        cache_position: int | None = None,
     ) -> torch.Tensor | tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
         if return_kv:
             attn_out, present_kv = self.attn(
@@ -35,6 +36,7 @@ class TransformerBlock(nn.Module):
                 is_causal_override=mask_override,
                 kv_cache=kv_cache,
                 return_kv=True,
+                cache_position=cache_position,
             )
             x = x + attn_out
             x = x + self.mlp(self.mlp_norm(x))
@@ -136,10 +138,18 @@ class TelosTransformer(nn.Module):
         input_ids: torch.Tensor,
         kv_cache: list[tuple[torch.Tensor, torch.Tensor]] | None = None,
         mask_override: bool | None = None,
+        *,
+        cache_position: int | None = None,
     ) -> tuple[torch.Tensor, list[tuple[torch.Tensor, torch.Tensor]]]:
         """Run transformer blocks with incremental KV-cache for autoregressive decoding."""
         _, seq_len = input_ids.shape
-        offset = 0 if kv_cache is None else kv_cache[0][0].shape[2]
+        if cache_position is None:
+            offset = 0 if kv_cache is None else kv_cache[0][0].shape[2]
+        else:
+            if (torch.is_grad_enabled() or self.training or not kv_cache or seq_len != 1
+                    or not 0 <= cache_position < kv_cache[0][0].shape[2]):
+                raise ValueError("A reserved KV cache requires gradient-free single-token decoding within capacity")
+            offset = cache_position
         assert offset + seq_len <= self.config.max_seq_len, (
             f"Sequence length {offset + seq_len} exceeds max allowed {self.config.max_seq_len}"
         )
@@ -158,6 +168,7 @@ class TelosTransformer(nn.Module):
                 mask_override=mask_override,
                 kv_cache=layer_cache,
                 return_kv=True,
+                cache_position=cache_position,
             )
             new_caches.append(present_kv)
         return self.final_norm(h), new_caches

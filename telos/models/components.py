@@ -133,6 +133,7 @@ class Attention(nn.Module):
         is_causal_override: bool | None = None,
         kv_cache: tuple[torch.Tensor, torch.Tensor] | None = None,
         return_kv: bool = False,
+        cache_position: int | None = None,
     ) -> torch.Tensor | tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
         batch, seq_len, _ = x.shape
 
@@ -146,11 +147,16 @@ class Attention(nn.Module):
 
         q, k = apply_rope(q, k, cos, sin)
 
-        if kv_cache is not None:
+        if cache_position is not None:
+            keys, values = kv_cache
+            end = cache_position + seq_len
+            keys[:, :, cache_position:end].copy_(k)
+            values[:, :, cache_position:end].copy_(v)
+            k, v = keys[:, :, :end], values[:, :, :end]
+        elif kv_cache is not None:
             past_k, past_v = kv_cache
             k = torch.cat((past_k, k), dim=2)
             v = torch.cat((past_v, v), dim=2)
-        present_kv = (k, v) if return_kv else None
 
         kv_len = k.shape[2]
         native_gqa = self.num_queries_per_kv > 1 and x.device.type == "cuda"
@@ -180,5 +186,5 @@ class Attention(nn.Module):
         out = out.permute(0, 2, 1, 3).contiguous().view(batch, seq_len, self.d_model)
         proj = self.out_proj(out)
         if return_kv:
-            return proj, present_kv
+            return proj, kv_cache if cache_position is not None else (k, v)
         return proj
