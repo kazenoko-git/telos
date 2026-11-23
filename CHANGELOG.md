@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.9] - 2026-11-23
+
 ### Added
 - Optional incremental KV-cache support (`hidden_states_with_cache`) on PyTorch `TelosTransformer` and MLX `MLXTelosTransformer`, plus length-bucketed shared-prefill `collect_rollouts_cached` in `telos/posttrain/grpo.py`.
 - Sparse masked-only `mdlm_loss_from_model_pytorch` helper in `telos/diffusion/mdlm.py`.
@@ -20,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Validation
 - Apple M5 Pro Metal GPU (`MLX 0.32.2`, 14-layer BF16 49M model, `B=4, G=4, prompt=64, max_new=32`): KV-cached shared-prefill GRPO rollouts measured **3.27× faster** (`246.10 ms → 75.26 ms`) and **-58.6% peak GPU memory** (`488.70 MB → 202.09 MB`, `0.04688` BF16 max logit diff).
-- Physical M5 Pro Metal test suite (`tests/test_grpo.py` + `tests/test_v189_optimizations.py`): **12 passed in 1.56s** (including MLX BF16 full and MLX QLoRA GRPO rollout/resume replay).
+- Physical M5 Pro Metal test suite (`tests/test_grpo.py` + `tests/test_v189_optimizations.py`): **12 passed in 1.56s** (including MLX BF16 full and MLX QLoRA GRPO rollout/resume replay); see [v1.8.9 validation](docs/releases/v1.8.9-validation.md).
 - Eliminated on M5 Pro screening: `MLXLoRALinear` scale-before-up-projection (`54.23 ms → 53.27 ms`, `1.018×`, unchanged `1250.34 MB` peak memory — below threshold).
 
 ## [1.8.8] - 2026-11-22
