@@ -114,30 +114,33 @@ def _evaluate_single_linguistic_probe_type(
         if backend == "mlx":
             import mlx.core as mx
             x = mx.array([input_ids], dtype=mx.int32)
-            logits = model(x, mask_override=mask_override)
-            logits_pos = np.array(logits[0, eval_idx].astype(mx.float32))
+            if hasattr(model, "hidden_states") and hasattr(model, "logits_from_hidden"):
+                h = model.hidden_states(x, mask_override=mask_override)
+                logits_pos = np.array(model.logits_from_hidden(h[0, eval_idx : eval_idx + 1])[0].astype(mx.float32))
+            else:
+                logits = model(x, mask_override=mask_override)
+                logits_pos = np.array(logits[0, eval_idx].astype(mx.float32))
         else:
             import torch
             device = next(model.parameters()).device if hasattr(model, "parameters") else "cpu"
             x = torch.tensor([input_ids], dtype=torch.long, device=device)
             with torch.no_grad():
-                logits = model(x, mask_override=mask_override)
-            logits_pos = logits[0, eval_idx].detach().cpu().numpy()
+                if hasattr(model, "hidden_states") and hasattr(model, "output_projection"):
+                    h = model.hidden_states(x, mask_override=mask_override)
+                    logits_pos = model.output_projection(h[0, eval_idx]).detach().cpu().float().numpy()
+                else:
+                    logits = model(x, mask_override=mask_override)
+                    logits_pos = logits[0, eval_idx].detach().cpu().float().numpy()
 
         if probe_type == "infill":
             # Mask out the [MASK] token itself to prevent degenerate identity prediction
             logits_pos[mask_token_id] = -1e9
 
-        # Numerically stable softmax probability distribution
-        shifted = logits_pos - np.max(logits_pos)
-        probs = np.exp(shifted) / np.sum(np.exp(shifted))
-
-        target_prob = max(float(probs[target_tok]), 1e-12)
-        target_ce = -math.log(target_prob)
-
-        sorted_indices = np.argsort(logits_pos)[::-1]
-        rank_matches = np.where(sorted_indices == target_tok)[0]
-        rank = int(rank_matches[0]) + 1 if len(rank_matches) > 0 else len(logits_pos)
+        target_logit = float(logits_pos[target_tok])
+        max_logit = float(np.max(logits_pos))
+        lse = max_logit + math.log(float(np.sum(np.exp(logits_pos - max_logit))))
+        target_ce = min(lse - target_logit, -math.log(1e-12))
+        rank = int(np.count_nonzero(logits_pos > target_logit)) + 1
         is_top1 = (rank == 1)
         is_top5 = (rank <= 5)
 
