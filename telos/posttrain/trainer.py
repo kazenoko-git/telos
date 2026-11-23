@@ -510,15 +510,32 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         c_logps, r_logps = mx.split(_mlx_logps(active_model, ids, labels), 2)
         return _mlx_preference_loss(c_logps, r_logps, ref_chosen, ref_rejected, beta)
 
-    def sample(ids, positions):
-        hidden = model.hidden_states(mx.array(ids), is_causal=True)
-        last = hidden[mx.arange(len(positions)), mx.array(positions)]
-        logits = model.logits_from_hidden(last).astype(mx.float32)
+    def sample_prefill(prompt_ids, group_size):
+        hidden, cache = model.hidden_states_with_cache(mx.array(prompt_ids), is_causal=True)
+        logits = model.logits_from_hidden(hidden[:, -1, :]).astype(mx.float32)
+        logsumexp = mx.logsumexp(logits, axis=-1)
+        if group_size > 1:
+            logits = mx.repeat(logits, group_size, axis=0)
+            logsumexp = mx.repeat(logsumexp, group_size, axis=0)
+            cache = [(mx.repeat(k, group_size, axis=0), mx.repeat(v, group_size, axis=0)) for k, v in cache]
+        tokens = mx.random.categorical(logits)
+        chosen = mx.take_along_axis(logits, tokens[:, None], axis=-1).squeeze(-1)
+        logps = chosen - logsumexp
+        mx.eval(tokens, logps, cache)
+        return tokens.tolist(), logps.tolist(), cache
+
+    def sample_decode(step_ids, cache):
+        hidden, cache = model.hidden_states_with_cache(mx.array(step_ids), kv_cache=cache, is_causal=True)
+        logits = model.logits_from_hidden(hidden[:, -1, :]).astype(mx.float32)
         tokens = mx.random.categorical(logits)
         chosen = mx.take_along_axis(logits, tokens[:, None], axis=-1).squeeze(-1)
         logps = chosen - mx.logsumexp(logits, axis=-1)
-        mx.eval(tokens, logps)
-        return tokens.tolist(), logps.tolist()
+        mx.eval(tokens, logps, cache)
+        return tokens.tolist(), logps.tolist(), cache
+
+    def slice_cache(cache, keep_rows):
+        idx = mx.array(keep_rows, dtype=mx.int32)
+        return [(k[idx], v[idx]) for k, v in cache]
 
     def grpo_loss(active_model, ids, labels, old, ref, advantages):
         policy = _mlx_token_logps(active_model, ids, labels)
@@ -549,8 +566,9 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         batch = randomizer.choices(prepared, k=batch_size)
         metrics = ""
         if rl:
-            rows, action_logps, advantages, mean_reward, uniform = grpo.collect_rollouts(
-                batch, tokenizer, eos, pad, rl["group_size"], rl["max_new_tokens"], sample, reward,
+            rows, action_logps, advantages, mean_reward, uniform = grpo.collect_rollouts_cached(
+                batch, tokenizer, eos, pad, rl["group_size"], rl["max_new_tokens"],
+                sample_prefill, sample_decode, slice_cache, reward,
             )
             ids, labels = collate_mlx(rows, max_length, fixed=fixed)
             old = mx.array(grpo.collate_old_logps(rows, action_logps, ids.shape[1]))
@@ -1053,21 +1071,44 @@ def _posttrain(
         scaler.update()
 
     @torch.no_grad()
-    def sample(ids, positions):
+    def sample_prefill(prompt_ids, group_size):
         with _autocast(device, amp_dtype):
-            logits = model(torch.as_tensor(ids, device=device, dtype=torch.long), mask_override=True,
-                           logit_positions=torch.tensor(positions, device=device))
+            hidden, cache = model.hidden_states_with_cache(
+                torch.as_tensor(prompt_ids, device=device, dtype=torch.long), mask_override=True,
+            )
+            logits = model.output_projection(hidden[:, -1, :])
+        logps = logits.float().log_softmax(dim=-1)
+        if group_size > 1:
+            logps = logps.repeat_interleave(group_size, dim=0)
+            cache = [(k.repeat_interleave(group_size, dim=0), v.repeat_interleave(group_size, dim=0)) for k, v in cache]
+        tokens = torch.multinomial(logps.exp(), 1)
+        return tokens.squeeze(-1).tolist(), logps.gather(-1, tokens).squeeze(-1).tolist(), cache
+
+    @torch.no_grad()
+    def sample_decode(step_ids, cache):
+        with _autocast(device, amp_dtype):
+            hidden, cache = model.hidden_states_with_cache(
+                torch.as_tensor(step_ids, device=device, dtype=torch.long),
+                kv_cache=cache,
+                mask_override=True,
+            )
+            logits = model.output_projection(hidden[:, -1, :])
         logps = logits.float().log_softmax(dim=-1)
         tokens = torch.multinomial(logps.exp(), 1)
-        return tokens.squeeze(-1).tolist(), logps.gather(-1, tokens).squeeze(-1).tolist()
+        return tokens.squeeze(-1).tolist(), logps.gather(-1, tokens).squeeze(-1).tolist(), cache
+
+    def slice_cache(cache, keep_rows):
+        idx = torch.as_tensor(keep_rows, device=device, dtype=torch.long)
+        return [(k.index_select(0, idx), v.index_select(0, idx)) for k, v in cache]
 
     for step in range(session.step + 1, max_steps + 1):
         global_batch = randomizer.choices(prepared, k=batch_size * world_size)
         batch = global_batch[rank * batch_size:(rank + 1) * batch_size]
         metrics = ""
         if rl:
-            rows, action_logps, advantages, mean_reward, uniform = grpo.collect_rollouts(
-                batch, tokenizer, eos, pad, rl["group_size"], rl["max_new_tokens"], sample, reward_fn,
+            rows, action_logps, advantages, mean_reward, uniform = grpo.collect_rollouts_cached(
+                batch, tokenizer, eos, pad, rl["group_size"], rl["max_new_tokens"],
+                sample_prefill, sample_decode, slice_cache, reward_fn,
             )
             input_ids, labels = _collate(rows, tokenizer, max_length, device, fixed=fixed)
             advantages = torch.as_tensor(advantages, device=device)
