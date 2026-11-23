@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Optional incremental KV-cache support (`hidden_states_with_cache`) on PyTorch `TelosTransformer` and MLX `MLXTelosTransformer`, plus length-bucketed shared-prefill `collect_rollouts_cached` in `telos/posttrain/grpo.py`.
+- Sparse masked-only `mdlm_loss_from_model_pytorch` helper in `telos/diffusion/mdlm.py`.
+- Unit and parity tests in `tests/test_v189_optimizations.py` and M5 Pro Metal screening script in `scratch/bench_v189_m5pro.py`.
+
+### Fixed
+- Use KV-cached shared-prefill rollouts in PyTorch and MLX GRPO post-training (`7.79×` faster rollout generation on PyTorch CPU with exact parity).
+- Project only valid (`labels != -100`) hidden states in PyTorch SFT post-training (`1.185×` E2E on CPU, `0.0` loss/grad diff).
+- Project only masked positions in PyTorch MDLM training (`1.103×` E2E on CPU, `0.0` loss/grad diff) and in `MDLMSampler` / `MLXMDLMSampler` (`1.055×` on CPU, exact token parity).
+
 ## [1.8.8] - 2026-11-22
 
 ### Added
