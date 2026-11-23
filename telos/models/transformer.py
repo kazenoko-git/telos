@@ -20,8 +20,26 @@ class TransformerBlock(nn.Module):
         self.mlp_norm = RMSNorm(config.d_model)
         self.mlp = SwiGLU(config.d_model)
 
-    def forward(self, x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor, mask_override: bool | None = None) -> torch.Tensor:
-        x = x + self.attn(self.attn_norm(x), cos, sin, is_causal_override=mask_override)
+    def forward(
+        self,
+        x: torch.Tensor,
+        cos: torch.Tensor,
+        sin: torch.Tensor,
+        mask_override: bool | None = None,
+        kv_cache: tuple[torch.Tensor, torch.Tensor] | None = None,
+        return_kv: bool = False,
+    ) -> torch.Tensor | tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+        if return_kv:
+            attn_out, present_kv = self.attn(
+                self.attn_norm(x), cos, sin,
+                is_causal_override=mask_override,
+                kv_cache=kv_cache,
+                return_kv=True,
+            )
+            x = x + attn_out
+            x = x + self.mlp(self.mlp_norm(x))
+            return x, present_kv
+        x = x + self.attn(self.attn_norm(x), cos, sin, is_causal_override=mask_override, kv_cache=kv_cache)
         x = x + self.mlp(self.mlp_norm(x))
         return x
 
@@ -112,6 +130,37 @@ class TelosTransformer(nn.Module):
                 h = layer(h, cos, sin, mask_override=mask_override)
 
         return self.final_norm(h)
+
+    def hidden_states_with_cache(
+        self,
+        input_ids: torch.Tensor,
+        kv_cache: list[tuple[torch.Tensor, torch.Tensor]] | None = None,
+        mask_override: bool | None = None,
+    ) -> tuple[torch.Tensor, list[tuple[torch.Tensor, torch.Tensor]]]:
+        """Run transformer blocks with incremental KV-cache for autoregressive decoding."""
+        _, seq_len = input_ids.shape
+        offset = 0 if kv_cache is None else kv_cache[0][0].shape[2]
+        assert offset + seq_len <= self.config.max_seq_len, (
+            f"Sequence length {offset + seq_len} exceeds max allowed {self.config.max_seq_len}"
+        )
+
+        h = self.tok_embeddings(input_ids)
+        h = self.dropout(h)
+        cos_full, sin_full = self.rope(h, offset + seq_len)
+        cos = cos_full[offset : offset + seq_len].to(dtype=h.dtype).unsqueeze(0).unsqueeze(0)
+        sin = sin_full[offset : offset + seq_len].to(dtype=h.dtype).unsqueeze(0).unsqueeze(0)
+
+        new_caches: list[tuple[torch.Tensor, torch.Tensor]] = []
+        for idx, layer in enumerate(self.layers):
+            layer_cache = None if kv_cache is None else kv_cache[idx]
+            h, present_kv = layer(
+                h, cos, sin,
+                mask_override=mask_override,
+                kv_cache=layer_cache,
+                return_kv=True,
+            )
+            new_caches.append(present_kv)
+        return self.final_norm(h), new_caches
 
     def reliability_scores(self, input_ids: torch.Tensor, mask_override: bool | None = None) -> torch.Tensor:
         """Compute scalar reliability scores without projecting vocabulary logits."""

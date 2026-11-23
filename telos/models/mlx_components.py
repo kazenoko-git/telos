@@ -184,13 +184,14 @@ class MLXBlock(nn.Module):
         self._k_end = self._q_end + n_kv_heads * self.head_dim
         self._scale = 1.0 / math.sqrt(self.head_dim)
 
-    def __call__(self, x, mask_override=None):
+    def __call__(self, x, mask_override=None, kv_cache=None, return_kv: bool = False):
         B, T, D = x.shape
         h = self.norm1(x)
+        offset = 0 if kv_cache is None else kv_cache[0].shape[2]
 
         qkv = self.qkv_proj(h)
         table = self._qkv_rope_table
-        if (self.use_experimental_qkv_rope and table is not None
+        if (kv_cache is None and self.use_experimental_qkv_rope and table is not None
                 and self.head_dim == 64 and self.n_heads == self.n_kv_heads
                 and T <= table.shape[0] and qkv.dtype in (mx.float32, mx.bfloat16)
                 and mx.default_device() == mx.gpu):
@@ -201,13 +202,20 @@ class MLXBlock(nn.Module):
             q = q.reshape(B, T, self.n_heads, self.head_dim).transpose(0, 2, 1, 3)
             k = k.reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
             v = v.reshape(B, T, self.n_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
-            q = mx.fast.rope(q, self.head_dim, traditional=True, base=10000.0, scale=1.0, offset=0)
-            k = mx.fast.rope(k, self.head_dim, traditional=True, base=10000.0, scale=1.0, offset=0)
+            q = mx.fast.rope(q, self.head_dim, traditional=True, base=10000.0, scale=1.0, offset=offset)
+            k = mx.fast.rope(k, self.head_dim, traditional=True, base=10000.0, scale=1.0, offset=offset)
+
+        if kv_cache is not None:
+            past_k, past_v = kv_cache
+            k = mx.concatenate([past_k, k], axis=2)
+            v = mx.concatenate([past_v, v], axis=2)
 
         scale = self._scale
-        
+
         # Determine mask mode: MLX fast SDPA expects "causal", None, or an mx.array mask
-        if mask_override is True or mask_override == "causal":
+        if kv_cache is not None and T == 1:
+            mask_arg = None
+        elif mask_override is True or mask_override == "causal":
             mask_arg = "causal"
         elif mask_override is False or (mask_override is None and not self.is_causal):
             mask_arg = None
@@ -227,4 +235,6 @@ class MLXBlock(nn.Module):
 
         x = x + self.out(out)
         x = x + self.mlp(self.norm2(x))
+        if return_kv:
+            return x, (k, v)
         return x
