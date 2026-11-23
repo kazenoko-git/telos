@@ -26,7 +26,7 @@ from .lr_schedule import WarmupCosineLR
 from .dataloader import get_global_targets_contiguous_pytorch
 
 from telos.diffusion.ar import ar_loss_fn_pytorch
-from telos.diffusion.mdlm import mdlm_loss_pytorch, apply_masking_pytorch, sample_beta_timesteps
+from telos.diffusion.mdlm import mdlm_loss_from_model_pytorch, mdlm_loss_pytorch, apply_masking_pytorch, sample_beta_timesteps
 from telos.diffusion.undlm import undlm_loss_pytorch, apply_uniform_noise_pytorch
 from telos.diffusion.corosred import (
     crsr_phase_a_loss_fn_pytorch,
@@ -541,8 +541,7 @@ class UnifiedPyTorchTrainer:
             bs = batch_seqs.shape[0]
             t_vals = self._sample_beta_timesteps(bs)
             masked_ids, mask_pos, t_vals_out = apply_masking_pytorch(batch_seqs, t_vals, mask_token_id=1, special_token_lut=self.special_lut)
-            logits = self.model(masked_ids, mask_override=False)
-            loss, metrics = mdlm_loss_pytorch(logits, batch_seqs, mask_pos, t_vals_out)
+            loss, metrics = mdlm_loss_from_model_pytorch(self.model, masked_ids, batch_seqs, mask_pos, t_vals_out)
 
         elif self.paradigm == "undlm":
             bs = batch_seqs.shape[0]
