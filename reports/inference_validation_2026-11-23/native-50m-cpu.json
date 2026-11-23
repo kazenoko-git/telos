@@ -1,0 +1,231 @@
+{
+  "checkpoint": "research/tpu_completed_2026-10-23/downloads/checkpoints/ar/50m_r50_tpu_v5e8_seed42_cad1_v120_20261021",
+  "backend": "pytorch",
+  "context": 512,
+  "tokenizer_override": "configs/shared/tokenizer_mac.json",
+  "model_load_ms": 446.7028749641031,
+  "baseline_rss_mib": 207.015625,
+  "loaded_rss_mib": 626.75,
+  "cold": {
+    "prompt_tokens": 23,
+    "output_tokens": 64,
+    "ttft_ms": 7.456833031028509,
+    "first_text_ms": 7.495583035051823,
+    "decode_tok_s": 352.1266985206299,
+    "last_32_tok_s": 355.1924699956849,
+    "total_ms": 186.42129190266132,
+    "text": "import numpy as np\nimport os\nimport sys\nimport tempfile\nimport time\nimport datetime\nimport numpy as np\nimport matplotlib.pyplot as plt\nimport matplotlib.pyplot as plt\nimport matplotlib.pyplot as plt\nimport numpy as np\nimport matplotlib.pyplot as plt\nimport matplotlib"
+  },
+  "quality": {
+    "square": {
+      "greedy": {
+        "text": "    return square(x)\n\n",
+        "outcome": "RUNTIME_EXCEPTION"
+      },
+      "seeded": {
+        "text": "    return 1.0 / x\n\n",
+        "outcome": "FAILED_ASSERTION"
+      }
+    },
+    "is_even": {
+      "greedy": {
+        "text": "    return (n == 0)\n\n",
+        "outcome": "FAILED_ASSERTION"
+      },
+      "seeded": {
+        "text": "    return ((n >> 0) & 0x8) == 0x8\n",
+        "outcome": "FAILED_ASSERTION"
+      }
+    },
+    "reverse": {
+      "greedy": {
+        "text": "    return text.replace(' ', '').replace(' ', '').replace(' ', '').replace(' ', '').replace(' ', '').replace(' ', '').replace(' ', '').replace(' ', '').replace(' ', '').replace(' ', '').replace(' ', '').replace(' ', '').replace(' ', '').replace(' ', '').replace(' ', '').replace(' ', '').replace(' ', '').replace(' ', '').replace('",
+        "outcome": "syntax_error"
+      },
+      "seeded": {
+        "text": "    return text.replace(u\"\\u202B\", \"\").replace(u\"\\u203B\", \"\").replace(u\"\\u204B\", \"\").replace(u\"\\u203B\", \"\")\n\n",
+        "outcome": "FAILED_ASSERTION"
+      }
+    },
+    "product": {
+      "greedy": {
+        "text": "    return values.pop()\n\n",
+        "outcome": "RUNTIME_EXCEPTION"
+      },
+      "seeded": {
+        "text": "    return values.get('product')\n\n",
+        "outcome": "RUNTIME_EXCEPTION"
+      }
+    },
+    "unique": {
+      "greedy": {
+        "text": "    return [item for item in values if item.unique]\n\n",
+        "outcome": "RUNTIME_EXCEPTION"
+      },
+      "seeded": {
+        "text": "    return [item.id for item in values]\n",
+        "outcome": "RUNTIME_EXCEPTION"
+      }
+    },
+    "merge": {
+      "greedy": {
+        "text": "    if not isinstance(a, list):\n        return a\n    for i in range(len(a)):\n        if not isinstance(b[i], list):\n            return b[i]\n    return a\n\n",
+        "outcome": "FAILED_ASSERTION"
+      },
+      "seeded": {
+        "text": "    if not isinstance(a, Mapping):\n        return\n    if not isinstance(b, Mapping):\n        return\n    if not isinstance(a, Mapping):\n        return\n    if not isinstance(b, Mapping):\n        return\n    for i in xrange(len(a)):\n        a[i] = b[i]\n    return\n",
+        "outcome": "RUNTIME_EXCEPTION"
+      }
+    }
+  },
+  "prose": {
+    "plain_fact": " the same as the capital city of France.\n\n    :param capital_city: The capital city of France is the same as the capital city of France.\n\n    :param city_number: The city",
+    "instruction_format": " Answer\n\nAnswer: Answer\n\nAnswer: Answer\n\nAnswer: Answer\n\nAnswer: Answer\n\nAnswer: Answer\n\nAnswer: Answer\n\nAnswer: A",
+    "code_seed": "import numpy as np\nimport os\nimport sys\nimport tempfile\nimport time\nimport datetime\nimport numpy as np\nimport matplotlib.pyplot as plt\nimport matplotlib.pyplot as plt\nimport matplotlib.pyplot as plt\nimport numpy as np\nimport matplotlib.pyplot as plt\nimport matplotlib"
+  },
+  "trials": {
+    "short": [
+      {
+        "prompt_tokens": 51,
+        "output_tokens": 144,
+        "ttft_ms": 9.556917008012533,
+        "first_text_ms": 9.567167144268751,
+        "decode_tok_s": 310.46340351320555,
+        "last_32_tok_s": 309.65357511060193,
+        "total_ms": 470.22708412259817,
+        "text": "    left = left.sort(key=lambda x: x.id)\n    right = right.sort(key=lambda x: x.id)\n    return left + right\n\ndef merge_sorted_by_id(left, right):\n    \"\"\"Merge two sorted lists by id.\"\"\"\n    left = left.sort(key=lambda x: x.id)\n    right = right.sort(key=lambda x: x.id)\n    return left + right\n\ndef merge_sorted_by_id(left, right):\n    \"\"\"Merge two sorted lists by id.\"\"\"\n    left = left.sort(key=lambda"
+      },
+      {
+        "prompt_tokens": 51,
+        "output_tokens": 144,
+        "ttft_ms": 9.722292190417647,
+        "first_text_ms": 9.734833147376776,
+        "decode_tok_s": 309.3852170930817,
+        "last_32_tok_s": 310.0801035056175,
+        "total_ms": 471.9793749973178,
+        "text": "    left = left.sort(key=lambda x: x.id)\n    right = right.sort(key=lambda x: x.id)\n    return left + right\n\ndef merge_sorted_by_id(left, right):\n    \"\"\"Merge two sorted lists by id.\"\"\"\n    left = left.sort(key=lambda x: x.id)\n    right = right.sort(key=lambda x: x.id)\n    return left + right\n\ndef merge_sorted_by_id(left, right):\n    \"\"\"Merge two sorted lists by id.\"\"\"\n    left = left.sort(key=lambda"
+      },
+      {
+        "prompt_tokens": 51,
+        "output_tokens": 144,
+        "ttft_ms": 9.325499879196286,
+        "first_text_ms": 9.335207985714078,
+        "decode_tok_s": 323.2611854453547,
+        "last_32_tok_s": 329.0433862670378,
+        "total_ms": 451.741874916479,
+        "text": "    left = left.sort(key=lambda x: x.id)\n    right = right.sort(key=lambda x: x.id)\n    return left + right\n\ndef merge_sorted_by_id(left, right):\n    \"\"\"Merge two sorted lists by id.\"\"\"\n    left = left.sort(key=lambda x: x.id)\n    right = right.sort(key=lambda x: x.id)\n    return left + right\n\ndef merge_sorted_by_id(left, right):\n    \"\"\"Merge two sorted lists by id.\"\"\"\n    left = left.sort(key=lambda"
+      },
+      {
+        "prompt_tokens": 51,
+        "output_tokens": 144,
+        "ttft_ms": 9.319416945800185,
+        "first_text_ms": 9.335000067949295,
+        "decode_tok_s": 326.8973044403532,
+        "last_32_tok_s": 325.52980651670964,
+        "total_ms": 446.81495893746614,
+        "text": "    left = left.sort(key=lambda x: x.id)\n    right = right.sort(key=lambda x: x.id)\n    return left + right\n\ndef merge_sorted_by_id(left, right):\n    \"\"\"Merge two sorted lists by id.\"\"\"\n    left = left.sort(key=lambda x: x.id)\n    right = right.sort(key=lambda x: x.id)\n    return left + right\n\ndef merge_sorted_by_id(left, right):\n    \"\"\"Merge two sorted lists by id.\"\"\"\n    left = left.sort(key=lambda"
+      },
+      {
+        "prompt_tokens": 51,
+        "output_tokens": 144,
+        "ttft_ms": 9.148333920165896,
+        "first_text_ms": 9.15608392097056,
+        "decode_tok_s": 326.64852375838507,
+        "last_32_tok_s": 326.0483747266543,
+        "total_ms": 446.97404210455716,
+        "text": "    left = left.sort(key=lambda x: x.id)\n    right = right.sort(key=lambda x: x.id)\n    return left + right\n\ndef merge_sorted_by_id(left, right):\n    \"\"\"Merge two sorted lists by id.\"\"\"\n    left = left.sort(key=lambda x: x.id)\n    right = right.sort(key=lambda x: x.id)\n    return left + right\n\ndef merge_sorted_by_id(left, right):\n    \"\"\"Merge two sorted lists by id.\"\"\"\n    left = left.sort(key=lambda"
+      }
+    ],
+    "long": [
+      {
+        "prompt_tokens": 219,
+        "output_tokens": 144,
+        "ttft_ms": 26.9316250924021,
+        "first_text_ms": 26.941833086311817,
+        "decode_tok_s": 319.6319985281094,
+        "last_32_tok_s": 320.46450262926345,
+        "total_ms": 474.38074997626245,
+        "text": "    left = sorted(left, key=lambda x: x.lower(), reverse=True)\n    right = sorted(right, key=lambda x: x.lower(), reverse=True)\n    return left, right\n\ndef merge_sorted_list(left, right):\n    \"\"\"Merge two sorted lists.\"\"\"\n    left = sorted(left, key=lambda x: x.lower(), reverse=True)\n    right = sorted(right, key=lambda x: x.lower(), reverse=True)\n    return left, right\n\ndef merge_sorted_list_list(left, right):\n    \"\"\"Merge two sorted lists.\"\"\"\n"
+      },
+      {
+        "prompt_tokens": 219,
+        "output_tokens": 144,
+        "ttft_ms": 26.430834084749222,
+        "first_text_ms": 26.442750124260783,
+        "decode_tok_s": 319.7871067936853,
+        "last_32_tok_s": 320.7196537387467,
+        "total_ms": 473.6564999911934,
+        "text": "    left = sorted(left, key=lambda x: x.lower(), reverse=True)\n    right = sorted(right, key=lambda x: x.lower(), reverse=True)\n    return left, right\n\ndef merge_sorted_list(left, right):\n    \"\"\"Merge two sorted lists.\"\"\"\n    left = sorted(left, key=lambda x: x.lower(), reverse=True)\n    right = sorted(right, key=lambda x: x.lower(), reverse=True)\n    return left, right\n\ndef merge_sorted_list_list(left, right):\n    \"\"\"Merge two sorted lists.\"\"\"\n"
+      },
+      {
+        "prompt_tokens": 219,
+        "output_tokens": 144,
+        "ttft_ms": 26.629167143255472,
+        "first_text_ms": 26.638083159923553,
+        "decode_tok_s": 262.10526144574885,
+        "last_32_tok_s": 275.48576603793686,
+        "total_ms": 572.2654170822352,
+        "text": "    left = sorted(left, key=lambda x: x.lower(), reverse=True)\n    right = sorted(right, key=lambda x: x.lower(), reverse=True)\n    return left, right\n\ndef merge_sorted_list(left, right):\n    \"\"\"Merge two sorted lists.\"\"\"\n    left = sorted(left, key=lambda x: x.lower(), reverse=True)\n    right = sorted(right, key=lambda x: x.lower(), reverse=True)\n    return left, right\n\ndef merge_sorted_list_list(left, right):\n    \"\"\"Merge two sorted lists.\"\"\"\n"
+      },
+      {
+        "prompt_tokens": 219,
+        "output_tokens": 144,
+        "ttft_ms": 30.241417000070214,
+        "first_text_ms": 30.254208017140627,
+        "decode_tok_s": 272.6966531136158,
+        "last_32_tok_s": 263.81350979367437,
+        "total_ms": 554.6881249174476,
+        "text": "    left = sorted(left, key=lambda x: x.lower(), reverse=True)\n    right = sorted(right, key=lambda x: x.lower(), reverse=True)\n    return left, right\n\ndef merge_sorted_list(left, right):\n    \"\"\"Merge two sorted lists.\"\"\"\n    left = sorted(left, key=lambda x: x.lower(), reverse=True)\n    right = sorted(right, key=lambda x: x.lower(), reverse=True)\n    return left, right\n\ndef merge_sorted_list_list(left, right):\n    \"\"\"Merge two sorted lists.\"\"\"\n"
+      },
+      {
+        "prompt_tokens": 219,
+        "output_tokens": 144,
+        "ttft_ms": 30.470791971310973,
+        "first_text_ms": 30.488125048577785,
+        "decode_tok_s": 271.8794859421472,
+        "last_32_tok_s": 292.273032387905,
+        "total_ms": 556.5023750532418,
+        "text": "    left = sorted(left, key=lambda x: x.lower(), reverse=True)\n    right = sorted(right, key=lambda x: x.lower(), reverse=True)\n    return left, right\n\ndef merge_sorted_list(left, right):\n    \"\"\"Merge two sorted lists.\"\"\"\n    left = sorted(left, key=lambda x: x.lower(), reverse=True)\n    right = sorted(right, key=lambda x: x.lower(), reverse=True)\n    return left, right\n\ndef merge_sorted_list_list(left, right):\n    \"\"\"Merge two sorted lists.\"\"\"\n"
+      }
+    ]
+  },
+  "cache_compare": {
+    "off": {
+      "prompt_tokens": 89,
+      "output_tokens": 72,
+      "ttft_ms": 16.387083800509572,
+      "first_text_ms": 16.402416862547398,
+      "decode_tok_s": 26.89543697898622,
+      "last_32_tok_s": 20.105166232350594,
+      "total_ms": 2656.306083779782,
+      "text": "    return n < 0\n\ndef is_zero(n):\n    \"\"\"Return True if n is zero.\"\"\"\n    return n < 0\n\ndef is_zero_positive(n):\n    \"\"\"Return True if n is zero.\"\"\"\n    return n < 0\n\ndef is_zero_positive(n):\n    \"\"\"Return"
+    },
+    "dynamic": {
+      "prompt_tokens": 89,
+      "output_tokens": 72,
+      "ttft_ms": 24.058291921392083,
+      "first_text_ms": 24.07620893791318,
+      "decode_tok_s": 179.4214919617068,
+      "last_32_tok_s": 188.87846070405234,
+      "total_ms": 419.82633410952985,
+      "text": "    return n < 0\n\ndef is_zero(n):\n    \"\"\"Return True if n is zero.\"\"\"\n    return n < 0\n\ndef is_zero_positive(n):\n    \"\"\"Return True if n is zero.\"\"\"\n    return n < 0\n\ndef is_zero_positive(n):\n    \"\"\"Return"
+    },
+    "static": {
+      "prompt_tokens": 89,
+      "output_tokens": 72,
+      "ttft_ms": 23.206958081573248,
+      "first_text_ms": 23.22445809841156,
+      "decode_tok_s": 272.7728516915883,
+      "last_32_tok_s": 273.99984541306765,
+      "total_ms": 283.5442079231143,
+      "text": "    return n < 0\n\ndef is_zero(n):\n    \"\"\"Return True if n is zero.\"\"\"\n    return n < 0\n\ndef is_zero_positive(n):\n    \"\"\"Return True if n is zero.\"\"\"\n    return n < 0\n\ndef is_zero_positive(n):\n    \"\"\"Return"
+    }
+  },
+  "peak_rss_mib": 646.640625,
+  "cli_cold": {
+    "first_byte_ms": 1334.5072499942034,
+    "exit_code": 0,
+    "stderr": "",
+    "text": "i numpy as np\nimport os\nimport sys\nimport tempfile\nimport time\nimport datetime\nimport numpy as np\nimport matplotlib.pyplot as plt\nimport matplotlib.pyplot as plt\nimport matplotlib.pyplot as plt\nimport numpy as np\nimport matplotlib.pyplot as plt\nimport matplotlib"
+  }
+}

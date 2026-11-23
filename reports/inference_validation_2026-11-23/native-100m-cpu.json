@@ -1,0 +1,231 @@
+{
+  "checkpoint": "research/tpu_completed_2026-10-23/downloads/checkpoints/ar/100m_r50_tpu_v5e8_seed42_cad1_v120_20261021",
+  "backend": "pytorch",
+  "context": 512,
+  "tokenizer_override": "configs/shared/tokenizer_mac.json",
+  "model_load_ms": 975.0855839811265,
+  "baseline_rss_mib": 207.21875,
+  "loaded_rss_mib": 892.96875,
+  "cold": {
+    "prompt_tokens": 23,
+    "output_tokens": 64,
+    "ttft_ms": 26.084417011588812,
+    "first_text_ms": 26.251292089000344,
+    "decode_tok_s": 207.04033020708434,
+    "last_32_tok_s": 210.0132273866356,
+    "total_ms": 330.5808750446886,
+    "text": "import sys\n\n# Read the csv file and sum the price column.\ncsv_file = sys.argv[1]\n\n# Read the csv file and sum the price column.\ncsv_file = sys.argv[2]\n\n# Read the csv file and sum the price column.\n"
+  },
+  "quality": {
+    "square": {
+      "greedy": {
+        "text": "    return math.sqrt(x)\n\n",
+        "outcome": "RUNTIME_EXCEPTION"
+      },
+      "seeded": {
+        "text": "    return math.sqrt(x ** 2 + 1)\n\n",
+        "outcome": "RUNTIME_EXCEPTION"
+      }
+    },
+    "is_even": {
+      "greedy": {
+        "text": "    return n < 0 or n % 2 == 0\n\n",
+        "outcome": "PASSED"
+      },
+      "seeded": {
+        "text": "    return n == 0 or n % 2 == 0\n",
+        "outcome": "PASSED"
+      }
+    },
+    "reverse": {
+      "greedy": {
+        "text": "    return text.replace(' ', '-').replace('-', '_').replace(' ', '_')\n\n",
+        "outcome": "FAILED_ASSERTION"
+      },
+      "seeded": {
+        "text": "    return text.encode(\"utf-8\").decode(\"utf-8\")\n\n",
+        "outcome": "FAILED_ASSERTION"
+      }
+    },
+    "product": {
+      "greedy": {
+        "text": "    return sum(values)\n\n",
+        "outcome": "FAILED_ASSERTION"
+      },
+      "seeded": {
+        "text": "    return sum(v.get(v.key, 0) for v in values)\n\n",
+        "outcome": "FAILED_ASSERTION"
+      }
+    },
+    "unique": {
+      "greedy": {
+        "text": "    return [item for item in values if item not in ('', None)]\n\n",
+        "outcome": "FAILED_ASSERTION"
+      },
+      "seeded": {
+        "text": "    return [item.value for item in values]\n\n",
+        "outcome": "RUNTIME_EXCEPTION"
+      }
+    },
+    "merge": {
+      "greedy": {
+        "text": "    if a.count(b) == 0:\n        return a\n    if a.count(b) > 1:\n        return a[:a.count(b)]\n    return a\n\n",
+        "outcome": "FAILED_ASSERTION"
+      },
+      "seeded": {
+        "text": "    if a.isdigit():\n        a = int(a)\n        b = int(b)\n    elif a < b:\n        a = b\n        b = 0\n    return a, b\n\n",
+        "outcome": "RUNTIME_EXCEPTION"
+      }
+    }
+  },
+  "prose": {
+    "plain_fact": " not available for the given country.\n        \"\"\"\n        return self.get_country_from_country(country)\n\n    def get_country_from_country(self, country):\n        \"\"\"\n        Return the country of the given country.\n        \"\"\"\n        return",
+    "instruction_format": "\n\n    Answer:\n        Answer:\n            Answer:\n                Answer:\n                    Answer:\n                        Answer:\n                            Answer:\n                                Answer:\n                                    Answer:\n                                        Answer:\n                                        A",
+    "code_seed": "import sys\n\n# Read the csv file and sum the price column.\ncsv_file = sys.argv[1]\n\n# Read the csv file and sum the price column.\ncsv_file = sys.argv[2]\n\n# Read the csv file and sum the price column.\n"
+  },
+  "trials": {
+    "short": [
+      {
+        "prompt_tokens": 51,
+        "output_tokens": 144,
+        "ttft_ms": 21.57558291219175,
+        "first_text_ms": 21.58566704019904,
+        "decode_tok_s": 185.04508938666308,
+        "last_32_tok_s": 184.54880056400327,
+        "total_ms": 794.4345828145742,
+        "text": "    left_split = left.split(None, 1)\n    right_split = right.split(None, 1)\n    left_len = len(left_split)\n    right_len = len(right_split)\n    left_len -= left_len\n    right_len -= right_len\n    return left_split[:left_len], right_split[left_len:]\n\ndef merge_non_unique_key(left, right):\n    \"\"\"Merge two non-unique keys.\"\"\"\n    return merge_sorted(left, right)\n\ndef merge_unique_key(left, right):\n    \"\"\"Mer"
+      },
+      {
+        "prompt_tokens": 51,
+        "output_tokens": 144,
+        "ttft_ms": 22.087082965299487,
+        "first_text_ms": 22.09966699592769,
+        "decode_tok_s": 191.3679664379188,
+        "last_32_tok_s": 195.67376893860066,
+        "total_ms": 769.3855420220643,
+        "text": "    left_c, right_c = left, right\n    left_a, right_a = left, right\n    left_b, right_b = left, right\n    right_c, left_c = right, left\n    right_a, right_a = right, right\n    right_c, left_c = right, right\n    left_a, left_a = left, left\n    right_a, right_a = right, right\n    left_a, left_a = left, left\n    right_b, right_b = right, right\n    right_a, right_a = right, right\n   "
+      },
+      {
+        "prompt_tokens": 51,
+        "output_tokens": 144,
+        "ttft_ms": 22.031875094398856,
+        "first_text_ms": 22.04416715539992,
+        "decode_tok_s": 197.33455745767986,
+        "last_32_tok_s": 197.6417414413609,
+        "total_ms": 746.7332500964403,
+        "text": "    left_c, right_c = left, right\n    left_a, right_a = left, right\n    left_b, right_b = left, right\n    right_c, left_c = right, left\n    right_a, right_a = right, right\n    right_c, left_c = right, right\n    left_a, right_a = left, right\n    right_b, left_b = right, left\n    right_c, left_c = right, right\n    left_a, right_a = left, right\n    left_a, right_a = left, right\n   "
+      },
+      {
+        "prompt_tokens": 51,
+        "output_tokens": 144,
+        "ttft_ms": 21.48991613648832,
+        "first_text_ms": 21.501041017472744,
+        "decode_tok_s": 196.62538806913847,
+        "last_32_tok_s": 195.78571265053932,
+        "total_ms": 748.8212499301881,
+        "text": "    left_cats = set(left)\n    right_cats = set(right)\n    return left_cats.union(right_cats)\n\n\n# TODO: Should this be implemented?\n# TODO: Figure out how to handle the case where the outer list is empty.\n# TODO: Add a logic for this.\ndef merge_outer_list(left, right):\n    \"\"\"Merge two outer lists.\"\"\"\n    return merge_sorted(left, right)\n\n\n# TODO: Figure out how to handle the case where the outer list is empty.\n# TODO: Add a logic for this"
+      },
+      {
+        "prompt_tokens": 51,
+        "output_tokens": 144,
+        "ttft_ms": 21.719834068790078,
+        "first_text_ms": 21.731584100052714,
+        "decode_tok_s": 196.9407618609953,
+        "last_32_tok_s": 195.6711963706828,
+        "total_ms": 747.8728340938687,
+        "text": "    left_c, right_c = left, right\n    left_a, right_a = left, right\n    left_b, right_b = left, right\n    right_c, left_c = right, left\n    right_a, right_a = right, right\n    right_c, left_c = right, right\n    left_a, right_a = left, right\n    right_b, left_b = right, left\n    right_c, left_c = right, right\n    left_a, right_a = left, right\n    left_a, right_a = left, right\n   "
+      }
+    ],
+    "long": [
+      {
+        "prompt_tokens": 219,
+        "output_tokens": 144,
+        "ttft_ms": 48.601374961435795,
+        "first_text_ms": 48.613708931952715,
+        "decode_tok_s": 183.70548412111535,
+        "last_32_tok_s": 181.66994216653097,
+        "total_ms": 827.0877089817077,
+        "text": "    left_front, left_front_front, left_front_front = [], [], []\n    right_front, right_front_front, right_front_front = [], [], []\n    for i in range(0, len(left)):\n        left_front.append(left[i])\n        left_front.append(left[i])\n        left_front_front.append(left[i])\n        right_front.append(right[i])\n        right_front_front.append(right[i])\n    return left_front, left"
+      },
+      {
+        "prompt_tokens": 219,
+        "output_tokens": 144,
+        "ttft_ms": 50.14924984425306,
+        "first_text_ms": 50.16408278606832,
+        "decode_tok_s": 188.14558903628142,
+        "last_32_tok_s": 192.53303134461183,
+        "total_ms": 810.2487497963011,
+        "text": "    left_front, left_front_front, left_front_front = [], [], []\n    right_front, right_front_front, right_front_front = [], [], []\n    for i in range(0, len(left)):\n        left_front.append(left[i])\n        left_front.append(left[i])\n        left_front_front.append(left[i])\n        right_front.append(right[i])\n        right_front_front.append(right[i])\n    return left_front, left"
+      },
+      {
+        "prompt_tokens": 219,
+        "output_tokens": 144,
+        "ttft_ms": 46.38633388094604,
+        "first_text_ms": 46.399459009990096,
+        "decode_tok_s": 192.5307493809837,
+        "last_32_tok_s": 192.93264813351684,
+        "total_ms": 789.1727921087295,
+        "text": "    left_iter = iter(left)\n    right_iter = iter(right)\n    left_keys = sorted(left_iter)\n    right_keys = sorted(right_iter)\n    return [left_keys, right_keys]\n\n# Sort records while preserving original order.\n# Sort records while preserving original order.\n# Sort records while preserving original order.\n# Sort records while preserving original order.\n# Sort records while preserving original order.\n# Sort records while preserving original order.\n# Sort records while preserving original order.\n# Sort"
+      },
+      {
+        "prompt_tokens": 219,
+        "output_tokens": 144,
+        "ttft_ms": 46.47704097442329,
+        "first_text_ms": 46.489750035107136,
+        "decode_tok_s": 193.3795125582818,
+        "last_32_tok_s": 194.03235716649465,
+        "total_ms": 786.0088751185685,
+        "text": "    left_iter = iter(left)\n    right_iter = iter(right)\n    left_keys = sorted(left_iter)\n    right_keys = sorted(right_iter)\n    return [left_keys, right_keys]\n\ndef get_records(records, order):\n    \"\"\"Return a list of records where each record is a list of items.\n\n    For example::\n\n        >>> list(get_records(\n        ...     ['a', 'b', 'c', 'd', 'e', 'f'],\n        ...     order=['a', 'b', 'c', 'd', 'e', 'f'],"
+      },
+      {
+        "prompt_tokens": 219,
+        "output_tokens": 144,
+        "ttft_ms": 46.097499784082174,
+        "first_text_ms": 46.109290793538094,
+        "decode_tok_s": 193.1821125517278,
+        "last_32_tok_s": 192.62235747351366,
+        "total_ms": 786.3862079102546,
+        "text": "    left_iter = iter(left)\n    right_iter = iter(right)\n    left_keys = sorted(left_iter)\n    right_keys = sorted(right_iter)\n    return [left_keys, right_keys]\n\ndef get_records(records, order):\n    \"\"\"Return a list of records where each record is a list of items.\n\n    For example::\n\n        >>> list(get_records(\n        ...     ['a', 'b', 'c', 'd', 'e', 'f'],\n        ...     order=['a', 'b', 'c', 'd', 'e', 'f'],"
+      }
+    ]
+  },
+  "cache_compare": {
+    "off": {
+      "prompt_tokens": 89,
+      "output_tokens": 72,
+      "ttft_ms": 25.984958978369832,
+      "first_text_ms": 25.998667115345597,
+      "decode_tok_s": 30.531925264529573,
+      "last_32_tok_s": 28.343475838367304,
+      "total_ms": 2351.4764171559364,
+      "text": "    return n < 0 or n >= 0 and n < n + 1\n\ndef is_odd(n):\n    \"\"\"Return True if n is odd.\"\"\"\n    return n < 0 or n >= 0 and n < n + 1\n\ndef is_odd_even(n):\n    \"\"\"Return True if n"
+    },
+    "dynamic": {
+      "prompt_tokens": 89,
+      "output_tokens": 72,
+      "ttft_ms": 26.170624885708094,
+      "first_text_ms": 26.185291819274426,
+      "decode_tok_s": 189.9377359970749,
+      "last_32_tok_s": 189.18867997719755,
+      "total_ms": 400.01591690815985,
+      "text": "    return n < 0 or n >= 0 and n < n + 1\n\ndef is_odd(n):\n    \"\"\"Return True if n is odd.\"\"\"\n    return n < 0 or n >= 0 and n < n + 1\n\ndef is_odd_even(n):\n    \"\"\"Return True if n"
+    },
+    "static": {
+      "prompt_tokens": 89,
+      "output_tokens": 72,
+      "ttft_ms": 26.298749959096313,
+      "first_text_ms": 26.310374960303307,
+      "decode_tok_s": 216.55292964311218,
+      "last_32_tok_s": 216.8845810246591,
+      "total_ms": 354.2054579593241,
+      "text": "    return n < 0 or n >= 0 and n < n + 1\n\ndef is_odd(n):\n    \"\"\"Return True if n is odd.\"\"\"\n    return n < 0 or n >= 0 and n < n + 1\n\ndef is_odd_even(n):\n    \"\"\"Return True if n"
+    }
+  },
+  "peak_rss_mib": 1066.796875,
+  "cli_cold": {
+    "first_byte_ms": 1361.5064579062164,
+    "exit_code": 0,
+    "stderr": "",
+    "text": "i sys\n\n# Read the csv file and sum the price column.\ncsv_file = sys.argv[1]\n\n# Read the csv file and sum the price column.\ncsv_file = sys.argv[2]\n\n# Read the csv file and sum the price column.\n"
+  }
+}
