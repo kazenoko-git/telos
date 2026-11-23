@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use KV-cached shared-prefill rollouts in PyTorch and MLX GRPO post-training (`7.79×` faster rollout generation on PyTorch CPU with exact parity).
 - Project only valid (`labels != -100`) hidden states in PyTorch SFT post-training (`1.185×` E2E on CPU, `0.0` loss/grad diff).
 - Project only masked positions in PyTorch MDLM training (`1.103×` E2E on CPU, `0.0` loss/grad diff) and in `MDLMSampler` / `MLXMDLMSampler` (`1.055×` on CPU, exact token parity).
+- Use incremental KV-cache and tail-window stop checks in `_generate_greedy_completion` (`5.10×` faster on PyTorch CPU, exact token parity), and project only evaluated positions with `O(V)` rank counting in contextual probes, linguistic probes, and anti-cheat span evaluations (`1.27×` per probe on CPU, exact rank match).
 
 ## [1.8.8] - 2026-11-22
 
