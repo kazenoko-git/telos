@@ -112,28 +112,34 @@ def evaluate_span_infill_probe(
 
         predicted_tokens = []
 
-        # Model forward inference
+        # Model forward inference (project only the masked span positions)
         if backend == "mlx":
             import mlx.core as mx
             x = mx.array([input_ids], dtype=mx.int32)
-            logits = model(x, mask_override=False)
-            # Iterate over the masked positions
-            for pos in range(mask_start_idx, mask_start_idx + actual_k):
-                pos_logits = np.array(logits[0, pos].astype(mx.float32))
-                # Explicitly prevent predicting the [MASK] token itself
-                pos_logits[mask_token_id] = -1e9
-                pred_tok = int(np.argmax(pos_logits))
-                predicted_tokens.append(pred_tok)
+            if hasattr(model, "hidden_states") and hasattr(model, "logits_from_hidden"):
+                h = model.hidden_states(x, mask_override=False)
+                span_logits = np.array(
+                    model.logits_from_hidden(h[0, mask_start_idx : mask_start_idx + actual_k]).astype(mx.float32)
+                )
+            else:
+                logits = model(x, mask_override=False)
+                span_logits = np.array(logits[0, mask_start_idx : mask_start_idx + actual_k].astype(mx.float32))
         else:
             import torch
             x = torch.tensor([input_ids], dtype=torch.long)
             with torch.no_grad():
-                logits = model(x, mask_override=False)
-            for pos in range(mask_start_idx, mask_start_idx + actual_k):
-                pos_logits = logits[0, pos].detach().cpu().numpy()
-                pos_logits[mask_token_id] = -1e9
-                pred_tok = int(np.argmax(pos_logits))
-                predicted_tokens.append(pred_tok)
+                if hasattr(model, "hidden_states") and hasattr(model, "output_projection"):
+                    h = model.hidden_states(x, mask_override=False)
+                    span_logits = (
+                        model.output_projection(h[0, mask_start_idx : mask_start_idx + actual_k])
+                        .detach().cpu().float().numpy()
+                    )
+                else:
+                    logits = model(x, mask_override=False)
+                    span_logits = logits[0, mask_start_idx : mask_start_idx + actual_k].detach().cpu().float().numpy()
+
+        span_logits[:, mask_token_id] = -1e9
+        predicted_tokens = [int(tok) for tok in np.argmax(span_logits, axis=-1)]
 
         # Compute cheat metrics
         metrics = compute_boundary_copy_metrics(
