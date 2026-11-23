@@ -179,3 +179,40 @@ def test_mdlm_sampler_masked_only_head_matches_full_head_exactly():
     out_sparse = sampler_sparse.sample(seq_len=20, prompt_ids=prompt)
     out_full = sampler_full.sample(seq_len=20, prompt_ids=prompt)
     assert torch.equal(out_sparse, out_full)
+
+
+def test_eval_greedy_kv_cache_and_probes_match_full_forward():
+    from telos.eval.anticheat import evaluate_span_infill_probe
+    from telos.eval.runner import _evaluate_single_probe_type, _generate_greedy_completion
+
+    torch.manual_seed(37)
+    tokenizer = _tokenizer()
+    cfg = TelosConfig(
+        vocab_size=tokenizer.get_vocab_size(), d_model=32, n_layers=2, n_heads=4, n_kv_heads=2,
+        max_seq_len=32, is_causal=True,
+    )
+    model = TelosTransformer(cfg).eval()
+
+    class _FullForwardOnly(torch.nn.Module):
+        def __init__(self, inner):
+            super().__init__()
+            self.inner = inner
+            self.config = inner.config
+
+        def forward(self, x, **kwargs):
+            return self.inner(x, **kwargs)
+
+    full_only = _FullForwardOnly(model)
+    assert _generate_greedy_completion(model, tokenizer, "pytorch", "Q", max_new_tokens=10) == \
+        _generate_greedy_completion(full_only, tokenizer, "pytorch", "Q", max_new_tokens=10)
+
+    probes = [{"category": "Test", "prompt": "Q A", "target": "B", "suffix": "C"}]
+    res_fast = _evaluate_single_probe_type(model, tokenizer, "pytorch", probes, probe_type="causal")
+    res_ref = _evaluate_single_probe_type(full_only, tokenizer, "pytorch", probes, probe_type="causal")
+    assert res_fast["probes"][0]["rank"] == res_ref["probes"][0]["rank"]
+    assert res_fast["probes"][0]["target_ce"] == pytest.approx(res_ref["probes"][0]["target_ce"], abs=1e-6)
+
+    ac_fast = evaluate_span_infill_probe(model, tokenizer, "pytorch", "Q", "A B", "C", span_lengths=[1, 2])
+    ac_ref = evaluate_span_infill_probe(full_only, tokenizer, "pytorch", "Q", "A B", "C", span_lengths=[1, 2])
+    assert ac_fast == ac_ref
+
