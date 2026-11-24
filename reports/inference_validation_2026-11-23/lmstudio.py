@@ -130,7 +130,7 @@ def available_percent():
 def audit_model(base, model, *, telos_only=False, context_length=2048):
     key = model["modelKey"]
     result = {"model": model, "context_length": context_length}
-    large = model["sizeBytes"] >= 8 * 1024 ** 3 - 64 * MiB
+    large = model["sizeBytes"] >= 7_680 * MiB
     if large:
         result["memory_free_before_load_pct"] = free = available_percent()
         if free is not None and free < 40:
