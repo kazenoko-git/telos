@@ -182,6 +182,12 @@ class TextGenerator:
             yield token
             ids = [*ids, token] if cache_mode == "off" else [token]
 
+    def _mlx_prefill(self, inputs):
+        prefill = getattr(self.model, "prefill_last_hidden", None)
+        if prefill is not None:
+            return prefill(inputs)
+        return self.model.hidden_states_with_cache(inputs, kv_cache=None, is_causal=True)
+
     def _mlx_tokens(self, ids, count, temperature, top_k, top_p, seed, cache_mode):
         import secrets
 
@@ -199,6 +205,8 @@ class TextGenerator:
             input_ids = mx.array([ids], dtype=mx.int32)
             if cache_mode == "off":
                 hidden = self.model.hidden_states(input_ids, is_causal=True)
+            elif cache is None:
+                hidden, cache = self._mlx_prefill(input_ids)
             else:
                 hidden, cache = self.model.hidden_states_with_cache(input_ids, kv_cache=cache, is_causal=True)
             subkey = None
@@ -214,7 +222,10 @@ class TextGenerator:
         import mlx.core as mx
 
         def predict(inputs, cache):
-            hidden, updated = self.model.hidden_states_with_cache(inputs, kv_cache=cache, is_causal=True)
+            if cache is None:
+                hidden, updated = self._mlx_prefill(inputs)
+            else:
+                hidden, updated = self.model.hidden_states_with_cache(inputs, kv_cache=cache, is_causal=True)
             logits = self.model.logits_from_hidden(hidden[:, -1])[0, :self.vocab_size]
             return mx.argmax(logits), updated
 

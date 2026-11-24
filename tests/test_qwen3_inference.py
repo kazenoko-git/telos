@@ -91,7 +91,12 @@ def test_qwen3_checkpoint_load_and_cache_parity(tmp_path, quantized):
     full = model.logits_from_hidden(model.hidden_states(sequence))
     expected_logits = reference.logits_from_hidden(reference.hidden_states(sequence))
     assert mx.allclose(full, expected_logits, atol=2e-5, rtol=2e-5).item()
-    _, cache = model.hidden_states_with_cache(sequence[:, :3])
+    prompt = sequence[:, :3]
+    hidden, cache = model.prefill_last_hidden(prompt)
+    assert hidden.shape == (1, 1, config["hidden_size"])
+    prefill_logits = model.logits_from_hidden(hidden)[:, 0]
+    assert mx.allclose(prefill_logits, full[:, 2], atol=2e-5, rtol=2e-5).item()
+    assert all(layer.length == prompt.shape[1] for layer in cache)
     for offset in range(3, sequence.shape[1]):
         hidden, cache = model.hidden_states_with_cache(sequence[:, offset:offset + 1], kv_cache=cache)
         assert mx.allclose(model.logits_from_hidden(hidden)[:, 0], full[:, offset], atol=2e-5, rtol=2e-5).item()

@@ -160,25 +160,33 @@ class _Block(nn.Module):
         self.head_dim = head_dim
         self.scale = head_dim ** -0.5
 
-    def __call__(self, x, previous, rotary, limit):
+    def __call__(self, x, previous, rotary, limit, *, last_only=False):
         batch, length, _ = x.shape
         hidden = mx.fast.rms_norm(x, self.input_norm, self.eps)
         shape = (batch, length, -1, self.head_dim)
-        q = mx.fast.rms_norm(self.query(hidden).reshape(shape), self.query_norm, self.eps).transpose(0, 2, 1, 3)
+        query_length = 1 if last_only else length
+        query_input = hidden[:, -1:] if last_only else hidden
+        query_shape = (batch, query_length, -1, self.head_dim)
+        q = mx.fast.rms_norm(self.query(query_input).reshape(query_shape), self.query_norm, self.eps).transpose(0, 2, 1, 3)
         k = mx.fast.rms_norm(self.key(hidden).reshape(shape), self.key_norm, self.eps).transpose(0, 2, 1, 3)
         v = self.value(hidden).reshape(shape).transpose(0, 2, 1, 3)
 
         base, freqs, amplitude = rotary
         offset = previous.length if previous is not None else 0
-        q = mx.fast.rope(q * amplitude, self.head_dim, traditional=False, base=base, freqs=freqs, scale=1.0, offset=offset)
+        q = mx.fast.rope(q * amplitude, self.head_dim, traditional=False, base=base, freqs=freqs, scale=1.0,
+                         offset=offset + length - query_length)
         k = mx.fast.rope(k * amplitude, self.head_dim, traditional=False, base=base, freqs=freqs, scale=1.0, offset=offset)
         if previous is None:
             present = _LayerCache(k, v, length)
         else:
             present = previous.append(k, v, limit)
             k, v = present.keys[:, :, :present.length], present.values[:, :, :present.length]
-        attention = mx.fast.scaled_dot_product_attention(q, k, v, scale=self.scale, mask="causal" if length > 1 else None)
-        attention = attention.transpose(0, 2, 1, 3).reshape(batch, length, -1)
+        # A lone final query can attend to every valid cache entry.
+        mask = "causal" if query_length > 1 else None
+        attention = mx.fast.scaled_dot_product_attention(q, k, v, scale=self.scale, mask=mask)
+        attention = attention.transpose(0, 2, 1, 3).reshape(batch, query_length, -1)
+        if last_only:
+            x = x[:, -1:]
         x = x + self.output(attention)
         hidden = mx.fast.rms_norm(x, self.post_norm, self.eps)
         return x + self.down(nn.silu(self.gate(hidden)) * self.up(hidden)), present
@@ -216,7 +224,14 @@ class Qwen3MLX(nn.Module):
         if weights.tensors:
             raise ValueError(f"Unexpected Qwen3 checkpoint tensor: {next(iter(weights.tensors))}")
 
+    def prefill_last_hidden(self, ids):
+        """Return the final prompt position and the complete prompt KV cache."""
+        return self._hidden_states_with_cache(ids, None, True, last_only=ids.shape[1] > 1)
+
     def hidden_states_with_cache(self, ids, kv_cache=None, *, is_causal=True):
+        return self._hidden_states_with_cache(ids, kv_cache, is_causal)
+
+    def _hidden_states_with_cache(self, ids, kv_cache, is_causal, *, last_only=False):
         if not is_causal:
             raise ValueError("Native Qwen3 supports causal attention")
         if kv_cache is not None and ids.shape[1] != 1:
@@ -226,8 +241,11 @@ class Qwen3MLX(nn.Module):
             raise ValueError(f"Qwen3 context exceeds the model limit of {self.max_seq_len} tokens")
         x = self.embedding.lookup(ids)
         updated = []
+        final_layer = len(self.layers) - 1
         for index, layer in enumerate(self.layers):
-            x, present = layer(x, None if kv_cache is None else kv_cache[index], self._rotary, self.max_seq_len)
+            previous = None if kv_cache is None else kv_cache[index]
+            x, present = layer(x, previous, self._rotary, self.max_seq_len,
+                               last_only=last_only and index == final_layer)
             updated.append(present)
         return mx.fast.rms_norm(x, self.norm, self.eps), updated
 
