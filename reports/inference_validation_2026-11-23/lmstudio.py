@@ -121,9 +121,21 @@ def performance_prompts():
         yield "long", f"{word} exercise {index}. " + prefix + instructions
 
 
-def audit_model(base, model, *, telos_only=False):
+def available_percent():
+    output = subprocess.check_output(["memory_pressure", "-Q"], text=True, timeout=10)
+    match = re.search(r"free percentage: (\d+)%", output)
+    return int(match[1]) if match else None
+
+
+def audit_model(base, model, *, telos_only=False, context_length=2048):
     key = model["modelKey"]
-    result = {"model": model}
+    result = {"model": model, "context_length": context_length}
+    large = model["sizeBytes"] >= 8 * 1024 ** 3 - 64 * MiB
+    if large:
+        result["memory_free_before_load_pct"] = free = available_percent()
+        if free is not None and free < 40:
+            result["error"] = {"type": "MemoryHeadroom", "message": f"Deferred 27B load at {free}% free memory."}
+            return result
     baseline = rss(workers())
     samples = [baseline]
     stop = threading.Event()
@@ -137,10 +149,14 @@ def audit_model(base, model, *, telos_only=False):
     try:
         start = time.perf_counter()
         text_options = ("--parallel", "1", "--no-speculative-draft-mtp") if model["type"] == "llm" else ()
-        lms("load", key, "--identifier", IDENTIFIER, "--context-length", "2048",
+        lms("load", key, "--identifier", IDENTIFIER, "--context-length", str(context_length),
             *text_options, "--ttl", "240", "--yes")
         result["load_ms"] = (time.perf_counter() - start) * 1e3
         result["idle_rss_mib"] = rss(workers())
+        if large:
+            result["memory_free_after_load_pct"] = free = available_percent()
+            if free is not None and free < 18:
+                raise RuntimeError(f"Stopped 27B benchmark at {free}% free memory after load.")
         if model["type"] == "embedding":
             request = Request(base + "/v1/embeddings", data=json.dumps({
                 "model": IDENTIFIER, "input": ["a list of Python values", "a list of Python values", "fresh orange juice"]
@@ -193,6 +209,7 @@ def main():
     parser.add_argument("--base", default="http://127.0.0.1:12489")
     parser.add_argument("--model", action="append")
     parser.add_argument("--telos-only", action="store_true")
+    parser.add_argument("--context-length", type=int, default=2048)
     args = parser.parse_args()
     entries = json.loads(lms("ls", "--json"))
     entries.sort(key=lambda entry: entry["sizeBytes"])
@@ -204,7 +221,7 @@ def main():
             key = entry["modelKey"]
             if key in seen or (args.model and key not in args.model):
                 continue
-            result = audit_model(args.base, entry, telos_only=args.telos_only)
+            result = audit_model(args.base, entry, telos_only=args.telos_only, context_length=args.context_length)
             out.write(json.dumps(result, ensure_ascii=False) + "\n")
             out.flush()
             print(f"{key}: {'ERROR ' + result['error']['message'] if 'error' in result else 'complete'}", flush=True)
