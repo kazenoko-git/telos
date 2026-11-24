@@ -16,6 +16,7 @@ def main():
     parser.add_argument("--tokenizer", type=Path, help="Override the checkpoint tokenizer JSON")
     parser.add_argument("--config", type=Path, help="Override checkpoint architecture metadata (JSON or YAML)")
     parser.add_argument("--device", default="auto", help="auto, mlx, cpu, cuda, or cuda:N")
+    parser.add_argument("--context-length", type=int, help="Limit the context to at most this many tokens")
     parser.add_argument("--max-new-tokens", type=int, default=128)
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--top-k", type=int, default=0)
@@ -43,7 +44,7 @@ def main():
         if args.prompt_file is not None:
             prompt = sys.stdin.read() if args.prompt_file == Path("-") else args.prompt_file.read_text(encoding="utf-8")
         generator = TextGenerator.from_checkpoint(args.checkpoint, tokenizer=args.tokenizer,
-                                                  config=config, device=args.device)
+                                                  config=config, device=args.device, context_length=args.context_length)
         options = {
             "max_new_tokens": args.max_new_tokens,
             "temperature": args.temperature,

@@ -80,7 +80,8 @@ def _reserve_torch_cache(cache, capacity, length):
 class TextGenerator:
     """Load once and generate independent continuations with per-request state."""
 
-    def __init__(self, model, tokenizer, *, backend, max_seq_len, add_bos=False):
+    def __init__(self, model, tokenizer, *, backend, max_seq_len, add_bos=False,
+                 bos_id=None, stop_ids=None, allow_padded_vocab=False):
         if backend not in {"mlx", "pytorch"}:
             raise ValueError(f"Unsupported inference backend: {backend}")
         if not isinstance(max_seq_len, int) or max_seq_len < 2:
@@ -90,17 +91,21 @@ class TextGenerator:
         self.backend = backend
         self.max_seq_len = max_seq_len
         self.add_bos = add_bos
-        self.vocab_size = model.vocab_size if backend == "mlx" else model.config.vocab_size
-        if tokenizer.get_vocab_size() != self.vocab_size:
-            raise ValueError(f"Tokenizer vocabulary does not match the checkpoint ({self.vocab_size} tokens).")
+        checkpoint_vocab = model.vocab_size if backend == "mlx" else model.config.vocab_size
+        self.vocab_size = tokenizer.get_vocab_size()
+        if self.vocab_size != checkpoint_vocab:
+            if (not allow_padded_vocab or not 0 < self.vocab_size < checkpoint_vocab
+                    or max(tokenizer.get_vocab().values()) != self.vocab_size - 1):
+                raise ValueError(f"Tokenizer vocabulary does not match the checkpoint ({checkpoint_vocab} tokens).")
         if not getattr(model, "is_causal", getattr(getattr(model, "config", None), "is_causal", False)):
             raise ValueError("Generation requires a native causal checkpoint.")
-        self.bos_id = tokenizer.token_to_id("[BOS]")
-        self.stop_ids = {token_id for name in ("[EOS]", "[PAD]")
-                         if (token_id := tokenizer.token_to_id(name)) is not None}
+        self.bos_id = tokenizer.token_to_id("[BOS]") if bos_id is None else bos_id
+        self.stop_ids = (set(stop_ids) if stop_ids is not None else {
+            token_id for name in ("[EOS]", "[PAD]") if (token_id := tokenizer.token_to_id(name)) is not None
+        })
 
     @classmethod
-    def from_checkpoint(cls, checkpoint, *, tokenizer=None, config=None, device="auto"):
+    def from_checkpoint(cls, checkpoint, *, tokenizer=None, config=None, device="auto", context_length=None):
         """Load native weights, tokenizer and context limit from a file or directory."""
         checkpoint = resolve_checkpoint(checkpoint)
         model, backend, _, metadata = load_checkpoint(checkpoint, config, strict_metadata=True)
@@ -120,9 +125,13 @@ class TextGenerator:
             model.to(device)
 
         m_cfg = metadata.get("model", metadata)
-        limit = m_cfg.get("max_seq_len") or m_cfg.get("seq_len") or 512
+        limit = m_cfg.get("max_seq_len") or m_cfg.get("seq_len") or getattr(model, "max_seq_len", 512)
         if backend == "pytorch":
             limit = model.config.max_seq_len
+        if context_length is not None:
+            if not isinstance(context_length, int) or not 2 <= context_length <= limit:
+                raise ValueError(f"Context length must be between 2 and {limit}.")
+            limit = context_length
         tokenizer_path = checkpoint_tokenizer_path(checkpoint, metadata, tokenizer)
         if tokenizer_path is None:
             resolved_tokenizer = load_tokenizer()
@@ -131,8 +140,19 @@ class TextGenerator:
                 resolved_tokenizer = Tokenizer.from_file(str(tokenizer_path))
             except Exception as exc:
                 raise ValueError(f"Invalid tokenizer JSON: {tokenizer_path}") from exc
-        return cls(model, resolved_tokenizer,
-                   backend=backend, max_seq_len=limit, add_bos=bool(metadata.get("posttrain")))
+        options = {}
+        if metadata.get("model_type") == "qwen3":
+            from json import loads
+
+            generation_path = checkpoint.with_name("generation_config.json")
+            generation = loads(generation_path.read_text(encoding="utf-8")) if generation_path.is_file() else {}
+            eos = generation.get("eos_token_id", metadata.get("eos_token_id"))
+            stop_ids = set(eos if isinstance(eos, list) else [eos])
+            stop_ids.add(generation.get("pad_token_id", metadata.get("pad_token_id")))
+            options = {"allow_padded_vocab": True, "stop_ids": stop_ids - {None},
+                       "bos_id": generation.get("bos_token_id", metadata.get("bos_token_id"))}
+        return cls(model, resolved_tokenizer, backend=backend, max_seq_len=limit,
+                   add_bos=bool(metadata.get("posttrain")), **options)
 
     def _torch_tokens(self, ids, count, temperature, top_k, top_p, seed, cache_mode):
         import torch
@@ -180,7 +200,7 @@ class TextGenerator:
             subkey = None
             if key is not None:
                 key, subkey = mx.random.split(key)
-            logits = self.model.logits_from_hidden(hidden[:, -1])[0]
+            logits = self.model.logits_from_hidden(hidden[:, -1])[0, :self.vocab_size]
             token = _mlx_sample(logits, temperature, top_k, top_p, subkey)
             yield token
             ids = [*ids, token] if cache_mode == "off" else [token]

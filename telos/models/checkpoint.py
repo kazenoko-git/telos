@@ -21,12 +21,48 @@ def resolve_checkpoint(checkpoint_path: str | Path) -> Path:
             cp = mlx_file
         elif pt_file.exists():
             cp = pt_file
+        elif (cp / "model.safetensors.index.json").is_file():
+            cp = cp / "model.safetensors.index.json"
         else:
             raise FileNotFoundError(f"No checkpoint file found in directory {checkpoint_path}")
 
     if not cp.is_file():
         raise FileNotFoundError(f"Checkpoint not found: {cp}")
     return cp
+
+
+def _load_mlx_arrays(checkpoint):
+    import mlx.core as mx
+
+    if checkpoint.suffix == ".safetensors":
+        return mx.load(str(checkpoint))
+    if checkpoint.name != "model.safetensors.index.json":
+        raise ValueError("Native MLX inference requires a Safetensors checkpoint")
+    index = json.loads(checkpoint.read_text(encoding="utf-8"))
+    weight_map = index.get("weight_map")
+    if not isinstance(weight_map, dict) or not weight_map or not all(isinstance(p, str) for p in weight_map.values()):
+        raise ValueError("Invalid Safetensors weight index")
+    root = checkpoint.parent.resolve()
+    arrays = {}
+    for shard in sorted(set(weight_map.values())):
+        path = (root / shard).resolve()
+        if not path.is_relative_to(root) or path.suffix != ".safetensors":
+            raise ValueError(f"Invalid Safetensors shard path: {shard}")
+        tensors = mx.load(str(path))
+        if tensors.keys() != {key for key, filename in weight_map.items() if filename == shard}:
+            raise ValueError(f"Safetensors weight index does not match shard: {shard}")
+        arrays.update(tensors)
+    return arrays
+
+
+def _load_external_causal_checkpoint(checkpoint, config):
+    family = config["model_type"]
+    if family != "qwen3":
+        raise ValueError(f"Unsupported native inference model architecture: {family}")
+    from .qwen3_mlx import Qwen3MLX
+
+    model = Qwen3MLX(config, _load_mlx_arrays(checkpoint)).eval()
+    return model, "mlx", model.vocab_size, config
 
 
 def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None = None):
@@ -76,6 +112,8 @@ def load_checkpoint(checkpoint_path: str | Path, config: dict | None = None, *, 
     m_cfg = full_cfg.get("model", full_cfg)
     if strict_metadata and not isinstance(m_cfg, dict):
         raise ValueError("Checkpoint model config must be a mapping.")
+    if strict_metadata and m_cfg is full_cfg and full_cfg.get("model_type") not in (None, "telos"):
+        return _load_external_causal_checkpoint(cp, full_cfg)
 
     vocab_size = m_cfg.get("vocab_size", 8192)
     d_model = m_cfg.get("d_model", 512)
