@@ -210,6 +210,8 @@ for chunk in generator.stream("Explain Lagrange interpolation.", max_new_tokens=
 
 Use `generator.generate(...)` to collect the continuation into a string. Inference supports native causal models and raw-text prompts. PyTorch offers reserved KV storage with `--cache static`. Both backends support `--cache dynamic` and `--cache off` for comparisons.
 
+On MLX, `telos generate` can also read full-attention Qwen3 Safetensors checkpoints with dense or MLX affine-quantized weights, including Ternary Bonsai 4B 2-bit. Point `--checkpoint` at a directory with `config.json`, `tokenizer.json`, and the weights. Use `--context-length` to select a smaller context window. Quantized projections operate on the original packed weights.
+
 ### Python API
 
 ```python

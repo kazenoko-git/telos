@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Standalone native causal inference via `telos generate` and `telos.inference.TextGenerator`, with streaming, greedy and seeded sampling, stop strings, and checkpoint tokenizer and context validation.
+- Native MLX inference for full-attention Qwen3, including the original Ternary Bonsai 4B 2-bit checkpoint, dense and affine-quantized projections, YaRN, and sharded weights.
 - Post-training exports include the tokenizer actually used by the run.
 
 ### Performance
