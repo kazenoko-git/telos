@@ -105,3 +105,24 @@ def test_unsupported_qwen_family_reports_architecture(tmp_path):
     (tmp_path / "config.json").write_text('{"model_type":"qwen3_moe"}')
     with pytest.raises(ValueError, match="Unsupported native inference model architecture: qwen3_moe"):
         TextGenerator.from_checkpoint(tmp_path)
+
+
+def test_qwen3_indexed_cache_growth_preserves_prefix_and_context_bound():
+    import mlx.core as mx
+
+    from telos.models.qwen3_mlx import _LayerCache
+
+    prefix = mx.arange(255 * 4, dtype=mx.float32).reshape(1, 1, 255, 4)
+    current = _LayerCache(prefix, -prefix, 255)
+    first = mx.full((1, 1, 1, 4), 42.0)
+    last = mx.full((1, 1, 1, 4), 63.0)
+    filled = current.append(first, -first, 260)
+    grown = filled.append(last, -last, 260)
+
+    assert current.keys.shape[2] == 255
+    assert filled.length == filled.keys.shape[2] == 256
+    assert grown.length == 257
+    assert grown.keys.shape[2] == 260
+    expected = mx.concatenate((prefix, first, last), axis=2)
+    assert mx.array_equal(grown.keys[:, :, :grown.length], expected).item()
+    assert mx.array_equal(grown.values[:, :, :grown.length], -expected).item()

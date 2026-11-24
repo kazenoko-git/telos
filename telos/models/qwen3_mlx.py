@@ -1,6 +1,7 @@
 """Native MLX inference for full-attention Qwen3 causal checkpoints."""
 
 import math
+from typing import NamedTuple
 
 import mlx.core as mx
 import mlx.nn as nn
@@ -114,6 +115,29 @@ class _QuantizedProjection(nn.Module):
         return self.packed.lookup(indices)
 
 
+class _LayerCache(NamedTuple):
+    keys: mx.array
+    values: mx.array
+    length: int
+
+    def append(self, key, value, limit):
+        length = self.length + key.shape[2]
+        capacity = self.keys.shape[2]
+        keys, values = self.keys, self.values
+        if length > capacity:
+            # Keep prefill compact. Reserve storage in chunks only once decode
+            # needs room, and cap the reservation at the model's context.
+            capacity_needed = min(limit, ((length + 255) // 256) * 256)
+            padding = [(0, 0), (0, 0), (0, capacity_needed - capacity), (0, 0)]
+            keys, values = mx.pad(keys, padding), mx.pad(values, padding)
+        start = mx.array(self.length, dtype=mx.int32)
+        return _LayerCache(
+            mx.slice_update(keys, key, start, [2]),
+            mx.slice_update(values, value, start, [2]),
+            length,
+        )
+
+
 class _Block(nn.Module):
     def __init__(self, weights, index, config, width, heads, kv_heads, head_dim, mlp_width):
         super().__init__()
@@ -136,8 +160,8 @@ class _Block(nn.Module):
         self.head_dim = head_dim
         self.scale = head_dim ** -0.5
 
-    def __call__(self, x, previous, rotary):
-        batch, length, width = x.shape
+    def __call__(self, x, previous, rotary, limit):
+        batch, length, _ = x.shape
         hidden = mx.fast.rms_norm(x, self.input_norm, self.eps)
         shape = (batch, length, -1, self.head_dim)
         q = mx.fast.rms_norm(self.query(hidden).reshape(shape), self.query_norm, self.eps).transpose(0, 2, 1, 3)
@@ -145,17 +169,19 @@ class _Block(nn.Module):
         v = self.value(hidden).reshape(shape).transpose(0, 2, 1, 3)
 
         base, freqs, amplitude = rotary
-        offset = previous[0].shape[2] if previous is not None else 0
+        offset = previous.length if previous is not None else 0
         q = mx.fast.rope(q * amplitude, self.head_dim, traditional=False, base=base, freqs=freqs, scale=1.0, offset=offset)
         k = mx.fast.rope(k * amplitude, self.head_dim, traditional=False, base=base, freqs=freqs, scale=1.0, offset=offset)
-        if previous is not None:
-            k = mx.concatenate((previous[0], k), axis=2)
-            v = mx.concatenate((previous[1], v), axis=2)
+        if previous is None:
+            present = _LayerCache(k, v, length)
+        else:
+            present = previous.append(k, v, limit)
+            k, v = present.keys[:, :, :present.length], present.values[:, :, :present.length]
         attention = mx.fast.scaled_dot_product_attention(q, k, v, scale=self.scale, mask="causal" if length > 1 else None)
         attention = attention.transpose(0, 2, 1, 3).reshape(batch, length, -1)
         x = x + self.output(attention)
         hidden = mx.fast.rms_norm(x, self.post_norm, self.eps)
-        return x + self.down(nn.silu(self.gate(hidden)) * self.up(hidden)), (k, v)
+        return x + self.down(nn.silu(self.gate(hidden)) * self.up(hidden)), present
 
 
 class Qwen3MLX(nn.Module):
@@ -195,10 +221,13 @@ class Qwen3MLX(nn.Module):
             raise ValueError("Native Qwen3 supports causal attention")
         if kv_cache is not None and ids.shape[1] != 1:
             raise ValueError("Native Qwen3 cache updates require one token per row")
+        offset = kv_cache[0].length if kv_cache is not None else 0
+        if offset + ids.shape[1] > self.max_seq_len:
+            raise ValueError(f"Qwen3 context exceeds the model limit of {self.max_seq_len} tokens")
         x = self.embedding.lookup(ids)
         updated = []
         for index, layer in enumerate(self.layers):
-            x, present = layer(x, None if kv_cache is None else kv_cache[index], self._rotary)
+            x, present = layer(x, None if kv_cache is None else kv_cache[index], self._rotary, self.max_seq_len)
             updated.append(present)
         return mx.fast.rms_norm(x, self.norm, self.eps), updated
 
