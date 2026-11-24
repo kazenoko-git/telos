@@ -140,3 +140,34 @@ def test_torch_reserved_cache_matches_dynamic_logits_without_reallocating(tokeni
             static_hidden, static = model.hidden_states_with_cache(current, static, cache_position=offset)
             torch.testing.assert_close(static_hidden, dynamic_hidden)
             assert [(k.data_ptr(), v.data_ptr()) for k, v in static] == pointers
+
+
+def test_mlx_greedy_cache_bounds_lookahead_at_eos(native_checkpoint, monkeypatch):
+    path, backend = native_checkpoint
+    if backend != "mlx":
+        pytest.skip("Metal lookahead requires MLX")
+    import mlx.core as mx
+
+    generator = TextGenerator.from_checkpoint(path)
+    model_type = type(generator.model)
+    predict = model_type.hidden_states_with_cache
+    calls = []
+
+    def tracked(model, ids, **options):
+        calls.append(ids.shape[1])
+        return predict(model, ids, **options)
+
+    eos = generator.tokenizer.token_to_id("[EOS]")
+
+    def eos_logits(model, hidden):
+        return mx.broadcast_to((mx.arange(model.vocab_size) == eos).astype(mx.float32),
+                               (hidden.shape[0], model.vocab_size))
+
+    monkeypatch.setattr(model_type, "hidden_states_with_cache", tracked)
+    monkeypatch.setattr(model_type, "logits_from_hidden", eos_logits)
+
+    assert generator.generate("hello world", max_new_tokens=8) == ""
+    assert calls == [2, 1]
+    calls.clear()
+    assert generator.generate("hello world", max_new_tokens=1) == ""
+    assert calls == [2]

@@ -187,6 +187,10 @@ class TextGenerator:
 
         import mlx.core as mx
 
+        if temperature == 0 and cache_mode == "dynamic" and count > 1:
+            yield from self._mlx_greedy_cached_tokens(ids, count)
+            return
+
         key = None
         if temperature:
             key = mx.random.key((secrets.randbits(64) if seed is None else seed) & ((1 << 64) - 1))
@@ -204,6 +208,26 @@ class TextGenerator:
             token = _mlx_sample(logits, temperature, top_k, top_p, subkey)
             yield token
             ids = [*ids, token] if cache_mode == "off" else [token]
+
+    def _mlx_greedy_cached_tokens(self, ids, count):
+        """Overlap one cached Metal decode step with host token delivery."""
+        import mlx.core as mx
+
+        def predict(inputs, cache):
+            hidden, updated = self.model.hidden_states_with_cache(inputs, kv_cache=cache, is_causal=True)
+            logits = self.model.logits_from_hidden(hidden[:, -1])[0, :self.vocab_size]
+            return mx.argmax(logits), updated
+
+        token, cache = predict(mx.array([ids], dtype=mx.int32), None)
+        mx.async_eval(token)
+        for _ in range(count - 1):
+            # Keep the greedy ID on device so the next graph can be submitted
+            # before waiting for the current ID. At most one step is queued.
+            next_token, cache = predict(token.reshape(1, 1), cache)
+            mx.async_eval(next_token)
+            yield int(token.item())
+            token = next_token
+        yield int(token.item())
 
     def stream(self, prompt, *, max_new_tokens=128, temperature=0.0, top_k=0, top_p=1.0,
                seed=None, stop=(), add_bos=None, cache="auto"):
