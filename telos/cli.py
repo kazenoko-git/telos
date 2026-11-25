@@ -41,6 +41,7 @@ def main():
         print("  train      Alias for pretrain")
         print("  posttrain  Post-train a causal Telos checkpoint (SFT, DPO or GRPO)")
         print("  generate   Generate text with a native causal Telos checkpoint")
+        print("  serve      Serve a native causal checkpoint over an OpenAI-compatible HTTP/SSE API")
         print("  eval       High-end evaluation suite (100 contextual probes, code sampling, perplexity)")
         print("  eval documents  Export/replay the packaged 512-task document suite")
         print("  eval report  Turn saved evaluation JSON into a portable cream report (--output report.html)")
@@ -63,6 +64,9 @@ def main():
     elif cmd == "generate":
         from telos.inference.cli import main as generate_main
         generate_main()
+    elif cmd == "serve":
+        from telos.inference.serve_cli import main as serve_main
+        serve_main()
     elif cmd in ["dataprep", "prep"]:
         from telos.dataprep.prepare import main as prep_main
         prep_main()
@@ -79,7 +83,7 @@ def main():
         from telos.testing.suite import main as test_main
         test_main()
     else:
-        print(f"Error: Unknown command '{cmd}'. Available: dataprep, pretrain, posttrain, generate, eval, bench, afm, test.")
+        print(f"Error: Unknown command '{cmd}'. Available: dataprep, pretrain, posttrain, generate, serve, eval, bench, afm, test.")
         sys.exit(1)
 
 
