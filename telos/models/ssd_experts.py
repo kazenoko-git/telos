@@ -112,6 +112,20 @@ def is_expert_tensor(name):
     return _EXPERT_KEY.fullmatch(name) is not None
 
 
+def expert_layer_sizes(ranges, experts):
+    sizes = {}
+    for name, entry in ranges.items():
+        if is_expert_tensor(name):
+            layer = int(name.split(".")[2])
+            if len(entry.shape) != 3 or entry.shape[0] != experts:
+                raise ValueError(f"Expected an expert-major tensor for {name}")
+            sizes[layer] = sizes.get(layer, 0) + entry.size // experts
+        elif any(f".{module}.{bank}." in name
+                 for module in ("mlp", "feed_forward") for bank in ("switch_mlp", "experts")):
+            raise ValueError(f"Unsupported expert tensor {name}")
+    return sizes
+
+
 def _command(*args):
     return subprocess.check_output(args, text=True, timeout=3)
 
@@ -154,12 +168,24 @@ class AppleMemoryGuard:
 class SSDExpertCache:
     """Retain recently selected experts up to a shared byte budget."""
 
-    def __init__(self, byte_limit, guard):
+    def __init__(self, byte_limit, guard, *, layer_sizes=None):
         self.byte_limit = byte_limit
         self.guard = guard
         self.resident_bytes = 0
         self.bytes_read = 0
         self._entries = OrderedDict()
+        self.layer_slots = {}
+        # Equal-size banks can divide whole slots evenly without wasting the
+        # remainder. A cache too small for one slot per layer remains global.
+        if layer_sizes and len(set(layer_sizes.values())) == 1:
+            slots = byte_limit // next(iter(layer_sizes.values()))
+            n = len(layer_sizes)
+            if slots >= n:
+                self.layer_slots = {layer: (i + 1) * slots // n - i * slots // n
+                                    for i, layer in enumerate(sorted(layer_sizes))}
+
+    def _evict(self, key):
+        self.resident_bytes -= self._entries.pop(key)[1]
 
     def get(self, layer, expert, ranges):
         self.guard.check()
@@ -172,10 +198,12 @@ class SSDExpertCache:
         size = sum(entry.size for entry in slices.values())
         if size > self.byte_limit:
             raise ValueError(f"One expert needs {size} bytes, over the Flash-MoE cache budget")
+        if layer in self.layer_slots:
+            resident = [key for key in self._entries if key[0] == layer]
+            if len(resident) >= self.layer_slots[layer]:
+                self._evict(resident[0])
         while self.resident_bytes + size > self.byte_limit:
-            oldest = next(iter(self._entries))
-            evicted_size = self._entries.pop(oldest)[1]
-            self.resident_bytes -= evicted_size
+            self._evict(next(iter(self._entries)))
 
         import mlx.core as mx
 

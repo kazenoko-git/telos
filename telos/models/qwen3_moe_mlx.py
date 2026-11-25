@@ -7,6 +7,7 @@ from .qwen3_mlx import Qwen3MLX, _positive
 from .ssd_experts import (
     AppleMemoryGuard,
     SSDExpertCache,
+    expert_layer_sizes,
     is_expert_tensor,
     tensor_ranges,
 )
@@ -126,16 +127,7 @@ def plan_experts(config, ranges, budget, context_length, prefix_cache_entries):
     if type(context) is not int or not 2 <= context <= max_context:
         raise ValueError(f"Context length must be between 2 and {max_context}")
 
-    layer_bytes = {}
-    for key, entry in ranges.items():
-        if is_expert_tensor(key):
-            layer = int(key.split(".")[2])
-            if len(entry.shape) != 3 or entry.shape[0] != experts:
-                raise ValueError(f"Expected an expert-major tensor for {key}")
-            layer_bytes[layer] = layer_bytes.get(layer, 0) + entry.size // experts
-        elif any(f".{module}.{bank}." in key
-                 for module in ("mlp", "feed_forward") for bank in ("switch_mlp", "experts")):
-            raise ValueError(f"Unsupported expert tensor {key}")
+    layer_bytes = expert_layer_sizes(ranges, experts)
     if not layer_bytes:
         raise ValueError("Flash-MoE requires expert-major MLX Safetensors (switch_mlp)")
 
@@ -169,7 +161,10 @@ def load_mlx_moe(checkpoint, config, *, context_length, memory_budget_mib, prefi
     if memory_budget_mib is not None:
         budget = min(budget, memory_budget_mib * _MIB)
     context, cache_bytes = plan_experts(config, ranges, budget, context_length, prefix_cache_entries)
-    cache = SSDExpertCache(cache_bytes, guard) if cache_bytes is not None else None
+    cache = None
+    if cache_bytes is not None:
+        layer_sizes = expert_layer_sizes(ranges, config["num_experts"]) if config["model_type"] == "lfm2_moe" else None
+        cache = SSDExpertCache(cache_bytes, guard, layer_sizes=layer_sizes)
     expert_ranges = {name: entry for name, entry in ranges.items() if is_expert_tensor(name)}
     arrays = {}
     for name, entry in ranges.items():
