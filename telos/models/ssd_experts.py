@@ -190,6 +190,9 @@ class SSDExpertCache:
     def _evict(self, key):
         self.resident_bytes -= self._entries.pop(key)[1]
 
+    def _layer_victim(self, resident, requested):
+        return resident[0]
+
     def get(self, layer, expert, ranges):
         self.guard.check()
         key = (layer, expert)
@@ -204,17 +207,24 @@ class SSDExpertCache:
         if layer in self.layer_slots:
             resident = [key for key in self._entries if key[0] == layer]
             if len(resident) >= self.layer_slots[layer]:
-                self._evict(resident[0])
+                victim = self._layer_victim(resident, key)
+                if victim is None:
+                    return self._read_expert(slices, size)
+                self._evict(victim)
         while self.resident_bytes + size > self.byte_limit:
             self._evict(next(iter(self._entries)))
 
+        arrays = self._read_expert(slices, size)
+        self._entries[key] = (arrays, size)
+        self.resident_bytes += size
+        return arrays
+
+    def _read_expert(self, slices, size):
         import mlx.core as mx
 
         arrays = self._load_slices(slices)
         mx.eval(arrays)
         self.bytes_read += size
-        self._entries[key] = (arrays, size)
-        self.resident_bytes += size
         return arrays
 
     def _load_slices(self, slices):

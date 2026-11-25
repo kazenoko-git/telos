@@ -1,6 +1,7 @@
 """Tiny fixtures for LFM2.5 hybrid state and Flash-MoE parity."""
 
 import json
+import struct
 import threading
 
 import pytest
@@ -189,6 +190,43 @@ def test_lfm2_resident_and_ssd_parity(tmp_path, monkeypatch, quantized):
     assert streamed.generate("t3 t5 t7", max_new_tokens=4) == resident.generate("t3 t5 t7", max_new_tokens=4)
     with pytest.raises(ValueError, match="dynamic KV cache"):
         streamed.generate("t3 t5", cache="off")
+
+
+def test_lfm2_frequency_admission_is_request_scoped(tmp_path):
+    from telos.models.ssd_expert_io import LFMSSDExpertCache
+    from telos.models.ssd_experts import TensorRange
+
+    class FixtureGuard:
+        def check(self):
+            pass
+
+    path = tmp_path / "expert-data"
+    path.write_bytes(struct.pack("<fff", 1.0, 2.0, 3.0))
+    ranges = {"weight": TensorRange(path, 0, 12, "F32", (3, 1))}
+    cache = LFMSSDExpertCache(8, FixtureGuard(), layer_sizes={0: 4}, fragment_size=4, top_k=2)
+
+    with cache.request():
+        cache.get(0, 0, ranges)
+        cache.get(0, 1, ranges)
+        cache.begin_decode()
+        for _ in range(2):
+            cache.get(0, 0, ranges)
+            cache.get(0, 1, ranges)
+
+        assert cache.get(0, 2, ranges)["weight"].item() == 3.0
+        assert list(cache._entries) == [(0, 0), (0, 1)]
+        assert cache.bytes_read == 12
+        assert cache.resident_bytes == 8
+
+        # A frequency tie evicts the least recently used resident.
+        cache.get(0, 2, ranges)
+        assert list(cache._entries) == [(0, 1), (0, 2)]
+        assert cache.bytes_read == 16
+
+    with cache.request():
+        assert cache._decode_uses is None
+        cache.get(0, 0, ranges)
+        assert list(cache._entries) == [(0, 2), (0, 0)]
 
 
 def test_lfm2_router_bias_changes_selection_only(tmp_path, monkeypatch):

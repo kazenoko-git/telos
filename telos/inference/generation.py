@@ -315,6 +315,10 @@ class TextGenerator:
                 if self.prefix_cache.max_entries > 0:
                     self.prefix_cache.put(prompt_ids, cache)
             else:
+                if step == 1:
+                    begin_decode = getattr(getattr(self.model, "_expert_cache", None), "begin_decode", None)
+                    if begin_decode is not None:
+                        begin_decode()
                 hidden, cache = self.model.hidden_states_with_cache(input_ids, kv_cache=cache, is_causal=True)
             subkey = None
             if key is not None:

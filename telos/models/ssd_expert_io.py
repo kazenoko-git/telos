@@ -2,6 +2,7 @@
 
 import fcntl
 import os
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from threading import Lock
@@ -74,6 +75,7 @@ class LFMSSDExpertCache(SSDExpertCache):
         self._fragment_size = fragment_size
         self._async_size = min(24 * _MIB, max(layer_sizes.values()) * top_k)
         self._session = None
+        self._decode_uses = None
         self._lock = Lock()
 
     @contextmanager
@@ -84,8 +86,27 @@ class LFMSSDExpertCache(SSDExpertCache):
             try:
                 yield
             finally:
+                self._decode_uses = None
                 self._session = None
                 session.close()
+
+    def begin_decode(self):
+        if self._session is not None and self.layer_slots:
+            self._decode_uses = Counter()
+
+    def get(self, layer, expert, ranges):
+        if self._decode_uses is not None:
+            self._decode_uses[layer, expert] += 1
+        return super().get(layer, expert, ranges)
+
+    def _layer_victim(self, resident, requested):
+        if self._decode_uses is None:
+            return super()._layer_victim(resident, requested)
+        # The resident list is already in LRU order, which breaks frequency ties.
+        victim = min(resident, key=self._decode_uses.__getitem__)
+        if self._decode_uses[requested] < self._decode_uses[victim]:
+            return None
+        return victim
 
     def prepare(self, layer, experts, ranges):
         if self._session is None:
