@@ -216,6 +216,8 @@ On MLX, `telos generate` can also read full-attention Qwen3 Safetensors checkpoi
 
 The default context for these MoE models is at most 2,048 tokens. Use `--context-length` and `--memory-budget-mib` to request a different context or a lower RAM ceiling. The budget is an admission estimate. Telos rejects requests that cannot reserve room for resident weights, generation state, and one expert, and checks macOS memory pressure and cumulative swap-outs during expert reads. In `telos serve`, `/health` reports `weight_storage` as `resident` or `ssd_experts`. Dense architectures and other MoE formats use their existing loader support.
 
+LFM2.5 partitions equal-size expert banks by layer when the cache can hold at least one expert per routed layer. Its SSD path reuses read-only file descriptors and staging buffers within each request. For single-token steps it queues only router-selected misses, using up to four readers and 24 MiB of asynchronous staging.
+
 ### Python API
 
 ```python
