@@ -5,15 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.9.0] - 2026-11-25
 
 ### Added
-- Standalone native causal inference via `telos generate` and `telos.inference.TextGenerator`, with streaming, greedy and seeded sampling, stop strings, and checkpoint tokenizer and context validation.
-- Native MLX inference for full-attention Qwen3, including the original Ternary Bonsai 4B 2-bit checkpoint, dense and affine-quantized projections, YaRN, and sharded weights.
+- Standalone native causal inference via `telos generate` and `telos.inference.TextGenerator`, with streaming, telemetry (`GenerationStats`, `GenerationResult`), greedy and seeded sampling, stop strings, and checkpoint tokenizer and context validation.
+- OpenAI-compatible HTTP/SSE serving endpoint via `telos serve` and `telos.inference.create_app` (optional `telos-ml[serve]` extra with `fastapi`, `uvicorn`, and `jinja2`), exposing `/health`, `/v1/models`, `/v1/completions`, and `/v1/chat/completions`, sandboxed Jinja2 chat template rendering with role-prefix fallback, Bearer API key auth, and timing/cache headers.
+- Native MLX causal inference for full-attention `qwen3` (including Ternary Bonsai 4B 2-bit), `qwen2`, `llama` (including Llama 3 smooth RoPE scaling), `mistral`, and `phi3` checkpoints with dense and packed affine-quantized projections, YaRN, and sharded Safetensors loading.
+- Bounded LRU exact-prefix KV cache (`PrefixKVCache`, `--prefix-cache-entries`) and multi-token cached suffix prefill on PyTorch and MLX.
+- Reproducible `telos serve` vs LM Studio HTTP/SSE benchmark harness (`scripts/benchmark_serve_vs_lmstudio.py`) and wire-format parity tests (`tests/test_lmstudio_endpoint_parity.py`).
 - Post-training exports include the tokenizer actually used by the run.
 
 ### Performance
-- Native inference uses incremental KV decoding and projects only the active position. PyTorch also supports reserved KV storage to avoid reallocating the growing cache every token. See [inference validation](docs/releases/v1.9.0-inference-validation.md).
+- Native inference uses incremental KV decoding, last-position final-layer prefill on MLX external architectures, reserved/indexed KV storage, and 1-step device-resident pipelining for both greedy and sampled cached MLX decode.
+- Shared-prefix KV reuse measured **3.85× lower TTFT** (`21.79 ms → 5.67 ms`) on PyTorch CPU with exact output parity (`240/256` cached prefix tokens).
+- Matched M5 Pro Bonsai 4B 2-bit in-process comparison measured **145.19 tok/s** vs LM Studio **124.33 tok/s** (+16.8%) and **113.5 ms** vs **197.7 ms** TTFT with exact 813-character parity. Live HTTP/SSE `telos serve` vs LM Studio and physical Metal tests for the newly added architectures remain pending a physical M5 Pro run. See [inference validation](docs/releases/v1.9.0-inference-validation.md).
 
 ## [1.8.9] - 2026-11-23
 
