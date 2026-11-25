@@ -1,0 +1,64 @@
+{
+  "poll_interval_seconds": 0.1,
+  "preflight_free_percent_floor": 55,
+  "runtime_free_percent_floor": 40,
+  "free_swap_mib_floor": 768,
+  "rss_mib_ceiling": 2500,
+  "mlx_memory_limit_mib": 2048,
+  "mlx_free_cache_limit_mib": 128,
+  "used_swap_mib": 3741.5,
+  "cumulative_swapout_pages": 37061020,
+  "by_context_tokens": {
+    "512": {
+      "samples": 347,
+      "samples_per_trial": {
+        "harbor_768": 61,
+        "harbor_1024": 56,
+        "harbor_2048": 54,
+        "flood_2048": 58,
+        "flood_1024": 57,
+        "flood_768": 61
+      },
+      "minimum_free_percent": 50,
+      "minimum_free_swap_mib": 1378.5,
+      "idle": {
+        "duration_seconds": 2.240556249860674,
+        "device_io": {
+          "disk0": {
+            "read_bytes": 307425280,
+            "write_bytes": 9154560,
+            "read_ops": 619,
+            "write_ops": 19
+          }
+        }
+      }
+    },
+    "128": {
+      "samples": 147,
+      "samples_per_trial": {
+        "train_1024": 47,
+        "train_2048": 50,
+        "train_768": 50
+      },
+      "minimum_free_percent": 49,
+      "minimum_free_swap_mib": 1378.5,
+      "idle": {
+        "duration_seconds": 2.238146665971726,
+        "device_io": {
+          "disk0": {
+            "read_bytes": 33824768,
+            "write_bytes": 16850944,
+            "read_ops": 81,
+            "write_ops": 22
+          }
+        }
+      }
+    }
+  },
+  "planner": {
+    "cache_ceiling_bytes_at_128_context": 1109263488,
+    "cache_ceiling_bytes_at_512_context": 1077806208,
+    "budget_bytes_for_decimal_2_gb_cache_at_512_context": 3069677440,
+    "budget_bytes_for_2_gib_cache_at_512_context": 3217161088
+  }
+}
