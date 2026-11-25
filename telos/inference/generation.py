@@ -10,6 +10,7 @@ from tokenizers.decoders import DecodeStream
 
 from telos.data.tokenizer import checkpoint_tokenizer_path, load_tokenizer
 from telos.models.checkpoint import load_checkpoint, resolve_checkpoint
+from .prefix_cache import PrefixKVCache
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,7 @@ class GenerationStats:
     finish_reason: str
     ttft_seconds: float | None
     total_seconds: float
+    cached_tokens: int = 0
 
     @property
     def tokens_per_second(self) -> float | None:
@@ -89,11 +91,12 @@ def _torch_sample(logits, temperature, top_k, top_p, rng):
     return int((indices[index] if indices is not None else index).item())
 
 
-def _mlx_sample(logits, temperature, top_k, top_p, key):
+def _mlx_sample_device(logits, temperature, top_k, top_p, key):
+    """Select the next token ID on device without forcing a host sync."""
     import mlx.core as mx
 
     if temperature == 0:
-        return int(mx.argmax(logits).item())
+        return mx.argmax(logits)
 
     logits = logits.astype(mx.float32)
     indices = None
@@ -110,7 +113,11 @@ def _mlx_sample(logits, temperature, top_k, top_p, key):
         preceding = mx.cumsum(probabilities) - probabilities
         logits = mx.where(preceding >= top_p, -mx.inf, logits)
     index = mx.random.categorical(logits, key=key)
-    return int((indices[index] if indices is not None else index).item())
+    return indices[index] if indices is not None else index
+
+
+def _mlx_sample(logits, temperature, top_k, top_p, key):
+    return int(_mlx_sample_device(logits, temperature, top_k, top_p, key).item())
 
 
 def _reserve_torch_cache(cache, capacity, length):
@@ -128,7 +135,8 @@ class TextGenerator:
     """Load once and generate independent continuations with per-request state."""
 
     def __init__(self, model, tokenizer, *, backend, max_seq_len, add_bos=False,
-                 bos_id=None, stop_ids=None, allow_padded_vocab=False, checkpoint_dir=None):
+                 bos_id=None, stop_ids=None, allow_padded_vocab=False, checkpoint_dir=None,
+                 prefix_cache_entries=0):
         if backend not in {"mlx", "pytorch"}:
             raise ValueError(f"Unsupported inference backend: {backend}")
         if not isinstance(max_seq_len, int) or max_seq_len < 2:
@@ -139,6 +147,8 @@ class TextGenerator:
         self.max_seq_len = max_seq_len
         self.add_bos = add_bos
         self.checkpoint_dir = Path(checkpoint_dir) if checkpoint_dir is not None else None
+        self.prefix_cache = PrefixKVCache(prefix_cache_entries)
+        self._last_cached_tokens = 0
         checkpoint_vocab = model.vocab_size if backend == "mlx" else model.config.vocab_size
         self.vocab_size = tokenizer.get_vocab_size()
         if self.vocab_size != checkpoint_vocab:
@@ -153,7 +163,8 @@ class TextGenerator:
         })
 
     @classmethod
-    def from_checkpoint(cls, checkpoint, *, tokenizer=None, config=None, device="auto", context_length=None):
+    def from_checkpoint(cls, checkpoint, *, tokenizer=None, config=None, device="auto",
+                        context_length=None, prefix_cache_entries=0):
         """Load native weights, tokenizer and context limit from a file or directory."""
         checkpoint = resolve_checkpoint(checkpoint)
         model, backend, _, metadata = load_checkpoint(checkpoint, config, strict_metadata=True)
@@ -200,7 +211,8 @@ class TextGenerator:
             options = {"allow_padded_vocab": True, "stop_ids": stop_ids - {None},
                        "bos_id": generation.get("bos_token_id", metadata.get("bos_token_id"))}
         return cls(model, resolved_tokenizer, backend=backend, max_seq_len=limit,
-                   add_bos=bool(metadata.get("posttrain")), checkpoint_dir=checkpoint.parent, **options)
+                   add_bos=bool(metadata.get("posttrain")), checkpoint_dir=checkpoint.parent,
+                   prefix_cache_entries=prefix_cache_entries, **options)
 
     def _torch_tokens(self, ids, count, temperature, top_k, top_p, seed, cache_mode):
         import torch
@@ -211,8 +223,16 @@ class TextGenerator:
             rng = torch.Generator(device=device)
             rng.seed() if seed is None else rng.manual_seed(seed)
 
-        prompt_len = len(ids)
+        prompt_ids = list(ids)
+        prompt_len = len(prompt_ids)
         cache = None
+        self._last_cached_tokens = 0
+        if cache_mode != "off" and self.prefix_cache.max_entries > 0:
+            matched_len, cache = self.prefix_cache.lookup(prompt_ids)
+            if matched_len > 0:
+                self._last_cached_tokens = matched_len
+                ids = prompt_ids[matched_len:]
+
         for step in range(count):
             with torch.inference_mode():
                 if step == 1 and cache_mode == "static":
@@ -225,36 +245,52 @@ class TextGenerator:
                     hidden, cache = self.model.hidden_states_with_cache(
                         input_ids, kv_cache=cache, mask_override=True, cache_position=position,
                     )
+                    if step == 0 and self.prefix_cache.max_entries > 0:
+                        self.prefix_cache.put(prompt_ids, cache)
                 logits = self.model.output_projection(hidden[:, -1])[0]
                 token = _torch_sample(logits, temperature, top_k, top_p, rng)
             yield token
             ids = [*ids, token] if cache_mode == "off" else [token]
 
-    def _mlx_prefill(self, inputs):
+    def _mlx_prefill(self, inputs, kv_cache=None):
         prefill = getattr(self.model, "prefill_last_hidden", None)
         if prefill is not None:
-            return prefill(inputs)
-        return self.model.hidden_states_with_cache(inputs, kv_cache=None, is_causal=True)
+            return prefill(inputs, kv_cache=kv_cache) if kv_cache is not None else prefill(inputs)
+        return self.model.hidden_states_with_cache(inputs, kv_cache=kv_cache, is_causal=True)
 
     def _mlx_tokens(self, ids, count, temperature, top_k, top_p, seed, cache_mode):
         import secrets
 
         import mlx.core as mx
 
-        if temperature == 0 and cache_mode == "dynamic" and count > 1:
-            yield from self._mlx_greedy_cached_tokens(ids, count)
+        prompt_ids = list(ids)
+        initial_cache = None
+        self._last_cached_tokens = 0
+        if cache_mode != "off" and self.prefix_cache.max_entries > 0:
+            matched_len, initial_cache = self.prefix_cache.lookup(prompt_ids)
+            if matched_len > 0:
+                self._last_cached_tokens = matched_len
+                ids = prompt_ids[matched_len:]
+
+        if cache_mode == "dynamic" and count > 1:
+            yield from self._mlx_pipelined_cached_tokens(
+                ids, count, temperature, top_k, top_p, seed,
+                initial_cache=initial_cache, prompt_ids=prompt_ids,
+            )
             return
 
         key = None
         if temperature:
             key = mx.random.key((secrets.randbits(64) if seed is None else seed) & ((1 << 64) - 1))
-        cache = None
-        for _ in range(count):
+        cache = initial_cache
+        for step in range(count):
             input_ids = mx.array([ids], dtype=mx.int32)
             if cache_mode == "off":
                 hidden = self.model.hidden_states(input_ids, is_causal=True)
-            elif cache is None:
-                hidden, cache = self._mlx_prefill(input_ids)
+            elif step == 0:
+                hidden, cache = self._mlx_prefill(input_ids, kv_cache=cache)
+                if self.prefix_cache.max_entries > 0:
+                    self.prefix_cache.put(prompt_ids, cache)
             else:
                 hidden, cache = self.model.hidden_states_with_cache(input_ids, kv_cache=cache, is_causal=True)
             subkey = None
@@ -265,28 +301,48 @@ class TextGenerator:
             yield token
             ids = [*ids, token] if cache_mode == "off" else [token]
 
-    def _mlx_greedy_cached_tokens(self, ids, count):
-        """Overlap one cached Metal decode step with host token delivery."""
+    def _mlx_pipelined_cached_tokens(self, ids, count, temperature=0.0, top_k=0, top_p=1.0,
+                                     seed=None, *, initial_cache=None, prompt_ids=None):
+        """Overlap one cached Metal decode step (greedy or sampled) with host delivery."""
+        import secrets
+
         import mlx.core as mx
 
-        def predict(inputs, cache):
-            if cache is None:
-                hidden, updated = self._mlx_prefill(inputs)
+        key = None
+        if temperature:
+            key = mx.random.key((secrets.randbits(64) if seed is None else seed) & ((1 << 64) - 1))
+
+        def next_subkey():
+            nonlocal key
+            if key is None:
+                return None
+            key, subkey = mx.random.split(key)
+            return subkey
+
+        def predict(inputs, cache, *, is_prefill=False):
+            if is_prefill:
+                hidden, updated = self._mlx_prefill(inputs, kv_cache=cache)
             else:
                 hidden, updated = self.model.hidden_states_with_cache(inputs, kv_cache=cache, is_causal=True)
             logits = self.model.logits_from_hidden(hidden[:, -1])[0, :self.vocab_size]
-            return mx.argmax(logits), updated
+            return _mlx_sample_device(logits, temperature, top_k, top_p, next_subkey()), updated
 
-        token, cache = predict(mx.array([ids], dtype=mx.int32), None)
+        token, cache = predict(mx.array([ids], dtype=mx.int32), initial_cache, is_prefill=True)
+        if prompt_ids is not None and self.prefix_cache.max_entries > 0:
+            self.prefix_cache.put(prompt_ids, cache)
         mx.async_eval(token)
         for _ in range(count - 1):
-            # Keep the greedy ID on device so the next graph can be submitted
-            # before waiting for the current ID. At most one step is queued.
+            # Keep the token ID and RNG state on device so the next graph can be
+            # submitted before waiting for the current ID. At most one step is queued.
             next_token, cache = predict(token.reshape(1, 1), cache)
             mx.async_eval(next_token)
             yield int(token.item())
             token = next_token
         yield int(token.item())
+
+    def _mlx_greedy_cached_tokens(self, ids, count):
+        """Backwards-compatible alias for greedy pipelined cached MLX decode."""
+        yield from self._mlx_pipelined_cached_tokens(ids, count, 0.0, 0, 1.0, None)
 
     def stream_with_stats(self, prompt, *, max_new_tokens=128, temperature=0.0, top_k=0, top_p=1.0,
                           seed=None, stop=(), add_bos=None, cache="auto"):
@@ -337,6 +393,7 @@ class TextGenerator:
                 finish_reason=state["finish_reason"],
                 ttft_seconds=state["ttft_seconds"],
                 total_seconds=time.perf_counter() - started,
+                cached_tokens=self._last_cached_tokens,
             )
 
         def iterate():

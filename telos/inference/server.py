@@ -43,6 +43,7 @@ def _usage_payload(stats: GenerationStats) -> dict[str, int]:
 def _timing_headers(stats: GenerationStats) -> dict[str, str]:
     headers = {
         "X-Telos-Total-Ms": f"{stats.total_seconds * 1000:.2f}",
+        "X-Telos-Cached-Tokens": str(stats.cached_tokens),
     }
     if stats.ttft_seconds is not None:
         headers["X-Telos-TTFT-Ms"] = f"{stats.ttft_seconds * 1000:.2f}"

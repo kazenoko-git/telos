@@ -27,6 +27,8 @@ def main():
     parser.add_argument("--device", default="auto", help="auto, mlx, cpu, cuda, or cuda:N")
     parser.add_argument("--context-length", type=int, help="Limit the context to at most this many tokens")
     parser.add_argument("--cache", choices=("auto", "dynamic", "static", "off"), default="auto")
+    parser.add_argument("--prefix-cache-entries", type=int, default=4,
+                        help="Number of exact prompt KV prefixes to retain across requests (0 disables)")
     parser.add_argument("--chat-template", help="Override Jinja2 chat template string or path to a template file")
     parser.add_argument("--api-key", help="Require Authorization: Bearer <key> on /v1/* endpoints")
     parser.add_argument("--warmup", action="store_true", help="Run a short 4-token warmup before accepting traffic")
@@ -59,6 +61,7 @@ def main():
             config=config,
             device=args.device,
             context_length=args.context_length,
+            prefix_cache_entries=args.prefix_cache_entries,
         )
         if args.warmup:
             generator.generate("Hello", max_new_tokens=4, cache=args.cache)
