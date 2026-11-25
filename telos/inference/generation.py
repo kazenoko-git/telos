@@ -1,5 +1,6 @@
 """Cached autoregressive generation for native PyTorch and MLX checkpoints."""
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 import math
 from pathlib import Path
@@ -275,6 +276,12 @@ class TextGenerator:
         return self.model.hidden_states_with_cache(inputs, kv_cache=kv_cache, is_causal=True)
 
     def _mlx_tokens(self, ids, count, temperature, top_k, top_p, seed, cache_mode):
+        cache = getattr(self.model, "_expert_cache", None)
+        request = getattr(cache, "request", None)
+        with request() if request is not None else nullcontext():
+            yield from self._mlx_request_tokens(ids, count, temperature, top_k, top_p, seed, cache_mode)
+
+    def _mlx_request_tokens(self, ids, count, temperature, top_k, top_p, seed, cache_mode):
         import secrets
 
         import mlx.core as mx

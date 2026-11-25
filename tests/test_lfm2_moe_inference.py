@@ -1,6 +1,7 @@
 """Tiny fixtures for LFM2.5 hybrid state and Flash-MoE parity."""
 
 import json
+import threading
 
 import pytest
 from tokenizers import Tokenizer, models, pre_tokenizers
@@ -163,7 +164,28 @@ def test_lfm2_resident_and_ssd_parity(tmp_path, monkeypatch, quantized):
         assert [layer.length for layer in state] == [5, 5, 5]
         assert state[0].history.shape == state[2].history.shape == (1, 2, 64)
     options = ([3, 5, 7], 4, 0.0, 0, 1.0, None, "dynamic")
-    assert list(streamed._mlx_tokens(*options)) == list(resident._mlx_tokens(*options))
+    from telos.models.ssd_expert_io import _ExpertReadSession
+
+    read_threads = set()
+    read = _ExpertReadSession._read
+
+    def record_read(fd, entry, view):
+        read_threads.add(threading.current_thread().name)
+        return read(fd, entry, view)
+
+    monkeypatch.setattr(_ExpertReadSession, "_read", staticmethod(record_read))
+    expected_tokens = list(resident._mlx_tokens(*options))
+    assert list(streamed._mlx_tokens(*options)) == expected_tokens
+    assert any(name.startswith("telos-expert-read") for name in read_threads)
+    assert cache._session is None
+
+    # Early consumer termination releases the thread pool and file descriptors.
+    iterator = streamed._mlx_tokens(*options)
+    assert next(iterator) == expected_tokens[0]
+    session = cache._session
+    assert session is not None
+    iterator.close()
+    assert cache._session is None and session._workers._shutdown
     assert streamed.generate("t3 t5 t7", max_new_tokens=4) == resident.generate("t3 t5 t7", max_new_tokens=4)
     with pytest.raises(ValueError, match="dynamic KV cache"):
         streamed.generate("t3 t5", cache="off")

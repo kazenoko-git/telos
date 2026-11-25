@@ -31,9 +31,6 @@ class TensorRange:
         return TensorRange(self.path, self.offset + index * size, size, self.dtype, self.shape[1:])
 
     def load(self, *, uncached=False):
-        import mlx.core as mx
-        import numpy as np
-
         if uncached:
             import fcntl
 
@@ -44,6 +41,12 @@ class TensorRange:
             data = os.pread(file.fileno(), self.size, self.offset)
         if len(data) != self.size:
             raise OSError(f"Short Safetensors read in {self.path.name} at byte {self.offset}")
+        return self.array_from_buffer(data)
+
+    def array_from_buffer(self, data):
+        import mlx.core as mx
+        import numpy as np
+
         array = mx.array(np.frombuffer(data, dtype=_DTYPES[self.dtype][0]).reshape(self.shape))
         return array.view(mx.bfloat16) if self.dtype == "BF16" else array
 
@@ -207,14 +210,16 @@ class SSDExpertCache:
 
         import mlx.core as mx
 
-        # MLX can retain freed buffers in its allocator cache, independently of
-        # this cache. Reclaim them before staging the next on-disk expert.
-        mx.clear_cache()
-        arrays = {}
-        for name, entry in slices.items():
-            arrays[name] = entry.load(uncached=True)
-            self.bytes_read += entry.size
+        arrays = self._load_slices(slices)
         mx.eval(arrays)
+        self.bytes_read += size
         self._entries[key] = (arrays, size)
         self.resident_bytes += size
         return arrays
+
+    def _load_slices(self, slices):
+        import mlx.core as mx
+
+        # MLX may retain freed buffers independently of the expert cache.
+        mx.clear_cache()
+        return {name: entry.load(uncached=True) for name, entry in slices.items()}

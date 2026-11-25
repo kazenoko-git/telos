@@ -87,6 +87,11 @@ class RoutedMLP(nn.Module):
                 tokens.append(token)
                 slots.append(slot)
 
+        # Multi-token prefill retains synchronous demand reads. With one token,
+        # the known misses can be queued while earlier experts execute.
+        prepare = getattr(self._cache, "prepare", None)
+        if prepare is not None and x.shape[0] == 1:
+            prepare(self.layer, routes, self._ranges)
         output = mx.zeros_like(x)
         for expert, (tokens, slots) in sorted(routes.items()):
             rows, columns = mx.array(tokens), mx.array(slots)
@@ -161,11 +166,20 @@ def load_mlx_moe(checkpoint, config, *, context_length, memory_budget_mib, prefi
     if memory_budget_mib is not None:
         budget = min(budget, memory_budget_mib * _MIB)
     context, cache_bytes = plan_experts(config, ranges, budget, context_length, prefix_cache_entries)
+    expert_ranges = {name: entry for name, entry in ranges.items() if is_expert_tensor(name)}
     cache = None
     if cache_bytes is not None:
-        layer_sizes = expert_layer_sizes(ranges, config["num_experts"]) if config["model_type"] == "lfm2_moe" else None
-        cache = SSDExpertCache(cache_bytes, guard, layer_sizes=layer_sizes)
-    expert_ranges = {name: entry for name, entry in ranges.items() if is_expert_tensor(name)}
+        if config["model_type"] == "lfm2_moe":
+            from .ssd_expert_io import LFMSSDExpertCache
+
+            experts = config["num_experts"]
+            cache = LFMSSDExpertCache(
+                cache_bytes, guard, layer_sizes=expert_layer_sizes(expert_ranges, experts),
+                fragment_size=max(entry.size // experts for entry in expert_ranges.values()),
+                top_k=_positive(config, "num_experts_per_tok"),
+            )
+        else:
+            cache = SSDExpertCache(cache_bytes, guard)
     arrays = {}
     for name, entry in ranges.items():
         if cache is None or name not in expert_ranges:
