@@ -137,6 +137,9 @@ class _LayerCache(NamedTuple):
             length,
         )
 
+    def truncate(self, length):
+        return _LayerCache(self.keys[:, :, :length], self.values[:, :, :length], length)
+
 
 class _Block(nn.Module):
     def __init__(self, weights, index, config, width, heads, kv_heads, head_dim, mlp_width):
@@ -224,9 +227,9 @@ class Qwen3MLX(nn.Module):
         if weights.tensors:
             raise ValueError(f"Unexpected Qwen3 checkpoint tensor: {next(iter(weights.tensors))}")
 
-    def prefill_last_hidden(self, ids):
+    def prefill_last_hidden(self, ids, kv_cache=None):
         """Return the final prompt position and the complete prompt KV cache."""
-        return self._hidden_states_with_cache(ids, None, True, last_only=ids.shape[1] > 1)
+        return self._hidden_states_with_cache(ids, kv_cache, True, last_only=ids.shape[1] > 1)
 
     def hidden_states_with_cache(self, ids, kv_cache=None, *, is_causal=True):
         return self._hidden_states_with_cache(ids, kv_cache, is_causal)
@@ -234,8 +237,8 @@ class Qwen3MLX(nn.Module):
     def _hidden_states_with_cache(self, ids, kv_cache, is_causal, *, last_only=False):
         if not is_causal:
             raise ValueError("Native Qwen3 supports causal attention")
-        if kv_cache is not None and ids.shape[1] != 1:
-            raise ValueError("Native Qwen3 cache updates require one token per row")
+        if ids.shape[1] < 1:
+            raise ValueError("Native Qwen3 requires at least one token per row")
         offset = kv_cache[0].length if kv_cache is not None else 0
         if offset + ids.shape[1] > self.max_seq_len:
             raise ValueError(f"Qwen3 context exceeds the model limit of {self.max_seq_len} tokens")

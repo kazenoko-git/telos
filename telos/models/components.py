@@ -171,13 +171,23 @@ class Attention(nn.Module):
             k_attn, v_attn = k, v
 
         causal_flag = is_causal_override if is_causal_override is not None else self.is_causal
-        if kv_cache is not None and seq_len == 1:
-            # Incremental single-token decode attends to all cached keys plus self.
-            causal_flag = False
+        attn_mask = None
+        if kv_cache is not None and causal_flag:
+            if seq_len == 1:
+                # Incremental single-token decode attends to all cached keys plus self.
+                causal_flag = False
+            else:
+                # Multi-token suffix append requires an offset-aware causal mask
+                # because PyTorch is_causal=True aligns to the top-left corner.
+                past_len = kv_len - seq_len
+                q_pos = torch.arange(past_len, kv_len, device=q.device)[:, None]
+                k_pos = torch.arange(kv_len, device=q.device)[None, :]
+                attn_mask = k_pos <= q_pos
+                causal_flag = False
 
         out = F.scaled_dot_product_attention(
             q, k_attn, v_attn,
-            attn_mask=None,
+            attn_mask=attn_mask,
             dropout_p=self.dropout if self.training else 0.0,
             is_causal=causal_flag,
             **({"enable_gqa": True} if native_gqa else {})
