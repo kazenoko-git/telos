@@ -13,7 +13,7 @@ from pathlib import Path
 
 _MIB = 2**20
 _EXPERT_KEY = re.compile(
-    r"model\.layers\.\d+\.mlp\.switch_mlp\.(?:gate|up|down)_proj\.(?:weight|scales|biases)"
+    r"model\.layers\.\d+\.(?:mlp|feed_forward)\.switch_mlp\.(?:gate|up|down)_proj\.(?:weight|scales|biases)"
 )
 _DTYPES = {"F32": ("<f4", 4), "F16": ("<f2", 2), "BF16": ("<u2", 2), "U32": ("<u4", 4)}
 

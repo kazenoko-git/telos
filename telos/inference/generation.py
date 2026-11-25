@@ -9,7 +9,12 @@ from tokenizers import Tokenizer
 from tokenizers.decoders import DecodeStream
 
 from telos.data.tokenizer import checkpoint_tokenizer_path, load_tokenizer
-from telos.models.checkpoint import EXTERNAL_MLX_ARCHITECTURES, load_checkpoint, resolve_checkpoint
+from telos.models.checkpoint import (
+    EXTERNAL_MLX_ARCHITECTURES,
+    EXTERNAL_MLX_MOE_ARCHITECTURES,
+    load_checkpoint,
+    resolve_checkpoint,
+)
 from .prefix_cache import PrefixKVCache
 
 
@@ -147,7 +152,7 @@ class TextGenerator:
         self.max_seq_len = max_seq_len
         self.add_bos = add_bos
         self.checkpoint_dir = Path(checkpoint_dir) if checkpoint_dir is not None else None
-        self.prefix_cache = PrefixKVCache(prefix_cache_entries)
+        self.prefix_cache = PrefixKVCache(prefix_cache_entries if getattr(model, "supports_prefix_cache", True) else 0)
         self._last_cached_tokens = 0
         checkpoint_vocab = model.vocab_size if backend == "mlx" else model.config.vocab_size
         self.vocab_size = tokenizer.get_vocab_size()
@@ -196,7 +201,7 @@ class TextGenerator:
         limit = m_cfg.get("max_seq_len") or m_cfg.get("seq_len") or getattr(model, "max_seq_len", 512)
         if backend == "pytorch":
             limit = model.config.max_seq_len
-        elif metadata.get("model_type") == "qwen3_moe":
+        elif metadata.get("model_type") in EXTERNAL_MLX_MOE_ARCHITECTURES:
             limit = model.max_seq_len
         if context_length is not None:
             if not isinstance(context_length, int) or not 2 <= context_length <= limit:

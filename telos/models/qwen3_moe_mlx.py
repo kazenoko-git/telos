@@ -16,17 +16,17 @@ _DEFAULT_CONTEXT = 2048
 
 
 class RoutedMLP(nn.Module):
-    def __init__(self, weights, layer, config, width, ranges, cache):
+    def __init__(self, weights, layer, config, width, ranges, cache, *, module="mlp"):
         super().__init__()
         count = _positive(config, "num_experts")
         inner = _positive(config, "moe_intermediate_size")
         self.top_k = _positive(config, "num_experts_per_tok")
         if self.top_k > count:
-            raise ValueError("Qwen3-MoE selects more experts than the checkpoint contains")
+            raise ValueError("Router selects more experts than the checkpoint contains")
         self.normalize = config.get("norm_topk_prob", False)
         self.layer = layer
         self._cache = cache
-        prefix = f"model.layers.{layer}.mlp"
+        prefix = f"model.layers.{layer}.{module}"
         self.router = weights.matrix(prefix + ".gate", count, width)
         self.bank = {}
         self._ranges = {}
@@ -66,15 +66,18 @@ class RoutedMLP(nn.Module):
         return mx.quantized_matmul(x, weight, tensors[name + ".scales"], tensors[name + ".biases"],
                                    transpose=True, **settings)
 
-    def __call__(self, hidden):
-        x = hidden.reshape(-1, hidden.shape[-1])
+    def _route(self, x):
         logits = self.router(x)
         probs = mx.softmax(logits.astype(mx.float32), axis=-1)
         indices = mx.argsort(-probs, axis=-1)[:, :self.top_k]
         scores = mx.take_along_axis(probs, indices, axis=-1)
         if self.normalize:
             scores = scores / scores.sum(axis=-1, keepdims=True)
-        scores = scores.astype(logits.dtype)
+        return indices, scores.astype(logits.dtype)
+
+    def __call__(self, hidden):
+        x = hidden.reshape(-1, hidden.shape[-1])
+        indices, scores = self._route(x)
 
         routes = {}
         for token, selected in enumerate(indices.tolist()):
@@ -107,10 +110,17 @@ def plan_experts(config, ranges, budget, context_length, prefix_cache_entries):
     total = sum(entry.size for entry in ranges.values())
     experts = _positive(config, "num_experts")
     layers = _positive(config, "num_hidden_layers")
+    conv_bytes = 0
     width = _positive(config, "hidden_size")
     heads = _positive(config, "num_attention_heads")
     kv_heads = _positive(config, "num_key_value_heads", heads)
     head_dim = _positive(config, "head_dim", width // heads)
+    if config.get("model_type") == "lfm2_moe":
+        from .lfm2_moe_mlx import layer_types
+
+        kinds = layer_types(config)
+        conv_bytes = 4 * kinds.count("conv") * (_positive(config, "conv_L_cache", 3) - 1) * width
+        layers = kinds.count("full_attention")
     max_context = _positive(config, "max_position_embeddings", 32768)
     context = min(_DEFAULT_CONTEXT, max_context) if context_length is None else context_length
     if type(context) is not int or not 2 <= context <= max_context:
@@ -123,14 +133,15 @@ def plan_experts(config, ranges, budget, context_length, prefix_cache_entries):
             if len(entry.shape) != 3 or entry.shape[0] != experts:
                 raise ValueError(f"Expected an expert-major tensor for {key}")
             layer_bytes[layer] = layer_bytes.get(layer, 0) + entry.size // experts
-        elif ".mlp.switch_mlp." in key or ".mlp.experts." in key:
-            raise ValueError(f"Unsupported Qwen3-MoE expert tensor {key}")
+        elif any(f".{module}.{bank}." in key
+                 for module in ("mlp", "feed_forward") for bank in ("switch_mlp", "experts")):
+            raise ValueError(f"Unsupported expert tensor {key}")
     if not layer_bytes:
-        raise ValueError("Qwen3-MoE requires expert-major MLX Safetensors (mlp.switch_mlp)")
+        raise ValueError("Flash-MoE requires expert-major MLX Safetensors (switch_mlp)")
 
     expert_bytes = sum(layer_bytes.values()) * experts
     # Use four-byte activations for admission and reserve space for prefill and read staging.
-    per_cache = 2 * 4 * layers * kv_heads * head_dim * min(max_context, (context + 255) // 256 * 256)
+    per_cache = conv_bytes + 2 * 4 * layers * kv_heads * head_dim * min(max_context, (context + 255) // 256 * 256)
     workspace = 512 * _MIB + 32 * context * width + 2 * max(layer_bytes.values())
     if total + per_cache * (1 + prefix_cache_entries) + workspace <= budget:
         return context, None
@@ -141,7 +152,16 @@ def plan_experts(config, ranges, budget, context_length, prefix_cache_entries):
     return context, remaining
 
 
-def load_qwen3_moe(checkpoint, config, *, context_length, memory_budget_mib, prefix_cache_entries):
+def load_mlx_moe(checkpoint, config, *, context_length, memory_budget_mib, prefix_cache_entries):
+    if config["model_type"] == "lfm2_moe":
+        from .lfm2_moe_mlx import LFM2MoEMLX, LFM2RoutedMLP
+
+        model_class = LFM2MoEMLX
+        expert_class = LFM2RoutedMLP
+        prefix_cache_entries = 0
+    else:
+        model_class = Qwen3MLX
+        expert_class = RoutedMLP
     ranges = tensor_ranges(checkpoint)
     guard = AppleMemoryGuard()
     recommended = mx.device_info()["max_recommended_working_set_size"]
@@ -160,11 +180,11 @@ def load_qwen3_moe(checkpoint, config, *, context_length, memory_budget_mib, pre
             arrays[name] = array
 
     def make_experts(weights, layer, config, width):
-        return RoutedMLP(weights, layer, config, width, expert_ranges, cache)
+        return expert_class(weights, layer, config, width, expert_ranges, cache)
 
-    model = Qwen3MLX(config, arrays, expert_factory=make_experts).eval()
+    model = model_class(config, arrays, expert_factory=make_experts).eval()
     if expert_ranges:
-        raise ValueError(f"Unexpected Qwen3-MoE expert tensor: {next(iter(expert_ranges))}")
+        raise ValueError(f"Unexpected expert tensor: {next(iter(expert_ranges))}")
     model.max_seq_len = context
     model.weight_storage = "ssd_experts" if cache is not None else "resident"
     model._expert_cache = cache

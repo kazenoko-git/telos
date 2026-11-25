@@ -55,7 +55,8 @@ def _load_mlx_arrays(checkpoint):
     return arrays
 
 
-EXTERNAL_MLX_ARCHITECTURES = frozenset({"qwen3", "qwen3_moe", "qwen2", "llama", "mistral", "phi3"})
+EXTERNAL_MLX_MOE_ARCHITECTURES = frozenset({"qwen3_moe", "lfm2_moe"})
+EXTERNAL_MLX_ARCHITECTURES = EXTERNAL_MLX_MOE_ARCHITECTURES | {"qwen3", "qwen2", "llama", "mistral", "phi3"}
 
 
 def _load_external_causal_checkpoint(checkpoint, config, *, device, context_length,
@@ -63,18 +64,18 @@ def _load_external_causal_checkpoint(checkpoint, config, *, device, context_leng
     family = config["model_type"]
     if family in EXTERNAL_MLX_ARCHITECTURES and device not in ("mlx", "auto"):
         raise ValueError("Native MLX checkpoints require --device mlx or auto.")
-    if family == "qwen3_moe":
+    if family in EXTERNAL_MLX_MOE_ARCHITECTURES:
         from telos.training.core import metal_usable
 
         if not metal_usable():
-            raise ValueError("Native Qwen3-MoE requires Apple Silicon with Metal.")
-        from .qwen3_moe_mlx import load_qwen3_moe
+            raise ValueError("Native MLX MoE requires Apple Silicon with Metal.")
+        from .qwen3_moe_mlx import load_mlx_moe
 
-        model = load_qwen3_moe(checkpoint, config, context_length=context_length,
-                              memory_budget_mib=memory_budget_mib, prefix_cache_entries=prefix_cache_entries)
+        model = load_mlx_moe(checkpoint, config, context_length=context_length,
+                             memory_budget_mib=memory_budget_mib, prefix_cache_entries=prefix_cache_entries)
         return model, "mlx", model.vocab_size, config
     if memory_budget_mib is not None:
-        raise ValueError("--memory-budget-mib is currently supported for Qwen3-MoE.")
+        raise ValueError("--memory-budget-mib is supported for native MLX MoE checkpoints.")
     if family == "qwen3":
         from .qwen3_mlx import Qwen3MLX as model_cls
     elif family in {"llama", "mistral"}:
@@ -144,7 +145,7 @@ def load_checkpoint(checkpoint_path: str | Path, config: dict | None = None, *, 
             prefix_cache_entries=prefix_cache_entries,
         )
     if memory_budget_mib is not None:
-        raise ValueError("--memory-budget-mib is currently supported for Qwen3-MoE.")
+        raise ValueError("--memory-budget-mib is supported for native MLX MoE checkpoints.")
 
     vocab_size = m_cfg.get("vocab_size", 8192)
     d_model = m_cfg.get("d_model", 512)

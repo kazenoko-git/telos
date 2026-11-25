@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--config", type=Path, help="Override checkpoint architecture metadata (JSON or YAML)")
     parser.add_argument("--device", default="auto", help="auto, mlx, cpu, cuda, or cuda:N")
     parser.add_argument("--context-length", type=int, help="Limit the context to at most this many tokens")
-    parser.add_argument("--memory-budget-mib", type=int, help="Maximum RAM budget for native Qwen3-MoE")
+    parser.add_argument("--memory-budget-mib", type=int, help="Maximum RAM budget for native MLX MoE")
     parser.add_argument("--max-new-tokens", type=int, default=128)
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--top-k", type=int, default=0)
