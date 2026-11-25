@@ -55,13 +55,23 @@ def _load_mlx_arrays(checkpoint):
     return arrays
 
 
+EXTERNAL_MLX_ARCHITECTURES = frozenset({"qwen3", "qwen2", "llama", "mistral", "phi3"})
+
+
 def _load_external_causal_checkpoint(checkpoint, config):
     family = config["model_type"]
-    if family != "qwen3":
+    if family == "qwen3":
+        from .qwen3_mlx import Qwen3MLX as model_cls
+    elif family in {"llama", "mistral"}:
+        from .mlx_causal import LlamaMLX as model_cls
+    elif family == "qwen2":
+        from .mlx_causal import Qwen2MLX as model_cls
+    elif family == "phi3":
+        from .mlx_causal import Phi3MLX as model_cls
+    else:
         raise ValueError(f"Unsupported native inference model architecture: {family}")
-    from .qwen3_mlx import Qwen3MLX
 
-    model = Qwen3MLX(config, _load_mlx_arrays(checkpoint)).eval()
+    model = model_cls(config, _load_mlx_arrays(checkpoint)).eval()
     return model, "mlx", model.vocab_size, config
 
 

@@ -9,7 +9,7 @@ from tokenizers import Tokenizer
 from tokenizers.decoders import DecodeStream
 
 from telos.data.tokenizer import checkpoint_tokenizer_path, load_tokenizer
-from telos.models.checkpoint import load_checkpoint, resolve_checkpoint
+from telos.models.checkpoint import EXTERNAL_MLX_ARCHITECTURES, load_checkpoint, resolve_checkpoint
 from .prefix_cache import PrefixKVCache
 
 
@@ -200,7 +200,7 @@ class TextGenerator:
             except Exception as exc:
                 raise ValueError(f"Invalid tokenizer JSON: {tokenizer_path}") from exc
         options = {}
-        if metadata.get("model_type") == "qwen3":
+        if metadata.get("model_type") in EXTERNAL_MLX_ARCHITECTURES:
             from json import loads
 
             generation_path = checkpoint.with_name("generation_config.json")
