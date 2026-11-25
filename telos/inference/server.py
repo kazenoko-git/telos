@@ -1,9 +1,11 @@
 """OpenAI-compatible HTTP and SSE inference server for native Télos checkpoints."""
 
+import asyncio
 import json
-import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from typing import Any
 
 from .chat import ChatTemplateRenderer
@@ -112,12 +114,45 @@ def create_app(
 ):
     """Build a FastAPI application serving OpenAI-compatible generation endpoints."""
     FastAPI, Request, JSONResponse, StreamingResponse = _require_fastapi()
+    from anyio import CancelScope
 
     renderer = chat_renderer or ChatTemplateRenderer.from_checkpoint_dir(generator.checkpoint_dir)
     created_at = int(time.time())
-    lock = threading.Lock()
+    if generator.backend == "mlx":
+        import mlx.core as mx
 
-    app = FastAPI(title="Télos Inference Server", docs_url=None, redoc_url=None)
+        mx.eval(generator.model.parameters())
+
+    # MLX's lazy graphs, including state retained by the prefix cache, must
+    # evaluate on their owning thread. AnyIO's shared pool can move each SSE
+    # iterator step to a different worker.
+    worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="telos-inference")
+    lock = asyncio.Lock()
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        try:
+            yield
+        finally:
+            worker.shutdown()
+
+    async def run_inference(fn, *args):
+        return await asyncio.get_running_loop().run_in_executor(worker, fn, *args)
+
+    async def collect(gen_stream):
+        async with lock:
+            return await run_inference("".join, gen_stream)
+
+    async def stream_events(events):
+        async with lock:
+            try:
+                while (event := await run_inference(next, events, None)) is not None:
+                    yield event
+            finally:
+                with CancelScope(shield=True):
+                    await run_inference(events.close)
+
+    app = FastAPI(title="Télos Inference Server", docs_url=None, redoc_url=None, lifespan=lifespan)
     app.state.generator = generator
     app.state.model_id = model_id
     app.state.chat_renderer = renderer
@@ -221,8 +256,7 @@ def create_app(
         created = int(time.time())
 
         if not stream:
-            with lock:
-                text = "".join(gen_stream)
+            text = await collect(gen_stream)
             stats = gen_stream.stats
             output_text = (prompt + text) if echo else text
             return JSONResponse(
@@ -245,44 +279,43 @@ def create_app(
             )
 
         def event_stream():
-            with lock:
-                if echo and prompt:
-                    yield _sse_line({
-                        "id": completion_id,
-                        "object": "text_completion",
-                        "created": created,
-                        "model": model_id,
-                        "choices": [{"index": 0, "text": prompt, "logprobs": None, "finish_reason": None}],
-                    })
-                for chunk in gen_stream:
-                    yield _sse_line({
-                        "id": completion_id,
-                        "object": "text_completion",
-                        "created": created,
-                        "model": model_id,
-                        "choices": [{"index": 0, "text": chunk, "logprobs": None, "finish_reason": None}],
-                    })
-                stats = gen_stream.stats
+            if echo and prompt:
                 yield _sse_line({
                     "id": completion_id,
                     "object": "text_completion",
                     "created": created,
                     "model": model_id,
-                    "choices": [{"index": 0, "text": "", "logprobs": None, "finish_reason": stats.finish_reason}],
+                    "choices": [{"index": 0, "text": prompt, "logprobs": None, "finish_reason": None}],
                 })
-                if include_usage:
-                    yield _sse_line({
-                        "id": completion_id,
-                        "object": "text_completion",
-                        "created": created,
-                        "model": model_id,
-                        "choices": [],
-                        "usage": _usage_payload(stats),
-                    })
-                yield _sse_line("[DONE]")
+            for chunk in gen_stream:
+                yield _sse_line({
+                    "id": completion_id,
+                    "object": "text_completion",
+                    "created": created,
+                    "model": model_id,
+                    "choices": [{"index": 0, "text": chunk, "logprobs": None, "finish_reason": None}],
+                })
+            stats = gen_stream.stats
+            yield _sse_line({
+                "id": completion_id,
+                "object": "text_completion",
+                "created": created,
+                "model": model_id,
+                "choices": [{"index": 0, "text": "", "logprobs": None, "finish_reason": stats.finish_reason}],
+            })
+            if include_usage:
+                yield _sse_line({
+                    "id": completion_id,
+                    "object": "text_completion",
+                    "created": created,
+                    "model": model_id,
+                    "choices": [],
+                    "usage": _usage_payload(stats),
+                })
+            yield _sse_line("[DONE]")
 
         return StreamingResponse(
-            event_stream(),
+            stream_events(event_stream()),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
@@ -318,8 +351,7 @@ def create_app(
         created = int(time.time())
 
         if not stream:
-            with lock:
-                text = "".join(gen_stream)
+            text = await collect(gen_stream)
             stats = gen_stream.stats
             return JSONResponse(
                 content={
@@ -341,43 +373,42 @@ def create_app(
             )
 
         def event_stream():
-            with lock:
+            yield _sse_line({
+                "id": completion_id,
+                "object": "chat.completion.chunk",
+                "created": created,
+                "model": model_id,
+                "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "logprobs": None, "finish_reason": None}],
+            })
+            for chunk in gen_stream:
                 yield _sse_line({
                     "id": completion_id,
                     "object": "chat.completion.chunk",
                     "created": created,
                     "model": model_id,
-                    "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "logprobs": None, "finish_reason": None}],
+                    "choices": [{"index": 0, "delta": {"content": chunk}, "logprobs": None, "finish_reason": None}],
                 })
-                for chunk in gen_stream:
-                    yield _sse_line({
-                        "id": completion_id,
-                        "object": "chat.completion.chunk",
-                        "created": created,
-                        "model": model_id,
-                        "choices": [{"index": 0, "delta": {"content": chunk}, "logprobs": None, "finish_reason": None}],
-                    })
-                stats = gen_stream.stats
+            stats = gen_stream.stats
+            yield _sse_line({
+                "id": completion_id,
+                "object": "chat.completion.chunk",
+                "created": created,
+                "model": model_id,
+                "choices": [{"index": 0, "delta": {}, "logprobs": None, "finish_reason": stats.finish_reason}],
+            })
+            if include_usage:
                 yield _sse_line({
                     "id": completion_id,
                     "object": "chat.completion.chunk",
                     "created": created,
                     "model": model_id,
-                    "choices": [{"index": 0, "delta": {}, "logprobs": None, "finish_reason": stats.finish_reason}],
+                    "choices": [],
+                    "usage": _usage_payload(stats),
                 })
-                if include_usage:
-                    yield _sse_line({
-                        "id": completion_id,
-                        "object": "chat.completion.chunk",
-                        "created": created,
-                        "model": model_id,
-                        "choices": [],
-                        "usage": _usage_payload(stats),
-                    })
-                yield _sse_line("[DONE]")
+            yield _sse_line("[DONE]")
 
         return StreamingResponse(
-            event_stream(),
+            stream_events(event_stream()),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )

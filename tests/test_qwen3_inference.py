@@ -112,6 +112,35 @@ def test_unsupported_qwen_family_reports_architecture(tmp_path):
         TextGenerator.from_checkpoint(tmp_path)
 
 
+def test_qwen3_yarn_serves_sse_and_reuses_prefix():
+    import mlx.core as mx
+
+    from telos.inference import create_app
+    from telos.models.qwen3_mlx import Qwen3MLX
+
+    test_client = pytest.importorskip("fastapi.testclient").TestClient
+    vocabulary = {"[UNK]": 0, **{f"t{i}": i for i in range(1, 32)}}
+    tokenizer = Tokenizer(models.WordLevel(vocabulary, unk_token="[UNK]"))
+    tokenizer.pre_tokenizer = pre_tokenizers.WhitespaceSplit()
+    model = Qwen3MLX(fixture_config(tied=True), fixture_weights(mx, tied=True))
+    generator = TextGenerator(model, tokenizer, backend="mlx", max_seq_len=32,
+                              stop_ids=set(), prefix_cache_entries=4)
+    payload = {"model": "qwen3", "prompt": "t2 t3 t4 t5", "max_tokens": 4}
+
+    with test_client(create_app(generator, model_id="qwen3")) as client:
+        response = client.post("/v1/completions", json={**payload, "stream": True})
+        assert response.status_code == 200
+        events = [line[6:] for line in response.text.splitlines() if line.startswith("data: ")]
+        assert events[-1] == "[DONE]"
+        streamed = "".join(json.loads(event)["choices"][0]["text"] for event in events[:-1])
+
+        cached = client.post("/v1/completions", json=payload)
+        assert cached.status_code == 200
+        assert cached.headers["X-Telos-Cached-Tokens"] == "3"
+        assert cached.json()["choices"][0]["text"] == streamed
+        assert cached.json()["usage"]["completion_tokens"] == 4
+
+
 def test_qwen3_indexed_cache_growth_preserves_prefix_and_context_bound():
     import mlx.core as mx
 

@@ -31,7 +31,9 @@ def _rope_parameters(config, width, max_seq_len):
         if not math.isfinite(factor) or factor < 1:
             raise ValueError("Qwen3 RoPE factor must be finite and at least one")
         waves = base ** (mx.arange(0, width, 2, dtype=mx.float32) / width)
-        return None, waves * factor, 1.0
+        waves = waves * factor
+        mx.eval(waves)
+        return None, waves, 1.0
     if kind != "yarn":
         raise ValueError(f"Unsupported Qwen3 RoPE scaling: {kind}")
 
@@ -56,6 +58,8 @@ def _rope_parameters(config, width, max_seq_len):
         mscale, all_dims = scaling.get("mscale"), scaling.get("mscale_all_dim")
         amplitude = ((1 + mscale * log_factor) / (1 + all_dims * log_factor)
                      if mscale and all_dims else 1 + log_factor)
+    # The frequency table is shared across requests and can cross threads.
+    mx.eval(waves)
     return None, waves, float(amplitude)
 
 

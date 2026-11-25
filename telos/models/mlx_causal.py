@@ -39,6 +39,7 @@ def _causal_rope_parameters(config, width, max_seq_len):
     smooth = (old_ctx / wavelens - low_freq_factor) / (high_freq_factor - low_freq_factor)
     interpolated = freqs / ((1.0 - smooth) / factor + smooth)
     waves = mx.where(wavelens < high_wavelen, freqs, mx.where(wavelens > low_wavelen, scaled, interpolated))
+    mx.eval(waves)
     return None, waves, 1.0
 
 
