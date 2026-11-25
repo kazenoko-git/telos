@@ -35,6 +35,12 @@ def __getattr__(name: str):
     if name == "afm":
         import importlib
         return importlib.import_module(".afm", __package__)
+    if name == "inference":
+        import importlib
+        return importlib.import_module(".inference", __package__)
+    if name == "TextGenerator":
+        from .inference import TextGenerator
+        return TextGenerator
     if name == "MLXTelosTransformer":
         from .models import MLXTelosTransformer
         return MLXTelosTransformer
@@ -64,6 +70,8 @@ __all__ = [
     "evaluate",
     "benchmark",
     "afm",
+    "inference",
+    "TextGenerator",
     "TelosTransformer",
     "TelosConfig",
     "MLXTelosTransformer",

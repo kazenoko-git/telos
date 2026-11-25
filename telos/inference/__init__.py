@@ -1,5 +1,5 @@
-"""Local text generation from native Télos checkpoints."""
+"""Local text generation and serving for native Télos checkpoints."""
 
-from .generation import TextGenerator
+from .generation import GenerationResult, GenerationStats, GenerationStream, TextGenerator
 
-__all__ = ["TextGenerator"]
+__all__ = ["GenerationResult", "GenerationStats", "GenerationStream", "TextGenerator"]

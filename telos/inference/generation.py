@@ -1,12 +1,59 @@
 """Cached autoregressive generation for native PyTorch and MLX checkpoints."""
 
+from dataclasses import dataclass
 import math
+from pathlib import Path
+import time
 
 from tokenizers import Tokenizer
 from tokenizers.decoders import DecodeStream
 
 from telos.data.tokenizer import checkpoint_tokenizer_path, load_tokenizer
 from telos.models.checkpoint import load_checkpoint, resolve_checkpoint
+
+
+@dataclass(frozen=True)
+class GenerationStats:
+    """Token counts, finish reason and wall-clock timing for one generation."""
+
+    prompt_tokens: int
+    completion_tokens: int
+    finish_reason: str
+    ttft_seconds: float | None
+    total_seconds: float
+
+    @property
+    def tokens_per_second(self) -> float | None:
+        if self.completion_tokens <= 1 or self.ttft_seconds is None:
+            return None
+        decode_seconds = self.total_seconds - self.ttft_seconds
+        if decode_seconds <= 0:
+            return None
+        return (self.completion_tokens - 1) / decode_seconds
+
+
+@dataclass(frozen=True)
+class GenerationResult:
+    """Generated continuation paired with its usage and timing statistics."""
+
+    text: str
+    stats: GenerationStats
+
+
+class GenerationStream:
+    """Iterable text stream that captures usage and timing stats on completion."""
+
+    def __init__(self, iterator, finalize):
+        self._iterator = iterator
+        self._finalize = finalize
+        self.stats: GenerationStats | None = None
+
+    def __iter__(self):
+        try:
+            yield from self._iterator
+        finally:
+            if self.stats is None:
+                self.stats = self._finalize()
 
 
 def _stop_boundary(text, stops):
@@ -81,7 +128,7 @@ class TextGenerator:
     """Load once and generate independent continuations with per-request state."""
 
     def __init__(self, model, tokenizer, *, backend, max_seq_len, add_bos=False,
-                 bos_id=None, stop_ids=None, allow_padded_vocab=False):
+                 bos_id=None, stop_ids=None, allow_padded_vocab=False, checkpoint_dir=None):
         if backend not in {"mlx", "pytorch"}:
             raise ValueError(f"Unsupported inference backend: {backend}")
         if not isinstance(max_seq_len, int) or max_seq_len < 2:
@@ -91,6 +138,7 @@ class TextGenerator:
         self.backend = backend
         self.max_seq_len = max_seq_len
         self.add_bos = add_bos
+        self.checkpoint_dir = Path(checkpoint_dir) if checkpoint_dir is not None else None
         checkpoint_vocab = model.vocab_size if backend == "mlx" else model.config.vocab_size
         self.vocab_size = tokenizer.get_vocab_size()
         if self.vocab_size != checkpoint_vocab:
@@ -152,7 +200,7 @@ class TextGenerator:
             options = {"allow_padded_vocab": True, "stop_ids": stop_ids - {None},
                        "bos_id": generation.get("bos_token_id", metadata.get("bos_token_id"))}
         return cls(model, resolved_tokenizer, backend=backend, max_seq_len=limit,
-                   add_bos=bool(metadata.get("posttrain")), **options)
+                   add_bos=bool(metadata.get("posttrain")), checkpoint_dir=checkpoint.parent, **options)
 
     def _torch_tokens(self, ids, count, temperature, top_k, top_p, seed, cache_mode):
         import torch
@@ -240,9 +288,9 @@ class TextGenerator:
             token = next_token
         yield int(token.item())
 
-    def stream(self, prompt, *, max_new_tokens=128, temperature=0.0, top_k=0, top_p=1.0,
-               seed=None, stop=(), add_bos=None, cache="auto"):
-        """Yield continuation chunks, withholding stop strings across token boundaries."""
+    def stream_with_stats(self, prompt, *, max_new_tokens=128, temperature=0.0, top_k=0, top_p=1.0,
+                          seed=None, stop=(), add_bos=None, cache="auto"):
+        """Return a GenerationStream that yields text chunks and records usage/timing."""
         if not isinstance(max_new_tokens, int) or max_new_tokens < 0:
             raise ValueError("max_new_tokens must be a non-negative integer.")
         if not math.isfinite(temperature) or temperature < 0:
@@ -274,35 +322,74 @@ class TextGenerator:
         if len(ids) > self.max_seq_len:
             raise ValueError(f"Prompt has {len(ids)} tokens. Checkpoint limit is {self.max_seq_len}.")
         count = min(max_new_tokens, self.max_seq_len - len(ids))
-        if count == 0:
-            return
 
-        tokens = self._mlx_tokens if self.backend == "mlx" else self._torch_tokens
-        decoder = DecodeStream(skip_special_tokens=True)
-        generated = []
-        pending = ""
-        decoded_length = 0
-        for token in tokens(ids, count, temperature, top_k, top_p, seed, cache):
-            if token in self.stop_ids:
-                break
-            generated.append(token)
-            chunk = decoder.step(self.tokenizer, token) or ""
-            decoded_length += len(chunk)
-            if chunk:
-                pending += chunk
-                boundary, stopped = _stop_boundary(pending, stops)
-                if boundary:
-                    yield pending[:boundary]
-                if stopped:
-                    return
-                pending = pending[boundary:]
+        started = time.perf_counter()
+        state = {
+            "completion_tokens": 0,
+            "finish_reason": "length",
+            "ttft_seconds": None,
+        }
 
-        # Flush any incomplete trailing byte sequence without re-decoding each step.
-        pending += self.tokenizer.decode(generated, skip_special_tokens=True)[decoded_length:]
-        matches = [index for stop in stops if (index := pending.find(stop)) >= 0]
-        final = pending[:min(matches)] if matches else pending
-        if final:
-            yield final
+        def finalize():
+            return GenerationStats(
+                prompt_tokens=len(ids),
+                completion_tokens=state["completion_tokens"],
+                finish_reason=state["finish_reason"],
+                ttft_seconds=state["ttft_seconds"],
+                total_seconds=time.perf_counter() - started,
+            )
+
+        def iterate():
+            if count == 0:
+                return
+
+            tokens = self._mlx_tokens if self.backend == "mlx" else self._torch_tokens
+            decoder = DecodeStream(skip_special_tokens=True)
+            generated = []
+            pending = ""
+            decoded_length = 0
+            for token in tokens(ids, count, temperature, top_k, top_p, seed, cache):
+                if state["ttft_seconds"] is None:
+                    state["ttft_seconds"] = time.perf_counter() - started
+                if token in self.stop_ids:
+                    state["finish_reason"] = "stop"
+                    break
+                generated.append(token)
+                state["completion_tokens"] += 1
+                chunk = decoder.step(self.tokenizer, token) or ""
+                decoded_length += len(chunk)
+                if chunk:
+                    pending += chunk
+                    boundary, stopped = _stop_boundary(pending, stops)
+                    if boundary:
+                        yield pending[:boundary]
+                    if stopped:
+                        state["finish_reason"] = "stop"
+                        return
+                    pending = pending[boundary:]
+
+            # Flush any incomplete trailing byte sequence without re-decoding each step.
+            pending += self.tokenizer.decode(generated, skip_special_tokens=True)[decoded_length:]
+            matches = [index for stop in stops if (index := pending.find(stop)) >= 0]
+            if matches:
+                state["finish_reason"] = "stop"
+                final = pending[:min(matches)]
+            else:
+                final = pending
+            if final:
+                yield final
+
+        return GenerationStream(iterate(), finalize)
+
+    def stream(self, prompt, **options):
+        """Yield continuation chunks, withholding stop strings across token boundaries."""
+        yield from self.stream_with_stats(prompt, **options)
+
+    def generate_with_stats(self, prompt, **options):
+        """Return the generated continuation along with token usage and timing."""
+        stream = self.stream_with_stats(prompt, **options)
+        text = "".join(stream)
+        return GenerationResult(text=text, stats=stream.stats)
 
     def generate(self, prompt, **options):
         """Return only the generated continuation."""
