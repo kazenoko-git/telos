@@ -55,11 +55,26 @@ def _load_mlx_arrays(checkpoint):
     return arrays
 
 
-EXTERNAL_MLX_ARCHITECTURES = frozenset({"qwen3", "qwen2", "llama", "mistral", "phi3"})
+EXTERNAL_MLX_ARCHITECTURES = frozenset({"qwen3", "qwen3_moe", "qwen2", "llama", "mistral", "phi3"})
 
 
-def _load_external_causal_checkpoint(checkpoint, config):
+def _load_external_causal_checkpoint(checkpoint, config, *, device, context_length,
+                                     memory_budget_mib, prefix_cache_entries):
     family = config["model_type"]
+    if family in EXTERNAL_MLX_ARCHITECTURES and device not in ("mlx", "auto"):
+        raise ValueError("Native MLX checkpoints require --device mlx or auto.")
+    if family == "qwen3_moe":
+        from telos.training.core import metal_usable
+
+        if not metal_usable():
+            raise ValueError("Native Qwen3-MoE requires Apple Silicon with Metal.")
+        from .qwen3_moe_mlx import load_qwen3_moe
+
+        model = load_qwen3_moe(checkpoint, config, context_length=context_length,
+                              memory_budget_mib=memory_budget_mib, prefix_cache_entries=prefix_cache_entries)
+        return model, "mlx", model.vocab_size, config
+    if memory_budget_mib is not None:
+        raise ValueError("--memory-budget-mib is currently supported for Qwen3-MoE.")
     if family == "qwen3":
         from .qwen3_mlx import Qwen3MLX as model_cls
     elif family in {"llama", "mistral"}:
@@ -81,7 +96,8 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
     return model, backend, vocab_size
 
 
-def load_checkpoint(checkpoint_path: str | Path, config: dict | None = None, *, strict_metadata=False):
+def load_checkpoint(checkpoint_path: str | Path, config: dict | None = None, *, strict_metadata=False,
+                    device="auto", context_length=None, memory_budget_mib=None, prefix_cache_entries=0):
     """Return native model, backend, vocabulary size and checkpoint metadata."""
     cp = resolve_checkpoint(checkpoint_path)
     cfg_file = cp.parent / "config.json"
@@ -123,7 +139,12 @@ def load_checkpoint(checkpoint_path: str | Path, config: dict | None = None, *, 
     if strict_metadata and not isinstance(m_cfg, dict):
         raise ValueError("Checkpoint model config must be a mapping.")
     if strict_metadata and m_cfg is full_cfg and full_cfg.get("model_type") not in (None, "telos"):
-        return _load_external_causal_checkpoint(cp, full_cfg)
+        return _load_external_causal_checkpoint(
+            cp, full_cfg, device=device, context_length=context_length, memory_budget_mib=memory_budget_mib,
+            prefix_cache_entries=prefix_cache_entries,
+        )
+    if memory_budget_mib is not None:
+        raise ValueError("--memory-budget-mib is currently supported for Qwen3-MoE.")
 
     vocab_size = m_cfg.get("vocab_size", 8192)
     d_model = m_cfg.get("d_model", 512)

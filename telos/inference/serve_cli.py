@@ -26,6 +26,7 @@ def main():
     parser.add_argument("--config", type=Path, help="Override checkpoint architecture metadata (JSON or YAML)")
     parser.add_argument("--device", default="auto", help="auto, mlx, cpu, cuda, or cuda:N")
     parser.add_argument("--context-length", type=int, help="Limit the context to at most this many tokens")
+    parser.add_argument("--memory-budget-mib", type=int, help="Maximum RAM budget for native Qwen3-MoE")
     parser.add_argument("--cache", choices=("auto", "dynamic", "static", "off"), default="auto")
     parser.add_argument("--prefix-cache-entries", type=int, default=4,
                         help="Number of exact prompt KV prefixes to retain across requests (0 disables)")
@@ -61,6 +62,7 @@ def main():
             config=config,
             device=args.device,
             context_length=args.context_length,
+            memory_budget_mib=args.memory_budget_mib,
             prefix_cache_entries=args.prefix_cache_entries,
         )
         if args.warmup:

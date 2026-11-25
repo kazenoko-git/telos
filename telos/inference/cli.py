@@ -17,6 +17,7 @@ def main():
     parser.add_argument("--config", type=Path, help="Override checkpoint architecture metadata (JSON or YAML)")
     parser.add_argument("--device", default="auto", help="auto, mlx, cpu, cuda, or cuda:N")
     parser.add_argument("--context-length", type=int, help="Limit the context to at most this many tokens")
+    parser.add_argument("--memory-budget-mib", type=int, help="Maximum RAM budget for native Qwen3-MoE")
     parser.add_argument("--max-new-tokens", type=int, default=128)
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--top-k", type=int, default=0)
@@ -43,8 +44,12 @@ def main():
         prompt = args.prompt
         if args.prompt_file is not None:
             prompt = sys.stdin.read() if args.prompt_file == Path("-") else args.prompt_file.read_text(encoding="utf-8")
-        generator = TextGenerator.from_checkpoint(args.checkpoint, tokenizer=args.tokenizer,
-                                                  config=config, device=args.device, context_length=args.context_length)
+        generator = TextGenerator.from_checkpoint(
+            args.checkpoint, tokenizer=args.tokenizer, config=config, device=args.device,
+            context_length=args.context_length, memory_budget_mib=args.memory_budget_mib,
+        )
+        if getattr(generator.model, "weight_storage", None) == "ssd_experts":
+            print("Flash-MoE: streaming routed experts from SSD.", file=sys.stderr)
         options = {
             "max_new_tokens": args.max_new_tokens,
             "temperature": args.temperature,

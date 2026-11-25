@@ -193,12 +193,16 @@ def create_app(
 
     @app.get("/health")
     def health():
-        return {
+        status = {
             "status": "ok",
             "model": model_id,
             "backend": generator.backend,
             "max_seq_len": generator.max_seq_len,
         }
+        storage = getattr(generator.model, "weight_storage", None)
+        if storage is not None:
+            status["weight_storage"] = storage
+        return status
 
     @app.get("/v1/models")
     def list_models(request: Request):

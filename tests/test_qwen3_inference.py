@@ -107,8 +107,8 @@ def test_qwen3_checkpoint_load_and_cache_parity(tmp_path, quantized):
 
 def test_unsupported_qwen_family_reports_architecture(tmp_path):
     (tmp_path / "model.safetensors").touch()
-    (tmp_path / "config.json").write_text('{"model_type":"qwen3_moe"}')
-    with pytest.raises(ValueError, match="Unsupported native inference model architecture: qwen3_moe"):
+    (tmp_path / "config.json").write_text('{"model_type":"qwen3_next"}')
+    with pytest.raises(ValueError, match="Unsupported native inference model architecture: qwen3_next"):
         TextGenerator.from_checkpoint(tmp_path)
 
 
@@ -160,3 +160,129 @@ def test_qwen3_indexed_cache_growth_preserves_prefix_and_context_bound():
     expected = mx.concatenate((prefix, first, last), axis=2)
     assert mx.array_equal(grown.keys[:, :, :grown.length], expected).item()
     assert mx.array_equal(grown.values[:, :, :grown.length], -expected).item()
+
+
+@pytest.mark.parametrize("quantized", [False, True])
+def test_qwen3_moe_automatically_streams_selected_experts(tmp_path, monkeypatch, quantized):
+    import mlx.core as mx
+
+    from telos.models import qwen3_moe_mlx
+    from telos.models.ssd_experts import TensorRange, is_expert_tensor, tensor_ranges
+
+    config = {
+        **fixture_config(tied=True),
+        "model_type": "qwen3_moe",
+        "num_experts": 4,
+        "num_experts_per_tok": 2,
+        "moe_intermediate_size": 64,
+        "norm_topk_prob": True,
+    }
+    arrays = fixture_weights(mx, tied=True)
+    for key in list(arrays):
+        if ".mlp." in key:
+            del arrays[key]
+    prefix = "model.layers.0.mlp"
+    arrays[f"{prefix}.gate.weight"] = mx.eye(64)[:4] * 0.3
+    banks = {}
+    for index, name in enumerate(("gate", "up", "down")):
+        key = f"{prefix}.switch_mlp.{name}_proj"
+        matrix = mx.random.normal((4, 64, 64), key=mx.random.key(41 + index)) * 0.08
+        if quantized:
+            weight, scales, biases = mx.quantize(matrix.astype(mx.bfloat16), group_size=32, bits=4)
+            banks.update({key + ".weight": weight, key + ".scales": scales, key + ".biases": biases})
+        else:
+            banks[key + ".weight"] = matrix
+    if quantized:
+        config["quantization"] = {"group_size": 32, "bits": 4}
+        mx.save_safetensors(str(tmp_path / "resident.safetensors"), arrays)
+        mx.save_safetensors(str(tmp_path / "experts.safetensors"), banks)
+        index = {**dict.fromkeys(arrays, "resident.safetensors"), **dict.fromkeys(banks, "experts.safetensors")}
+        (tmp_path / "model.safetensors.index.json").write_text(json.dumps({"weight_map": index}))
+    else:
+        mx.save_safetensors(str(tmp_path / "model.safetensors"), {**arrays, **banks})
+    (tmp_path / "config.json").write_text(json.dumps(config))
+    vocabulary = {"[UNK]": 0, **{f"t{i}": i for i in range(1, 32)}}
+    tokenizer = Tokenizer(models.WordLevel(vocabulary, unk_token="[UNK]"))
+    tokenizer.pre_tokenizer = pre_tokenizers.WhitespaceSplit()
+    tokenizer.save(str(tmp_path / "tokenizer.json"))
+
+    class FixtureGuard:
+        budget = 2**30
+
+        def check(self):
+            pass
+
+    monkeypatch.setattr(qwen3_moe_mlx, "AppleMemoryGuard", FixtureGuard)
+    baseline = TextGenerator.from_checkpoint(tmp_path, context_length=16)
+    assert baseline.model.weight_storage == "resident"
+
+    ranges = tensor_ranges(baseline.checkpoint_dir / (
+        "model.safetensors.index.json" if quantized else "model.safetensors"
+    ))
+    expert_size = sum(r.size for name, r in ranges.items() if is_expert_tensor(name)) // 4
+    resident_bytes = sum(r.size for name, r in ranges.items() if not is_expert_tensor(name))
+    # Allow one expert after reserving room for model state, KV and staging.
+    FixtureGuard.budget = 512 * 2**20 + 32 * 16 * 64 + 2 * 4 * 2 * 32 * 32 + resident_bytes + 3 * expert_size
+    reads = []
+    original = TensorRange.load
+
+    def record(entry, *, uncached=False):
+        reads.append((entry.size, uncached))
+        return original(entry, uncached=uncached)
+
+    monkeypatch.setattr(TensorRange, "load", record)
+    streamed = TextGenerator.from_checkpoint(tmp_path, context_length=16, prefix_cache_entries=4)
+    cache = streamed.model._expert_cache
+    assert streamed.model.weight_storage == "ssd_experts"
+    assert streamed.prefix_cache.max_entries == 0
+    assert cache.byte_limit == expert_size
+    assert cache.bytes_read == 0
+    assert sum(size for size, _ in reads) == resident_bytes
+    assert all(not uncached for _, uncached in reads)
+
+    logits, _ = streamed.model.prefill_last_hidden(mx.array([[3]], dtype=mx.int32))
+    mx.eval(logits)
+    assert cache.bytes_read == 2 * expert_size
+
+    ids = mx.array([[3, 5, 7, 9]], dtype=mx.int32)
+    ref = baseline.model.logits_from_hidden(baseline.model.hidden_states(ids))
+    out = streamed.model.logits_from_hidden(streamed.model.hidden_states(ids))
+    assert mx.array_equal(ref, out).item()
+    assert streamed.generate("t3 t5 t7 t9", max_new_tokens=3) == baseline.generate(
+        "t3 t5 t7 t9", max_new_tokens=3
+    )
+    assert cache.resident_bytes == expert_size
+    assert len(cache._entries) == 1
+    assert cache.bytes_read >= 2 * expert_size
+    assert all(uncached for _, uncached in reads[len(arrays):])
+
+    with pytest.raises(ValueError, match="dynamic KV cache"):
+        streamed.generate("t3 t5", cache="off")
+    reads.clear()
+    with pytest.raises(ValueError, match="cannot fit"):
+        TextGenerator.from_checkpoint(tmp_path, context_length=16, memory_budget_mib=1)
+    assert not reads
+
+    if quantized:
+        from telos.inference import create_app
+
+        test_client = pytest.importorskip("fastapi.testclient").TestClient
+        with test_client(create_app(streamed, model_id="moe")) as client:
+            assert client.get("/health").json()["weight_storage"] == "ssd_experts"
+            response = client.post("/v1/completions", json={
+                "model": "moe", "prompt": "t3 t5 t7 t9", "max_tokens": 3, "stream": True,
+            })
+            assert response.status_code == 200
+            assert "data: [DONE]" in response.text
+
+
+def test_flash_moe_stops_on_cumulative_swap_writes(monkeypatch):
+    from telos.models import ssd_experts
+
+    monkeypatch.setattr(ssd_experts, "_command", lambda *_: str(24 * 2**30))
+    monkeypatch.setattr(ssd_experts, "_free_percent", lambda: 70)
+    samples = iter((0, 128 * 2**20))
+    monkeypatch.setattr(ssd_experts, "_swapout_bytes", lambda: next(samples))
+    guard = ssd_experts.AppleMemoryGuard()
+    with pytest.raises(RuntimeError, match="new swap writes"):
+        guard.check()

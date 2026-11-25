@@ -146,7 +146,7 @@ class _LayerCache(NamedTuple):
 
 
 class _Block(nn.Module):
-    def __init__(self, weights, index, config, width, heads, kv_heads, head_dim, mlp_width):
+    def __init__(self, weights, index, config, width, heads, kv_heads, head_dim, mlp_width, *, expert_factory=None):
         super().__init__()
         prefix = f"model.layers.{index}"
         attn = prefix + ".self_attn"
@@ -160,9 +160,15 @@ class _Block(nn.Module):
         self.key_norm = weights.take(attn + ".k_norm.weight", (head_dim,))
         self.input_norm = weights.take(prefix + ".input_layernorm.weight", (width,))
         self.post_norm = weights.take(prefix + ".post_attention_layernorm.weight", (width,))
-        self.gate = weights.matrix(mlp + ".gate_proj", mlp_width, width)
-        self.up = weights.matrix(mlp + ".up_proj", mlp_width, width)
-        self.down = weights.matrix(mlp + ".down_proj", width, mlp_width)
+        uses_experts = (expert_factory is not None and index not in config.get("mlp_only_layers", ())
+                        and (index + 1) % _positive(config, "decoder_sparse_step", 1) == 0)
+        if uses_experts:
+            self.moe = expert_factory(weights, index, config, width)
+        else:
+            self.moe = None
+            self.gate = weights.matrix(mlp + ".gate_proj", mlp_width, width)
+            self.up = weights.matrix(mlp + ".up_proj", mlp_width, width)
+            self.down = weights.matrix(mlp + ".down_proj", width, mlp_width)
         self.eps = float(config.get("rms_norm_eps", 1e-6))
         self.head_dim = head_dim
         self.scale = head_dim ** -0.5
@@ -196,6 +202,8 @@ class _Block(nn.Module):
             x = x[:, -1:]
         x = x + self.output(attention)
         hidden = mx.fast.rms_norm(x, self.post_norm, self.eps)
+        if self.moe is not None:
+            return x + self.moe(hidden), present
         return x + self.down(nn.silu(self.gate(hidden)) * self.up(hidden)), present
 
 
@@ -205,7 +213,7 @@ class Qwen3MLX(nn.Module):
     is_causal = True
     paradigm = "ar"
 
-    def __init__(self, config, arrays):
+    def __init__(self, config, arrays, *, expert_factory=None):
         super().__init__()
         width = _positive(config, "hidden_size")
         heads = _positive(config, "num_attention_heads")
@@ -225,7 +233,8 @@ class Qwen3MLX(nn.Module):
         self._rotary = _rope_parameters(config, head_dim, self.max_seq_len)
         weights = _Weights(arrays, config.get("quantization") or {})
         self.embedding = weights.matrix("model.embed_tokens", self.vocab_size, width)
-        self.layers = [_Block(weights, i, config, width, heads, kv_heads, head_dim, mlp_width) for i in range(depth)]
+        self.layers = [_Block(weights, i, config, width, heads, kv_heads, head_dim, mlp_width,
+                              expert_factory=expert_factory) for i in range(depth)]
         self.norm = weights.take("model.norm.weight", (width,))
         self.head = None if config.get("tie_word_embeddings", False) else weights.matrix("lm_head", self.vocab_size, width)
         if weights.tensors:

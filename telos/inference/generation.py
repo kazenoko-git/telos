@@ -164,10 +164,19 @@ class TextGenerator:
 
     @classmethod
     def from_checkpoint(cls, checkpoint, *, tokenizer=None, config=None, device="auto",
-                        context_length=None, prefix_cache_entries=0):
+                        context_length=None, prefix_cache_entries=0, memory_budget_mib=None):
         """Load native weights, tokenizer and context limit from a file or directory."""
+        if memory_budget_mib is not None and (type(memory_budget_mib) is not int or memory_budget_mib < 1):
+            raise ValueError("Memory budget must be a positive number of MiB.")
+        if type(prefix_cache_entries) is not int or prefix_cache_entries < 0:
+            raise ValueError("Prefix cache entries must be a non-negative integer.")
         checkpoint = resolve_checkpoint(checkpoint)
-        model, backend, _, metadata = load_checkpoint(checkpoint, config, strict_metadata=True)
+        model, backend, _, metadata = load_checkpoint(
+            checkpoint, config, strict_metadata=True, device=device, context_length=context_length,
+            memory_budget_mib=memory_budget_mib, prefix_cache_entries=prefix_cache_entries,
+        )
+        if getattr(model, "weight_storage", None) == "ssd_experts":
+            prefix_cache_entries = 0
         if backend == "mlx":
             if device not in {"auto", "mlx"}:
                 raise ValueError("Native MLX checkpoints require --device mlx or auto.")
@@ -187,6 +196,8 @@ class TextGenerator:
         limit = m_cfg.get("max_seq_len") or m_cfg.get("seq_len") or getattr(model, "max_seq_len", 512)
         if backend == "pytorch":
             limit = model.config.max_seq_len
+        elif metadata.get("model_type") == "qwen3_moe":
+            limit = model.max_seq_len
         if context_length is not None:
             if not isinstance(context_length, int) or not 2 <= context_length <= limit:
                 raise ValueError(f"Context length must be between 2 and {limit}.")
@@ -272,7 +283,7 @@ class TextGenerator:
                 self._last_cached_tokens = matched_len
                 ids = prompt_ids[matched_len:]
 
-        if cache_mode == "dynamic" and count > 1:
+        if cache_mode == "dynamic" and count > 1 and getattr(self.model, "weight_storage", None) != "ssd_experts":
             yield from self._mlx_pipelined_cached_tokens(
                 ids, count, temperature, top_k, top_p, seed,
                 initial_cache=initial_cache, prompt_ids=prompt_ids,
@@ -366,6 +377,8 @@ class TextGenerator:
             raise ValueError("Static KV storage is available on PyTorch.")
         if cache == "auto":
             cache = "dynamic" if self.backend == "mlx" else "static"
+        if cache == "off" and getattr(self.model, "weight_storage", None) == "ssd_experts":
+            raise ValueError("SSD expert streaming requires the dynamic KV cache.")
 
         ids = self.tokenizer.encode(prompt, add_special_tokens=False).ids
         if add_bos is None:
