@@ -116,6 +116,7 @@ def plan_experts(config, ranges, budget, context_length, prefix_cache_entries):
     total = sum(entry.size for entry in ranges.values())
     experts = _positive(config, "num_experts")
     layers = _positive(config, "num_hidden_layers")
+    cache_cap = 512 * _MIB
     conv_bytes = 0
     width = _positive(config, "hidden_size")
     heads = _positive(config, "num_attention_heads")
@@ -127,6 +128,7 @@ def plan_experts(config, ranges, budget, context_length, prefix_cache_entries):
         kinds = layer_types(config)
         conv_bytes = 4 * kinds.count("conv") * (_positive(config, "conv_L_cache", 3) - 1) * width
         layers = kinds.count("full_attention")
+        cache_cap = 1024 * _MIB
     max_context = _positive(config, "max_position_embeddings", 32768)
     context = min(_DEFAULT_CONTEXT, max_context) if context_length is None else context_length
     if type(context) is not int or not 2 <= context <= max_context:
@@ -142,7 +144,7 @@ def plan_experts(config, ranges, budget, context_length, prefix_cache_entries):
     workspace = 512 * _MIB + 32 * context * width + 2 * max(layer_bytes.values())
     if total + per_cache * (1 + prefix_cache_entries) + workspace <= budget:
         return context, None
-    remaining = min(budget - (total - expert_bytes) - per_cache - workspace, 512 * _MIB)
+    remaining = min(budget - (total - expert_bytes) - per_cache - workspace, cache_cap)
     if remaining < max(layer_bytes.values()):
         raise ValueError("Flash-MoE cannot fit resident weights, KV cache and one expert in the RAM budget. "
                          "Try a shorter context or a smaller checkpoint.")
