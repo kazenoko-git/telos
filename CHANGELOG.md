@@ -5,12 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.9.0] - 2026-11-25
+## [1.9.0] - 2026-11-27
 
 ### Added
 - Standalone native causal inference via `telos generate` and `telos.inference.TextGenerator`, with streaming, telemetry (`GenerationStats`, `GenerationResult`), greedy and seeded sampling, stop strings, and checkpoint tokenizer and context validation.
 - OpenAI-compatible HTTP/SSE serving endpoint via `telos serve` and `telos.inference.create_app` (optional `telos-ml[serve]` extra with `fastapi`, `uvicorn`, and `jinja2`), exposing `/health`, `/v1/models`, `/v1/completions`, and `/v1/chat/completions`, sandboxed Jinja2 chat template rendering with role-prefix fallback, Bearer API key auth, and timing/cache headers.
 - Native MLX causal inference for full-attention `qwen3` (including Ternary Bonsai 4B 2-bit), `qwen2`, `llama` (including Llama 3 smooth RoPE scaling), `mistral`, and `phi3` checkpoints with dense and packed affine-quantized projections, YaRN, and sharded Safetensors loading.
+- Native MLX resident and SSD-streamed MoE inference (`LFMSSDExpertCache`, `AppleMemoryGuard`) for `qwen3_moe`, `lfm2_moe` (LFM2.5), `inkling2_loop` / `inkling2_text` (Inkling 2 Mini NVFP4/MXFP8), `qwen3_5_moe` / `qwen3_5_moe_text`, and `gemma4` / `gemma4_text` (dense and MoE).
+- Window-pinned routing (`WindowPinController`, `window_size`) and knowledge distillation post-training (`posttrain(..., method="distill")`) across MLX (segmented SSD VJP) and PyTorch CUDA/XLA/CPU (with gradient accumulation, HF/Modal H100 runner, and LoRA adapter export/reload).
 - Bounded LRU exact-prefix KV cache (`PrefixKVCache`, `--prefix-cache-entries`) and multi-token cached suffix prefill on PyTorch and MLX.
 - Reproducible `telos serve` vs LM Studio HTTP/SSE benchmark harness (`scripts/benchmark_serve_vs_lmstudio.py`) and wire-format parity tests (`tests/test_lmstudio_endpoint_parity.py`).
 - Post-training exports include the tokenizer actually used by the run.
