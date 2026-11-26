@@ -101,7 +101,8 @@ class _DecoderLayer(nn.Module):
             for name in ("q", "k", "v", "mlp")
         ) if loop["core_start"] <= index < loop["core_end"] and loop["num_passes"] > 1 else ()
 
-    def __call__(self, x, blocks, messages, previous, offset, limit, experts, *, trace=None, controller=None):
+    def __call__(self, x, blocks, messages, previous, offset, limit, experts, *, trace=None, controller=None,
+                 fused_nvfp4=False):
         if self.attn_query is None:
             mixed = (x,) * 3
         else:
@@ -133,6 +134,7 @@ class _DecoderLayer(nn.Module):
             trace=trace,
             controller=controller,
             adapter=self.router_adapter,
+            fused_nvfp4=fused_nvfp4,
         )
         output, mlp_history = self.mlp_conv(hidden, None if previous is None else previous.mlp_history)
         output = (output.astype(mx.float32) + residual).astype(x.dtype)
@@ -170,6 +172,7 @@ class Inkling2TextMLX(nn.Module):
         self._guard = guard
         self._bank_top_k = {bank.layer: bank.top_k for bank in layout.expert_banks}
         self.route_trace = None
+        self.fused_nvfp4_decode = False
         self._window_controller = WindowPinController()
         self._visits = layout.visits
         self._loop_start = text["loop_config"]["core_start"]
@@ -208,6 +211,7 @@ class Inkling2TextMLX(nn.Module):
         return self._expert_cache.reserve_window_slots(self._bank_top_k)
 
     def _chunk(self, ids, cache, *, phase="prefill"):
+        fused_nvfp4 = self.fused_nvfp4_decode and phase == "decode" and not self.training
         if phase == "decode":
             step_decode = getattr(self._expert_cache, "step_decode", None)
             if step_decode is not None:
@@ -246,7 +250,7 @@ class Inkling2TextMLX(nn.Module):
                 }
             x, states[slot] = self.layers[layer](
                 x, blocks, messages, previous, offset, self.max_seq_len, self._experts,
-                trace=trace, controller=self._window_controller,
+                trace=trace, controller=self._window_controller, fused_nvfp4=fused_nvfp4,
             )
             if trace is not None:
                 self.route_trace.append(trace)

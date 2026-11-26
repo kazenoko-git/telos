@@ -121,6 +121,24 @@ def test_nvfp4_projection_matches_dequantized_reference(tmp_path, dtype):
     assert mx.array_equal(bank.project(hidden, packed), expected).item()
 
 
+@pytest.mark.parametrize("width, rows", [(32, 32), (64, 48), (1152, 2304), (2304, 2304)])
+def test_fused_nvfp4_matches_bf16_gemv_bits(width, rows):
+    import mlx.core as mx
+    from telos.models.inkling2_nvfp4 import nvfp4_gemv
+
+    for seed, scale in enumerate((1300.0, 2100.0, 0.1717)):
+        hidden = mx.random.normal((1, width), key=mx.random.key(seed)).astype(mx.bfloat16)
+        weight = mx.random.normal((rows, width), key=mx.random.key(seed + 100))
+        packed, scales = mx.quantize(weight, mode="nvfp4")
+        global_scale = mx.array(scale, dtype=mx.float32)
+        dense = mx.dequantize(packed, scales, mode="nvfp4", global_scale=global_scale, dtype=mx.bfloat16)
+        expected = hidden @ dense.T
+        fused = nvfp4_gemv(hidden, packed, scales, global_scale)
+        assert mx.array_equal(fused.view(mx.uint16), expected.view(mx.uint16)).item()
+    assert nvfp4_gemv(mx.concatenate((hidden, hidden), axis=0), packed, scales, global_scale) is None
+    assert nvfp4_gemv(hidden.astype(mx.float32), packed, scales, global_scale) is None
+
+
 def test_inkling2_rejects_invalid_loop_before_opening_weight_shards(tmp_path):
     config = {
         "model_type": "inkling2_loop",
@@ -298,6 +316,7 @@ def test_inkling2_text_prefill_decode_and_ssd_parity(tmp_path, monkeypatch):
     prompt = mx.array([[2, 3, 5, 7, 11, 13]], dtype=mx.int32)
     next_token = mx.array([[17]], dtype=mx.int32)
     left, left_state = resident.model.hidden_states_with_cache(prompt)
+    streamed.model.fused_nvfp4_decode = True
     with cache.request():
         right, right_state = streamed.model.hidden_states_with_cache(prompt)
         rd, right_next = streamed.model.hidden_states_with_cache(next_token, kv_cache=right_state)
@@ -517,6 +536,9 @@ def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypa
     long_options = (prompt, 13, 0.0, 0, 1.0, None, "dynamic")
     assert list(pinned._mlx_tokens(*long_options, ssd_profile=pin_profile)) == list(streamed._mlx_tokens(*long_options))
     assert all(step["expert_bytes_read"] == 0 for step in pin_profile.steps[2:])
+    pinned.model.fused_nvfp4_decode = True
+    assert list(pinned._mlx_tokens(*long_options)) == list(streamed._mlx_tokens(*long_options))
+    pinned.model.fused_nvfp4_decode = False
     detailed = SSDGenerationProfile(split_decode=True)
     assert list(pinned._mlx_tokens(*long_options, ssd_profile=detailed)) == list(streamed._mlx_tokens(*long_options))
     for step in detailed.steps[2:]:

@@ -114,7 +114,7 @@ class InklingExpertBank:
             output_dtype=mx.float32,
         )
 
-    def routed(self, hidden, router, cache, *, trace=None, controller=None, adapter=None):
+    def routed(self, hidden, router, cache, *, trace=None, controller=None, adapter=None, fused_nvfp4=False):
         import mlx.core as mx
 
         x = hidden.reshape(-1, hidden.shape[-1])
@@ -154,7 +154,7 @@ class InklingExpertBank:
                 rows, slots = routes[expert]
                 rows, slots = mx.array(rows), mx.array(slots)
                 packed = cache.get(self.layer, expert, self.ranges)
-                values = self.project(x[rows], packed).astype(mx.float32)
+                values = self.project(x[rows], packed, fused_nvfp4=fused_nvfp4).astype(mx.float32)
                 output = output.at[rows].add(values * weights[rows, slots, None])
                 if not all_cached:
                     # End the graph before the cache can evict these expert weights.
@@ -172,15 +172,22 @@ class InklingExpertBank:
                 trace["misses"] = cache.misses - misses_before
         return output.astype(hidden.dtype).reshape(hidden.shape)
 
-    def project(self, hidden, tensors):
+    def project(self, hidden, tensors, *, fused_nvfp4=False):
         import mlx.core as mx
 
         def linear(inputs, name):
             if self.mode == "nvfp4":
+                packed, scales = tensors[name + ".weight"], tensors[name + ".scales"]
+                global_scale = tensors[name + ".global_scale"]
+                if fused_nvfp4:
+                    from .inkling2_nvfp4 import nvfp4_gemv
+
+                    projected = nvfp4_gemv(inputs, packed, scales, global_scale)
+                    if projected is not None:
+                        return projected
                 # Keep the global scale and rounding on the weights before the matmul.
                 weight = mx.dequantize(
-                    tensors[name + ".weight"], tensors[name + ".scales"], mode=self.mode,
-                    global_scale=tensors[name + ".global_scale"], dtype=inputs.dtype,
+                    packed, scales, mode=self.mode, global_scale=global_scale, dtype=inputs.dtype,
                 )
                 return inputs @ weight.T
             return mx.quantized_matmul(
