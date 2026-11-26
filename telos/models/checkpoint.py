@@ -55,7 +55,7 @@ def _load_mlx_arrays(checkpoint):
     return arrays
 
 
-EXTERNAL_MLX_MOE_ARCHITECTURES = frozenset({"qwen3_moe", "lfm2_moe"})
+EXTERNAL_MLX_MOE_ARCHITECTURES = frozenset({"qwen3_moe", "lfm2_moe", "inkling2_loop"})
 EXTERNAL_MLX_ARCHITECTURES = EXTERNAL_MLX_MOE_ARCHITECTURES | {"qwen3", "qwen2", "llama", "mistral", "phi3"}
 
 
@@ -69,10 +69,16 @@ def _load_external_causal_checkpoint(checkpoint, config, *, device, context_leng
 
         if not metal_usable():
             raise ValueError("Native MLX MoE requires Apple Silicon with Metal.")
-        from .qwen3_moe_mlx import load_mlx_moe
+        if family == "inkling2_loop":
+            from .inkling2_mlx import load_inkling2
 
-        model = load_mlx_moe(checkpoint, config, context_length=context_length,
-                             memory_budget_mib=memory_budget_mib, prefix_cache_entries=prefix_cache_entries)
+            model = load_inkling2(checkpoint, config, context_length=context_length,
+                                  memory_budget_mib=memory_budget_mib)
+        else:
+            from .qwen3_moe_mlx import load_mlx_moe
+
+            model = load_mlx_moe(checkpoint, config, context_length=context_length,
+                                 memory_budget_mib=memory_budget_mib, prefix_cache_entries=prefix_cache_entries)
         return model, "mlx", model.vocab_size, config
     if memory_budget_mib is not None:
         raise ValueError("--memory-budget-mib is supported for native MLX MoE checkpoints.")

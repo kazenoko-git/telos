@@ -114,6 +114,9 @@ class InklingExpertBank:
                 rows, slots = routes.setdefault(expert, ([], []))
                 rows.append(row)
                 slots.append(slot)
+        prepare = getattr(cache, "prepare", None)
+        if prepare is not None and x.shape[0] == 1:
+            prepare(self.layer, routes, self.ranges)
         output = mx.zeros(x.shape, dtype=mx.float32)
         for expert, (rows, slots) in sorted(routes.items()):
             rows, slots = mx.array(rows), mx.array(slots)
@@ -151,9 +154,10 @@ class InklingTextLayout:
     expert_banks: tuple[InklingExpertBank, ...]
 
     @classmethod
-    def from_checkpoint(cls, checkpoint):
+    def from_checkpoint(cls, checkpoint, *, config=None, ranges=None):
         checkpoint = resolve_checkpoint(checkpoint)
-        config = json.loads(checkpoint.with_name("config.json").read_text(encoding="utf-8"))
+        if config is None:
+            config = json.loads(checkpoint.with_name("config.json").read_text(encoding="utf-8"))
         text = config.get("text_config") if isinstance(config, dict) else None
         if not isinstance(text, dict) or config.get("model_type") != "inkling2_loop":
             raise ValueError("Expected an Inkling 2 Mini checkpoint")
@@ -173,6 +177,7 @@ class InklingTextLayout:
             raise ValueError("Invalid Inkling 2 use_gate_bias")
         if options["top_k"] > options["experts"]:
             raise ValueError("Inkling 2 router selects more experts than the checkpoint contains")
-        ranges = tensor_ranges(checkpoint)
+        if ranges is None:
+            ranges = tensor_ranges(checkpoint)
         banks = tuple(InklingExpertBank.from_ranges(layer, ranges, **options) for layer in range(layers))
         return cls(visits, banks)
