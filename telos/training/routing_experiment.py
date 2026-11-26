@@ -1,4 +1,4 @@
-"""Train and compare tiny causal prompt-routed and token-routed checkpoints."""
+"""Train and compare tiny causal models with fixed, periodic or token-level expert routing."""
 
 import argparse
 import fcntl
@@ -15,7 +15,7 @@ import mlx.core as mx
 import numpy as np
 from mlx import nn, optimizers
 
-from telos.models.prompt_routing_mlx import RoutedTransformer
+from telos.models.prompt_routing_mlx import ROUTING_MODES, RoutedTransformer
 from telos.models.ssd_expert_io import LFMSSDExpertCache
 from telos.models.ssd_experts import AppleMemoryGuard, tensor_ranges
 
@@ -249,7 +249,7 @@ def _disk_sampler(path):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="telos pretrain routing", description=__doc__)
-    parser.add_argument("--routing", choices=("prompt","token","both"), default="both")
+    parser.add_argument("--routing", choices=(*ROUTING_MODES, "both", "all"), default="both")
     parser.add_argument("--steps", type=int, default=250)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output", type=Path, required=True)
@@ -258,7 +258,7 @@ def main(argv=None):
     if args.steps < 1 or args.seed < 0:
         parser.error("--steps must be positive and --seed non-negative")
     args.output.mkdir(parents=True, exist_ok=False)
-    modes = ("prompt","token") if args.routing == "both" else (args.routing,)
+    modes = {"both": ROUTING_MODES[:2], "all": ROUTING_MODES}.get(args.routing, (args.routing,))
     data = synthetic_corpus() if args.data is None else instruction_corpus(args.data)
     if data.tokenizer is not None:
         data.tokenizer.save(str(args.output/"tokenizer.json"))
