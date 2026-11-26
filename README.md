@@ -222,7 +222,7 @@ telos download mlx-community/Qwen3.5-35B-A3B-4bit --metadata-only
 telos download mlx-community/gemma-4-26b-a4b-4bit --metadata-only
 ```
 
-These are checkpoint candidates for native inference work. Inkling 2 Mini uses a looped transformer, and the two other checkpoints use the Qwen 3.5 MoE and Gemma 4 architectures.
+The pinned Inkling 2 Mini MLX conversion supports native text inference with `telos generate` and `telos serve`. Its repeated layers share weights and use separate KV and convolution state for each pass. The resident and SSD paths have been checked on tiny fixtures. The Qwen 3.5 MoE and Gemma 4 checkpoints are candidates for future native loaders.
 
 The default context for these MoE models is at most 2,048 tokens. Use `--context-length` and `--memory-budget-mib` to request a different context or a lower RAM ceiling. The budget is an admission estimate. Telos rejects requests that cannot reserve room for resident weights, generation state, and one expert, and checks macOS memory pressure and cumulative swap-outs during expert reads. In `telos serve`, `/health` reports `weight_storage` as `resident` or `ssd_experts`. Dense architectures and other MoE formats use their existing loader support.
 
