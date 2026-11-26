@@ -16,6 +16,8 @@ def _is_linear_like(layer):
 
 
 def _linear_shape(layer):
+    if isinstance(layer, LoRALinear):
+        layer = layer.base
     if isinstance(layer, nn.QuantizedLinear):
         return layer.weight.shape[0], layer.weight.shape[1] * 32 // layer.bits
     if _is_packed_quantized(layer):
@@ -58,9 +60,12 @@ class LoRALinear(nn.Module):
 
 
 class disable_lora_adapters:
-    """Temporarily disable MLX LoRA deltas to evaluate the frozen base model without deepcopy."""
+    """Temporarily disable MLX LoRA and router adapters without deepcopying base weights."""
     def __init__(self, model):
-        self._modules = [m for _, m in model.named_modules() if isinstance(m, LoRALinear)]
+        self._modules = [
+            m for _, m in model.named_modules()
+            if isinstance(m, LoRALinear) or hasattr(m, "adapter_disabled")
+        ]
 
     def __enter__(self):
         for m in self._modules:
@@ -122,8 +127,9 @@ def merged_weights(model):
 
 
 def adapter_weights(model):
+    suffixes = ("lora_a", "lora_b", "selector_a", "selector_b", "selector_bias", "token_a", "token_b")
     return [(name, value) for name, value in tree_flatten(model.trainable_parameters())
-            if name.endswith(('lora_a', 'lora_b'))]
+            if name.endswith(suffixes)]
 
 
 def load_adapter(model, path, *, base_checkpoint):
