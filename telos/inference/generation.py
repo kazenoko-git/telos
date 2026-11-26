@@ -170,10 +170,13 @@ class TextGenerator:
 
     @classmethod
     def from_checkpoint(cls, checkpoint, *, tokenizer=None, config=None, device="auto",
-                        context_length=None, prefix_cache_entries=0, memory_budget_mib=None):
+                        context_length=None, prefix_cache_entries=0, memory_budget_mib=None,
+                        window_size=None, window_adapter=None):
         """Load native weights, tokenizer and context limit from a file or directory."""
         if memory_budget_mib is not None and (type(memory_budget_mib) is not int or memory_budget_mib < 1):
             raise ValueError("Memory budget must be a positive number of MiB.")
+        if window_size is not None and (type(window_size) is not int or window_size < 1):
+            raise ValueError("Window size must be a positive integer.")
         if type(prefix_cache_entries) is not int or prefix_cache_entries < 0:
             raise ValueError("Prefix cache entries must be a non-negative integer.")
         checkpoint = resolve_checkpoint(checkpoint)
@@ -227,6 +230,17 @@ class TextGenerator:
             stop_ids.add(generation.get("pad_token_id", metadata.get("pad_token_id")))
             options = {"allow_padded_vocab": True, "stop_ids": stop_ids - {None},
                        "bos_id": generation.get("bos_token_id", metadata.get("bos_token_id"))}
+        if window_adapter is not None:
+            if backend != "mlx" or not hasattr(model, "set_window_size"):
+                raise ValueError("--window-adapter is supported for native MLX MoE checkpoints.")
+            from telos.models.window_routing import apply_window_adapter
+
+            apply_window_adapter(model, window_adapter, window_size=window_size)
+        elif window_size is not None:
+            if backend != "mlx" or not hasattr(model, "set_window_size"):
+                raise ValueError("--window-size is supported for native MLX MoE checkpoints.")
+            model.set_window_size(window_size)
+
         bos_id = options.get("bos_id", resolved_tokenizer.token_to_id("[BOS]"))
         return cls(model, resolved_tokenizer, backend=backend, max_seq_len=limit,
                    add_bos=bool(metadata.get("posttrain")) and bos_id is not None,
