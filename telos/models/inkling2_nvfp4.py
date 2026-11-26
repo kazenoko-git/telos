@@ -40,6 +40,93 @@ inline float dot4_nvfp4(uint codes, float scale, float x0, float x1, float x2, f
     if (c3 & 8u) v3 = -v3;
     return fma(float(bfloat(scale * v3)), x3, sum);
 }
+
+inline float dot8_e2m1(uint word, bfloat4 lo, bfloat4 hi) {
+    float acc = 0.0f;
+    uint c0 = word & 15u; float v0 = e2m1_magnitude[c0 & 7u]; acc = fma((c0 & 8u) ? -v0 : v0, float(lo.x), acc);
+    uint c1 = (word >> 4u) & 15u; float v1 = e2m1_magnitude[c1 & 7u]; acc = fma((c1 & 8u) ? -v1 : v1, float(lo.y), acc);
+    uint c2 = (word >> 8u) & 15u; float v2 = e2m1_magnitude[c2 & 7u]; acc = fma((c2 & 8u) ? -v2 : v2, float(lo.z), acc);
+    uint c3 = (word >> 12u) & 15u; float v3 = e2m1_magnitude[c3 & 7u]; acc = fma((c3 & 8u) ? -v3 : v3, float(lo.w), acc);
+    uint c4 = (word >> 16u) & 15u; float v4 = e2m1_magnitude[c4 & 7u]; acc = fma((c4 & 8u) ? -v4 : v4, float(hi.x), acc);
+    uint c5 = (word >> 20u) & 15u; float v5 = e2m1_magnitude[c5 & 7u]; acc = fma((c5 & 8u) ? -v5 : v5, float(hi.y), acc);
+    uint c6 = (word >> 24u) & 15u; float v6 = e2m1_magnitude[c6 & 7u]; acc = fma((c6 & 8u) ? -v6 : v6, float(hi.z), acc);
+    uint c7 = (word >> 28u) & 15u; float v7 = e2m1_magnitude[c7 & 7u]; acc = fma((c7 & 8u) ? -v7 : v7, float(hi.w), acc);
+    return acc;
+}
+"""
+
+_BODY_QUAD_FAST = """
+uint index = thread_position_in_grid.x;
+uint quad = index / LANES;
+uint lane = index % LANES;
+uint row0 = quad * 4u;
+if (row0 >= ROWS) return;
+
+const uint groups = WIDTH / 16u;
+const device bfloat4* x4 = (const device bfloat4*)(x + input_start);
+const device uint2* p0 = (const device uint2*)(packed + row0 * (WIDTH / 8u));
+const device uint2* p1 = (const device uint2*)(packed + (row0 + 1u) * (WIDTH / 8u));
+const device uint2* p2 = (const device uint2*)(packed + (row0 + 2u) * (WIDTH / 8u));
+const device uint2* p3 = (const device uint2*)(packed + (row0 + 3u) * (WIDTH / 8u));
+const device uchar* s0 = scales + row0 * groups;
+const device uchar* s1 = scales + (row0 + 1u) * groups;
+const device uchar* s2 = scales + (row0 + 2u) * groups;
+const device uchar* s3 = scales + (row0 + 3u) * groups;
+
+float sum0 = 0.0f;
+float sum1 = 0.0f;
+float sum2 = 0.0f;
+float sum3 = 0.0f;
+for (uint g = lane; g < groups; g += LANES) {
+    const device bfloat4* xg = x4 + g * 4u;
+    bfloat4 xa = xg[0];
+    bfloat4 xb = xg[1];
+    bfloat4 xc = xg[2];
+    bfloat4 xd = xg[3];
+
+    uint2 w0 = p0[g];
+    sum0 = fma(decode_e4m3(s0[g]), dot8_e2m1(w0.x, xa, xb) + dot8_e2m1(w0.y, xc, xd), sum0);
+    uint2 w1 = p1[g];
+    sum1 = fma(decode_e4m3(s1[g]), dot8_e2m1(w1.x, xa, xb) + dot8_e2m1(w1.y, xc, xd), sum1);
+    uint2 w2 = p2[g];
+    sum2 = fma(decode_e4m3(s2[g]), dot8_e2m1(w2.x, xa, xb) + dot8_e2m1(w2.y, xc, xd), sum2);
+    uint2 w3 = p3[g];
+    sum3 = fma(decode_e4m3(s3[g]), dot8_e2m1(w3.x, xa, xb) + dot8_e2m1(w3.y, xc, xd), sum3);
+}
+for (ushort delta = LANES / 2u; delta; delta >>= 1u) {
+    sum0 += simd_shuffle_down(sum0, delta);
+    sum1 += simd_shuffle_down(sum1, delta);
+    sum2 += simd_shuffle_down(sum2, delta);
+    sum3 += simd_shuffle_down(sum3, delta);
+}
+float outer_scale = global_scale / 2688.0f;
+sum0 *= outer_scale;
+sum1 *= outer_scale;
+sum2 *= outer_scale;
+sum3 *= outer_scale;
+"""
+
+_STORE_QUAD = """
+if (!lane) {
+    out[output_start + row0] = bfloat(sum0);
+    out[output_start + row0 + 1u] = bfloat(sum1);
+    out[output_start + row0 + 2u] = bfloat(sum2);
+    out[output_start + row0 + 3u] = bfloat(sum3);
+}
+"""
+
+_STORE_QUAD_SWIGLU = """
+if (!lane) {
+    float g0 = sum0;
+    float u0 = sum1;
+    float act0 = (gate_cap * tanh(g0 / gate_cap) * (1.0f / (1.0f + exp(-g0)))) * (up_cap * tanh(u0 / up_cap));
+    out[output_start + quad * 2u] = bfloat(act0);
+
+    float g1 = sum2;
+    float u1 = sum3;
+    float act1 = (gate_cap * tanh(g1 / gate_cap) * (1.0f / (1.0f + exp(-g1)))) * (up_cap * tanh(u1 / up_cap));
+    out[output_start + quad * 2u + 1u] = bfloat(act1);
+}
 """
 
 _BODY_PAIR = """
@@ -228,7 +315,104 @@ def nvfp4_resident_gate_up_swiglu(x, tensors, gate_softcap, up_softcap):
     )[0]
 
 
-def _resident_project(x, tensors, gate_softcap, up_softcap, *, fuse_swiglu=False):
+@lru_cache(maxsize=16)
+def _resident_fast_gemv(experts, per_expert_input):
+    names = ["x"]
+    cases = []
+    for i in range(experts):
+        names.extend((f"packed{i}", f"scales{i}", f"global{i}"))
+        cases.append(f"case {i}: packed = packed{i}; scales = scales{i}; global_scale = global{i}; break;")
+    source = """
+uint expert = thread_position_in_grid.y;
+const device uint* packed = packed0;
+const device uchar* scales = scales0;
+float global_scale = global0;
+switch (expert) {
+""" + "\n".join(cases) + "\n}\n"
+    source += f"uint input_start = {'expert * WIDTH' if per_expert_input else '0'};\n"
+    source += "uint output_start = expert * ROWS;\n"
+    return mx.fast.metal_kernel(
+        name=f"telos_inkling_resident_nvfp4_fast_{experts}_{int(per_expert_input)}",
+        input_names=names, output_names=["out"], header=_HEADER, source=source + _BODY_QUAD_FAST + _STORE_QUAD,
+    )
+
+
+@lru_cache(maxsize=16)
+def _resident_fast_gate_up_swiglu(experts):
+    names = ["x", "gate_cap", "up_cap"]
+    cases = []
+    for i in range(experts):
+        names.extend((f"packed{i}", f"scales{i}", f"global{i}"))
+        cases.append(f"case {i}: packed = packed{i}; scales = scales{i}; global_scale = global{i}; break;")
+    source = """
+uint expert = thread_position_in_grid.y;
+const device uint* packed = packed0;
+const device uchar* scales = scales0;
+float global_scale = global0;
+switch (expert) {
+""" + "\n".join(cases) + "\n}\n"
+    source += "uint input_start = 0;\n"
+    source += "uint output_start = expert * (ROWS / 2u);\n"
+    return mx.fast.metal_kernel(
+        name=f"telos_inkling_resident_nvfp4_fast_swiglu_{experts}",
+        input_names=names, output_names=["out"], header=_HEADER, source=source + _BODY_QUAD_FAST + _STORE_QUAD_SWIGLU,
+    )
+
+
+def nvfp4_resident_fast_gemv(x, tensors, name, *, per_expert_input=False):
+    """Full-scale-group (16-element uint2, 4-row/SIMD) resident NVFP4 GEMV."""
+    count = len(tensors)
+    if not 2 <= count <= 8 or x.dtype != mx.bfloat16:
+        return None
+    width = x.shape[-1]
+    rows = tensors[0][name + ".weight"].shape[0]
+    if rows < 4 or rows % 4 or width % 16:
+        return None
+    lanes = 4 if width <= 64 else 32
+    inputs = [x]
+    for expert in tensors:
+        inputs.extend((expert[name + ".weight"], expert[name + ".scales"], expert[name + ".global_scale"].reshape(())))
+    threads = 128
+    quads = rows // 4
+    return _resident_fast_gemv(count, per_expert_input)(
+        inputs=inputs, template=[("WIDTH", width), ("ROWS", rows), ("LANES", lanes)],
+        grid=((quads * lanes + threads - 1) // threads * threads, count, 1), threadgroup=(threads, 1, 1),
+        output_shapes=[(count, 1, rows)], output_dtypes=[mx.bfloat16],
+    )[0]
+
+
+def nvfp4_resident_fast_gate_up_swiglu(x, tensors, gate_softcap, up_softcap):
+    """Full-scale-group (16-element uint2, 4-row/SIMD) fused gate_up + softcapped SwiGLU."""
+    count = len(tensors)
+    if not 2 <= count <= 8 or x.dtype != mx.bfloat16:
+        return None
+    width = x.shape[-1]
+    rows = tensors[0]["gate_up_proj.weight"].shape[0]
+    if rows < 4 or rows % 4 or width % 16:
+        return None
+    lanes = 4 if width <= 64 else 32
+    inputs = [x, mx.array(gate_softcap, dtype=mx.float32), mx.array(up_softcap, dtype=mx.float32)]
+    for expert in tensors:
+        inputs.extend((
+            expert["gate_up_proj.weight"],
+            expert["gate_up_proj.scales"],
+            expert["gate_up_proj.global_scale"].reshape(()),
+        ))
+    threads = 128
+    quads = rows // 4
+    return _resident_fast_gate_up_swiglu(count)(
+        inputs=inputs, template=[("WIDTH", width), ("ROWS", rows), ("LANES", lanes)],
+        grid=((quads * lanes + threads - 1) // threads * threads, count, 1), threadgroup=(threads, 1, 1),
+        output_shapes=[(count, 1, rows // 2)], output_dtypes=[mx.bfloat16],
+    )[0]
+
+
+def _resident_project(x, tensors, gate_softcap, up_softcap, *, fuse_swiglu=False, fast_kernel=False):
+    if fast_kernel:
+        activated = nvfp4_resident_fast_gate_up_swiglu(x, tensors, gate_softcap, up_softcap)
+        if activated is None:
+            return None
+        return nvfp4_resident_fast_gemv(activated, tensors, "down_proj", per_expert_input=True)
     if fuse_swiglu:
         activated = nvfp4_resident_gate_up_swiglu(x, tensors, gate_softcap, up_softcap)
         if activated is None:
@@ -242,17 +426,17 @@ def _resident_project(x, tensors, gate_softcap, up_softcap, *, fuse_swiglu=False
 
 
 @lru_cache(maxsize=16)
-def _compiled_resident_project(gate_softcap, up_softcap, fuse_swiglu):
+def _compiled_resident_project(gate_softcap, up_softcap, fuse_swiglu, fast_kernel):
     def project(x, tensors):
-        return _resident_project(x, tensors, gate_softcap, up_softcap, fuse_swiglu=fuse_swiglu)
+        return _resident_project(x, tensors, gate_softcap, up_softcap, fuse_swiglu=fuse_swiglu, fast_kernel=fast_kernel)
 
     return mx.compile(project)
 
 
-def nvfp4_resident_project(x, tensors, gate_softcap, up_softcap, *, compiled=False, fuse_swiglu=False):
+def nvfp4_resident_project(x, tensors, gate_softcap, up_softcap, *, compiled=False, fuse_swiglu=False, fast_kernel=False):
     if compiled:
-        return _compiled_resident_project(gate_softcap, up_softcap, fuse_swiglu)(x, tensors)
-    return _resident_project(x, tensors, gate_softcap, up_softcap, fuse_swiglu=fuse_swiglu)
+        return _compiled_resident_project(gate_softcap, up_softcap, fuse_swiglu, fast_kernel)(x, tensors)
+    return _resident_project(x, tensors, gate_softcap, up_softcap, fuse_swiglu=fuse_swiglu, fast_kernel=fast_kernel)
 
 
 _COMBINE = mx.fast.metal_kernel(
