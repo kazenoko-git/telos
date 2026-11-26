@@ -939,28 +939,86 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
             cov_weight=window_cfg["cov_weight"] if window_cfg else 0.0,
         )
 
-    def update(*args):
-        loss, grads = _ssd_step_loss_and_grad(*args) if use_ssd_segmented else value_and_grad(model, *args)
-        if rl:
+    grad_accum = int(options.get("grad_accum", 1))
+    should_clip = bool(rl or grad_accum > 1 or window_cfg is not None)
+
+    def _apply_grads(grads):
+        if should_clip:
             grads, _ = optim.clip_grad_norm(grads, 1.0)
         if master_params is not None:
             master_params.update(optimizer.apply_gradients(grads, master_params))
             model.update(tree_map(lambda value: value.astype(mx.bfloat16), master_params))
         else:
             optimizer.update(model, grads)
+
+    def update(*args):
+        loss, grads = _ssd_step_loss_and_grad(*args) if use_ssd_segmented else value_and_grad(model, *args)
+        _apply_grads(grads)
         return loss
 
-    can_compile = options["compile_step"] and getattr(model, "weight_storage", None) is None
+    can_compile = options["compile_step"] and getattr(model, "weight_storage", None) is None and grad_accum == 1
     step_fn = mx.compile(update, inputs=state, outputs=state) if can_compile else update
     ref_cache = ReferenceScores(
         options["reference_cache_size"] if options["cache_reference"] else 0, batch_size)
+
+    def _microbatch_inputs(micro_batch):
+        rows = _response_rows(micro_batch, "response") if method in {"sft", "distill"} else (
+            _response_rows(micro_batch, "chosen") + _response_rows(micro_batch, "rejected"))
+        ids, labels = collate_mlx(rows, max_length, fixed=fixed)
+        if method == "sft":
+            return (ids, labels)
+        if method == "distill":
+            if window_cfg is not None:
+                prompt_lengths = _batch_prompt_lengths(labels)
+                if reference is not None:
+                    if not hasattr(reference, "_window_controller"):
+                        raise ValueError("Window-pinned distillation requires a MoE teacher when --teacher is provided")
+                    with _expert_request(reference):
+                        teacher_logits, teacher_routes = _run_window_teacher(reference, ids, prompt_lengths)
+                        teacher_logits = mx.stop_gradient(teacher_logits)
+                        mx.eval(teacher_logits, teacher_routes)
+                else:
+                    from .mlx_adapters import disable_lora_adapters
+                    with _expert_request(model), disable_lora_adapters(model):
+                        teacher_logits, teacher_routes = _run_window_teacher(model, ids, prompt_lengths)
+                        teacher_logits = mx.stop_gradient(teacher_logits)
+                        mx.eval(teacher_logits, teacher_routes)
+                return (ids, labels, teacher_logits, teacher_routes, prompt_lengths)
+            if reference is not None:
+                with _expert_request(reference):
+                    teacher_logits = mx.stop_gradient(_mlx_logits(reference, ids).astype(mx.float32))
+                    mx.eval(teacher_logits)
+            else:
+                from .mlx_adapters import disable_lora_adapters
+                with _expert_request(model), disable_lora_adapters(model):
+                    teacher_logits = mx.stop_gradient(_mlx_logits(model, ids).astype(mx.float32))
+                    mx.eval(teacher_logits)
+            return (ids, labels, teacher_logits)
+        for item, key in zip(rows, [row["_chosen_key"] for row in micro_batch] +
+                                  [row["_rejected_key"] for row in micro_batch]):
+            item["_reference_key"] = key
+        def _compute_mlx_ref():
+            if reference is not None:
+                with _expert_request(reference):
+                    ref_scores = _mlx_logps(reference, ids, labels)
+                    mx.eval(ref_scores)
+                    return ref_scores
+            from .mlx_adapters import disable_lora_adapters
+            with _expert_request(model), disable_lora_adapters(model):
+                ref_scores = mx.stop_gradient(_mlx_logps(model, ids, labels))
+                mx.eval(ref_scores)
+                return ref_scores
+        ref = ref_cache.get(rows, ids.shape[1], _compute_mlx_ref)
+        ref_c, ref_r = mx.split(ref, 2)
+        return (ids, labels, ref_c, ref_r)
+
     try:
         for step in range(session.step + 1, max_steps + 1):
             if memory_guard is not None:
                 memory_guard.check(force=True)
-            batch = randomizer.choices(prepared, k=batch_size)
             metrics = ""
             if rl:
+                batch = randomizer.choices(prepared, k=batch_size)
                 rows, action_logps, advantages, mean_reward, uniform = grpo.collect_rollouts_cached(
                     batch, tokenizer, eos, pad, rl["group_size"], rl["max_new_tokens"],
                     sample_prefill, sample_decode, slice_cache, reward,
@@ -985,70 +1043,33 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
                         mx.eval(model.trainable_parameters(), optimizer.state, loss,
                                 master_params if master_params is not None else [])
                 metrics = f" reward={mean_reward:.4g} uniform_groups={uniform:.1%}"
+            elif grad_accum == 1:
+                batch = randomizer.choices(prepared, k=batch_size)
+                call_args = _microbatch_inputs(batch)
+                with _expert_request(model):
+                    loss = step_fn(*call_args)
+                    mx.eval(model.trainable_parameters(), optimizer.state, loss,
+                            master_params if master_params is not None else [])
             else:
-                rows = _response_rows(batch, "response") if method in {"sft", "distill"} else (
-                    _response_rows(batch, "chosen") + _response_rows(batch, "rejected"))
-                ids, labels = collate_mlx(rows, max_length, fixed=fixed)
-                if method == "sft":
+                from telos.models.window_routing import add_grad_trees
+
+                accum_grads = None
+                loss_sum = mx.array(0.0, dtype=mx.float32)
+                for _ in range(grad_accum):
+                    batch = randomizer.choices(prepared, k=batch_size)
+                    call_args = _microbatch_inputs(batch)
                     with _expert_request(model):
-                        loss = step_fn(ids, labels)
-                        mx.eval(model.trainable_parameters(), optimizer.state, loss,
-                                master_params if master_params is not None else [])
-                elif method == "distill":
-                    if window_cfg is not None:
-                        prompt_lengths = _batch_prompt_lengths(labels)
-                        if reference is not None:
-                            if not hasattr(reference, "_window_controller"):
-                                raise ValueError("Window-pinned distillation requires a MoE teacher when --teacher is provided")
-                            with _expert_request(reference):
-                                teacher_logits, teacher_routes = _run_window_teacher(reference, ids, prompt_lengths)
-                                teacher_logits = mx.stop_gradient(teacher_logits)
-                                mx.eval(teacher_logits, teacher_routes)
-                        else:
-                            from .mlx_adapters import disable_lora_adapters
-                            with _expert_request(model), disable_lora_adapters(model):
-                                teacher_logits, teacher_routes = _run_window_teacher(model, ids, prompt_lengths)
-                                teacher_logits = mx.stop_gradient(teacher_logits)
-                                mx.eval(teacher_logits, teacher_routes)
-                        with _expert_request(model):
-                            loss = step_fn(ids, labels, teacher_logits, teacher_routes, prompt_lengths)
-                            mx.eval(model.trainable_parameters(), optimizer.state, loss,
-                                    master_params if master_params is not None else [])
-                    else:
-                        if reference is not None:
-                            with _expert_request(reference):
-                                teacher_logits = mx.stop_gradient(_mlx_logits(reference, ids).astype(mx.float32))
-                                mx.eval(teacher_logits)
-                        else:
-                            from .mlx_adapters import disable_lora_adapters
-                            with _expert_request(model), disable_lora_adapters(model):
-                                teacher_logits = mx.stop_gradient(_mlx_logits(model, ids).astype(mx.float32))
-                                mx.eval(teacher_logits)
-                        with _expert_request(model):
-                            loss = step_fn(ids, labels, teacher_logits)
-                            mx.eval(model.trainable_parameters(), optimizer.state, loss,
-                                    master_params if master_params is not None else [])
-                else:
-                    for item, key in zip(rows, [row["_chosen_key"] for row in batch] +
-                                              [row["_rejected_key"] for row in batch]):
-                        item["_reference_key"] = key
-                    def _compute_mlx_ref():
-                        if reference is not None:
-                            with _expert_request(reference):
-                                ref_scores = _mlx_logps(reference, ids, labels)
-                                mx.eval(ref_scores)
-                                return ref_scores
-                        from .mlx_adapters import disable_lora_adapters
-                        with _expert_request(model), disable_lora_adapters(model):
-                            ref_scores = mx.stop_gradient(_mlx_logps(model, ids, labels))
-                            mx.eval(ref_scores)
-                            return ref_scores
-                    ref = ref_cache.get(rows, ids.shape[1], _compute_mlx_ref)
-                    ref_c, ref_r = mx.split(ref, 2)
-                    with _expert_request(model):
-                        loss = step_fn(ids, labels, ref_c, ref_r)
-                        mx.eval(model.trainable_parameters(), optimizer.state, loss,
-                                master_params if master_params is not None else [])
+                        m_loss, m_grads = (_ssd_step_loss_and_grad(*call_args)
+                                           if use_ssd_segmented else value_and_grad(model, *call_args))
+                    accum_grads = m_grads if accum_grads is None else add_grad_trees(accum_grads, m_grads)
+                    loss_sum = loss_sum + m_loss
+                    mx.eval(loss_sum, accum_grads)
+                inv_accum = 1.0 / grad_accum
+                loss = loss_sum * inv_accum
+                scaled_grads = tree_map(lambda value: value * inv_accum, accum_grads)
+                _apply_grads(scaled_grads)
+                mx.eval(model.trainable_parameters(), optimizer.state, loss,
+                        master_params if master_params is not None else [])
             if memory_guard is not None:
                 memory_guard.check(force=True)
             if step == 1 or step % 10 == 0 or step == max_steps:
@@ -1188,43 +1209,49 @@ def _xla_posttrain_worker(index, arguments):
 
     prepared = _prepare_records(records, tokenizer, max_length, arguments["method"])
     ref_cache = {}
+    grad_accum = int(options.get("grad_accum", 1))
     for step in range(session.step + 1, arguments["max_steps"] + 1):
         xm.set_rng_state(arguments["seed"] + step * world_size + rank)
-        global_batch = randomizer.choices(prepared, k=batch_size * world_size)
-        local_batch = global_batch[rank * batch_size:(rank + 1) * batch_size]
         optimizer.zero_grad(set_to_none=True)
         method = arguments["method"]
-        rows = _response_rows(local_batch, "response") if method in {"sft", "distill"} else (
-            _response_rows(local_batch, "chosen") + _response_rows(local_batch, "rejected"))
-        ids, labels = _collate(rows, tokenizer, max_length, device, fixed=True)
-        with _autocast(device, amp_dtype):
-            if method == "sft":
-                logits = model(ids, mask_override=True, next_token_only=True).float()
-                loss = _sft_loss(logits, labels, device, world_size)
-            elif method == "distill":
-                with torch.no_grad():
-                    teacher_logits = reference(ids, mask_override=True, next_token_only=True).float()
-                student_logits = model(ids, mask_override=True, next_token_only=True).float()
-                loss = _torch_distill_loss(
-                    student_logits, teacher_logits, labels, device, world_size,
-                    distill["alpha"], distill["temperature"],
-                )
-            else:
-                key = tuple(tuple(row["_encoded"][0]) + tuple(row["_encoded"][1]) for row in rows)
-                if not options["cache_reference"] or key not in ref_cache:
+        total_loss = None
+        for _ in range(grad_accum):
+            global_batch = randomizer.choices(prepared, k=batch_size * world_size)
+            local_batch = global_batch[rank * batch_size:(rank + 1) * batch_size]
+            rows = _response_rows(local_batch, "response") if method in {"sft", "distill"} else (
+                _response_rows(local_batch, "chosen") + _response_rows(local_batch, "rejected"))
+            ids, labels = _collate(rows, tokenizer, max_length, device, fixed=True)
+            with _autocast(device, amp_dtype):
+                if method == "sft":
+                    logits = model(ids, mask_override=True, next_token_only=True).float()
+                    loss = _sft_loss(logits, labels, device, world_size)
+                elif method == "distill":
                     with torch.no_grad():
-                        ref = _sequence_logps(reference, ids, labels)
-                    # Materialize outside the policy graph, avoiding its recomputation.
-                    xm.mark_step()
-                    if options["cache_reference"] and len(ref_cache) < options["reference_cache_size"]:
-                        ref_cache[key] = ref.detach()
+                        teacher_logits = reference(ids, mask_override=True, next_token_only=True).float()
+                    student_logits = model(ids, mask_override=True, next_token_only=True).float()
+                    loss = _torch_distill_loss(
+                        student_logits, teacher_logits, labels, device, world_size,
+                        distill["alpha"], distill["temperature"],
+                    )
                 else:
-                    ref = ref_cache[key]
-                policy = _sequence_logps(model, ids, labels)
-                ref_c, ref_r = ref.chunk(2)
-                pi_c, pi_r = policy.chunk(2)
-                loss = -F.logsigmoid(arguments["beta"] * ((pi_c - pi_r) - (ref_c - ref_r))).mean()
-        loss.backward()
+                    key = tuple(tuple(row["_encoded"][0]) + tuple(row["_encoded"][1]) for row in rows)
+                    if not options["cache_reference"] or key not in ref_cache:
+                        with torch.no_grad():
+                            ref = _sequence_logps(reference, ids, labels)
+                        # Materialize outside the policy graph, avoiding its recomputation.
+                        xm.mark_step()
+                        if options["cache_reference"] and len(ref_cache) < options["reference_cache_size"]:
+                            ref_cache[key] = ref.detach()
+                    else:
+                        ref = ref_cache[key]
+                    policy = _sequence_logps(model, ids, labels)
+                    ref_c, ref_r = ref.chunk(2)
+                    pi_c, pi_r = policy.chunk(2)
+                    loss = -F.logsigmoid(arguments["beta"] * ((pi_c - pi_r) - (ref_c - ref_r))).mean()
+            scaled = loss / grad_accum
+            scaled.backward()
+            total_loss = scaled.detach() if total_loss is None else total_loss + scaled.detach()
+        loss = total_loss
         xm.reduce_gradients(optimizer)
         torch.nn.utils.clip_grad_norm_((p for p in model.parameters() if p.requires_grad), 1.0)
         optimizer.step()
@@ -1257,6 +1284,137 @@ def _posttrain_xla(arguments):
     return Path(arguments["output"]) / "checkpoint_final.pt"
 
 
+def _load_external_hf_torch(checkpoint_dir: Path, source_config: dict, precision: str, device: torch.device):
+    import transformers
+    from transformers import AutoModelForCausalLM
+
+    if source_config.get("quantization") or source_config.get("quantization_config", {}).get("mode") == "affine":
+        raise ValueError("PyTorch/CUDA post-training requires an unpacked HuggingFace checkpoint; MLX-quantized Safetensors require --hardware mlx")
+    dtype = _torch_precision(device, precision) or torch.float32
+    model_type = str(source_config.get("model_type", "")).lower()
+    try:
+        model = AutoModelForCausalLM.from_pretrained(str(checkpoint_dir), torch_dtype=dtype)
+    except (KeyError, ValueError):
+        if "inkling" in model_type and hasattr(transformers, "Inkling2LoopForConditionalGeneration"):
+            model = transformers.Inkling2LoopForConditionalGeneration.from_pretrained(str(checkpoint_dir), torch_dtype=dtype)
+        else:
+            raise
+    return model.to(device)
+
+
+def _posttrain_external_torch(
+    checkpoint_path: Path, source_config: dict, data: str | Path, output: str | Path, *,
+    tokenizer_ref, method: str, backend_name: str, max_steps: int, batch_size: int,
+    learning_rate: float, max_length: int, save_every: int, seed: int, precision: str,
+    options: dict, reward: str,
+):
+    from telos.training.inkling2_window_distill import (
+        DEFAULT_LORA_TARGETS,
+        distill_step,
+        export_adapter,
+        patch_moe_for_window_distill,
+    )
+
+    if method not in {"sft", "distill"}:
+        raise ValueError("External PyTorch/CUDA checkpoints currently support sft or distill")
+    if options["finetune"] != "lora":
+        raise ValueError("External PyTorch/CUDA checkpoints require --finetune lora")
+    if options.get("distill", {}).get("teacher"):
+        raise ValueError("External PyTorch/CUDA window distillation uses the base weights as the teacher")
+    if backend_name == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("CUDA was requested but is not available")
+
+    device = torch.device(f"cuda:{int(os.environ.get('LOCAL_RANK', 0))}" if backend_name == "cuda" else "cpu")
+    _seed_host_rng(seed)
+    torch.manual_seed(seed)
+    if device.type == "cuda":
+        torch.cuda.manual_seed_all(seed)
+
+    tokenizer = load_tokenizer(tokenizer_ref)
+    records = _read_records(data, method, reward)
+    special_ids = _special_token_ids(tokenizer, checkpoint_path, source_config)
+    prepared = _prepare_records(records, tokenizer, max_length, method, special_ids=special_ids)
+
+    model = _load_external_hf_torch(checkpoint_path.parent, source_config, precision, device)
+    model.train()
+    if hasattr(model, "gradient_checkpointing_enable"):
+        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+
+    window_cfg = options.get("window")
+    targets = tuple(options["lora_targets"]) if options.get("lora_targets") else DEFAULT_LORA_TARGETS
+    ctx = patch_moe_for_window_distill(
+        model,
+        window_size=window_cfg["window_size"] if window_cfg else None,
+        lora_rank=options["lora_rank"],
+        lora_alpha=options["lora_alpha"],
+        selector_rank=window_cfg["selector_rank"] if window_cfg else 32,
+        token_router_rank=window_cfg["token_router_rank"] if window_cfg else 16,
+        lora_targets=targets,
+        require_moe=bool(window_cfg),
+    )
+
+    out_dir = Path(output)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    final_path = out_dir / "model.adapter.safetensors"
+    if final_path.exists() or any(out_dir.glob("checkpoint_step_*.adapter.safetensors")):
+        raise FileExistsError(f"Output directory already contains adapters: {out_dir}")
+
+    trainable = [p for p in model.parameters() if p.requires_grad]
+    optimizer = torch.optim.AdamW(trainable, lr=learning_rate)
+    randomizer = random.Random(seed)
+    grad_accum = int(options.get("grad_accum", 1))
+    distill = options.get("distill") or {"alpha": 0.5, "temperature": 1.0}
+    kl_weight = distill["alpha"] if method == "distill" else 0.0
+    ce_weight = 1.0 if method == "sft" else max(0.0, 1.0 - distill["alpha"])
+    cov_weight = window_cfg["cov_weight"] if window_cfg else 0.0
+
+    def save(step: int, final: bool = False):
+        path = final_path if final else out_dir / f"checkpoint_step_{step}.adapter.safetensors"
+        tokenizer_file = export_checkpoint_tokenizer(out_dir, tokenizer)
+        cfg = copy.deepcopy(source_config)
+        cfg["data"] = {**(cfg.get("data") or {}), "tokenizer": tokenizer_file}
+        cfg["posttrain"] = {
+            "method": method, "source_checkpoint": str(checkpoint_path),
+            "step": step, "backend": backend_name, "options": options,
+            "adapter": path.name,
+            **({"window_size": window_cfg["window_size"]} if window_cfg else {}),
+        }
+        adapter_meta = {k: v for k, v in options.items() if k not in {"base_sha256", "base_checkpoint"}}
+        adapter_meta["model_type"] = source_config.get("model_type")
+        export_adapter(model, str(path), metadata=adapter_meta)
+        (out_dir / "config.json").write_text(json.dumps(cfg, indent=2, default=str), encoding="utf-8")
+        return path
+
+    for step in range(1, max_steps + 1):
+        optimizer.zero_grad(set_to_none=True)
+        total_loss = 0.0
+        for _ in range(grad_accum):
+            batch = randomizer.choices(prepared, k=batch_size)
+            rows = _response_rows(batch, "response")
+            input_ids, labels = _collate(rows, tokenizer, max_length, device, fixed=False)
+            pad_mask = torch.zeros_like(input_ids, dtype=torch.long)
+            for i, row in enumerate(rows):
+                pad_mask[i, : len(row["_encoded"][0])] = 1
+            prompt_lens = torch.tensor(_batch_prompt_lengths(labels), dtype=torch.long, device=device)
+            loss, _ = distill_step(
+                model, ctx, input_ids, prompt_lens, pad_mask,
+                kl_weight=kl_weight, ce_weight=ce_weight, cov_weight=cov_weight,
+                temperature=distill["temperature"],
+            )
+            (loss / grad_accum).backward()
+            total_loss += float(loss.item()) / grad_accum
+        torch.nn.utils.clip_grad_norm_(trainable, 1.0)
+        optimizer.step()
+        if step == 1 or step % 10 == 0 or step == max_steps:
+            print(f"[{method.upper()}/{backend_name.upper()}] step {step}/{max_steps} loss={total_loss:.4f}", flush=True)
+        if save_every and step % save_every == 0 and step != max_steps:
+            save(step)
+
+    result = save(max_steps, final=True)
+    print(f"Saved post-trained adapter: {result}", flush=True)
+    return result
+
+
 def _posttrain(
     checkpoint: str | Path,
     data: str | Path,
@@ -1268,6 +1426,7 @@ def _posttrain(
     devices: str | int = "auto",
     max_steps: int = 1000,
     batch_size: int = 4,
+    grad_accum: int = 1,
     learning_rate: float = 2e-5,
     beta: float = 0.1,
     max_length: int | None = None,
@@ -1302,9 +1461,12 @@ def _posttrain(
     method = method.lower()
     if method not in {"sft", "dpo", "grpo", "distill"}:
         raise ValueError("method must be 'sft', 'dpo', 'grpo' or 'distill'")
-    if (max_steps < 1 or batch_size < 1 or not math.isfinite(learning_rate) or learning_rate <= 0
+    if (max_steps < 1 or batch_size < 1 or type(grad_accum) is not int or grad_accum < 1
+            or not math.isfinite(learning_rate) or learning_rate <= 0
             or not math.isfinite(beta) or beta < 0 or (beta == 0 and method not in {"grpo", "distill"}) or save_every < 0):
-        raise ValueError("Invalid steps, batch size, learning rate, beta, or save cadence")
+        raise ValueError("Invalid steps, batch size, grad accum, learning rate, beta, or save cadence")
+    if grad_accum > 1 and method == "grpo":
+        raise ValueError("GRPO does not support --grad-accum > 1")
 
     options = _adapter_options(finetune, lora_rank, lora_alpha, lora_dropout, lora_targets)
     if padding not in {"auto", "batch", "fixed"}:
@@ -1313,6 +1475,8 @@ def _posttrain(
         raise ValueError("Invalid precision or reference cache size")
     options.update(precision=precision, compile_step=compile_step, padding=padding,
                    cache_reference=cache_reference, reference_cache_size=reference_cache_size)
+    if grad_accum > 1:
+        options["grad_accum"] = grad_accum
     if method == "distill":
         if (not math.isfinite(distill_alpha) or not 0.0 <= distill_alpha <= 1.0
                 or not math.isfinite(distill_temperature) or distill_temperature <= 0.0):
@@ -1338,8 +1502,8 @@ def _posttrain(
             raise ValueError("window_size must be a positive integer")
         if selector_rank < 1 or not math.isfinite(window_cov_weight) or window_cov_weight < 0:
             raise ValueError("selector_rank must be positive and window_cov_weight must be finite and non-negative")
-        if method != "distill" or backend_name != "mlx" or finetune == "full":
-            raise ValueError("Window-pinned distillation requires --method distill, MLX backend, and --finetune lora or qlora")
+        if method != "distill" or backend_name not in {"mlx", "cuda", "cpu"} or finetune == "full":
+            raise ValueError("Window-pinned distillation requires --method distill, MLX/CUDA/CPU backend, and --finetune lora or qlora")
         options["window"] = {
             "window_size": window_size,
             "selector_rank": selector_rank,
@@ -1366,7 +1530,8 @@ def _posttrain(
     options["base_sha256"] = _sha256_file(checkpoint_path)
     options["base_checkpoint"] = str(checkpoint_path.resolve())
     source_config = _checkpoint_config(checkpoint_path)
-    is_external_mlx = backend_name == "mlx" and source_config.get("model_type") in EXTERNAL_MLX_ARCHITECTURES
+    is_external_model = source_config.get("model_type") in EXTERNAL_MLX_ARCHITECTURES
+    is_external_mlx = backend_name == "mlx" and is_external_model
     is_mlx_moe = is_external_mlx and source_config["model_type"] in EXTERNAL_MLX_MOE_ARCHITECTURES
     if memory_budget_mib is not None and not is_mlx_moe:
         raise ValueError("--memory-budget-mib is supported for native MLX MoE checkpoints.")
@@ -1377,6 +1542,27 @@ def _posttrain(
         raise ValueError("devices must be 'auto' or a positive integer")
     if backend_name not in {"xla", "cuda"} and devices != "auto" and int(devices) != 1:
         raise ValueError(f"{backend_name} post-training is single-device; use devices=1")
+    if backend_name in {"cuda", "cpu"} and is_external_model and checkpoint_path.suffix == ".safetensors":
+        text_cfg = source_config.get("text_config", source_config)
+        max_ctx = int(text_cfg.get("max_position_embeddings", text_cfg.get("model_max_length", 512)))
+        return _posttrain_external_torch(
+            checkpoint_path,
+            source_config,
+            data,
+            output,
+            tokenizer_ref=tokenizer_ref,
+            method=method,
+            backend_name=backend_name,
+            max_steps=max_steps,
+            batch_size=batch_size,
+            learning_rate=learning_rate,
+            max_length=min(max_length or max_ctx, max_ctx),
+            save_every=save_every,
+            seed=seed,
+            precision=precision,
+            options=options,
+            reward=reward,
+        )
     if backend_name == "xla":
         if checkpoint_path.suffix == ".safetensors":
             raise ValueError("XLA post-training currently requires a native PyTorch .pt checkpoint")
@@ -1641,11 +1827,12 @@ def _posttrain(
         idx = torch.as_tensor(keep_rows, device=device, dtype=torch.long)
         return [(k.index_select(0, idx), v.index_select(0, idx)) for k, v in cache]
 
+    grad_accum = int(options.get("grad_accum", 1))
     for step in range(session.step + 1, max_steps + 1):
-        global_batch = randomizer.choices(prepared, k=batch_size * world_size)
-        batch = global_batch[rank * batch_size:(rank + 1) * batch_size]
         metrics = ""
         if rl:
+            global_batch = randomizer.choices(prepared, k=batch_size * world_size)
+            batch = global_batch[rank * batch_size:(rank + 1) * batch_size]
             rows, action_logps, advantages, mean_reward, uniform = grpo.collect_rollouts_cached(
                 batch, tokenizer, eos, pad, rl["group_size"], rl["max_new_tokens"],
                 sample_prefill, sample_decode, slice_cache, reward_fn,
@@ -1677,51 +1864,64 @@ def _posttrain(
             metrics = f" reward={mean_reward:.4g} uniform_groups={uniform:.1%}"
         else:
             optimizer.zero_grad(set_to_none=True)
-            rows = _response_rows(batch, "response") if method in {"sft", "distill"} else (
-                _response_rows(batch, "chosen") + _response_rows(batch, "rejected"))
-            input_ids, labels = _collate(rows, tokenizer, max_length, device, fixed=fixed)
-            with _autocast(device, amp_dtype):
-                if method == "sft":
-                    loss = _sft_loss_from_model(active_model, input_ids, labels, device, world_size)
-                elif method == "distill":
-                    with torch.no_grad():
-                        if reference is not None:
-                            teacher_logits = reference(input_ids, mask_override=True, next_token_only=True).float()
+            total_loss = None
+            for micro in range(grad_accum):
+                global_batch = randomizer.choices(prepared, k=batch_size * world_size)
+                batch = global_batch[rank * batch_size:(rank + 1) * batch_size]
+                rows = _response_rows(batch, "response") if method in {"sft", "distill"} else (
+                    _response_rows(batch, "chosen") + _response_rows(batch, "rejected"))
+                input_ids, labels = _collate(rows, tokenizer, max_length, device, fixed=fixed)
+                sync_ctx = active_model.no_sync() if (ddp and micro + 1 < grad_accum and hasattr(active_model, "no_sync")) else nullcontext()
+                with sync_ctx:
+                    with _autocast(device, amp_dtype):
+                        if method == "sft":
+                            loss = _sft_loss_from_model(active_model, input_ids, labels, device, world_size)
+                        elif method == "distill":
+                            with torch.no_grad():
+                                if reference is not None:
+                                    teacher_logits = reference(input_ids, mask_override=True, next_token_only=True).float()
+                                else:
+                                    from .adapters import disable_lora_adapters
+                                    was_training = model.training
+                                    model.eval()
+                                    with disable_lora_adapters(model):
+                                        teacher_logits = model(input_ids, mask_override=True, next_token_only=True).float()
+                                    model.train(was_training)
+                            student_logits = active_model(input_ids, mask_override=True, next_token_only=True).float()
+                            loss = _torch_distill_loss(
+                                student_logits, teacher_logits, labels, device, world_size,
+                                distill["alpha"], distill["temperature"],
+                            )
                         else:
-                            from .adapters import disable_lora_adapters
-                            was_training = model.training
-                            model.eval()
-                            with disable_lora_adapters(model):
-                                teacher_logits = model(input_ids, mask_override=True, next_token_only=True).float()
-                            model.train(was_training)
-                    student_logits = active_model(input_ids, mask_override=True, next_token_only=True).float()
-                    loss = _torch_distill_loss(
-                        student_logits, teacher_logits, labels, device, world_size,
-                        distill["alpha"], distill["temperature"],
-                    )
-                else:
-                    key = tuple(tuple(row["_encoded"][0]) + tuple(row["_encoded"][1]) for row in rows)
-                    if not cache_reference or key not in ref_cache:
-                        with torch.no_grad():
-                            if reference is not None:
-                                ref = _sequence_logps(reference, input_ids, labels)
+                            key = tuple(tuple(row["_encoded"][0]) + tuple(row["_encoded"][1]) for row in rows)
+                            if not cache_reference or key not in ref_cache:
+                                with torch.no_grad():
+                                    if reference is not None:
+                                        ref = _sequence_logps(reference, input_ids, labels)
+                                    else:
+                                        from .adapters import disable_lora_adapters
+                                        was_training = model.training
+                                        model.eval()
+                                        with disable_lora_adapters(model):
+                                            ref = _sequence_logps(model, input_ids, labels)
+                                        model.train(was_training)
+                                if cache_reference and len(ref_cache) < reference_cache_size:
+                                    ref_cache[key] = ref.detach()
                             else:
-                                from .adapters import disable_lora_adapters
-                                was_training = model.training
-                                model.eval()
-                                with disable_lora_adapters(model):
-                                    ref = _sequence_logps(model, input_ids, labels)
-                                model.train(was_training)
-                        if cache_reference and len(ref_cache) < reference_cache_size:
-                            ref_cache[key] = ref.detach()
-                    else:
-                        ref = ref_cache[key]
-                    policy = _sequence_logps(active_model, input_ids, labels)
-                    ref_chosen, ref_rejected = ref.chunk(2)
-                    policy_chosen, policy_rejected = policy.chunk(2)
-                    logits = beta * ((policy_chosen - policy_rejected) - (ref_chosen - ref_rejected))
-                    loss = -F.logsigmoid(logits).mean()
-            update(loss)
+                                ref = ref_cache[key]
+                            policy = _sequence_logps(active_model, input_ids, labels)
+                            ref_chosen, ref_rejected = ref.chunk(2)
+                            policy_chosen, policy_rejected = policy.chunk(2)
+                            logits = beta * ((policy_chosen - policy_rejected) - (ref_chosen - ref_rejected))
+                            loss = -F.logsigmoid(logits).mean()
+                    scaled = loss / grad_accum
+                    scaler.scale(scaled).backward()
+                    total_loss = scaled.detach() if total_loss is None else total_loss + scaled.detach()
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_((p for p in model.parameters() if p.requires_grad), 1.0)
+            scaler.step(optimizer)
+            scaler.update()
+            loss = total_loss
         if rank == 0 and (step == 1 or step % 10 == 0 or step == max_steps):
             print(f"[{method.upper()}] step {step}/{max_steps} loss={loss.item():.4f}{metrics}", flush=True)
         if save_every and step % save_every == 0 and step != max_steps:
