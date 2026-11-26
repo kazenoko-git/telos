@@ -101,7 +101,7 @@ class InklingExpertBank:
         scores = mx.sigmoid(hidden.astype(mx.float32) @ weight.T)
         ranking = scores if bias is None else scores + bias
         indices = mx.argsort(-ranking, axis=-1)[..., :self.top_k]
-        selected = mx.take_along_axis(scores, indices, axis=-1)
+        selected = mx.take_along_axis(scores, mx.stop_gradient(indices), axis=-1)
         return indices, selected / (selected.sum(axis=-1, keepdims=True) + 1e-20) * self.route_scale
 
     def routed(self, hidden, router, cache, *, trace=None):
