@@ -156,6 +156,26 @@ def test_batched_nvfp4_binds_eight_expert_buffers_exactly():
         assert mx.array_equal(expected.view(mx.uint16), actual.view(mx.uint16)).item()
 
 
+def test_fused_nvfp4_swiglu_matches_reference():
+    import mlx.core as mx
+
+    from telos.models.inkling2 import _gated_activation
+    from telos.models.inkling2_nvfp4 import nvfp4_resident_gate_up_swiglu, nvfp4_resident_gemv
+
+    weights = mx.random.normal((8, 64, 128), key=mx.random.key(51))
+    packed, scales = mx.quantize(weights, mode="nvfp4")
+    hidden = mx.random.normal((1, 128), key=mx.random.key(52)).astype(mx.bfloat16)
+    tensors = [
+        {"gate_up_proj.weight": packed[i], "gate_up_proj.scales": scales[i],
+         "gate_up_proj.global_scale": mx.array(1400.0 + i)}
+        for i in range(8)
+    ]
+    expected = _gated_activation(nvfp4_resident_gemv(hidden, tensors, "gate_up_proj"), 4.0, 25.0)
+    actual = nvfp4_resident_gate_up_swiglu(hidden, tensors, 4.0, 25.0)
+    assert actual.shape == expected.shape == (8, 1, 32)
+    assert mx.allclose(actual.astype(mx.float32), expected.astype(mx.float32), rtol=1e-2, atol=1e-2).item()
+
+
 def test_inkling2_rejects_invalid_loop_before_opening_weight_shards(tmp_path):
     config = {
         "model_type": "inkling2_loop",
@@ -699,6 +719,17 @@ def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypa
     assert all(step["batched_expert_visits"] > 0 for step in batched.steps[2:])
     pinned.model._window_controller.compile_nvfp4_experts = True
     assert list(pinned._mlx_tokens(*long_options)) == list(streamed._mlx_tokens(*long_options))
+    pinned.model._window_controller.fuse_nvfp4_swiglu = True
+    pinned.model._window_controller.batch_mxfp8_experts = True
+    assert list(pinned._mlx_tokens(*long_options)) == list(streamed._mlx_tokens(*long_options))
+    pinned.model.pipeline_steady_decode = True
+    pipe_profile = SSDGenerationProfile()
+    assert list(pinned._mlx_tokens(*long_options, ssd_profile=pipe_profile)) == list(streamed._mlx_tokens(*long_options))
+    assert len(pipe_profile.steps) == 13
+    assert all(step["expert_bytes_read"] == 0 for step in pipe_profile.steps[2:])
+    pinned.model.pipeline_steady_decode = False
+    pinned.model._window_controller.fuse_nvfp4_swiglu = False
+    pinned.model._window_controller.batch_mxfp8_experts = False
     pinned.model._window_controller.combine_nvfp4_experts = True
     assert list(pinned._mlx_tokens(*long_options)) == list(streamed._mlx_tokens(*long_options))
     pinned.model.fused_nvfp4_decode = False
