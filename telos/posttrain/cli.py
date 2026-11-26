@@ -41,6 +41,9 @@ def main():
     parser.add_argument("--teacher", default=None, help="Teacher checkpoint for --method distill (defaults to starting weights)")
     parser.add_argument("--distill-alpha", type=float, default=0.5, help="Distillation KL weight in [0, 1]; remainder is response cross-entropy")
     parser.add_argument("--distill-temperature", type=float, default=1.0, help="Softmax temperature for distillation KL")
+    parser.add_argument("--window-size", type=int, default=None, help="Pin decode MoE experts in W-token windows during distillation")
+    parser.add_argument("--selector-rank", type=int, default=32, help="Low-rank adapter rank for window-pinned MoE selectors")
+    parser.add_argument("--window-cov-weight", type=float, default=0.25, help="Teacher expert coverage loss weight for window distillation")
     parser.add_argument("--memory-budget-mib", type=int, default=None, help="Optional RAM budget in MiB for Flash-MoE MLX checkpoints")
     args = parser.parse_args()
     posttrain(
@@ -56,6 +59,8 @@ def main():
         group_size=args.group_size, max_new_tokens=args.max_new_tokens,
         policy_updates=args.policy_updates, clip_epsilon=args.clip_epsilon, reward=args.reward,
         teacher=args.teacher, distill_alpha=args.distill_alpha, distill_temperature=args.distill_temperature,
+        window_size=args.window_size, selector_rank=args.selector_rank,
+        window_cov_weight=args.window_cov_weight,
         memory_budget_mib=args.memory_budget_mib,
     )
 
