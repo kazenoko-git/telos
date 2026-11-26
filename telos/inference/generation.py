@@ -227,9 +227,10 @@ class TextGenerator:
             stop_ids.add(generation.get("pad_token_id", metadata.get("pad_token_id")))
             options = {"allow_padded_vocab": True, "stop_ids": stop_ids - {None},
                        "bos_id": generation.get("bos_token_id", metadata.get("bos_token_id"))}
+        bos_id = options.get("bos_id", resolved_tokenizer.token_to_id("[BOS]"))
         return cls(model, resolved_tokenizer, backend=backend, max_seq_len=limit,
-                   add_bos=bool(metadata.get("posttrain")), checkpoint_dir=checkpoint.parent,
-                   prefix_cache_entries=prefix_cache_entries, **options)
+                   add_bos=bool(metadata.get("posttrain")) and bos_id is not None,
+                   checkpoint_dir=checkpoint.parent, prefix_cache_entries=prefix_cache_entries, **options)
 
     def _torch_tokens(self, ids, count, temperature, top_k, top_p, seed, cache_mode):
         import torch
