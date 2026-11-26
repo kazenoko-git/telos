@@ -541,10 +541,14 @@ def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypa
     assert list(pinned._mlx_tokens(*long_options, ssd_profile=attention_profile)) == list(streamed._mlx_tokens(*long_options))
     for step in attention_profile.steps[2:]:
         assert step["expert_bytes_read"] == 0
+        assert step["profiled_attention_visits"] == len(layout.visits)
         assert step["attention_eval_seconds"] > 0 and step["routing_eval_seconds"] > 0
         assert step["mlx_eval_wall_seconds"] == pytest.approx(sum(
             step[f"{section}_eval_seconds"] for section in ("attention", "routing", "residual_mix", "experts", "tail", "sampling")
         ))
+    sampled = SSDGenerationProfile(split_attention=True, attention_stride=4)
+    assert list(pinned._mlx_tokens(*long_options, ssd_profile=sampled)) == list(streamed._mlx_tokens(*long_options))
+    assert all(step["profiled_attention_visits"] == len(layout.visits) // 4 for step in sampled.steps[1:])
     pinned.model.fused_nvfp4_decode = False
     detailed = SSDGenerationProfile(split_decode=True)
     assert list(pinned._mlx_tokens(*long_options, ssd_profile=detailed)) == list(streamed._mlx_tokens(*long_options))

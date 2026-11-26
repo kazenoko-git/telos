@@ -9,10 +9,13 @@ class SSDGenerationProfile:
     _SECTIONS = ("backbone_router", "experts", "tail", "sampling")
     _ATTENTION_SECTIONS = ("attention", "routing", "residual_mix", "experts", "tail", "sampling")
 
-    def __init__(self, *, split_decode=False, split_attention=False):
+    def __init__(self, *, split_decode=False, split_attention=False, attention_stride=1):
+        if type(attention_stride) is not int or attention_stride < 1:
+            raise ValueError("Attention profiling stride must be a positive integer")
         self.steps = []
         self._split_decode = split_decode or split_attention
         self._split_attention = split_attention
+        self._attention_stride = attention_stride
         self._sections = self._ATTENTION_SECTIONS if split_attention else self._SECTIONS
         self.split_step = False
         self.split_attention_step = False
@@ -22,11 +25,18 @@ class SSDGenerationProfile:
         self.split_step = self._split_decode and phase == "decode"
         self.split_attention_step = self.split_step and self._split_attention
         self._section_ns = dict.fromkeys(self._sections, 0) if self.split_step else None
+        self._attention_visits = 0
         self._bytes_read = cache.bytes_read
         self._hits = cache.hits
         self._misses = cache.misses
         self._sync_read_ns = self._async_wait_ns = self._mlx_eval_ns = 0
         self._started_ns = perf_counter_ns()
+
+    def begin_visit(self, visit):
+        if self._split_attention and self._phase == "decode":
+            self.split_attention_step = (visit + len(self.steps)) % self._attention_stride == 0
+            self.split_step = self.split_attention_step
+            self._attention_visits += self.split_attention_step
 
     def read(self, function, *args, asynchronous):
         started = perf_counter_ns()
@@ -65,6 +75,8 @@ class SSDGenerationProfile:
         if self._split_decode:
             step.update({f"{name}_eval_seconds": ns / 1e9
                          for name, ns in (self._section_ns or dict.fromkeys(self._sections, 0)).items()})
+        if self._split_attention:
+            step["profiled_attention_visits"] = self._attention_visits
         self.steps.append(step)
 
     def report(self):

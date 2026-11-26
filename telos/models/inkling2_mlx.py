@@ -235,7 +235,10 @@ class Inkling2TextMLX(nn.Module):
         states = [None] * len(self._visits)
         message_bank = None
         pass_counts = {}
-        for layer, slot in self._visits:
+        profile = self._expert_cache.profile if self._expert_cache is not None else None
+        for visit, (layer, slot) in enumerate(self._visits):
+            if profile is not None:
+                profile.begin_visit(visit)
             self._guard.check()
             loop_pass = pass_counts.get(layer, 0)
             pass_counts[layer] = loop_pass + 1
@@ -268,7 +271,6 @@ class Inkling2TextMLX(nn.Module):
         hidden = _mix(blocks, x, self.final_query[None], self.normalize_values)[..., 0, :]
         hidden = _norm(hidden, self.final_norm, self.eps, embedded.dtype)
         # Finish outstanding state before the next chunk and keep cache graphs bounded.
-        profile = self._expert_cache.profile if self._expert_cache is not None else None
         if profile is None:
             mx.eval(hidden, states)
         else:

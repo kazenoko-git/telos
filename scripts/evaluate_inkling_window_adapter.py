@@ -47,7 +47,7 @@ def disk_delta(before, after):
     return {key: after[key] - before[key] for key in before}
 
 
-def benchmark(generator, prompt, *, token_cap, per_step=False, split_decode=False, split_attention=False):
+def benchmark(generator, prompt, *, token_cap, per_step=False, split_decode=False, split_attention=False, attention_stride=1):
     from telos.models.ssd_profile import SSDGenerationProfile
 
     cache = generator.model._expert_cache
@@ -56,7 +56,9 @@ def benchmark(generator, prompt, *, token_cap, per_step=False, split_decode=Fals
     ids = generator.tokenizer.encode(prompt, add_special_tokens=False).ids
     if generator.add_bos and ids[0] != generator.bos_id:
         ids.insert(0, generator.bos_id)
-    profile = SSDGenerationProfile(split_decode=split_decode, split_attention=split_attention)
+    profile = SSDGenerationProfile(
+        split_decode=split_decode, split_attention=split_attention, attention_stride=attention_stride,
+    )
     initial = disk_counters()
     start = time.perf_counter()
     stream = generator._mlx_tokens(ids, token_cap, 0.0, 0, 1.0, None, "dynamic", ssd_profile=profile)
@@ -158,6 +160,7 @@ def worker(args):
             generator, row["prompt"], token_cap=args.max_decode_tokens, per_step=decode_only,
             split_decode=args.worker == "profiled_w16",
             split_attention=args.worker == "profiled_fused_attention_w16",
+            attention_stride=args.attention_profile_stride,
         ))
         print(f"{args.worker}: decode {index + 1}/{min(PERF_ROWS, len(rows))}", flush=True)
     write_json(args.output / f"{args.worker}.json", {
@@ -206,6 +209,7 @@ def supervise(args):
         "commit": read_command("git", "rev-parse", "HEAD").strip(),
         "power": read_command("pmset", "-g"), "budget_mib": args.memory_budget_mib, "context": CONTEXT,
         "window": WINDOW, "decode_token_cap": args.max_decode_tokens,
+        "attention_profile_stride": args.attention_profile_stride,
         "validation_sha256": validation_hash, "adapter_sha256": adapter_hash,
         "variants": {}, "guards": {},
     }
@@ -263,6 +267,8 @@ def main():
     mode.add_argument("--profile-pinned", action="store_true", help="Measure pinned decode with and without section timing fences")
     mode.add_argument("--compare-fused-nvfp4", action="store_true", help="Compare pinned decode with the experimental NVFP4 Metal kernel")
     mode.add_argument("--profile-fused-attention", action="store_true", help="Split fused pinned decode timing into attention and routing")
+    parser.add_argument("--attention-profile-stride", type=int, choices=(1, 4, 12), default=1,
+                        help="Under attention profiling, time one layer visit per N and rotate the sample each token")
     parser.add_argument("--worker", choices=(*VARIANTS, *PROFILING_VARIANTS, *FUSED_ATTENTION_VARIANTS), help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.worker:
