@@ -176,6 +176,35 @@ def test_fused_nvfp4_swiglu_matches_reference():
     assert mx.allclose(actual.astype(mx.float32), expected.astype(mx.float32), rtol=1e-2, atol=1e-2).item()
 
 
+def test_fast_uint2_nvfp4_kernels_match_reference():
+    import mlx.core as mx
+
+    from telos.models.inkling2 import _gated_activation
+    from telos.models.inkling2_nvfp4 import (
+        nvfp4_resident_fast_gate_up_swiglu,
+        nvfp4_resident_fast_gemv,
+        nvfp4_resident_gemv,
+    )
+
+    weights = mx.random.normal((8, 64, 128), key=mx.random.key(61))
+    packed, scales = mx.quantize(weights, mode="nvfp4")
+    hidden = mx.random.normal((1, 128), key=mx.random.key(62)).astype(mx.bfloat16)
+    tensors = [
+        {"gate_up_proj.weight": packed[i], "gate_up_proj.scales": scales[i],
+         "gate_up_proj.global_scale": mx.array(1400.0 + i)}
+        for i in range(8)
+    ]
+    ref_gemv = nvfp4_resident_gemv(hidden, tensors, "gate_up_proj")
+    fast_gemv = nvfp4_resident_fast_gemv(hidden, tensors, "gate_up_proj")
+    assert fast_gemv.shape == ref_gemv.shape == (8, 1, 64)
+    assert mx.allclose(fast_gemv.astype(mx.float32), ref_gemv.astype(mx.float32), rtol=2e-2, atol=2e-2).item()
+
+    ref_act = _gated_activation(ref_gemv, 4.0, 25.0)
+    fast_act = nvfp4_resident_fast_gate_up_swiglu(hidden, tensors, 4.0, 25.0)
+    assert fast_act.shape == ref_act.shape == (8, 1, 32)
+    assert mx.allclose(fast_act.astype(mx.float32), ref_act.astype(mx.float32), rtol=2e-2, atol=2e-2).item()
+
+
 def test_inkling2_rejects_invalid_loop_before_opening_weight_shards(tmp_path):
     config = {
         "model_type": "inkling2_loop",
@@ -727,6 +756,14 @@ def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypa
     assert list(pinned._mlx_tokens(*long_options, ssd_profile=pipe_profile)) == list(streamed._mlx_tokens(*long_options))
     assert len(pipe_profile.steps) == 13
     assert all(step["expert_bytes_read"] == 0 for step in pipe_profile.steps[2:])
+    pinned.model._window_controller.fast_nvfp4_kernel = True
+    pinned.model.compiled_steady_helpers = True
+    fast_profile = SSDGenerationProfile()
+    assert list(pinned._mlx_tokens(*long_options, ssd_profile=fast_profile)) == list(streamed._mlx_tokens(*long_options))
+    assert len(fast_profile.steps) == 13
+    assert all(step["expert_bytes_read"] == 0 for step in fast_profile.steps[2:])
+    pinned.model.compiled_steady_helpers = False
+    pinned.model._window_controller.fast_nvfp4_kernel = False
     pinned.model.pipeline_steady_decode = False
     pinned.model._window_controller.fuse_nvfp4_swiglu = False
     pinned.model._window_controller.batch_mxfp8_experts = False
