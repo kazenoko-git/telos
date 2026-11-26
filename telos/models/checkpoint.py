@@ -23,6 +23,8 @@ def resolve_checkpoint(checkpoint_path: str | Path) -> Path:
             cp = pt_file
         elif (cp / "model.safetensors.index.json").is_file():
             cp = cp / "model.safetensors.index.json"
+        elif (cp / "model.adapter.safetensors").is_file():
+            cp = cp / "model.adapter.safetensors"
         else:
             raise FileNotFoundError(f"No checkpoint file found in directory {checkpoint_path}")
 
@@ -64,6 +66,24 @@ def _load_external_causal_checkpoint(checkpoint, config, *, device, context_leng
     family = config["model_type"]
     if family in EXTERNAL_MLX_ARCHITECTURES and device not in ("mlx", "auto"):
         raise ValueError("Native MLX checkpoints require --device mlx or auto.")
+    posttrain_meta = config.get("posttrain") if isinstance(config.get("posttrain"), dict) else {}
+    adapter_name = posttrain_meta.get("adapter")
+    is_adapter_file = checkpoint.name.endswith(".adapter.safetensors")
+    if is_adapter_file or (adapter_name and (checkpoint.parent / adapter_name).is_file()):
+        adapter_path = checkpoint if is_adapter_file else checkpoint.parent / adapter_name
+        base_source = posttrain_meta.get("source_checkpoint")
+        if not base_source and adapter_path.with_suffix(".json").is_file():
+            base_source = json.loads(adapter_path.with_suffix(".json").read_text(encoding="utf-8")).get("base_checkpoint")
+        if not base_source:
+            raise ValueError(f"Adapter checkpoint {adapter_path} is missing base source_checkpoint metadata.")
+        model, _, _, _ = load_checkpoint(
+            base_source, device=device, context_length=context_length,
+            memory_budget_mib=memory_budget_mib, prefix_cache_entries=prefix_cache_entries,
+        )
+        from telos.posttrain.mlx_adapters import load_adapter
+
+        load_adapter(model, adapter_path, base_checkpoint=base_source)
+        return model.eval(), "mlx", model.vocab_size, config
     if family in EXTERNAL_MLX_MOE_ARCHITECTURES:
         from telos.training.core import metal_usable
 
@@ -145,7 +165,8 @@ def load_checkpoint(checkpoint_path: str | Path, config: dict | None = None, *, 
     m_cfg = full_cfg.get("model", full_cfg)
     if strict_metadata and not isinstance(m_cfg, dict):
         raise ValueError("Checkpoint model config must be a mapping.")
-    if strict_metadata and m_cfg is full_cfg and full_cfg.get("model_type") not in (None, "telos"):
+    is_external = isinstance(m_cfg, dict) and m_cfg is full_cfg and full_cfg.get("model_type") not in (None, "telos")
+    if is_external and (strict_metadata or full_cfg.get("model_type") in EXTERNAL_MLX_ARCHITECTURES):
         return _load_external_causal_checkpoint(
             cp, full_cfg, device=device, context_length=context_length, memory_budget_mib=memory_budget_mib,
             prefix_cache_entries=prefix_cache_entries,
