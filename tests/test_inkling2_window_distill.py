@@ -303,3 +303,142 @@ def test_external_torch_posttrain_dense_and_rejects_mlx_quantized(tmp_path):
     cfg_path.write_text(json.dumps(bad_cfg))
     with pytest.raises(ValueError, match="unpacked HuggingFace checkpoint"):
         posttrain(ckpt, data, tmp_path / "out_bad", method="sft", hardware="cpu", finetune="lora", max_steps=1)
+
+
+class _ToyQwen35SparseBlock(nn.Module):
+    def __init__(self, hidden_dim=16, num_experts=4, top_k=2):
+        super().__init__()
+        self.gate = nn.Linear(hidden_dim, num_experts, bias=False)
+        self.top_k = top_k
+        self.num_experts = num_experts
+        self.norm_topk_prob = True
+        self.experts = nn.ModuleList([nn.Linear(hidden_dim, hidden_dim, bias=False) for _ in range(num_experts)])
+        self.shared_expert = nn.Linear(hidden_dim, hidden_dim, bias=False)
+        self.shared_expert_gate = nn.Linear(hidden_dim, 1, bias=False)
+
+    def forward(self, hidden_states):
+        raise AssertionError("Should be replaced by _linear_gate_moe_forward")
+
+
+def test_qwen3_5_moe_linear_attn_and_shared_expert_window_distill():
+    torch.manual_seed(17)
+    model = nn.Module()
+    model.config = SimpleNamespace(
+        model_type="qwen3_5_moe",
+        text_config=SimpleNamespace(model_type="qwen3_5_moe_text", hidden_size=16, num_experts=4, num_experts_per_tok=2),
+    )
+    model.embed = nn.Embedding(32, 16)
+
+    lin_layer = nn.Module()
+    lin_layer.linear_attn = nn.Module()
+    lin_layer.linear_attn.in_proj_qkv = nn.Linear(16, 16, bias=False)
+    lin_layer.linear_attn.out_proj = nn.Linear(16, 16, bias=False)
+    lin_layer.mlp = _ToyQwen35SparseBlock(16, num_experts=4, top_k=2)
+
+    attn_layer = nn.Module()
+    attn_layer.self_attn = nn.Module()
+    attn_layer.self_attn.q_proj = nn.Linear(16, 16, bias=False)
+    attn_layer.self_attn.o_proj = nn.Linear(16, 16, bias=False)
+    attn_layer.mlp = _ToyQwen35SparseBlock(16, num_experts=4, top_k=2)
+
+    def _run_model(input_ids, attention_mask=None, use_cache=False):
+        h = model.embed(input_ids)
+        h = h + lin_layer.linear_attn.out_proj(lin_layer.linear_attn.in_proj_qkv(h))
+        h = h + lin_layer.mlp(h)
+        h = h + attn_layer.self_attn.o_proj(attn_layer.self_attn.q_proj(h))
+        h = h + attn_layer.mlp(h)
+        return SimpleNamespace(logits=model.head(h))
+
+    model.model = SimpleNamespace(language_model=SimpleNamespace(layers=nn.ModuleList([lin_layer, attn_layer])))
+    model.layers = model.model.language_model.layers
+    model.head = nn.Linear(16, 32, bias=False)
+    model.forward = _run_model
+
+    ctx = patch_moe_for_window_distill(model, window_size=4, lora_rank=4, selector_rank=4, token_router_rank=4)
+    trainable = [n for n, p in model.named_parameters() if p.requires_grad]
+    assert any("layers.0.linear_attn.in_proj_qkv.lora_b" in n for n in trainable)
+    assert any("layers.1.self_attn.o_proj.lora_b" in n for n in trainable)
+    assert any("layers.0.mlp.gate.selector.selector_b" in n for n in trainable)
+    assert not lin_layer.mlp.shared_expert.weight.requires_grad
+
+    input_ids = torch.randint(0, 32, (2, 10))
+    prompt_lengths = torch.tensor([3, 4])
+    loss, _ = distill_step(model, ctx, input_ids, prompt_lengths)
+    loss.backward()
+    assert lin_layer.mlp.gate.selector.selector_b.grad.abs().sum() > 0
+    assert lin_layer.linear_attn.in_proj_qkv.lora_b.grad.abs().sum() > 0
+
+
+class _ToyGemma4Router(nn.Module):
+    def __init__(self, hidden_dim=16, num_experts=6, top_k=2):
+        super().__init__()
+        self.config = SimpleNamespace(hidden_size=hidden_dim, top_k_experts=top_k)
+        self.scalar_root_size = hidden_dim ** -0.5
+        self.norm = nn.RMSNorm(hidden_dim, eps=1e-6, elementwise_affine=False)
+        self.proj = nn.Linear(hidden_dim, num_experts, bias=False)
+        self.scale = nn.Parameter(torch.full((hidden_dim,), 1.25))
+        self.per_expert_scale = nn.Parameter(torch.linspace(0.8, 1.3, num_experts))
+
+    def forward(self, hidden_states):
+        h = self.norm(hidden_states) * self.scale * self.scalar_root_size
+        probs = F.softmax(self.proj(h), dim=-1, dtype=torch.float32)
+        weights, indices = torch.topk(probs, k=self.config.top_k_experts, dim=-1)
+        weights = weights / weights.sum(dim=-1, keepdim=True)
+        weights = weights.to(hidden_states.dtype) * self.per_expert_scale[indices]
+        return probs, weights, indices
+
+
+def test_gemma4_moe_router_and_exact_unpinned_equivalence():
+    torch.manual_seed(19)
+    model = nn.Module()
+    model.config = SimpleNamespace(
+        model_type="gemma4",
+        text_config=SimpleNamespace(model_type="gemma4_text", hidden_size=16, num_experts=6, top_k_experts=2, enable_moe_block=True),
+    )
+    model.embed = nn.Embedding(32, 16)
+
+    layer = nn.Module()
+    layer.self_attn = nn.Module()
+    layer.self_attn.q_proj = nn.Linear(16, 16, bias=False)
+    layer.self_attn.o_proj = nn.Linear(16, 16, bias=False)
+    layer.mlp = nn.Module()
+    layer.mlp.gate_proj = nn.Linear(16, 16, bias=False)
+    layer.router = _ToyGemma4Router(16, num_experts=6, top_k=2)
+    layer.experts = nn.ModuleList([nn.Linear(16, 16, bias=False) for _ in range(6)])
+
+    def _run_layer(h):
+        h = h + 0.1 * layer.self_attn.o_proj(layer.self_attn.q_proj(h))
+        dense_out = layer.mlp.gate_proj(h)
+        _, weights, indices = layer.router(h.reshape(-1, 16))
+        flat = h.reshape(-1, 16)
+        moe_out = torch.zeros_like(flat)
+        for k in range(indices.shape[-1]):
+            for e_idx in range(6):
+                mask = indices[:, k] == e_idx
+                if mask.any():
+                    moe_out[mask] = moe_out[mask] + layer.experts[e_idx](flat[mask]) * weights[mask, k : k + 1]
+        return h + dense_out + moe_out.reshape_as(h)
+
+    model.model = SimpleNamespace(language_model=SimpleNamespace(layers=nn.ModuleList([layer])))
+    model.layers = model.model.language_model.layers
+    model.head = nn.Linear(16, 32, bias=False)
+    model.forward = lambda input_ids, attention_mask=None, use_cache=False: SimpleNamespace(
+        logits=model.head(_run_layer(model.embed(input_ids)))
+    )
+
+    # At window_size=1 before any updates, student matches Gemma4TextRouter identically (KL == 0).
+    ctx = patch_moe_for_window_distill(model, window_size=1, lora_rank=4, selector_rank=4, token_router_rank=4)
+    input_ids = torch.randint(0, 32, (2, 8))
+    prompt_lengths = torch.tensor([3, 4])
+    loss0, metrics0 = distill_step(model, ctx, input_ids, prompt_lengths)
+    assert metrics0["kl"] < 1e-6
+    assert metrics0["top1_match"] == 1.0
+
+    # At W=4, gradients flow cleanly through WindowSelector, token adapter, and self_attn LoRA while mlp stays frozen.
+    ctx.window_size = 4
+    loss, _ = distill_step(model, ctx, input_ids, prompt_lengths)
+    loss.backward()
+    assert layer.router.selector.selector_b.grad.abs().sum() > 0
+    assert layer.router.token_b.grad.abs().sum() > 0
+    assert layer.self_attn.q_proj.lora_b.grad.abs().sum() > 0
+    assert not layer.mlp.gate_proj.weight.requires_grad
