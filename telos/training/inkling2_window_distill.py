@@ -1,12 +1,32 @@
-"""PyTorch window-pinned routing and LoRA distillation for Inkling 2 Mini."""
+"""PyTorch window-pinned routing and LoRA distillation across MoE and dense models."""
 
-import math
 from contextlib import contextmanager
+import json
+import math
+from pathlib import Path
+from types import MethodType
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from safetensors.torch import load_file, save_file
+
+DEFAULT_LORA_TARGETS = (
+    "q_proj",
+    "k_proj",
+    "v_proj",
+    "o_proj",
+    "out_proj",
+    "gate_proj",
+    "in_proj",
+    "qkv_proj",
+    "r_proj",
+    "sink_proj",
+)
+_MOE_BLOCK_ATTRS = ("mlp", "feed_forward", "moe")
+_OPERATOR_ATTRS = ("self_attn", "conv", "attention", "operator")
+_SOFTMAX_FAMILIES = ("qwen", "mixtral")
+
 
 
 class LoRALinear(nn.Module):
@@ -25,11 +45,26 @@ class LoRALinear(nn.Module):
         self.lora_b = nn.Parameter(torch.zeros(base.out_features, rank, dtype=torch.float32, device=device))
         nn.init.kaiming_uniform_(self.lora_a, a=math.sqrt(5))
         self._base_dtype = dtype
+        self.adapter_disabled = False
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.base(x)
+        if self.adapter_disabled:
+            return out
         delta = F.linear(F.linear(x.float(), self.lora_a), self.lora_b) * self.scale
         return out + delta.to(out.dtype)
+
+
+@contextmanager
+def _disabled_lora(model: nn.Module):
+    modules = [m for m in model.modules() if isinstance(m, LoRALinear)]
+    for module in modules:
+        module.adapter_disabled = True
+    try:
+        yield
+    finally:
+        for module in modules:
+            module.adapter_disabled = False
 
 
 class WindowSelector(nn.Module):
@@ -75,35 +110,90 @@ class DistillContext:
 
 
 class WindowPinnedRouter(nn.Module):
-    """Wraps an Inkling TopK router for teacher or W-token window-pinned student passes."""
+    """Wraps any MoE gate for teacher or W-token window-pinned student passes."""
 
-    def __init__(self, base_gate: nn.Module, layer_idx: int, context: DistillContext,
-                 *, selector_rank: int = 32, token_router_rank: int = 16):
+    def __init__(
+        self,
+        base_gate: nn.Module,
+        layer_idx: int,
+        context: DistillContext,
+        *,
+        top_k: int | None = None,
+        num_experts: int | None = None,
+        hidden_dim: int | None = None,
+        base_bias: torch.Tensor | None = None,
+        routed_scaling_factor: float | None = None,
+        activation: str = "sigmoid",
+        normalize: bool = True,
+        eps: float = 1e-20,
+        selector_rank: int = 32,
+        selector_alpha: float = 32.0,
+        token_router_rank: int = 16,
+        token_scale: float = 2.0,
+    ):
         super().__init__()
         self.base_gate = base_gate
         for param in self.base_gate.parameters():
             param.requires_grad_(False)
         self.layer_idx = layer_idx
         self.context = context
-        self.top_k = base_gate.top_k
-        self.num_experts = base_gate.num_experts
-        self.hidden_dim = base_gate.hidden_dim
-        self.routed_scaling_factor = base_gate.routed_scaling_factor
+        w_experts, w_hidden = base_gate.weight.shape
+        self.top_k = int(top_k if top_k is not None else getattr(base_gate, "top_k"))
+        self.num_experts = int(num_experts if num_experts is not None else getattr(base_gate, "num_experts", w_experts))
+        self.hidden_dim = int(hidden_dim if hidden_dim is not None else getattr(base_gate, "hidden_dim", w_hidden))
+        self.routed_scaling_factor = float(
+            routed_scaling_factor if routed_scaling_factor is not None
+            else getattr(base_gate, "routed_scaling_factor", 1.0)
+        )
+        self.activation = activation
+        self.normalize = bool(normalize)
+        self.eps = float(eps)
 
-        bias = getattr(base_gate, "e_score_correction_bias",
-                       torch.zeros(self.num_experts, dtype=torch.float32, device=base_gate.weight.device))
-        self.selector = WindowSelector(base_gate.weight, bias, rank=selector_rank)
+        detected_bias = base_bias
+        if detected_bias is None:
+            detected_bias = getattr(base_gate, "e_score_correction_bias", getattr(base_gate, "expert_bias", None))
+        if detected_bias is not None:
+            self.register_buffer("base_bias", detected_bias.detach().float().clone())
+            init_bias = self.base_bias
+        else:
+            self.base_bias = None
+            init_bias = torch.zeros(self.num_experts, dtype=torch.float32, device=base_gate.weight.device)
+
+        self.selector = WindowSelector(
+            base_gate.weight, init_bias, rank=selector_rank, alpha=selector_alpha,
+        )
         context.selectors[layer_idx] = self.selector
         self.token_a = nn.Parameter(torch.empty(token_router_rank, self.hidden_dim, dtype=torch.float32,
                                                 device=base_gate.weight.device))
         self.token_b = nn.Parameter(torch.zeros(self.num_experts, token_router_rank, dtype=torch.float32,
                                                 device=base_gate.weight.device))
         nn.init.kaiming_uniform_(self.token_a, a=math.sqrt(5))
-        self.token_scale = 2.0
+        self.token_scale = float(token_scale)
+
+    def _activate(self, logits: torch.Tensor) -> torch.Tensor:
+        if self.activation == "softmax":
+            return F.softmax(logits, dim=-1)
+        return torch.sigmoid(logits)
+
+    def _select_and_score(self, logits: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        probs = self._activate(logits)
+        ranking = probs if self.base_bias is None else probs + self.base_bias
+        indices = torch.topk(ranking, self.top_k, dim=-1, sorted=False).indices
+        weights = probs.gather(-1, indices)
+        if self.normalize:
+            weights = weights / (weights.sum(dim=-1, keepdim=True) + self.eps)
+        return weights * self.routed_scaling_factor, indices
 
     def forward(self, hidden_states: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        flat = hidden_states.reshape(-1, self.hidden_dim)
         if self.context.mode == "teacher":
-            logits, weights, indices = self.base_gate(hidden_states)
+            gate_out = self.base_gate(flat)
+            if isinstance(gate_out, tuple):
+                logits, weights, indices = gate_out
+            else:
+                logits = gate_out
+                weights, indices = self._select_and_score(logits.float())
+                weights = weights.to(hidden_states.dtype)
             if self.context.record_teacher:
                 self.context.teacher_routes.setdefault(self.layer_idx, []).append(indices.detach())
             return logits, weights, indices
@@ -111,15 +201,15 @@ class WindowPinnedRouter(nn.Module):
         prompt_lengths = self.context.prompt_lengths
         assert prompt_lengths is not None
         batch_size = prompt_lengths.shape[0]
-        seq_len = hidden_states.shape[0] // batch_size
-        h_seq = hidden_states.float().reshape(batch_size, seq_len, self.hidden_dim)
+        seq_len = flat.shape[0] // batch_size
+        h_seq = flat.float().reshape(batch_size, seq_len, self.hidden_dim)
 
         # Base + adapted token logits across the sequence.
         tok_logits = (
-            F.linear(h_seq, self.base_gate.weight)
+            F.linear(h_seq, self.base_gate.weight.float())
             + F.linear(F.linear(h_seq, self.token_a), self.token_b) * self.token_scale
         )
-        tok_scores = torch.sigmoid(tok_logits)
+        tok_probs = self._activate(tok_logits)
 
         positions = torch.arange(seq_len, device=h_seq.device)[None, :]
         is_resp = positions >= prompt_lengths[:, None]
@@ -129,7 +219,7 @@ class WindowPinnedRouter(nn.Module):
         max_windows = max(1, (seq_len + win_size - 1) // win_size)
 
         # Anchor position for each window w is prompt_len + w * win_size (clamped inside seq_len).
-        anchors = (prompt_lengths[:, None] + torch.arange(max_windows, device=h_seq.device)[None, :] * win_size)
+        anchors = prompt_lengths[:, None] + torch.arange(max_windows, device=h_seq.device)[None, :] * win_size
         anchors_clamped = anchors.clamp_max(seq_len - 1)
         anchor_hidden = h_seq.gather(1, anchors_clamped.unsqueeze(-1).expand(-1, -1, self.hidden_dim))
 
@@ -137,8 +227,8 @@ class WindowPinnedRouter(nn.Module):
         sel_logits = self.selector.logits(anchor_hidden)
         if self.layer_idx not in self.context.pinned:
             with torch.no_grad():
-                sel_scores = torch.sigmoid(sel_logits) + self.selector.bias
-                pinned = torch.topk(sel_scores, self.top_k, dim=-1, sorted=False).indices
+                sel_probs = self._activate(sel_logits)
+                pinned = torch.topk(sel_probs + self.selector.bias, self.top_k, dim=-1, sorted=False).indices
             self.context.pinned[self.layer_idx] = pinned
             self.context.anchor_hidden[self.layer_idx] = anchor_hidden.detach()
         else:
@@ -147,22 +237,55 @@ class WindowPinnedRouter(nn.Module):
         # Broadcast each token's window's pinned indices: (B, L, top_k).
         pinned_tok = pinned.gather(1, win_idx.unsqueeze(-1).expand(-1, -1, self.top_k))
         sel_tok_logits = sel_logits.gather(1, win_idx.unsqueeze(-1).expand(-1, -1, self.num_experts))
-        sel_tok_probs = torch.sigmoid(sel_tok_logits)
+        sel_tok_probs = self._activate(sel_tok_logits)
 
         # Unpinned routing for prompt tokens; pinned routing + straight-through gate for response tokens.
-        bias = getattr(self.base_gate, "e_score_correction_bias", 0.0)
-        prompt_indices = torch.topk(tok_scores + bias, self.top_k, dim=-1, sorted=False).indices
+        prompt_ranking = tok_probs if self.base_bias is None else tok_probs + self.base_bias
+        prompt_indices = torch.topk(prompt_ranking, self.top_k, dim=-1, sorted=False).indices
         indices = torch.where(is_resp.unsqueeze(-1), pinned_tok, prompt_indices)
 
-        gathered_tok = tok_scores.gather(-1, indices)
-        weights = gathered_tok / (gathered_tok.sum(dim=-1, keepdim=True) + 1e-20) * self.routed_scaling_factor
+        gathered_tok = tok_probs.gather(-1, indices)
+        if self.normalize:
+            weights = gathered_tok / (gathered_tok.sum(dim=-1, keepdim=True) + self.eps)
+        else:
+            weights = gathered_tok
+        weights = weights * self.routed_scaling_factor
 
         # Straight-through gate into the window selector probabilities for response tokens.
         sel_gathered = sel_tok_probs.gather(-1, indices)
         st_gate = 1.0 + (sel_gathered - sel_gathered.detach())
         weights = torch.where(is_resp.unsqueeze(-1), weights * st_gate, weights)
 
-        return tok_logits.reshape(-1, self.num_experts), weights.reshape(-1, self.top_k), indices.reshape(-1, self.top_k)
+        return (
+            tok_logits.reshape(-1, self.num_experts),
+            weights.to(hidden_states.dtype).reshape(-1, self.top_k),
+            indices.reshape(-1, self.top_k),
+        )
+
+
+def _linear_gate_moe_forward(self, hidden_states: torch.Tensor):
+    batch_size, sequence_length, hidden_dim = hidden_states.shape
+    flat = hidden_states.reshape(-1, hidden_dim)
+    router_logits, routing_weights, selected_experts = self.gate(flat)
+    routing_weights = routing_weights.to(hidden_states.dtype)
+
+    if callable(self.experts) and not isinstance(self.experts, nn.ModuleList):
+        final_hidden = self.experts(flat, selected_experts, routing_weights)
+    else:
+        final_hidden = torch.zeros_like(flat)
+        expert_mask = F.one_hot(selected_experts, num_classes=self.gate.num_experts).permute(2, 1, 0)
+        expert_hit = torch.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero(as_tuple=False).flatten()
+        for expert_idx_tensor in expert_hit:
+            expert_idx = int(expert_idx_tensor.item())
+            slot_idx, token_idx = torch.where(expert_mask[expert_idx])
+            current_state = flat[token_idx]
+            current_hidden = self.experts[expert_idx](current_state) * routing_weights[token_idx, slot_idx, None]
+            final_hidden.index_add_(0, token_idx, current_hidden.to(final_hidden.dtype))
+
+    out = final_hidden.reshape(batch_size, sequence_length, hidden_dim)
+    if getattr(self, "_returns_router_logits", False):
+        return out, router_logits
+    return out
 
 
 def _find_text_layers(model: nn.Module):
@@ -172,7 +295,126 @@ def _find_text_layers(model: nn.Module):
         return model.model.layers
     if hasattr(model, "layers"):
         return model.layers
-    raise ValueError("Cannot locate decoder layers on Inkling model")
+    raise ValueError("Cannot locate decoder layers on model")
+
+
+def _find_moe_block(layer: nn.Module):
+    for attr in _MOE_BLOCK_ATTRS:
+        block = getattr(layer, attr, None)
+        if block is not None and hasattr(block, "gate") and hasattr(getattr(block, "gate"), "weight"):
+            return block
+    return None
+
+
+def _text_config(model: nn.Module):
+    cfg = getattr(model, "config", None)
+    if cfg is not None and hasattr(cfg, "get_text_config"):
+        return cfg.get_text_config()
+    if cfg is not None and hasattr(cfg, "text_config") and cfg.text_config is not None:
+        return cfg.text_config
+    return cfg
+
+
+def _moe_router_spec(model: nn.Module, moe_block: nn.Module, gate: nn.Module) -> dict:
+    cfg = _text_config(model)
+    model_type = str(getattr(cfg, "model_type", getattr(getattr(model, "config", None), "model_type", ""))).lower()
+    base_bias = getattr(gate, "e_score_correction_bias", getattr(gate, "expert_bias", None))
+    if base_bias is None:
+        base_bias = getattr(moe_block, "expert_bias", None)
+    use_softmax = any(family in model_type for family in _SOFTMAX_FAMILIES) and base_bias is None
+    w_experts, w_hidden = gate.weight.shape
+    return {
+        "top_k": getattr(gate, "top_k", getattr(moe_block, "top_k", getattr(cfg, "num_experts_per_tok", None))),
+        "num_experts": getattr(gate, "num_experts", getattr(moe_block, "num_experts", getattr(cfg, "num_experts", w_experts))),
+        "hidden_dim": getattr(gate, "hidden_dim", getattr(cfg, "hidden_size", w_hidden)),
+        "base_bias": base_bias,
+        "routed_scaling_factor": getattr(
+            gate, "routed_scaling_factor",
+            getattr(moe_block, "routed_scaling_factor", getattr(cfg, "routed_scaling_factor", 1.0)),
+        ),
+        "activation": "softmax" if use_softmax else "sigmoid",
+        "normalize": getattr(
+            gate, "norm_topk_prob",
+            getattr(moe_block, "norm_topk_prob", getattr(cfg, "norm_topk_prob", True)),
+        ),
+        "eps": 1e-6 if "lfm2" in model_type else 1e-20,
+    }
+
+
+def _attach_layer_lora(layer: nn.Module, lora_targets: tuple[str, ...], *, rank: int, alpha: float):
+    containers = [getattr(layer, attr, None) for attr in _OPERATOR_ATTRS]
+    if _find_moe_block(layer) is None:
+        containers.append(getattr(layer, "mlp", getattr(layer, "feed_forward", None)))
+    for container in containers:
+        if container is None:
+            continue
+        for proj_name in lora_targets:
+            module = getattr(container, proj_name, None)
+            if isinstance(module, nn.Linear):
+                setattr(container, proj_name, LoRALinear(module, rank=rank, alpha=alpha))
+            elif module is not None:
+                for sub_name in ("linear", "gate_proj"):
+                    sub = getattr(module, sub_name, None)
+                    if isinstance(sub, nn.Linear):
+                        setattr(module, sub_name, LoRALinear(sub, rank=rank, alpha=alpha))
+
+
+def patch_moe_for_window_distill(
+    model: nn.Module,
+    *,
+    window_size: int | None = 16,
+    lora_rank: int = 16,
+    lora_alpha: float = 32.0,
+    selector_rank: int = 32,
+    selector_alpha: float = 32.0,
+    token_router_rank: int = 16,
+    token_scale: float = 2.0,
+    lora_targets: tuple[str, ...] = DEFAULT_LORA_TARGETS,
+    require_moe: bool = True,
+) -> DistillContext:
+    """Freeze base weights and install WindowPinnedRouter + LoRA across Inkling2, Qwen3-MoE, LFM2-MoE, and dense models."""
+    for param in model.parameters():
+        param.requires_grad_(False)
+
+    effective_alpha = float(lora_alpha)
+    context = DistillContext(window_size=window_size if window_size is not None else 16)
+    layers = _find_text_layers(model)
+    moe_count = 0
+    for layer_idx, layer in enumerate(layers):
+        if window_size is not None:
+            moe_block = _find_moe_block(layer)
+            if moe_block is not None:
+                orig_gate = moe_block.gate
+                spec = _moe_router_spec(model, moe_block, orig_gate)
+                if spec["top_k"] is None:
+                    raise ValueError(f"Cannot infer top_k for MoE layer {layer_idx}")
+                pinned_gate = WindowPinnedRouter(
+                    orig_gate,
+                    layer_idx,
+                    context,
+                    top_k=spec["top_k"],
+                    num_experts=spec["num_experts"],
+                    hidden_dim=spec["hidden_dim"],
+                    base_bias=spec["base_bias"],
+                    routed_scaling_factor=spec["routed_scaling_factor"],
+                    activation=spec["activation"],
+                    normalize=spec["normalize"],
+                    eps=spec["eps"],
+                    selector_rank=selector_rank,
+                    selector_alpha=selector_alpha,
+                    token_router_rank=token_router_rank,
+                    token_scale=token_scale,
+                )
+                moe_block.gate = pinned_gate
+                if isinstance(orig_gate, nn.Linear) and hasattr(moe_block, "experts"):
+                    # Plain nn.Linear gates (e.g., HF 4.57 Qwen3MoeSparseMoeBlock) compute routing in the block.
+                    moe_block._returns_router_logits = "Qwen3Moe" in type(moe_block).__name__
+                    moe_block.forward = MethodType(_linear_gate_moe_forward, moe_block)
+                moe_count += 1
+        _attach_layer_lora(layer, lora_targets, rank=lora_rank, alpha=effective_alpha)
+    if window_size is not None and require_moe and moe_count == 0:
+        raise ValueError("Window-pinned distillation requires a model with MoE router layers")
+    return context
 
 
 def patch_inkling_for_window_distill(
@@ -180,33 +422,22 @@ def patch_inkling_for_window_distill(
     *,
     window_size: int = 16,
     lora_rank: int = 16,
+    lora_alpha: float = 32.0,
     selector_rank: int = 32,
     token_router_rank: int = 16,
-    lora_targets: tuple[str, ...] = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj"),
+    lora_targets: tuple[str, ...] = DEFAULT_LORA_TARGETS,
 ) -> DistillContext:
-    """Freeze base weights and install WindowPinnedRouter + attention LoRA adapters."""
-    for param in model.parameters():
-        param.requires_grad_(False)
-
-    context = DistillContext(window_size=window_size)
-    layers = _find_text_layers(model)
-    for layer_idx, layer in enumerate(layers):
-        layer.mlp.gate = WindowPinnedRouter(
-            layer.mlp.gate, layer_idx, context,
-            selector_rank=selector_rank, token_router_rank=token_router_rank,
-        )
-        attn = getattr(layer, "self_attn", None)
-        if attn is not None:
-            for proj_name in lora_targets:
-                module = getattr(attn, proj_name, None)
-                if isinstance(module, nn.Linear):
-                    setattr(attn, proj_name, LoRALinear(module, rank=lora_rank))
-                elif module is not None:
-                    for sub_name in ("linear", "gate_proj"):
-                        sub = getattr(module, sub_name, None)
-                        if isinstance(sub, nn.Linear):
-                            setattr(module, sub_name, LoRALinear(sub, rank=lora_rank))
-    return context
+    """Backward-compatible entry point for patching MoE models for window distillation."""
+    return patch_moe_for_window_distill(
+        model,
+        window_size=window_size,
+        lora_rank=lora_rank,
+        lora_alpha=lora_alpha,
+        selector_rank=selector_rank,
+        token_router_rank=token_router_rank,
+        lora_targets=lora_targets,
+        require_moe=True,
+    )
 
 
 def compute_window_coverage_loss(
@@ -270,38 +501,41 @@ def distill_step(
     prompt_lengths: torch.Tensor,
     attention_mask: torch.Tensor | None = None,
     *,
+    kl_weight: float = 1.0,
     ce_weight: float = 0.1,
     cov_weight: float = 0.25,
     temperature: float = 1.0,
 ) -> tuple[torch.Tensor, dict[str, float]]:
-    """Run teacher no-grad pass + student W-token pinned pass and return total loss + metrics."""
+    """Run optional teacher no-grad pass + student pass and return total loss + metrics."""
     batch_size, seq_len = input_ids.shape
     positions = torch.arange(seq_len, device=input_ids.device)[None, :]
     resp_mask = positions[:, 1:] >= prompt_lengths[:, None]
     if attention_mask is not None:
         resp_mask = resp_mask & attention_mask[:, 1:].bool()
 
-    # 1. Teacher pass (unpinned, no grad).
-    context.reset_forward("teacher", prompt_lengths, record_teacher=True)
-    with torch.no_grad():
-        teacher_out = model(input_ids=input_ids, attention_mask=attention_mask, use_cache=False)
-        teacher_logits = teacher_out.logits[:, :-1, :].float()
+    teacher_logits = None
+    if kl_weight > 0.0 or cov_weight > 0.0:
+        # 1. Teacher pass (unpinned, no LoRA, no grad).
+        context.reset_forward("teacher", prompt_lengths, record_teacher=cov_weight > 0.0)
+        with torch.no_grad(), _disabled_lora(model):
+            teacher_out = model(input_ids=input_ids, attention_mask=attention_mask, use_cache=False)
+            teacher_logits = teacher_out.logits[:, :-1, :].float()
 
-    # 2. Student pass (W-token window-pinned).
+    # 2. Student pass (W-token window-pinned when router is active).
     context.reset_forward("student", prompt_lengths, record_teacher=False)
     student_out = model(input_ids=input_ids, attention_mask=attention_mask, use_cache=False)
     student_logits = student_out.logits[:, :-1, :].float()
 
-    # Masked KL divergence over response positions.
-    t_log_probs = F.log_softmax(teacher_logits / temperature, dim=-1)
-    s_log_probs = F.log_softmax(student_logits / temperature, dim=-1)
-    t_probs = t_log_probs.exp()
-    kl_per_tok = (t_probs * (t_log_probs - s_log_probs)).sum(dim=-1) * (temperature ** 2)
     mask_f = resp_mask.float()
     denom = mask_f.sum().clamp_min(1.0)
-    kl_loss = (kl_per_tok * mask_f).sum() / denom
+    if kl_weight > 0.0 and teacher_logits is not None:
+        t_log_probs = F.log_softmax(teacher_logits / temperature, dim=-1)
+        s_log_probs = F.log_softmax(student_logits / temperature, dim=-1)
+        t_probs = t_log_probs.exp()
+        kl_loss = ((t_probs * (t_log_probs - s_log_probs)).sum(dim=-1) * (temperature ** 2) * mask_f).sum() / denom
+    else:
+        kl_loss = student_logits.new_zeros(())
 
-    # Optional hard next-token cross-entropy on response tokens.
     targets = input_ids[:, 1:]
     ce_per_tok = F.cross_entropy(
         student_logits.reshape(-1, student_logits.shape[-1]),
@@ -310,11 +544,14 @@ def distill_step(
     ).reshape(batch_size, seq_len - 1)
     ce_loss = (ce_per_tok * mask_f).sum() / denom
 
-    cov_loss = compute_window_coverage_loss(context, prompt_lengths, seq_len, attention_mask)
-    total = kl_loss + ce_weight * ce_loss + cov_weight * cov_loss
+    cov_loss = compute_window_coverage_loss(context, prompt_lengths, seq_len, attention_mask) if cov_weight > 0.0 else student_logits.new_zeros(())
+    total = kl_weight * kl_loss + ce_weight * ce_loss + cov_weight * cov_loss
 
     with torch.no_grad():
-        top1_match = ((student_logits.argmax(dim=-1) == teacher_logits.argmax(dim=-1)).float() * mask_f).sum() / denom
+        top1_match = (
+            ((student_logits.argmax(dim=-1) == teacher_logits.argmax(dim=-1)).float() * mask_f).sum() / denom
+            if teacher_logits is not None else student_logits.new_zeros(())
+        )
 
     return total, {
         "loss": float(total.item()),
@@ -325,13 +562,17 @@ def distill_step(
     }
 
 
-def export_adapter(model: nn.Module, path: str):
-    """Save only trainable WindowPinnedRouter and LoRA tensors to Safetensors."""
+def export_adapter(model: nn.Module, path: str, *, metadata: dict | None = None):
+    """Save trainable WindowPinnedRouter and LoRA tensors (plus optional JSON metadata) to Safetensors."""
     tensors = {}
     for name, param in model.named_parameters():
         if param.requires_grad:
             tensors[name] = param.detach().cpu()
     save_file(tensors, path)
+    if metadata is not None:
+        Path(path).with_suffix(".json").write_text(
+            json.dumps(metadata, indent=2, default=str), encoding="utf-8",
+        )
     return list(tensors.keys())
 
 
