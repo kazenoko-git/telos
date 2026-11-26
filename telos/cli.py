@@ -6,6 +6,7 @@ Routes subcommands:
   telos train ...     -> Compatibility alias for pretrain
   telos posttrain ... -> Supervised, preference and reinforcement learning post-training
   telos generate ... -> Generate text with a native causal checkpoint
+  telos download ... -> Download a Hugging Face Safetensors checkpoint
   telos eval ...      -> 100 contextual probes and model evaluation
   telos bench ...     -> 5-minute hardware throughput benchmark
   telos afm ...       -> Apple on-device Foundation Models (status, generate)
@@ -41,6 +42,7 @@ def main():
         print("  train      Alias for pretrain")
         print("  posttrain  Post-train a causal Telos checkpoint (SFT, DPO or GRPO)")
         print("  generate   Generate text with a native causal Telos checkpoint")
+        print("  download   Download a Hugging Face Safetensors checkpoint")
         print("  serve      Serve a native causal checkpoint over an OpenAI-compatible HTTP/SSE API")
         print("  eval       High-end evaluation suite (100 contextual probes, code sampling, perplexity)")
         print("  eval documents  Export/replay the packaged 512-task document suite")
@@ -64,6 +66,9 @@ def main():
     elif cmd == "generate":
         from telos.inference.cli import main as generate_main
         generate_main()
+    elif cmd == "download":
+        from telos.models.download import main as download_main
+        download_main()
     elif cmd == "serve":
         from telos.inference.serve_cli import main as serve_main
         serve_main()
@@ -83,7 +88,7 @@ def main():
         from telos.testing.suite import main as test_main
         test_main()
     else:
-        print(f"Error: Unknown command '{cmd}'. Available: dataprep, pretrain, posttrain, generate, serve, eval, bench, afm, test.")
+        print(f"Error: Unknown command '{cmd}'. Available: dataprep, pretrain, posttrain, generate, download, serve, eval, bench, afm, test.")
         sys.exit(1)
 
 
