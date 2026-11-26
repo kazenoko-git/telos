@@ -259,15 +259,22 @@ class InklingAttention(nn.Module):
         elif previous is None:
             kv = _LayerCache(k, v, length)
         elif self.window is None:
-            kv = previous.kv.append(k, v, limit)
+            kv = previous.kv.append(k, v, limit + 1)
+        elif previous.kv.length + length < self.window:
+            kv = previous.kv.append(k, v, min(limit, self.window) + 1)
         else:
-            kv = _LayerCache(mx.concatenate((previous.kv.keys, k), axis=2),
-                             mx.concatenate((previous.kv.values, v), axis=2), previous.kv.length + length)
+            prev_k = previous.kv.keys[:, :, :previous.kv.length]
+            prev_v = previous.kv.values[:, :, :previous.kv.length]
+            kv = _LayerCache(mx.concatenate((prev_k, k), axis=2),
+                             mx.concatenate((prev_v, v), axis=2), previous.kv.length + length)
         if kv_cursor is None:
-            k, v = kv.keys[:, :, :kv.length], kv.values[:, :, :kv.length]
             relative = r @ self.relative.astype(r.dtype)
             mask = _relative_attention_mask(relative, sink, kv.length, self.window, fused=fused_mask)
-            k, v = (mx.pad(a, ((0, 0), (0, 0), (0, 1), (0, 0))) for a in (k, v))
+            if kv.keys.shape[2] > kv.length:
+                # _LayerCache.append pads with zeros, so slot kv.length is already the zero sink.
+                k, v = kv.keys[:, :, :kv.length + 1], kv.values[:, :, :kv.length + 1]
+            else:
+                k, v = (mx.pad(a[:, :, :kv.length], ((0, 0), (0, 0), (0, 1), (0, 0))) for a in (kv.keys, kv.values))
         if profile is not None:
             profile.evaluate(mx.eval, q, k, v, mask, section="attention_setup")
         output = mx.fast.scaled_dot_product_attention(q, k, v, scale=self.head_dim ** -0.5, mask=mask)
