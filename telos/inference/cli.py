@@ -18,6 +18,8 @@ def main():
     parser.add_argument("--device", default="auto", help="auto, mlx, cpu, cuda, or cuda:N")
     parser.add_argument("--context-length", type=int, help="Limit the context to at most this many tokens")
     parser.add_argument("--memory-budget-mib", type=int, help="Maximum RAM budget for native MLX MoE")
+    parser.add_argument("--window-size", type=int, help="Pin decode MoE experts across W-token windows")
+    parser.add_argument("--window-adapter", type=Path, help="Optional distilled window-routing Safetensors adapter")
     parser.add_argument("--max-new-tokens", type=int, default=128)
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--top-k", type=int, default=0)
@@ -47,6 +49,7 @@ def main():
         generator = TextGenerator.from_checkpoint(
             args.checkpoint, tokenizer=args.tokenizer, config=config, device=args.device,
             context_length=args.context_length, memory_budget_mib=args.memory_budget_mib,
+            window_size=args.window_size, window_adapter=args.window_adapter,
         )
         if getattr(generator.model, "weight_storage", None) == "ssd_experts":
             print("Flash-MoE: streaming routed experts from SSD.", file=sys.stderr)
