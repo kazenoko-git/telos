@@ -12,7 +12,7 @@ from .inkling2_attention import (
     StaticConvolution,
     attention_dimensions,
 )
-from .qwen3_mlx import _Weights
+from .qwen3_mlx import _LayerCache, _Weights
 from .ssd_expert_io import LFMSSDExpertCache
 from .ssd_experts import AppleMemoryGuard, tensor_ranges
 from .window_routing import (
@@ -30,6 +30,7 @@ class _VisitState(NamedTuple):
     attention: AttentionState
     attention_history: mx.array
     mlp_history: mx.array
+    fixed: bool = False
 
 
 class _TextState(NamedTuple):
@@ -101,10 +102,7 @@ class _DecoderLayer(nn.Module):
             for name in ("q", "k", "v", "mlp")
         ) if loop["core_start"] <= index < loop["core_end"] and loop["num_passes"] > 1 else ()
 
-    def __call__(self, x, blocks, messages, previous, offset, limit, experts, *, trace=None, controller=None,
-                 fused_nvfp4=False, grouped_query=False, fused_mask=False):
-        profile = getattr(experts, "profile", None)
-        split_attention = profile is not None and profile.split_attention_step
+    def _attention_inputs(self, x, blocks, messages):
         if self.attn_query is None:
             mixed = (x,) * 3
         else:
@@ -115,7 +113,25 @@ class _DecoderLayer(nn.Module):
         if messages is not None:
             mixed = tuple(self.gates[i](part, messages[..., i, :]) for i, part in enumerate(mixed))
         norms = self.input_norms if len(self.input_norms) == 3 else self.input_norms * 3
-        inputs = [_norm(part, norm, self.eps, x.dtype) for part, norm in zip(mixed, norms, strict=True)]
+        return [_norm(part, norm, self.eps, x.dtype) for part, norm in zip(mixed, norms, strict=True)]
+
+    def _expert_input(self, x, blocks, messages, attention, history):
+        residual, history = self.attention_conv(attention, history)
+        residual = residual.astype(mx.float32)
+        if self.boundary:
+            blocks = (*blocks, x)
+        else:
+            residual = residual + x.astype(mx.float32)
+        hidden = _mix(blocks, residual, self.mlp_query[None], self.normalize_values)[..., 0, :]
+        if messages is not None:
+            hidden = self.gates[3](hidden, messages[..., 3, :])
+        return _norm(hidden, self.mlp_norm, self.eps, x.dtype), residual, history
+
+    def __call__(self, x, blocks, messages, previous, offset, limit, experts, *, trace=None, controller=None,
+                 fused_nvfp4=False, grouped_query=False, fused_mask=False):
+        profile = getattr(experts, "profile", None)
+        split_attention = profile is not None and profile.split_attention_step
+        inputs = self._attention_inputs(x, blocks, messages)
         if split_attention:
             profile.evaluate(mx.eval, inputs, section="residual_mix")
         component_profile = profile if split_attention and profile.attention_components else None
@@ -125,19 +141,11 @@ class _DecoderLayer(nn.Module):
         )
         if split_attention and component_profile is None:
             profile.evaluate(mx.eval, attention, state, section="attention")
-        residual, attention_history = self.attention_conv(
-            attention, None if previous is None else previous.attention_history,
+        expert_input, residual, attention_history = self._expert_input(
+            x, blocks, messages, attention, None if previous is None else previous.attention_history,
         )
-        residual = residual.astype(mx.float32)
         if self.boundary:
             blocks.append(x)
-        else:
-            residual = residual + x.astype(mx.float32)
-
-        hidden = _mix(blocks, residual, self.mlp_query[None], self.normalize_values)[..., 0, :]
-        if messages is not None:
-            hidden = self.gates[3](hidden, messages[..., 3, :])
-        expert_input = _norm(hidden, self.mlp_norm, self.eps, x.dtype)
         if split_attention:
             profile.evaluate(mx.eval, expert_input, attention_history, section="residual_mix")
         hidden = self.bank.routed(
@@ -154,6 +162,43 @@ class _DecoderLayer(nn.Module):
         if split_attention:
             profile.evaluate(mx.eval, output, mlp_history, section="residual_mix")
         return output, _VisitState(state, attention_history, mlp_history)
+
+    def _steady_tensor_layer(self, x, blocks, messages, state, cursor, indices, routes, tensors):
+        from .inkling2_nvfp4 import nvfp4_resident_project
+
+        keys, values, kh, vh, attention_history, mlp_history = state
+        previous = AttentionState(_LayerCache(keys, values, 0), kh, vh)
+        inputs = self._attention_inputs(x, blocks, messages)
+        attention, state = self.attention(*inputs, previous, 0, 0, kv_cursor=cursor)
+        hidden, residual, attention_history = self._expert_input(x, blocks, messages, attention, attention_history)
+        flat = hidden.reshape(1, -1)
+        _, weights = self.bank.route(flat, self.router, adapter=self.router_adapter, pinned_indices=indices)
+        batched = (nvfp4_resident_project(flat, tensors, self.bank.gate_softcap, self.bank.up_softcap)
+                   if self.bank.mode == "nvfp4" else None)
+        out = mx.zeros(flat.shape, dtype=mx.float32)
+        for i, (rows, slots) in enumerate(routes):
+            value = (batched[i] if batched is not None else self.bank.project(flat[rows], tensors[i], fused_nvfp4=True))
+            out = out.at[rows].add(value.astype(mx.float32) * weights[rows, slots, None])
+        mlp, mlp_history = self.mlp_conv(out.astype(x.dtype).reshape(x.shape), mlp_history)
+        return ((mlp.astype(mx.float32) + residual).astype(x.dtype),
+                (state.kv.keys, state.kv.values, state.key_history, state.value_history, attention_history, mlp_history))
+
+    def compiled_visit(self, x, blocks, messages, previous, cursor, capacity, indices, routes, tensors, length):
+        kv = previous.attention.kv
+        keys, values = kv.keys, kv.values
+        if not previous.fixed:
+            padding = ((0, 0), (0, 0), (0, capacity - kv.length), (0, 0))
+            keys = mx.pad(keys[:, :, :kv.length], padding)
+            values = mx.pad(values[:, :, :kv.length], padding)
+        state = (keys, values, previous.attention.key_history, previous.attention.value_history,
+                 previous.attention_history, previous.mlp_history)
+        if not hasattr(self, "_compiled_visit"):
+            self._compiled_visit = mx.compile(self._steady_tensor_layer)
+        result, state = self._compiled_visit(x, tuple(blocks), messages, state, cursor, indices, routes, tensors)
+        if self.boundary:
+            blocks.append(x)
+        keys, values, kh, vh, attention_history, mlp_history = state
+        return result, _VisitState(AttentionState(_LayerCache(keys, values, length), kh, vh), attention_history, mlp_history, True)
 
 
 class _ResidentExperts:
@@ -190,6 +235,7 @@ class Inkling2TextMLX(nn.Module):
         self.fused_nvfp4_decode = False
         self.grouped_query_decode = False
         self.fused_mask_decode = False
+        self.compiled_steady_decode = False
         self._window_controller = WindowPinController()
         self._visits = layout.visits
         self._loop_start = text["loop_config"]["core_start"]
@@ -249,6 +295,10 @@ class Inkling2TextMLX(nn.Module):
         message_bank = None
         pass_counts = {}
         profile = self._expert_cache.profile if self._expert_cache is not None else None
+        controller = self._window_controller
+        compiled = (self.compiled_steady_decode and fused_nvfp4 and not grouped_query and self.route_trace is None
+                    and controller.active and not controller.refresh_step)
+        cursor = mx.array(offset, dtype=mx.int32) if compiled else None
         for visit, (layer, slot) in enumerate(self._visits):
             if profile is not None:
                 profile.begin_visit(visit)
@@ -266,6 +316,29 @@ class Inkling2TextMLX(nn.Module):
             if slot >= depth:
                 messages = _mix(*message_bank, self.message_queries[layer - self._loop_start], True)
             previous = None if cache is None else cache.visits[slot]
+            block = self.layers[layer]
+            plan = controller.host_routes.get(layer) if compiled else None
+            if (plan is not None and previous is not None and previous.attention.kv.length == offset
+                    and (block.attention.window is None or block.attention.window > self.max_seq_len)
+                    and (profile is None or not profile.split_step) and self._expert_cache is not None):
+                _, ordered, dispatch, _ = plan
+                if all((layer, expert) in self._expert_cache._entries for expert in ordered):
+                    with self._expert_cache.visit(layer, ordered):
+                        tensors = tuple(self._expert_cache.get(layer, expert, block.bank.ranges) for expert in ordered)
+                    x, states[slot] = block.compiled_visit(
+                        x, blocks, messages, previous, cursor, self.max_seq_len + 1, controller.get(layer),
+                        tuple(dispatch[expert] for expert in ordered), tensors, offset + 1,
+                    )
+                    if profile is not None:
+                        profile.compiled_layer_visits += 1
+                    continue
+            if previous is not None and previous.fixed:
+                attn = previous.attention
+                kv = attn.kv
+                previous = _VisitState(
+                    AttentionState(_LayerCache(kv.keys[:, :, :kv.length], kv.values[:, :, :kv.length], kv.length),
+                                   attn.key_history, attn.value_history), previous.attention_history, previous.mlp_history,
+                )
             trace = None
             if self.route_trace is not None:
                 trace = {
@@ -275,7 +348,7 @@ class Inkling2TextMLX(nn.Module):
                     "layer": layer,
                     "loop_pass": loop_pass,
                 }
-            x, states[slot] = self.layers[layer](
+            x, states[slot] = block(
                 x, blocks, messages, previous, offset, self.max_seq_len, self._experts,
                 trace=trace, controller=self._window_controller, fused_nvfp4=fused_nvfp4,
                 grouped_query=grouped_query, fused_mask=fused_mask,

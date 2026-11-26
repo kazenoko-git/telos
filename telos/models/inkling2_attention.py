@@ -173,7 +173,7 @@ class InklingAttention(nn.Module):
         return results
 
     def __call__(self, q_input, k_input, v_input, previous, offset, limit, *, profile=None, grouped_query=False,
-                 fused_mask=False):
+                 fused_mask=False, kv_cursor=None):
         batch, length, _ = q_input.shape
         k, v = self.k(k_input), self.v(v_input)
         if profile is not None:
@@ -199,23 +199,33 @@ class InklingAttention(nn.Module):
             v = mx.fast.rms_norm(v.astype(mx.float32), None, self.eps).astype(q.dtype)
         r = _clip_heads(r.reshape(batch, length, self.heads, self.d_rel), self.rel_clip, self.r_scale)
         if self.log_floor is not None:
-            pos = mx.arange(offset + 1, offset + length + 1, dtype=mx.float32)
+            pos = (mx.arange(offset + 1, offset + length + 1, dtype=mx.float32) if kv_cursor is None
+                   else (kv_cursor + 1).reshape(1).astype(mx.float32))
             scale = (1 + self.log_alpha * mx.log(mx.maximum(pos / self.log_floor, 1)))[None, :, None, None]
             q = (q.astype(mx.float32) * scale).astype(q.dtype)
             r = (r.astype(mx.float32) * scale).astype(r.dtype)
 
         q, k, v = (mx.transpose(a, (0, 2, 1, 3)) for a in (q, k, v))
-        if previous is None:
+        if kv_cursor is not None:
+            from .inkling2_mask import fixed_decode_mask
+
+            k = mx.slice_update(previous.kv.keys, k, kv_cursor, [2])
+            v = mx.slice_update(previous.kv.values, v, kv_cursor, [2])
+            kv = _LayerCache(k, v, 0)  # The host associates the returned tensors with the decoded length.
+            relative = r @ self.relative.astype(r.dtype)
+            mask = fixed_decode_mask(relative, sink, kv_cursor, k.shape[2], self.window)
+        elif previous is None:
             kv = _LayerCache(k, v, length)
         elif self.window is None:
             kv = previous.kv.append(k, v, limit)
         else:
             kv = _LayerCache(mx.concatenate((previous.kv.keys, k), axis=2),
                              mx.concatenate((previous.kv.values, v), axis=2), previous.kv.length + length)
-        k, v = kv.keys[:, :, :kv.length], kv.values[:, :, :kv.length]
-        relative = r @ self.relative.astype(r.dtype)
-        mask = _relative_attention_mask(relative, sink, kv.length, self.window, fused=fused_mask)
-        k, v = (mx.pad(a, ((0, 0), (0, 0), (0, 1), (0, 0))) for a in (k, v))
+        if kv_cursor is None:
+            k, v = kv.keys[:, :, :kv.length], kv.values[:, :, :kv.length]
+            relative = r @ self.relative.astype(r.dtype)
+            mask = _relative_attention_mask(relative, sink, kv.length, self.window, fused=fused_mask)
+            k, v = (mx.pad(a, ((0, 0), (0, 0), (0, 1), (0, 0))) for a in (k, v))
         if profile is not None:
             profile.evaluate(mx.eval, q, k, v, mask, section="attention_setup")
         output = mx.fast.scaled_dot_product_attention(q, k, v, scale=self.head_dim ** -0.5, mask=mask)
@@ -224,7 +234,7 @@ class InklingAttention(nn.Module):
         output = output.transpose(0, 2, 1, 3).reshape(batch, length, -1)
         output = (output.astype(mx.float32) * mx.sigmoid(gate.astype(mx.float32))).astype(q.dtype)
 
-        if self.window is not None and kv.length >= self.window:
+        if kv_cursor is None and self.window is not None and kv.length >= self.window:
             # The current query sees up to window keys. Future queries need window - 1.
             tail = mx.arange(kv.length - self.window + 1, kv.length)
             kv = _LayerCache(mx.take(kv.keys, tail, axis=2), mx.take(kv.values, tail, axis=2), self.window - 1)

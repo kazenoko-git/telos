@@ -145,6 +145,10 @@ class WindowPinController:
     def active(self) -> bool:
         return self.mode is None and self.window_size is not None and self._active
 
+    @property
+    def refresh_step(self) -> bool:
+        return self.active and (self._decode_step - 1) % self.window_size == 0
+
     def get(self, layer: int) -> mx.array | None:
         return self._pinned.get(layer)
 
@@ -440,6 +444,7 @@ def compute_route(
     activation: str = "sigmoid",
     eps: float = 1e-20,
     output_dtype=mx.float32,
+    pinned_indices=None,
 ):
     """Select top-k experts (per-token, decode-window, or sequence-distill) and score them."""
     flat = x.reshape(-1, x.shape[-1])
@@ -463,7 +468,9 @@ def compute_route(
     tok_logits = base_logits if adapter is None else adapter.add_token_delta(base_logits, flat)
     probs = mx.softmax(tok_logits, axis=-1) if activation == "softmax" else mx.sigmoid(tok_logits)
 
-    if controller is not None and controller.active:
+    if pinned_indices is not None:
+        indices = pinned_indices
+    elif controller is not None and controller.active:
         pinned = controller.get(layer)
         if pinned is None:
             sel_logits = base_logits if adapter is None else adapter.add_selector_delta(base_logits, flat)

@@ -203,13 +203,13 @@ def test_inkling2_router_bias_affects_selection_but_not_mixture(tmp_path):
     assert cache.resident_bytes == one_expert
 
 
-def _write_text_fixture(path, mx):
+def _write_text_fixture(path, mx, *, sliding_window=3):
     local = [0, 2, 4, 6]
     config = _write_fixture(
         path, mx, num_hidden_layers=8, num_experts_per_tok=2, model_max_length=24, vocab_size=64,
         unpadded_vocab_size=32, num_attention_heads=2, num_key_value_heads=1, head_dim=16,
         swa_num_attention_heads=2, swa_num_key_value_heads=1, swa_head_dim=16,
-        d_rel=2, rel_extent=3, sliding_window_size=3, sconv_kernel_size=3, local_layer_ids=local,
+        d_rel=2, rel_extent=3, sliding_window_size=sliding_window, sconv_kernel_size=3, local_layer_ids=local,
         rms_norm_eps=1e-6, use_value_norm_no_gamma=True, log_scaling_n_floor=2, log_scaling_alpha=0.1,
         qk_l2_clip_threshold=2.0, rel_l2_clip_threshold=0.5, final_logit_softcapping=10.0,
         n_layers_per_attn_res_block=2, attn_res_normalize_values=True,
@@ -248,7 +248,7 @@ def _write_text_fixture(path, mx):
             projection(attn + name, rows)
         for name, dim in (("q_l2_clip", 16), ("rel_l2_clip", 2)):
             tensors[f"{attn}{name}.scale"] = mx.ones((2, dim), dtype=mx.bfloat16)
-        weight(attn + "rel_logits_proj.proj", (2, 3))
+        weight(attn + "rel_logits_proj.proj", (2, sliding_window if layer in local else 3))
         for name in ("k_sconv", "v_sconv"):
             if layer in local:
                 weight(f"{attn}{name}.conv1d.weight", (16, 3, 1))
@@ -362,6 +362,69 @@ def test_inkling2_text_prefill_decode_and_ssd_parity(tmp_path, monkeypatch):
         "t2 t3 t5 t7 t11 t13", max_new_tokens=4,
     )
     assert cache.bytes_read > cache.byte_limit and cache.resident_bytes <= cache.byte_limit
+
+
+def test_inkling2_compiled_layer_preserves_hidden_and_tensor_kv(tmp_path, monkeypatch):
+    import mlx.core as mx
+
+    from telos.models import inkling2_mlx
+    from telos.models.ssd_profile import SSDGenerationProfile
+    from telos.posttrain.mlx_adapters import apply_lora
+
+    class Guard:
+        budget = 2**30
+
+        def check(self):
+            pass
+
+    _write_text_fixture(tmp_path, mx, sliding_window=32)
+    layout = InklingTextLayout.from_checkpoint(tmp_path)
+    required = 2 * sum(inkling2_mlx._layer_sizes(layout).values())
+    monkeypatch.setattr(inkling2_mlx, "AppleMemoryGuard", Guard)
+    monkeypatch.setattr(inkling2_mlx, "plan_inkling", lambda *args: (24, required))
+    models = [TextGenerator.from_checkpoint(tmp_path, window_size=4).model for _ in range(2)]
+    for model in models:
+        mx.random.seed(43)
+        apply_lora(model, rank=4, alpha=4.0, targets=["q", "k", "v", "gate", "sink", "output"])
+        for layer in model.layers:
+            for name in ("q", "k", "v", "gate", "sink", "output"):
+                proj = getattr(layer.attention, name)
+                proj.lora_b = mx.random.normal(proj.lora_b.shape) * 0.01
+        model.eval()
+        model.pin_window_experts()
+        model.fused_nvfp4_decode = model.fused_mask_decode = True
+        route = model._window_controller
+        route.reuse_host_routes = route.batch_nvfp4_experts = route.compile_nvfp4_experts = True
+    a, b = models
+    b.compiled_steady_decode = True
+    profile = SSDGenerationProfile()
+    prompt = mx.array([[2, 3, 5, 7]])
+    with a._expert_cache.request(), b._expert_cache.request(profile=profile):
+        profile.begin_step("prefill", b._expert_cache)
+        _, left = a.hidden_states_with_cache(prompt)
+        _, right = b.hidden_states_with_cache(prompt)
+        profile.end_step(b._expert_cache)
+        a._expert_cache.begin_decode()
+        b._expert_cache.begin_decode()
+        for value in range(9, 49, 2):
+            profile.begin_step("decode", b._expert_cache)
+            ids = mx.array([[value]])
+            x, left = a.hidden_states_with_cache(ids, kv_cache=left)
+            y, right = b.hidden_states_with_cache(ids, kv_cache=right)
+            assert mx.array_equal(x.view(mx.uint16), y.view(mx.uint16)).item(), value
+            assert mx.array_equal(a.logits_from_hidden(x), b.logits_from_hidden(y)).item(), value
+            for old, new in zip(left.visits, right.visits, strict=True):
+                old_kv, new_kv = old.attention.kv, new.attention.kv
+                assert old_kv.length == new_kv.length
+                for p, q in ((old_kv.keys, new_kv.keys), (old_kv.values, new_kv.values)):
+                    assert mx.array_equal(p[:, :, :old_kv.length], q[:, :, :old_kv.length]).item()
+                for p, q in ((old.attention.key_history, new.attention.key_history),
+                             (old.attention.value_history, new.attention.value_history),
+                             (old.attention_history, new.attention_history), (old.mlp_history, new.mlp_history)):
+                    assert mx.array_equal(p, q).item()
+            profile.end_step(b._expert_cache)
+    assert profile.steps[2]["compiled_layer_visits"] == len(layout.visits)
+    assert all(profile.steps[step]["compiled_layer_visits"] == 0 for step in (1, 5, 9, 13, 17))
 
 
 def test_inkling2_grouped_query_keeps_active_lora_and_decode_bits(tmp_path, monkeypatch):

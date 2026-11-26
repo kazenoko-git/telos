@@ -32,6 +32,7 @@ class SSDGenerationProfile:
         self._attention_visits = 0
         self.route_materializations = 0
         self.batched_expert_visits = 0
+        self.compiled_layer_visits = 0
         self._bytes_read = cache.bytes_read
         self._hits = cache.hits
         self._misses = cache.misses
@@ -79,6 +80,7 @@ class SSDGenerationProfile:
             "expert_misses": cache.misses - self._misses,
             "route_materializations": self.route_materializations,
             "batched_expert_visits": self.batched_expert_visits,
+            "compiled_layer_visits": self.compiled_layer_visits,
         }
         if self._split_decode:
             step.update({f"{name}_eval_seconds": ns / 1e9

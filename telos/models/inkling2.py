@@ -106,7 +106,7 @@ class InklingExpertBank:
     def load_router(self):
         return self.router_weight.load(), self.router_bias.load() if self.router_bias is not None else None
 
-    def route(self, hidden, router, *, controller=None, adapter=None):
+    def route(self, hidden, router, *, controller=None, adapter=None, pinned_indices=None):
         import mlx.core as mx
         from .window_routing import compute_route
 
@@ -124,6 +124,7 @@ class InklingExpertBank:
             activation="sigmoid",
             eps=1e-20,
             output_dtype=mx.float32,
+            pinned_indices=pinned_indices,
         )
 
     def routed(self, hidden, router, cache, *, trace=None, controller=None, adapter=None, fused_nvfp4=False):
