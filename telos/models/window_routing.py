@@ -75,6 +75,8 @@ class WindowPinController:
         self._active = False
         self._decode_step = 0
         self._pinned: dict[int, mx.array] = {}
+        self.reuse_host_routes = False
+        self.host_routes = {}
         # Sequence-level distillation state.
         self.mode: str | None = None
         self.seq_window_size: int = 16
@@ -97,6 +99,7 @@ class WindowPinController:
         self._active = False
         self._decode_step = 0
         self._pinned.clear()
+        self.host_routes.clear()
 
     def begin_decode_step(self):
         if self.window_size is None:
@@ -105,6 +108,7 @@ class WindowPinController:
         self._active = True
         if self._decode_step % self.window_size == 0:
             self._pinned.clear()
+            self.host_routes.clear()
         self._decode_step += 1
 
     def reset_sequence_teacher(self, prompt_lengths: list[int]):

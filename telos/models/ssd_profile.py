@@ -30,6 +30,7 @@ class SSDGenerationProfile:
         self.split_attention_step = self.split_step and self._split_attention
         self._section_ns = dict.fromkeys(self._sections, 0) if self.split_step else None
         self._attention_visits = 0
+        self.route_materializations = 0
         self._bytes_read = cache.bytes_read
         self._hits = cache.hits
         self._misses = cache.misses
@@ -75,6 +76,7 @@ class SSDGenerationProfile:
             "expert_bytes_read": cache.bytes_read - self._bytes_read,
             "expert_hits": cache.hits - self._hits,
             "expert_misses": cache.misses - self._misses,
+            "route_materializations": self.route_materializations,
         }
         if self._split_decode:
             step.update({f"{name}_eval_seconds": ns / 1e9

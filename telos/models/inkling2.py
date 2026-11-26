@@ -126,15 +126,27 @@ class InklingExpertBank:
             # Pinned indices can already be materialized. The weights depend on
             # this token's backbone work, so fence them before timing the experts.
             profile.evaluate(mx.eval, weights, section=section)
-        # The router sync also evaluates the preceding attention and residual work.
-        selected_rows = indices.tolist() if profile is None else profile.evaluate(indices.tolist, section=section)
-        routes = {}
-        for row, selected in enumerate(selected_rows):
-            for slot, expert in enumerate(selected):
-                rows, slots = routes.setdefault(expert, ([], []))
-                rows.append(row)
-                slots.append(slot)
-        ordered = sorted(routes)
+        reuse = controller is not None and controller.reuse_host_routes and controller.active and x.shape[0] == 1
+        plan = controller.host_routes.get(self.layer) if reuse else None
+        if plan is None:
+            # A new router choice must be available on the host for expert loading.
+            if profile is None:
+                selected_rows = indices.tolist()
+            else:
+                profile.route_materializations += 1
+                selected_rows = profile.evaluate(indices.tolist, section=section)
+            routes = {}
+            for row, selected in enumerate(selected_rows):
+                for slot, expert in enumerate(selected):
+                    rows, slots = routes.setdefault(expert, ([], []))
+                    rows.append(row)
+                    slots.append(slot)
+            ordered = sorted(routes)
+            route_arrays = {expert: (mx.array(rows), mx.array(slots)) for expert, (rows, slots) in routes.items()}
+            if reuse:
+                controller.host_routes[self.layer] = (selected_rows, ordered, route_arrays)
+        else:
+            selected_rows, ordered, route_arrays = plan
         if trace is not None:
             hits_before = getattr(cache, "hits", None)
             misses_before = getattr(cache, "misses", None)
@@ -145,15 +157,14 @@ class InklingExpertBank:
             trace["routed_experts"] = selected_rows
         prepare = getattr(cache, "prepare", None)
         if prepare is not None and x.shape[0] == 1:
-            prepare(self.layer, routes, self.ranges)
+            prepare(self.layer, ordered, self.ranges)
         visit = getattr(cache, "visit", None)
         entries = getattr(cache, "_entries", None)
         all_cached = entries is not None and x.shape[0] == 1 and all((self.layer, e) in entries for e in ordered)
         output = mx.zeros(x.shape, dtype=mx.float32)
         with visit(self.layer, ordered) if visit is not None else _null_visit():
             for expert in ordered:
-                rows, slots = routes[expert]
-                rows, slots = mx.array(rows), mx.array(slots)
+                rows, slots = route_arrays[expert]
                 packed = cache.get(self.layer, expert, self.ranges)
                 values = self.project(x[rows], packed, fused_nvfp4=fused_nvfp4).astype(mx.float32)
                 output = output.at[rows].add(values * weights[rows, slots, None])

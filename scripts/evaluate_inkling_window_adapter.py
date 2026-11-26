@@ -26,7 +26,8 @@ FUSED_NVFP4_VARIANTS = ("pinned_w16", "fused_nvfp4_w16")
 FUSED_ATTENTION_VARIANTS = ("fused_nvfp4_w16", "profiled_fused_attention_w16")
 GROUPED_QUERY_VARIANTS = ("fused_nvfp4_w16", "grouped_query_w16")
 FUSED_MASK_VARIANTS = ("fused_nvfp4_w16", "fused_mask_w16")
-WORKERS = (*VARIANTS, *PROFILING_VARIANTS, *FUSED_ATTENTION_VARIANTS, "grouped_query_w16", "fused_mask_w16")
+HOST_ROUTE_VARIANTS = ("fused_mask_w16", "reused_routes_w16")
+WORKERS = (*VARIANTS, *PROFILING_VARIANTS, *FUSED_ATTENTION_VARIANTS, "grouped_query_w16", *HOST_ROUTE_VARIANTS)
 
 
 def write_json(path, value):
@@ -128,7 +129,8 @@ def worker(args):
     model = generator.model
     pinned_bytes = model.pin_window_experts() if pinned else 0
     model.fused_nvfp4_decode = pinned and args.worker not in PROFILING_VARIANTS
-    model.fused_mask_decode = args.worker == "fused_mask_w16"
+    model.fused_mask_decode = args.worker in HOST_ROUTE_VARIANTS
+    model._window_controller.reuse_host_routes = args.worker == "reused_routes_w16"
     grouped_query_banks = model.prepare_grouped_query_decode() if args.worker == "grouped_query_w16" else 0
     if args.worker == "grouped_query_w16" and grouped_query_banks == 0:
         raise RuntimeError("No attention banks could group their query projections")
@@ -277,6 +279,7 @@ def main():
         ("--profile-fused-attention", FUSED_ATTENTION_VARIANTS, "Split fused pinned decode timing into attention and routing"),
         ("--compare-grouped-query", GROUPED_QUERY_VARIANTS, "Compare separate and grouped query-input projections"),
         ("--compare-fused-mask", FUSED_MASK_VARIANTS, "Compare relative attention mask construction with and without Metal fusion"),
+        ("--compare-host-routes", HOST_ROUTE_VARIANTS, "Compare materializing pinned routes per visit and per window"),
     ):
         mode.add_argument(flag, dest="variants", action="store_const", const=variants, help=help_text)
     parser.set_defaults(variants=VARIANTS)
