@@ -2,6 +2,7 @@
 
 import json
 import math
+from dataclasses import replace
 
 import pytest
 
@@ -21,6 +22,8 @@ def _write_fixture(path, mx):
             "intermediate_size": 32,
             "n_routed_experts": 2,
             "num_experts_per_tok": 1,
+            "route_scale": 8.0,
+            "use_gate_bias": True,
             "mlp_gate_softcap": 4.0,
             "mlp_up_softcap": 25.0,
             "loop_config": {"core_start": 0, "core_end": 1, "num_passes": 3, "is_varloop": False},
@@ -32,7 +35,7 @@ def _write_fixture(path, mx):
         (0x22222222, 0x44444444, 4, 2, 0x38),  # E2M1 codes, with E4M3 scale 1
         (0x38383838, 0x40404040, 8, 1, 127),  # E4M3 codes, with E8M0 scale 1
     )):
-        prefix = f"model.language_model.layers.{layer}.mlp.experts."
+        prefix = f"model.language_model.layers.{layer}.mlp."
         gate_up = mx.tile(mx.array([[one], [two]], dtype=mx.uint32), (2, 32, columns))
         tensors = {
             "gate_up_proj.weight": gate_up,
@@ -44,7 +47,9 @@ def _write_fixture(path, mx):
             tensors["gate_up_proj.global_scale"] = mx.array([2688.0, 1344.0], dtype=mx.float32)
             tensors["down_proj.global_scale"] = mx.array([2688.0, 1344.0], dtype=mx.float32)
         shard = f"model-0000{layer + 1}-of-00002.safetensors"
-        weights = {prefix + key: value for key, value in tensors.items()}
+        weights = {prefix + "experts." + key: value for key, value in tensors.items()}
+        weights[prefix + "gate.weight"] = mx.broadcast_to(mx.array([[0.0], [1.0]]), (2, 32))
+        weights[prefix + "gate.e_score_correction_bias"] = mx.array([1.0, 0.0])
         mx.save_safetensors(str(path / shard), weights)
         index.update(dict.fromkeys(weights, shard))
     (path / "model.safetensors.index.json").write_text(json.dumps({"weight_map": index}))
@@ -99,3 +104,36 @@ def test_inkling2_rejects_invalid_loop_before_opening_weight_shards(tmp_path):
     (tmp_path / "model.safetensors.index.json").touch()
     with pytest.raises(ValueError, match="loop bounds"):
         InklingTextLayout.from_checkpoint(tmp_path)
+
+
+def test_inkling2_router_bias_affects_selection_but_not_mixture(tmp_path):
+    import mlx.core as mx
+
+    class FixtureGuard:
+        def check(self):
+            pass
+
+    _write_fixture(tmp_path, mx)
+    bank = InklingTextLayout.from_checkpoint(tmp_path).expert_banks[0]
+    router = bank.load_router()
+    x = mx.full((1, 32), 1 / 32, dtype=mx.float32)
+    indices, weights = bank.route(x, router)
+    assert indices.tolist() == [[0]]
+    assert weights.tolist() == [[8.0]]
+
+    bank = replace(bank, top_k=2)
+    indices, weights = bank.route(x, router)
+    scores = mx.array([0.5, 1 / (1 + math.exp(-1))])
+    expected_weights = 8 * scores / scores.sum()
+    assert indices.tolist() == [[0, 1]]
+    assert mx.allclose(weights[0], expected_weights).item()
+
+    one_expert = sum(entry.size // 2 for entry in bank.ranges.values())
+    cache = SSDExpertCache(one_expert, FixtureGuard())
+    expected = mx.zeros_like(x)
+    for expert in (0, 1):
+        resident = {key: entry.load()[expert] for key, entry in bank.ranges.items()}
+        expected = expected + bank.project(x, resident) * weights[0, expert]
+    assert mx.array_equal(bank.routed(x, router, cache), expected).item()
+    assert cache.bytes_read == 2 * one_expert
+    assert cache.resident_bytes == one_expert
