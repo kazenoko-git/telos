@@ -80,7 +80,8 @@ class WindowPinController:
         self.seq_window_size: int = 16
         self.prompt_lengths: list[int] = []
         self.chunk_offset: int = 0
-        self.seq_pinned: dict[tuple[int, int], mx.array] = {}
+        self.seq_pinned: dict[tuple[int, int], tuple[int, mx.array, mx.array]] = {}
+        self.seq_last_chunk: dict[int, int] = {}
         self.seq_selector_logits: dict[int, list[mx.array]] = {}
         self.seq_selector_windows: dict[int, list[mx.array]] = {}
         self.seq_anchor_cache: dict[int, list[tuple[mx.array, mx.array, mx.array]]] = {}
@@ -118,6 +119,7 @@ class WindowPinController:
         self.prompt_lengths = list(prompt_lengths)
         self.chunk_offset = 0
         self.seq_pinned.clear()
+        self.seq_last_chunk.clear()
         self.seq_selector_logits.clear()
         self.seq_selector_windows.clear()
         self.seq_anchor_cache.clear()
@@ -126,6 +128,7 @@ class WindowPinController:
         self.mode = None
         self.chunk_offset = 0
         self.seq_pinned.clear()
+        self.seq_last_chunk.clear()
         self.seq_selector_logits.clear()
         self.seq_selector_windows.clear()
         self.seq_anchor_cache.clear()
@@ -200,16 +203,29 @@ def _route_sequence(
     sel_probs = mx.softmax(sel_logits, axis=-1) if activation == "softmax" else mx.sigmoid(sel_logits)
 
     pin_key = (layer, start)
-    pinned = controller.seq_pinned.get(pin_key)
-    if pinned is None:
+    cached = controller.seq_pinned.get(pin_key)
+    continued = anchors_global < start
+    if cached is None:
         sel_rank_probs = sel_probs if bias is None else sel_probs + bias.astype(mx.float32)
         pinned = mx.stop_gradient(mx.argsort(-sel_rank_probs, axis=-1)[..., :top_k])
-        controller.seq_pinned[pin_key] = pinned
+        previous_start = controller.seq_last_chunk.get(layer)
+        if previous_start is not None:
+            prev_min, prev_pins, prev_probs = controller.seq_pinned[layer, previous_start]
+            prev_idx = mx.clip(win_ids - prev_min, 0, prev_pins.shape[1] - 1)[:, :, None]
+            pinned = mx.where(continued[..., None], mx.take_along_axis(prev_pins, prev_idx, axis=1), pinned)
+            sel_probs = mx.where(continued[..., None], mx.take_along_axis(prev_probs, prev_idx, axis=1), sel_probs)
+        controller.seq_pinned[pin_key] = (w_min, pinned, sel_probs)
+        controller.seq_last_chunk[layer] = start
+        # Only real anchors contribute to coverage, once per row and window.
+        anchored_windows = mx.where((anchors_global >= start) & (anchors_global < start + chunk_len), win_ids, -1)
         controller.seq_selector_logits.setdefault(layer, []).append(sel_logits_biased)
-        controller.seq_selector_windows.setdefault(layer, []).append(win_ids)
+        controller.seq_selector_windows.setdefault(layer, []).append(anchored_windows)
         controller.seq_anchor_cache.setdefault(layer, []).append(
-            (mx.stop_gradient(anchor_hidden), mx.stop_gradient(sel_base.reshape(batch, local_wins, -1)), win_ids)
+            (mx.stop_gradient(anchor_hidden), mx.stop_gradient(sel_base.reshape(batch, local_wins, -1)), anchored_windows)
         )
+    else:
+        _, pinned, first_visit_probs = cached
+        sel_probs = mx.where(continued[..., None], first_visit_probs, sel_probs)
 
     win_idx_local = mx.clip(win_idx_global - w_min, 0, local_wins - 1)
     pinned_tok = mx.take_along_axis(pinned, mx.stop_gradient(win_idx_local)[:, :, None], axis=1)

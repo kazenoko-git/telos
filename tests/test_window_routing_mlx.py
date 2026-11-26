@@ -428,6 +428,33 @@ def test_local_mlx_window_distill_lfm2_moe_ssd_and_cli(tmp_path, monkeypatch):
     assert len(gen.generate("t1 t2", max_new_tokens=4, temperature=0.0)) > 0
 
 
+def test_sequence_windows_keep_the_original_experts_across_chunks():
+    import mlx.core as mx
+    from telos.models.window_routing import WindowPinController, compute_route
+
+    controller = WindowPinController(4)
+
+    def route(values):
+        hidden = mx.array(values)[..., None]
+        ids, _ = compute_route(
+            hidden, lambda x: mx.concatenate((x, -x), axis=-1),
+            layer=0, top_k=1, controller=controller,
+        )
+        return ids.reshape(hidden.shape[:2]).tolist()
+
+    controller.reset_sequence_student(4, [1, 5])
+    assert route([[1.0] * 4, [1.0] * 4]) == [[0] * 4, [0] * 4]
+    controller.chunk_offset = 4
+    assert route([[-1.0] * 4, [-1.0, 1.0, -1.0, -1.0]]) == [[0, 1, 1, 1], [1, 0, 0, 0]]
+    # A later visit of the same physical bank must also keep those experts.
+    assert route([[1.0] * 4, [1.0] * 4]) == [[0, 1, 1, 1], [0, 0, 0, 0]]
+    controller.chunk_offset = 8
+    assert route([[1.0, 1.0], [-1.0, -1.0]]) == [[1, 0], [0, 1]]
+    for row, windows in enumerate(((0, 1, 2), (0, 1))):
+        anchors = mx.concatenate(controller.seq_selector_windows[0], axis=1).tolist()[row]
+        assert tuple(w for w in anchors if w >= 0) == windows
+
+
 def test_ssd_segmented_vjp_matches_exact_autograd(tmp_path, monkeypatch):
     """Verify NOGRAD forward + layerwise VJP matches full autograd identically."""
     import mlx.core as mx
