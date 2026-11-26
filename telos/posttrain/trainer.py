@@ -18,7 +18,10 @@ import torch
 import torch.nn.functional as F
 
 from telos.data.tokenizer import checkpoint_tokenizer_path, export_checkpoint_tokenizer, load_tokenizer
-from telos.models.checkpoint import load_model_from_checkpoint
+from telos.models.checkpoint import (
+    EXTERNAL_MLX_ARCHITECTURES, EXTERNAL_MLX_MOE_ARCHITECTURES,
+    load_checkpoint, load_model_from_checkpoint, resolve_checkpoint,
+)
 from . import grpo
 from .resume import PosttrainResume
 from telos.training.checkpoint import atomic_write
@@ -35,20 +38,7 @@ def _atomic_torch_save(state, path):
 
 
 def _checkpoint_file(path: str | Path) -> Path:
-    path = Path(path)
-    if path.is_dir():
-        for name in ("checkpoint_final.pt", "model.safetensors"):
-            candidate = path / name
-            if candidate.exists():
-                return candidate
-        candidates = [(int(match.group(1)), candidate) for candidate in path.iterdir()
-                      if (match := re.fullmatch(r"checkpoint_step_(\d+)\.(?:pt|safetensors)", candidate.name))]
-        if candidates:
-            return max(candidates, key=lambda item: item[0])[1]
-        raise FileNotFoundError(f"No supported checkpoint found in {path}")
-    if not path.is_file():
-        raise FileNotFoundError(f"Checkpoint not found: {path}")
-    return path
+    return resolve_checkpoint(path)
 
 
 def _checkpoint_config(path: Path) -> dict[str, Any]:
@@ -90,32 +80,78 @@ def _read_records(path: str | Path, method: str, reward="exact") -> list[dict[st
     return records
 
 
-def _encode(tokenizer, prompt: str, answer: str, max_length: int, device: torch.device):
+def _special_token_ids(tokenizer, checkpoint_path: Path | None = None, source_config: dict | None = None):
     bos_id = tokenizer.token_to_id("[BOS]")
     eos_id = tokenizer.token_to_id("[EOS]")
     pad_id = tokenizer.token_to_id("[PAD]")
-    if bos_id is None or eos_id is None or pad_id is None:
-        raise ValueError("Tokenizer must define [BOS], [EOS], and [PAD] tokens")
+    if bos_id is not None and eos_id is not None and pad_id is not None:
+        return bos_id, eos_id, pad_id
+    sources = []
+    if checkpoint_path is not None:
+        for name in ("generation_config.json", "tokenizer_config.json"):
+            candidate = checkpoint_path.parent / name
+            if candidate.is_file():
+                try:
+                    sources.append(json.loads(candidate.read_text(encoding="utf-8")))
+                except (OSError, json.JSONDecodeError):
+                    pass
+    if isinstance(source_config, dict):
+        sources.append(source_config)
+        if isinstance(source_config.get("text_config"), dict):
+            sources.append(source_config["text_config"])
+
+    def resolve_id(id_key: str, tok_key: str):
+        for cfg in sources:
+            raw = cfg.get(id_key)
+            if isinstance(raw, list) and raw and isinstance(raw[0], int):
+                return raw[0]
+            if isinstance(raw, int) and not isinstance(raw, bool):
+                return raw
+            tok = cfg.get(tok_key)
+            if isinstance(tok, dict):
+                tok = tok.get("content")
+            if isinstance(tok, str):
+                mapped = tokenizer.token_to_id(tok)
+                if mapped is not None:
+                    return mapped
+        return None
+
+    bos_id = bos_id if bos_id is not None else resolve_id("bos_token_id", "bos_token")
+    eos_id = eos_id if eos_id is not None else resolve_id("eos_token_id", "eos_token")
+    pad_id = pad_id if pad_id is not None else resolve_id("pad_token_id", "pad_token")
+    if pad_id is None:
+        pad_id = eos_id
+    if eos_id is None or pad_id is None:
+        raise ValueError("Tokenizer must define [EOS] and [PAD] tokens (or checkpoint eos_token_id)")
+    return bos_id, eos_id, pad_id
+
+
+def _encode(tokenizer, prompt: str, answer: str, max_length: int, device: torch.device, *, special_ids=None):
+    bos_id, eos_id, pad_id = special_ids if special_ids is not None else _special_token_ids(tokenizer)
     prompt_ids = tokenizer.encode(prompt, add_special_tokens=False).ids
     answer_ids = tokenizer.encode(answer, add_special_tokens=False).ids
-    if max_length < 3:
-        raise ValueError("max_length must be at least 3 tokens")
-    answer_ids = answer_ids[: max_length - 2]
-    prompt_budget = max_length - len(answer_ids) - 2
+    prefix = [bos_id] if bos_id is not None else []
+    overhead = len(prefix) + 1
+    if max_length < overhead + 1:
+        raise ValueError(f"max_length must be at least {overhead + 1} tokens")
+    answer_ids = answer_ids[: max_length - overhead]
+    prompt_budget = max_length - len(answer_ids) - overhead
     prompt_ids = prompt_ids[-prompt_budget:] if prompt_budget else []
-    tokens = [bos_id, *prompt_ids, *answer_ids, eos_id]
-    answer_start = 1 + len(prompt_ids)
+    tokens = [*prefix, *prompt_ids, *answer_ids, eos_id]
+    answer_start = len(prefix) + len(prompt_ids)
     labels = [-100] * answer_start + tokens[answer_start:]
     return tokens, labels, pad_id
 
 
-def _prepare_records(records, tokenizer, max_length, method):
+def _prepare_records(records, tokenizer, max_length, method, *, special_ids=None):
     """Encode once, retaining exactly the original sampling order/length."""
+    if special_ids is None:
+        special_ids = _special_token_ids(tokenizer)
     prepared = []
     for row in records:
         item = dict(row)
         for key in (("response",) if method in {"sft", "distill"} else ("chosen", "rejected")):
-            item["_" + key] = _encode(tokenizer, row["prompt"], row[key], max_length, None)
+            item["_" + key] = _encode(tokenizer, row["prompt"], row[key], max_length, None, special_ids=special_ids)
         prepared.append(item)
     return prepared
 
@@ -429,11 +465,30 @@ def _mlx_parameters_from_pytorch(state_dict):
     return {key: mx.array(value.numpy()) for key, value in _map_pytorch_parameter_names(state_dict).items()}
 
 
+def _expert_request(model):
+    cache = getattr(model, "_expert_cache", None)
+    return cache.request() if cache is not None and hasattr(cache, "request") else nullcontext()
+
+
+def _mlx_logits(model, ids):
+    import mlx.core as mx
+
+    if hasattr(model, "hidden_states") and hasattr(model, "logits_from_hidden"):
+        if getattr(model, "max_batch_size", None) == 1 and ids.shape[0] > 1:
+            return mx.concatenate(
+                [model.logits_from_hidden(model.hidden_states(ids[i : i + 1], is_causal=True)[:, :-1])
+                 for i in range(ids.shape[0])],
+                axis=0,
+            )
+        return model.logits_from_hidden(model.hidden_states(ids, is_causal=True)[:, :-1])
+    return model(ids, is_causal=True, next_token_only=True)
+
+
 def _mlx_token_logps(model, input_ids, labels):
     import mlx.core as mx
 
     from telos.training.mlx_losses import cross_entropy
-    logits = model(input_ids, is_causal=True, next_token_only=True)
+    logits = _mlx_logits(model, input_ids)
     targets = labels[:, 1:]
     valid = (targets != -100).astype(mx.float32)
     safe_targets = mx.maximum(targets, 0)
@@ -466,7 +521,7 @@ def _mlx_distill_loss(model, ids, labels, teacher_logits, alpha, temperature):
     import mlx.core as mx
 
     from telos.training.mlx_losses import cross_entropy
-    student_logits = model(ids, is_causal=True, next_token_only=True).astype(mx.float32)
+    student_logits = _mlx_logits(model, ids).astype(mx.float32)
     targets = labels[:, 1:]
     valid = (targets != -100).astype(mx.float32)
     denom = mx.maximum(mx.sum(valid), 1.0)
@@ -483,6 +538,26 @@ def _mlx_distill_loss(model, ids, labels, teacher_logits, alpha, temperature):
         ce = cross_entropy(student_logits, safe_targets, reduction="none") * valid
         loss = loss + (1.0 - alpha) * (mx.sum(ce) / denom)
     return loss
+
+
+def _has_quantized_weights(model) -> bool:
+    import mlx.nn as nn
+
+    return any(isinstance(layer, nn.QuantizedLinear) or hasattr(layer, "packed")
+               for _, layer in model.named_modules())
+
+
+def _load_mlx_compatible(checkpoint_path: Path, *, max_length: int | None = None,
+                         memory_budget_mib: int | None = None):
+    cfg = _checkpoint_config(checkpoint_path)
+    is_moe = cfg.get("model_type") in EXTERNAL_MLX_MOE_ARCHITECTURES
+    model, backend, vocab_size, _ = load_checkpoint(
+        checkpoint_path,
+        device="mlx",
+        context_length=(max_length if is_moe and max_length is not None else None),
+        memory_budget_mib=(memory_budget_mib if is_moe else None),
+    )
+    return model, backend, vocab_size
 
 
 def _to_mlx_causal_model(source_model, source_backend, checkpoint_path, precision):
@@ -516,7 +591,7 @@ def _to_mlx_causal_model(source_model, source_backend, checkpoint_path, precisio
     model.is_causal = True
     if precision == "fp16":
         raise ValueError("MLX post-training supports auto, float32 or bf16 precision")
-    if precision != "auto":
+    if precision != "auto" and not _has_quantized_weights(model):
         model.set_dtype(mx.bfloat16 if precision == "bf16" else mx.float32)
     mx.eval(model.parameters())
     return model
@@ -524,12 +599,16 @@ def _to_mlx_causal_model(source_model, source_backend, checkpoint_path, precisio
 
 def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config, records, tokenizer,
                    out_dir, *, method, max_steps, batch_size, learning_rate, beta,
-                   max_length, save_every, seed, resume=None, options=None):
+                   max_length, save_every, seed, resume=None, options=None,
+                   memory_budget_mib=None):
     import mlx.core as mx
     import mlx.optimizers as optim
     import mlx.nn as nn
     from mlx.utils import tree_flatten, tree_map
 
+    is_external = source_config.get("model_type") in EXTERNAL_MLX_ARCHITECTURES
+    if is_external and options["finetune"] == "full":
+        raise ValueError("External MLX checkpoints require --finetune lora or qlora")
     model = _to_mlx_causal_model(source_model, source_backend, checkpoint_path, options["precision"])
 
     _seed_host_rng(seed)
@@ -543,7 +622,9 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
     use_lora_base_ref = need_ref and not explicit_teacher and options["finetune"] in {"lora", "qlora"}
     if explicit_teacher:
         teacher_path = Path(distill["teacher"])
-        t_model, t_backend, _ = load_model_from_checkpoint(teacher_path)
+        t_model, t_backend, _ = _load_mlx_compatible(
+            teacher_path, max_length=max_length, memory_budget_mib=memory_budget_mib,
+        )
         reference = _to_mlx_causal_model(t_model, t_backend, teacher_path, options["precision"])
         if reference.vocab_size != model.vocab_size:
             raise ValueError(f"Teacher vocab size {reference.vocab_size} does not match student {model.vocab_size}")
@@ -561,39 +642,55 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
     randomizer = random.Random(seed)
     session = PosttrainResume(resume, 'mlx', records, tokenizer,
         dict(method=method, max_steps=max_steps, batch_size=batch_size, learning_rate=learning_rate,
-             beta=beta, max_length=max_length, seed=seed, options=options))
+             beta=beta, max_length=max_length, seed=seed, options=options),
+        trainable_only=is_external)
     session.restore(model, optimizer, reference, randomizer)
     master_params = getattr(optimizer, 'master_params', master_params)
-    final_path = out_dir / "model.safetensors"
+    final_path = out_dir / ("model.adapter.safetensors" if is_external else "model.safetensors")
     if final_path.resolve() == checkpoint_path.resolve():
         raise ValueError("Output checkpoint must not overwrite the starting checkpoint")
     if resume is None and (final_path.exists() or any(out_dir.glob("checkpoint_step_*.safetensors"))):
         raise FileExistsError(f"Output directory already contains MLX checkpoints: {out_dir}")
 
     def save(step, final=False):
-        path = final_path if final else out_dir / f"checkpoint_step_{step}.safetensors"
+        step_name = f"checkpoint_step_{step}.adapter.safetensors" if is_external else f"checkpoint_step_{step}.safetensors"
+        path = final_path if final else out_dir / step_name
         tokenizer_file = export_checkpoint_tokenizer(out_dir, tokenizer)
         mx.eval(model.parameters(), optimizer.state)
         from telos.training.checkpoint import atomic_write
         from .mlx_adapters import merged_weights, adapter_weights
-        atomic_write(path, lambda tmp: mx.save_safetensors(tmp, dict(merged_weights(model))))
+        if not is_external:
+            atomic_write(path, lambda tmp: mx.save_safetensors(tmp, dict(merged_weights(model))))
         if options["finetune"] != "full":
-            atomic_write(path.with_suffix(".adapter.safetensors"),
-                         lambda tmp: mx.save_safetensors(tmp, dict(adapter_weights(model))))
-            path.with_suffix(".adapter.json").write_text(json.dumps(options, indent=2))
+            adapter_path = path if is_external else path.with_suffix(".adapter.safetensors")
+            atomic_write(adapter_path, lambda tmp: mx.save_safetensors(tmp, dict(adapter_weights(model))))
+            adapter_path.with_suffix(".json").write_text(json.dumps(options, indent=2))
         session.save(path.with_suffix('.resume.npz'), model, optimizer, step, reference, randomizer)
         cfg = copy.deepcopy(source_config)
-        cfg.setdefault("model", {}).update({
-            "vocab_size": model.vocab_size, "d_model": model.d_model,
-            "n_layers": len(model.layers), "n_heads": model.layers[0].n_heads,
-            "n_kv_heads": model.layers[0].n_kv_heads,
-            "max_seq_len": int(source_config.get("model", {}).get("max_seq_len", max_length)),
-            "tied_embeddings": model.tied_embeddings,
-            "is_causal": True, "use_reliability_head": model.use_reliability_head,
-        })
-        cfg["paradigm"] = "ar"
+        if not is_external:
+            cfg.setdefault("model", {}).update({
+                "vocab_size": model.vocab_size, "d_model": model.d_model,
+                "n_layers": len(model.layers), "n_heads": model.layers[0].n_heads,
+                "n_kv_heads": model.layers[0].n_kv_heads,
+                "max_seq_len": int(source_config.get("model", {}).get("max_seq_len", max_length)),
+                "tied_embeddings": model.tied_embeddings,
+                "is_causal": True, "use_reliability_head": model.use_reliability_head,
+            })
+            cfg["paradigm"] = "ar"
+        else:
+            for extra in ("generation_config.json", "tokenizer_config.json"):
+                src_extra = checkpoint_path.parent / extra
+                dst_extra = out_dir / extra
+                if src_extra.is_file() and not dst_extra.exists():
+                    atomic_write(dst_extra, lambda tmp, data=src_extra.read_bytes(): Path(tmp).write_bytes(data))
         cfg["data"] = {**(cfg.get("data") or {}), "tokenizer": tokenizer_file}
-        cfg["posttrain"] = {"method": method, "source_checkpoint": str(checkpoint_path), "step": step, "backend": "mlx", "options": options}
+        posttrain_info = {
+            "method": method, "source_checkpoint": str(checkpoint_path),
+            "step": step, "backend": "mlx", "options": options,
+        }
+        if is_external:
+            posttrain_info["adapter"] = path.name
+        cfg["posttrain"] = posttrain_info
         (out_dir / "config.json").write_text(json.dumps(cfg, indent=2, default=str), encoding="utf-8")
         return path
 
@@ -602,7 +699,8 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         prepared, eos, pad = grpo.prepare_prompts(records, tokenizer, max_length, rl["max_new_tokens"])
         reward = grpo.reward_function(rl["reward"])
     else:
-        prepared = _prepare_records(records, tokenizer, max_length, method)
+        special_ids = _special_token_ids(tokenizer, checkpoint_path, source_config)
+        prepared = _prepare_records(records, tokenizer, max_length, method, special_ids=special_ids)
     fixed = options["padding"] != "batch"
     from .mlx_batches import collate_mlx, ReferenceScores
     if method == "dpo":
@@ -669,7 +767,8 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
             optimizer.update(model, grads)
         return loss
 
-    step_fn = mx.compile(update, inputs=state, outputs=state) if options["compile_step"] else update
+    can_compile = options["compile_step"] and getattr(model, "weight_storage", None) is None
+    step_fn = mx.compile(update, inputs=state, outputs=state) if can_compile else update
     ref_cache = ReferenceScores(
         options["reference_cache_size"] if options["cache_reference"] else 0, batch_size)
     for step in range(session.step + 1, max_steps + 1):
@@ -705,35 +804,45 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
                 _response_rows(batch, "chosen") + _response_rows(batch, "rejected"))
             ids, labels = collate_mlx(rows, max_length, fixed=fixed)
             if method == "sft":
-                loss = step_fn(ids, labels)
+                with _expert_request(model):
+                    loss = step_fn(ids, labels)
+                    mx.eval(model.trainable_parameters(), optimizer.state, loss,
+                            master_params if master_params is not None else [])
             elif method == "distill":
                 if reference is not None:
-                    teacher_logits = mx.stop_gradient(
-                        reference(ids, is_causal=True, next_token_only=True).astype(mx.float32)
-                    )
+                    with _expert_request(reference):
+                        teacher_logits = mx.stop_gradient(_mlx_logits(reference, ids).astype(mx.float32))
+                        mx.eval(teacher_logits)
                 else:
                     from .mlx_adapters import disable_lora_adapters
-                    with disable_lora_adapters(model):
-                        teacher_logits = mx.stop_gradient(
-                            model(ids, is_causal=True, next_token_only=True).astype(mx.float32)
-                        )
-                mx.eval(teacher_logits)
-                loss = step_fn(ids, labels, teacher_logits)
+                    with _expert_request(model), disable_lora_adapters(model):
+                        teacher_logits = mx.stop_gradient(_mlx_logits(model, ids).astype(mx.float32))
+                        mx.eval(teacher_logits)
+                with _expert_request(model):
+                    loss = step_fn(ids, labels, teacher_logits)
+                    mx.eval(model.trainable_parameters(), optimizer.state, loss,
+                            master_params if master_params is not None else [])
             else:
                 for item, key in zip(rows, [row["_chosen_key"] for row in batch] +
                                           [row["_rejected_key"] for row in batch]):
                     item["_reference_key"] = key
                 def _compute_mlx_ref():
                     if reference is not None:
-                        return _mlx_logps(reference, ids, labels)
+                        with _expert_request(reference):
+                            ref_scores = _mlx_logps(reference, ids, labels)
+                            mx.eval(ref_scores)
+                            return ref_scores
                     from .mlx_adapters import disable_lora_adapters
-                    with disable_lora_adapters(model):
-                        return mx.stop_gradient(_mlx_logps(model, ids, labels))
+                    with _expert_request(model), disable_lora_adapters(model):
+                        ref_scores = mx.stop_gradient(_mlx_logps(model, ids, labels))
+                        mx.eval(ref_scores)
+                        return ref_scores
                 ref = ref_cache.get(rows, ids.shape[1], _compute_mlx_ref)
                 ref_c, ref_r = mx.split(ref, 2)
-                loss = step_fn(ids, labels, ref_c, ref_r)
-            mx.eval(model.trainable_parameters(), optimizer.state, loss,
-                    master_params if master_params is not None else [])
+                with _expert_request(model):
+                    loss = step_fn(ids, labels, ref_c, ref_r)
+                    mx.eval(model.trainable_parameters(), optimizer.state, loss,
+                            master_params if master_params is not None else [])
         if step == 1 or step % 10 == 0 or step == max_steps:
             print(f"[{method.upper()}/MLX] step {step}/{max_steps} loss={loss.item():.4f}{metrics}", flush=True)
         if save_every and step % save_every == 0 and step != max_steps:
@@ -972,6 +1081,7 @@ def _posttrain(
     teacher: str | Path | None = None,
     distill_alpha: float = 0.5,
     distill_temperature: float = 1.0,
+    memory_budget_mib: int | None = None,
 ) -> Path:
     """Run SFT, DPO, distillation or online GRPO and export a native checkpoint."""
     method = method.lower()
@@ -1056,33 +1166,51 @@ def _posttrain(
         }
         return _posttrain_xla(arguments)
 
-    model, backend, _ = load_model_from_checkpoint(checkpoint_path)
+    is_external_mlx = backend_name == "mlx" and source_config.get("model_type") in EXTERNAL_MLX_ARCHITECTURES
+    if is_external_mlx:
+        if method == "grpo":
+            raise ValueError("GRPO currently supports native Telos checkpoints; use sft, dpo or distill for external checkpoints")
+        if finetune == "full":
+            raise ValueError("External MLX checkpoints require --finetune lora or qlora")
+        model, backend, _ = _load_mlx_compatible(
+            checkpoint_path, max_length=max_length, memory_budget_mib=memory_budget_mib,
+        )
+    else:
+        if memory_budget_mib is not None:
+            raise ValueError("--memory-budget-mib is supported for native MLX MoE checkpoints.")
+        model, backend, _ = load_model_from_checkpoint(checkpoint_path)
     model_config = source_config.get("model", source_config)
     paradigm = str(source_config.get("paradigm", model_config.get("paradigm", ""))).lower()
     if paradigm and paradigm not in {"ar", "corosred"}:
         raise ValueError(f"Post-training requires a causal AR checkpoint; checkpoint paradigm is {paradigm!r}")
-    configured_length = int(model_config.get("max_seq_len", model_config.get("seq_len", getattr(getattr(model, "config", None), "max_seq_len", 512))))
-    model_config.setdefault("max_seq_len", configured_length)
+    configured_length = int(model_config.get("max_seq_len", model_config.get("seq_len", getattr(model, "max_seq_len", getattr(getattr(model, "config", None), "max_seq_len", 512)))))
+    if not is_external_mlx:
+        model_config.setdefault("max_seq_len", configured_length)
     if backend_name == "mlx":
         if backend == "mlx":
-            model_config.setdefault("vocab_size", model.vocab_size)
-            model_config.setdefault("d_model", model.d_model)
-            model_config.setdefault("n_layers", len(model.layers))
-            model_config.setdefault("n_heads", model.layers[0].n_heads)
-            model_config.setdefault("n_kv_heads", model.layers[0].n_kv_heads)
-            model_config.setdefault("max_seq_len", configured_length)
-            model_config.setdefault("is_causal", True)
+            if not is_external_mlx:
+                model_config.setdefault("vocab_size", model.vocab_size)
+                model_config.setdefault("d_model", model.d_model)
+                model_config.setdefault("n_layers", len(model.layers))
+                model_config.setdefault("n_heads", model.layers[0].n_heads)
+                model_config.setdefault("n_kv_heads", model.layers[0].n_kv_heads)
+                model_config.setdefault("max_seq_len", configured_length)
+                model_config.setdefault("is_causal", True)
         else:
             model.config.max_seq_len = configured_length
         tokenizer = load_tokenizer(tokenizer_ref)
         vocab_size = model.vocab_size if backend == "mlx" else model.config.vocab_size
-        if len(tokenizer.get_vocab()) != vocab_size:
+        if is_external_mlx:
+            if len(tokenizer.get_vocab()) > vocab_size:
+                raise ValueError(f"Tokenizer has {len(tokenizer.get_vocab())} entries but checkpoint supports at most {vocab_size}")
+        elif len(tokenizer.get_vocab()) != vocab_size:
             raise ValueError(f"Tokenizer has {len(tokenizer.get_vocab())} entries but checkpoint expects {vocab_size}")
         max_length = min(max_length or configured_length, configured_length)
         records = _read_records(data, method, reward)
         out_dir = Path(output)
         out_dir.mkdir(parents=True, exist_ok=True)
-        if resume is None and ((out_dir / "model.safetensors").exists() or any(out_dir.glob("checkpoint_step_*.safetensors"))):
+        final_name = "model.adapter.safetensors" if is_external_mlx else "model.safetensors"
+        if resume is None and ((out_dir / final_name).exists() or any(out_dir.glob("checkpoint_step_*.safetensors"))):
             raise FileExistsError(f"Output directory already contains MLX checkpoints: {out_dir}")
         if backend != "mlx" and backend != "pytorch":
             raise ValueError(f"MLX post-training cannot load checkpoint backend {backend!r}")
@@ -1091,6 +1219,7 @@ def _posttrain(
             method=method, max_steps=max_steps, batch_size=batch_size,
             learning_rate=learning_rate, beta=beta, max_length=max_length,
             save_every=save_every, seed=seed, resume=resume, options=options,
+            memory_budget_mib=memory_budget_mib,
         )
 
     if backend != "pytorch":
