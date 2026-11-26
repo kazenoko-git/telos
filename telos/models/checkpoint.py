@@ -57,7 +57,15 @@ def _load_mlx_arrays(checkpoint):
     return arrays
 
 
-EXTERNAL_MLX_MOE_ARCHITECTURES = frozenset({"qwen3_moe", "lfm2_moe", "inkling2_loop"})
+EXTERNAL_MLX_MOE_ARCHITECTURES = frozenset({
+    "qwen3_moe",
+    "lfm2_moe",
+    "inkling2_loop",
+    "qwen3_5_moe",
+    "qwen3_5_moe_text",
+    "gemma4",
+    "gemma4_text",
+})
 EXTERNAL_MLX_ARCHITECTURES = EXTERNAL_MLX_MOE_ARCHITECTURES | {"qwen3", "qwen2", "llama", "mistral", "phi3"}
 
 
