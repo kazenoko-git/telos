@@ -31,9 +31,10 @@ BATCHED_EXPERT_VARIANTS = ("reused_routes_w16", "batched_experts_w16", "compiled
 RESIDENT_REDUCE_VARIANTS = ("compiled_experts_w16", "fused_reduce_w16")
 REFRESH_WIDTH_VARIANTS = ("reused_routes_w16", "compiled_experts_w16", "compiled_experts_w32", "compiled_experts_w64")
 COMPILED_LAYER_VARIANTS = ("compiled_experts_w16", "compiled_layers_w16")
+FAST_DECODE_VARIANTS = ("compiled_experts_w16", "fused_swiglu_w16", "pipelined_fast_w16")
 WINDOW_BY_WORKER = {"compiled_experts_w32": 32, "compiled_experts_w64": 64}
 WORKERS = (*VARIANTS, *PROFILING_VARIANTS, *FUSED_ATTENTION_VARIANTS, "grouped_query_w16", "fused_mask_w16",
-           *BATCHED_EXPERT_VARIANTS, *WINDOW_BY_WORKER, "compiled_layers_w16")
+           *BATCHED_EXPERT_VARIANTS, *WINDOW_BY_WORKER, "compiled_layers_w16", "fused_swiglu_w16", "pipelined_fast_w16")
 
 
 def write_json(path, value):
@@ -136,14 +137,19 @@ def worker(args):
     model = generator.model
     pinned_bytes = model.pin_window_experts() if pinned else 0
     model.fused_nvfp4_decode = pinned and args.worker not in PROFILING_VARIANTS
-    reused_routes = args.worker in BATCHED_EXPERT_VARIANTS or args.worker in WINDOW_BY_WORKER or args.worker == "compiled_layers_w16"
+    fast_worker = args.worker in {"fused_swiglu_w16", "pipelined_fast_w16"}
+    reused_routes = (args.worker in BATCHED_EXPERT_VARIANTS or args.worker in WINDOW_BY_WORKER
+                     or args.worker == "compiled_layers_w16" or fast_worker)
     model.fused_mask_decode = args.worker == "fused_mask_w16" or reused_routes
     model._window_controller.reuse_host_routes = reused_routes
     model._window_controller.batch_nvfp4_experts = reused_routes and args.worker != "reused_routes_w16"
     model._window_controller.compile_nvfp4_experts = (args.worker in RESIDENT_REDUCE_VARIANTS or args.worker in WINDOW_BY_WORKER
-                                                       or args.worker == "compiled_layers_w16")
+                                                       or args.worker == "compiled_layers_w16" or fast_worker)
+    model._window_controller.fuse_nvfp4_swiglu = fast_worker
+    model._window_controller.batch_mxfp8_experts = fast_worker
     model._window_controller.combine_nvfp4_experts = args.worker == "fused_reduce_w16"
     model.compiled_steady_decode = args.worker == "compiled_layers_w16"
+    model.pipeline_steady_decode = args.worker == "pipelined_fast_w16"
     if model.compiled_steady_decode and args.eager_tensor_layer:
         for layer in model.layers:
             layer._compiled_visit = layer._steady_tensor_layer
@@ -204,6 +210,9 @@ def worker(args):
         "window_size": None if stock else window,
         "compiled_steady_decode": model.compiled_steady_decode,
         "eager_tensor_layer": model.compiled_steady_decode and args.eager_tensor_layer,
+        "fuse_nvfp4_swiglu": model._window_controller.fuse_nvfp4_swiglu,
+        "batch_mxfp8_experts": model._window_controller.batch_mxfp8_experts,
+        "pipeline_steady_decode": model.pipeline_steady_decode,
     })
 
 
@@ -312,6 +321,7 @@ def main():
         ("--compare-resident-reduce", RESIDENT_REDUCE_VARIANTS, "Compare compiled batches with and without a fused expert sum"),
         ("--compare-refresh-widths", REFRESH_WIDTH_VARIANTS, "Compare W=16, W=32 and W=64 with compiled expert batches"),
         ("--compare-compiled-layer", COMPILED_LAYER_VARIANTS, "Compare the compiled expert block with the tensor-only decode layer"),
+        ("--compare-fast-decode", FAST_DECODE_VARIANTS, "Compare compiled experts against fused SwiGLU, MXFP8 batching, and steady pipelining"),
     ):
         mode.add_argument(flag, dest="variants", action="store_const", const=variants, help=help_text)
     parser.set_defaults(variants=VARIANTS)
