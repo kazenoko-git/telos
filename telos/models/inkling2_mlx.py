@@ -291,7 +291,18 @@ class Inkling2TextMLX(nn.Module):
     def pin_window_experts(self):
         if self._expert_cache is None or self._window_controller.window_size is None:
             raise ValueError("Pinning window experts requires SSD weights and a decode window")
-        return self._expert_cache.reserve_window_slots(self._bank_top_k)
+        slots = self._bank_top_k.copy()
+        required = sum(self._expert_cache._layer_sizes[layer] * count for layer, count in slots.items())
+        extra_budget = self._expert_cache.byte_limit - required
+        if extra_budget > 0:
+            from .ssd_experts import allocate_layer_slots
+
+            extra = allocate_layer_slots(
+                extra_budget, self._expert_cache._layer_sizes, self._expert_cache._layer_weights,
+            )
+            for layer, count in extra.items():
+                slots[layer] += count
+        return self._expert_cache.reserve_window_slots(slots)
 
     def prepare_grouped_query_decode(self):
         prepared = sum(layer.attention.prepare_query_group() for layer in self.layers)
@@ -617,7 +628,7 @@ def plan_inkling(text, layout, non_expert_bytes, budget, context_length):
     resident_bytes = sum(sizes[bank.layer] * bank.router_weight.shape[0] for bank in layout.expert_banks)
     if resident_bytes <= available:
         return context, None
-    cache = min(1024 * _MIB, available)
+    cache = min(4096 * _MIB, available)
     if cache < max(sizes.values()):
         raise ValueError("Inkling 2 cannot fit text weights, loop state and one expert in the RAM budget")
     return context, cache

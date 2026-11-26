@@ -81,6 +81,7 @@ class LFMSSDExpertCache(SSDExpertCache):
                  layer_weights=None, decode_decay=1.0):
         super().__init__(byte_limit, guard, layer_sizes=layer_sizes, layer_weights=layer_weights)
         self._layer_sizes = layer_sizes.copy()
+        self._layer_weights = layer_weights.copy() if layer_weights is not None else None
         self._window_slots = None
         self._fragment_size = fragment_size
         self._async_size = min(24 * _MIB, max(layer_sizes.values()) * top_k)

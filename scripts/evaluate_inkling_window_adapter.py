@@ -313,7 +313,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for arg in ("base", "adapter", "validation", "output"):
         parser.add_argument(f"--{arg}", type=Path, required=True)
-    parser.add_argument("--memory-budget-mib", type=int, choices=(2048, 3072), default=BUDGET_MIB)
+    parser.add_argument("--memory-budget-mib", type=int, choices=(2048, 3072, 6144), default=BUDGET_MIB)
     parser.add_argument("--max-decode-tokens", type=int, choices=range(1, CONTEXT), default=DECODE_TOKENS, metavar="N")
     mode = parser.add_mutually_exclusive_group()
     for flag, variants, help_text in (
