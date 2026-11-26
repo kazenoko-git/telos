@@ -278,13 +278,13 @@ class SSDExpertCache:
         return resident[0]
 
     def get(self, layer, expert, ranges):
-        self.guard.check()
         key = (layer, expert)
         self._protected.discard(key)
         if key in self._entries:
             self.hits += 1
             self._entries.move_to_end(key)
             return self._entries[key][0]
+        self.guard.check()
 
         slices = {name: entry.expert(expert) for name, entry in ranges.items()}
         size = sum(entry.size for entry in slices.values())
