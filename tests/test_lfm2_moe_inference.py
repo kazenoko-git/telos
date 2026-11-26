@@ -192,6 +192,27 @@ def test_lfm2_resident_and_ssd_parity(tmp_path, monkeypatch, quantized):
         streamed.generate("t3 t5", cache="off")
 
 
+def test_background_memory_guard_propagates_a_failed_sample(monkeypatch):
+    from telos.models import ssd_experts
+
+    monkeypatch.setattr(ssd_experts, "_command", lambda *_: str(2**30))
+    monkeypatch.setattr(ssd_experts, "_free_percent", lambda: 75)
+    monkeypatch.setattr(ssd_experts, "_swapout_bytes", lambda: 0)
+    guard = ssd_experts.AppleMemoryGuard()
+    sampled = threading.Event()
+
+    def sample():
+        if threading.current_thread().name == "telos-flash-moe-guard":
+            sampled.set()
+            raise RuntimeError("memory pressure")
+
+    monkeypatch.setattr(guard, "_sample", sample)
+    with pytest.raises(RuntimeError, match="background memory check failed"):
+        with guard.sample_in_background():
+            assert sampled.wait(2)
+    assert not guard._background
+
+
 def test_lfm2_frequency_admission_is_request_scoped(tmp_path):
     from telos.models.ssd_expert_io import LFMSSDExpertCache
     from telos.models.ssd_experts import TensorRange

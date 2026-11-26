@@ -11,6 +11,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from itertools import pairwise
 from pathlib import Path
+from threading import Event, Thread
 
 _MIB = 2**20
 _EXPERT_KEY = re.compile(
@@ -159,14 +160,53 @@ class AppleMemoryGuard:
         self.budget = physical * max(0, free - 15) // 100
         self._swap_start = _swapout_bytes()
         self._checked_at = 0.0
+        self._background = False
+        self._background_error = None
+
+    def _sample(self):
+        if _free_percent() < 15 or _swapout_bytes() - self._swap_start >= 128 * _MIB:
+            raise RuntimeError("Flash-MoE stopped because of system memory pressure or new swap writes")
 
     def check(self):
+        if self._background:
+            if self._background_error is not None:
+                raise RuntimeError("Flash-MoE background memory check failed") from self._background_error
+            return
         now = time.monotonic()
         if now - self._checked_at < 0.25:
             return
         self._checked_at = now
-        if _free_percent() < 15 or _swapout_bytes() - self._swap_start >= 128 * _MIB:
-            raise RuntimeError("Flash-MoE stopped because of system memory pressure or new swap writes")
+        self._sample()
+
+    @contextmanager
+    def sample_in_background(self):
+        """Keep monitoring steady tokens without waiting on subprocesses there."""
+        if self._background:
+            raise RuntimeError("Flash-MoE background sampling is already active")
+        self._sample()
+        stop = Event()
+        self._background_error = None
+
+        def monitor():
+            while not stop.wait(0.25):
+                try:
+                    self._sample()
+                except Exception as exc:
+                    self._background_error = exc
+                    return
+
+        thread = Thread(target=monitor, name="telos-flash-moe-guard", daemon=True)
+        thread.start()
+        self._background = True
+        try:
+            yield
+        finally:
+            stop.set()
+            thread.join()
+            self._background = False
+            self._checked_at = 0.0
+        if self._background_error is not None:
+            raise RuntimeError("Flash-MoE background memory check failed") from self._background_error
 
 
 def allocate_layer_slots(byte_limit, layer_sizes, layer_weights=None):

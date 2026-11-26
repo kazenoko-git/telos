@@ -1,7 +1,7 @@
 """Evaluate a local Inkling W=16 adapter with guarded, sequential SSD workers."""
 
 import argparse
-from contextlib import closing
+from contextlib import closing, nullcontext
 import hashlib
 import json
 import os
@@ -27,7 +27,8 @@ FUSED_ATTENTION_VARIANTS = ("fused_nvfp4_w16", "profiled_fused_attention_w16")
 GROUPED_QUERY_VARIANTS = ("fused_nvfp4_w16", "grouped_query_w16")
 FUSED_MASK_VARIANTS = ("fused_nvfp4_w16", "fused_mask_w16")
 HOST_ROUTE_VARIANTS = ("fused_mask_w16", "reused_routes_w16")
-BATCHED_EXPERT_VARIANTS = ("reused_routes_w16", "batched_experts_w16", "compiled_experts_w16")
+BATCHED_EXPERT_VARIANTS = ("reused_routes_w16", "batched_experts_w16", "compiled_experts_w16", "fused_reduce_w16")
+RESIDENT_REDUCE_VARIANTS = ("compiled_experts_w16", "fused_reduce_w16")
 WORKERS = (*VARIANTS, *PROFILING_VARIANTS, *FUSED_ATTENTION_VARIANTS, "grouped_query_w16", "fused_mask_w16",
            *BATCHED_EXPERT_VARIANTS)
 
@@ -131,10 +132,12 @@ def worker(args):
     model = generator.model
     pinned_bytes = model.pin_window_experts() if pinned else 0
     model.fused_nvfp4_decode = pinned and args.worker not in PROFILING_VARIANTS
-    model.fused_mask_decode = args.worker == "fused_mask_w16" or args.worker in BATCHED_EXPERT_VARIANTS
-    model._window_controller.reuse_host_routes = args.worker in BATCHED_EXPERT_VARIANTS
-    model._window_controller.batch_nvfp4_experts = args.worker in BATCHED_EXPERT_VARIANTS[1:]
-    model._window_controller.compile_nvfp4_experts = args.worker == "compiled_experts_w16"
+    reused_routes = args.worker in (*BATCHED_EXPERT_VARIANTS, *RESIDENT_REDUCE_VARIANTS)
+    model.fused_mask_decode = args.worker == "fused_mask_w16" or reused_routes
+    model._window_controller.reuse_host_routes = reused_routes
+    model._window_controller.batch_nvfp4_experts = reused_routes and args.worker != "reused_routes_w16"
+    model._window_controller.compile_nvfp4_experts = args.worker in RESIDENT_REDUCE_VARIANTS
+    model._window_controller.combine_nvfp4_experts = args.worker == "fused_reduce_w16"
     grouped_query_banks = model.prepare_grouped_query_decode() if args.worker == "grouped_query_w16" else 0
     if args.worker == "grouped_query_w16" and grouped_query_banks == 0:
         raise RuntimeError("No attention banks could group their query projections")
@@ -170,15 +173,18 @@ def worker(args):
         write_json(args.output / f"{args.worker}-progress.json", quality)
         print(f"{args.worker}: held-out {index + 1}/{len(rows)}", flush=True)
     speed = []
-    for index, row in enumerate(rows[:PERF_ROWS]):
-        speed.append(benchmark(
-            generator, row["prompt"], token_cap=args.max_decode_tokens, per_step=decode_only,
-            split_decode=args.worker == "profiled_w16",
-            split_attention=args.worker == "profiled_fused_attention_w16",
-            attention_stride=args.attention_profile_stride,
-            attention_components=args.attention_components and args.worker == "profiled_fused_attention_w16",
-        ))
-        print(f"{args.worker}: decode {index + 1}/{min(PERF_ROWS, len(rows))}", flush=True)
+    guard = model._guard.sample_in_background() if args.background_memory_guard else nullcontext()
+    with guard:
+        for index, row in enumerate(rows[:PERF_ROWS]):
+            speed.append(benchmark(
+                generator, row["prompt"], token_cap=args.max_decode_tokens, per_step=decode_only,
+                split_decode=args.worker == "profiled_w16",
+                split_attention=args.worker == "profiled_fused_attention_w16",
+                attention_stride=args.attention_profile_stride,
+                attention_components=args.attention_components and args.worker == "profiled_fused_attention_w16",
+            ))
+            write_json(args.output / f"{args.worker}-decode-progress.json", speed)
+            print(f"{args.worker}: decode {index + 1}/{min(PERF_ROWS, len(rows))}", flush=True)
     write_json(args.output / f"{args.worker}.json", {
         "quality": quality, "decode": speed, "mlx_version": mx.__version__,
         "mlx_peak_mib": mx.get_peak_memory() / 2**20, "expert_cache_mib": model._expert_cache.byte_limit / 2**20,
@@ -230,6 +236,7 @@ def supervise(args):
         "attention_profile_stride": args.attention_profile_stride,
         "attention_components": args.attention_components,
         "reverse_order": args.reverse_order,
+        "background_memory_guard": args.background_memory_guard,
         "validation_sha256": validation_hash, "adapter_sha256": adapter_hash,
         "variants": {}, "guards": {},
     }
@@ -285,12 +292,14 @@ def main():
         ("--compare-fused-mask", FUSED_MASK_VARIANTS, "Compare relative attention mask construction with and without Metal fusion"),
         ("--compare-host-routes", HOST_ROUTE_VARIANTS, "Compare materializing pinned routes per visit and per window"),
         ("--compare-batched-experts", BATCHED_EXPERT_VARIANTS, "Compare per-expert launches, batched NVFP4 and compiled batching"),
+        ("--compare-resident-reduce", RESIDENT_REDUCE_VARIANTS, "Compare compiled batches with and without a fused expert sum"),
     ):
         mode.add_argument(flag, dest="variants", action="store_const", const=variants, help=help_text)
     parser.set_defaults(variants=VARIANTS)
     parser.add_argument("--attention-profile-stride", type=int, choices=(1, 4, 12), default=1,
                         help="Under attention profiling, time one layer visit per N and rotate the sample each token")
     parser.add_argument("--attention-components", action="store_true", help="Split sampled attention into its constituent operations")
+    parser.add_argument("--background-memory-guard", action="store_true", help="Keep the model memory guard off the decode thread")
     parser.add_argument("--reverse-order", action="store_true", help="Run the decode comparison in reverse order")
     parser.add_argument("--worker", choices=WORKERS, help=argparse.SUPPRESS)
     args = parser.parse_args()
