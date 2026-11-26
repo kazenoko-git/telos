@@ -220,6 +220,7 @@ def supervise(args):
         "window": WINDOW, "decode_token_cap": args.max_decode_tokens,
         "attention_profile_stride": args.attention_profile_stride,
         "attention_components": args.attention_components,
+        "reverse_order": args.reverse_order,
         "validation_sha256": validation_hash, "adapter_sha256": adapter_hash,
         "variants": {}, "guards": {},
     }
@@ -233,6 +234,8 @@ def supervise(args):
         variants = PROFILING_VARIANTS
     else:
         variants = PINNING_VARIANTS if args.compare_pinning else VARIANTS
+    if args.reverse_order:
+        variants = variants[::-1]
     for variant in variants:
         start = sample()
         guard_check(start, initial, preflight=True)
@@ -283,9 +286,13 @@ def main():
     parser.add_argument("--attention-profile-stride", type=int, choices=(1, 4, 12), default=1,
                         help="Under attention profiling, time one layer visit per N and rotate the sample each token")
     parser.add_argument("--attention-components", action="store_true", help="Split sampled attention into its constituent operations")
+    parser.add_argument("--reverse-order", action="store_true", help="Run the decode comparison in reverse order")
     parser.add_argument("--worker", choices=(*VARIANTS, *PROFILING_VARIANTS, *FUSED_ATTENTION_VARIANTS, "grouped_query_w16"),
                         help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.reverse_order and not (args.compare_pinning or args.profile_pinned or args.compare_fused_nvfp4
+                                   or args.profile_fused_attention or args.compare_grouped_query):
+        parser.error("--reverse-order requires a decode comparison")
     if args.worker:
         worker(args)
     else:
