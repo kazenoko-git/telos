@@ -17,8 +17,9 @@ def _tuples(value):
 
 
 class PosttrainResume:
-    def __init__(self, path, backend, records, tokenizer, settings, rank=0, world_size=1):
-        self.backend, self.rank = backend, rank
+    def __init__(self, path, backend, records, tokenizer, settings, rank=0, world_size=1,
+                 trainable_only=False):
+        self.backend, self.rank, self.trainable_only = backend, rank, trainable_only
         self.identity = {'backend': backend, 'rank': rank, 'world_size': world_size,
                          'settings': settings,
                          'data': hashlib.sha256(json.dumps(records, sort_keys=True).encode()).hexdigest(),
@@ -44,7 +45,7 @@ class PosttrainResume:
         if self.backend == 'mlx':
             import mlx.core as mx
             from mlx.utils import tree_flatten
-            model.load_weights(tree_flatten(state['model']), strict=True)
+            model.load_weights(tree_flatten(state['model']), strict=not self.trainable_only)
             optimizer.state = state['optimizer']
             if state['master'] is not None:
                 optimizer.master_params = state['master']
@@ -79,7 +80,8 @@ class PosttrainResume:
         if self.backend == 'mlx':
             import mlx.core as mx
             from telos.training.checkpoint import save_mlx_state
-            state.update(model=model.parameters(), optimizer=optimizer.state,
+            state.update(model=model.trainable_parameters() if self.trainable_only else model.parameters(),
+                         optimizer=optimizer.state,
                          master=getattr(optimizer, 'master_params', None),
                          reference=reference.parameters() if reference is not None else {},
                          rng=list(mx.random.state))
