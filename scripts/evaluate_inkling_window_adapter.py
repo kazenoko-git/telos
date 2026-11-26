@@ -20,6 +20,7 @@ WINDOW = 16
 DECODE_TOKENS = 16
 PERF_ROWS = 3
 VARIANTS = ("stock", "untrained_w16", "trained_w16")
+PINNING_VARIANTS = ("trained_w16", "pinned_w16")
 
 
 def write_json(path, value):
@@ -43,7 +44,7 @@ def disk_delta(before, after):
     return {key: after[key] - before[key] for key in before}
 
 
-def benchmark(generator, prompt):
+def benchmark(generator, prompt, *, token_cap, per_step=False):
     from telos.models.ssd_profile import SSDGenerationProfile
 
     cache = generator.model._expert_cache
@@ -55,7 +56,7 @@ def benchmark(generator, prompt):
     profile = SSDGenerationProfile()
     initial = disk_counters()
     start = time.perf_counter()
-    stream = generator._mlx_tokens(ids, DECODE_TOKENS, 0.0, 0, 1.0, None, "dynamic", ssd_profile=profile)
+    stream = generator._mlx_tokens(ids, token_cap, 0.0, 0, 1.0, None, "dynamic", ssd_profile=profile)
     with closing(stream):
         first = next(stream)
         ttft = time.perf_counter() - start
@@ -69,7 +70,7 @@ def benchmark(generator, prompt):
                     break
         decode_seconds = time.perf_counter() - start_decode
     after_decode = disk_counters()
-    return {
+    result = {
         "prompt_tokens": len(ids), "token_ids": tokens,
         "text": generator.tokenizer.decode(tokens, skip_special_tokens=True),
         "ttft_seconds": ttft, "decode_seconds": decode_seconds,
@@ -78,6 +79,9 @@ def benchmark(generator, prompt):
         "physical_decode_io": disk_delta(after_prefill, after_decode),
         "profile": profile.report()["phases"],
     }
+    if per_step:
+        result["steps"] = profile.steps
+    return result
 
 
 def worker(args):
@@ -87,7 +91,7 @@ def worker(args):
     from telos.models import inkling2_mlx
     from telos.posttrain.trainer import _encode, _special_token_ids
 
-    mx.set_memory_limit(BUDGET_MIB * 2**20)
+    mx.set_memory_limit(args.memory_budget_mib * 2**20)
     mx.set_cache_limit(128 * 2**20)
     plan_inkling = inkling2_mlx.plan_inkling
 
@@ -95,19 +99,25 @@ def worker(args):
         context, limit = plan_inkling(*plan_args)
         if limit is None:
             raise RuntimeError("SSD-only evaluation rejected a resident weight plan")
+        if args.worker == "pinned_w16":
+            layout = plan_args[1]
+            sizes = inkling2_mlx._layer_sizes(layout)
+            if sum(sizes[b.layer] * b.top_k for b in layout.expert_banks) > limit:
+                raise RuntimeError("The admitted expert cache cannot fit every selected window expert")
         return context, limit
 
     inkling2_mlx.plan_inkling = require_ssd
     rows = [json.loads(line) for line in args.validation.read_text().splitlines() if line.strip()]
     stock = args.worker == "stock"
     generator = TextGenerator.from_checkpoint(
-        args.adapter if args.worker == "trained_w16" else args.base, device="mlx",
-        context_length=CONTEXT, memory_budget_mib=BUDGET_MIB, window_size=None if stock else WINDOW,
+        args.adapter if args.worker in PINNING_VARIANTS else args.base, device="mlx",
+        context_length=CONTEXT, memory_budget_mib=args.memory_budget_mib, window_size=None if stock else WINDOW,
     )
     model = generator.model
+    pinned_bytes = model.pin_window_experts() if args.worker == "pinned_w16" else 0
     special = _special_token_ids(generator.tokenizer, args.base, json.loads((args.base / "config.json").read_text()))
     quality = []
-    for index, row in enumerate(rows):
+    for index, row in enumerate([] if args.compare_pinning else rows):
         tokens, labels, _ = _encode(generator.tokenizer, row["prompt"], row["response"], 64, None, special_ids=special)
         start = next(i for i, label in enumerate(labels) if label != -100)
         ids = mx.array([tokens], dtype=mx.int32)
@@ -138,11 +148,12 @@ def worker(args):
         print(f"{args.worker}: held-out {index + 1}/{len(rows)}", flush=True)
     speed = []
     for index, row in enumerate(rows[:PERF_ROWS]):
-        speed.append(benchmark(generator, row["prompt"]))
+        speed.append(benchmark(generator, row["prompt"], token_cap=args.max_decode_tokens, per_step=args.compare_pinning))
         print(f"{args.worker}: decode {index + 1}/{min(PERF_ROWS, len(rows))}", flush=True)
     write_json(args.output / f"{args.worker}.json", {
         "quality": quality, "decode": speed, "mlx_version": mx.__version__,
         "mlx_peak_mib": mx.get_peak_memory() / 2**20, "expert_cache_mib": model._expert_cache.byte_limit / 2**20,
+        "pinned_expert_bytes": pinned_bytes,
     })
 
 
@@ -182,12 +193,12 @@ def supervise(args):
         adapter_hash = hashlib.file_digest(adapter, "sha256").hexdigest()
     report = {
         "commit": read_command("git", "rev-parse", "HEAD").strip(),
-        "power": read_command("pmset", "-g"), "budget_mib": BUDGET_MIB, "context": CONTEXT,
-        "window": WINDOW, "decode_token_cap": DECODE_TOKENS,
+        "power": read_command("pmset", "-g"), "budget_mib": args.memory_budget_mib, "context": CONTEXT,
+        "window": WINDOW, "decode_token_cap": args.max_decode_tokens,
         "validation_sha256": validation_hash, "adapter_sha256": adapter_hash,
         "variants": {}, "guards": {},
     }
-    for variant in VARIANTS:
+    for variant in PINNING_VARIANTS if args.compare_pinning else VARIANTS:
         start = sample()
         guard_check(start, initial, preflight=True)
         print(f"Starting guarded {variant} evaluation at {start['free_percent']}% free", flush=True)
@@ -206,7 +217,7 @@ def supervise(args):
                 rss = subprocess.run(["ps", "-o", "rss=", "-p", str(process.pid)], capture_output=True, text=True, timeout=2)
                 if rss.stdout.strip():
                     record["peak_rss_mib"] = max(record["peak_rss_mib"], int(rss.stdout.strip()) / 1024)
-                if record["peak_rss_mib"] >= BUDGET_MIB or time.monotonic() >= deadline:
+                if record["peak_rss_mib"] >= args.memory_budget_mib or time.monotonic() >= deadline:
                     raise RuntimeError("Worker reached its RSS or time limit")
                 time.sleep(0.10)
             record["final"] = sample()
@@ -226,7 +237,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for arg in ("base", "adapter", "validation", "output"):
         parser.add_argument(f"--{arg}", type=Path, required=True)
-    parser.add_argument("--worker", choices=VARIANTS, help=argparse.SUPPRESS)
+    parser.add_argument("--memory-budget-mib", type=int, choices=(2048, 3072), default=BUDGET_MIB)
+    parser.add_argument("--max-decode-tokens", type=int, choices=range(1, CONTEXT), default=DECODE_TOKENS, metavar="N")
+    parser.add_argument("--compare-pinning", action="store_true", help="Compare the trained adapter with and without bank pinning")
+    parser.add_argument("--worker", choices=(*VARIANTS, "pinned_w16"), help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.worker:
         worker(args)
