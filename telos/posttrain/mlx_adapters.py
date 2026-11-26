@@ -5,19 +5,35 @@ import mlx.nn as nn
 from mlx.utils import tree_flatten
 
 
+def _is_packed_quantized(layer):
+    return hasattr(layer, "packed") and hasattr(layer.packed, "as_linear")
+
+
+def _is_linear_like(layer):
+    if isinstance(layer, (nn.Linear, nn.QuantizedLinear)) or _is_packed_quantized(layer):
+        return True
+    return hasattr(layer, "weight") and hasattr(layer, "bias") and getattr(layer.weight, "ndim", 0) == 2
+
+
+def _linear_shape(layer):
+    if isinstance(layer, nn.QuantizedLinear):
+        return layer.weight.shape[0], layer.weight.shape[1] * 32 // layer.bits
+    if _is_packed_quantized(layer):
+        packed = layer.packed
+        return packed.weight.shape[0], packed.weight.shape[1] * 32 // packed.bits
+    return layer.weight.shape[0], layer.weight.shape[1]
+
+
 class LoRALinear(nn.Module):
     def __init__(self, base, rank, alpha, dropout):
         super().__init__()
         self.base = base
         self.scale = alpha / rank
         self.dropout = nn.Dropout(dropout)
-        if isinstance(base, nn.QuantizedLinear):
-            in_features = base.weight.shape[1] * 32 // base.bits
-        else:
-            in_features = base.weight.shape[1]
+        out_features, in_features = _linear_shape(base)
         self.lora_a = mx.random.uniform(-1 / math.sqrt(in_features), 1 / math.sqrt(in_features),
                                         (rank, in_features), dtype=mx.float32)
-        self.lora_b = mx.zeros((base.weight.shape[0], rank), dtype=mx.float32)
+        self.lora_b = mx.zeros((out_features, rank), dtype=mx.float32)
         self.adapter_disabled = False
         self.base.freeze()
 
@@ -28,11 +44,14 @@ class LoRALinear(nn.Module):
         delta = (self.dropout(x).astype(mx.float32) @ self.lora_a.T) @ self.lora_b.T
         return out + (delta * self.scale).astype(out.dtype)
 
-
     def merged_weight(self):
         if isinstance(self.base, nn.QuantizedLinear):
-            weight = mx.dequantize(self.base.weight, self.base.scales, self.base.biases,
+            weight = mx.dequantize(self.base.weight, self.base.scales, getattr(self.base, "biases", None),
                                    group_size=self.base.group_size, bits=self.base.bits)
+        elif _is_packed_quantized(self.base):
+            packed = self.base.packed
+            weight = mx.dequantize(packed.weight, packed.scales, packed.biases,
+                                   group_size=packed.group_size, bits=packed.bits)
         else:
             weight = self.base.weight
         return weight.astype(mx.float32) + (self.lora_b @ self.lora_a) * self.scale
@@ -57,18 +76,31 @@ def apply_lora(model, *, rank=16, alpha=32.0, dropout=0.0, quantized=False, targ
     if rank < 1 or alpha <= 0 or not 0 <= dropout < 1:
         raise ValueError('LoRA requires rank>0, alpha>0 and 0<=dropout<1')
     selected = [(name, layer) for name, layer in model.named_modules()
-                if name.startswith('layers.') and isinstance(layer, nn.Linear)
+                if name.startswith('layers.') and _is_linear_like(layer)
                 and (not targets or any(name.endswith(target) for target in targets))]
     if not selected:
         raise ValueError('No transformer linear layers match LoRA targets')
-    if quantized and any(layer.weight.shape[1] % 64 for _, layer in selected):
+    unquantized = [(name, layer) for name, layer in selected
+                   if not isinstance(layer, nn.QuantizedLinear) and not _is_packed_quantized(layer)]
+    if quantized and any(_linear_shape(layer)[1] % 64 for _, layer in unquantized):
         raise ValueError('MLX QLoRA needs projection input dimensions divisible by 64')
     model.freeze()
     # Module.update_modules handles list-index paths and nested projection names.
     from mlx.utils import tree_unflatten
     replacements = []
     for name, layer in selected:
-        base = nn.QuantizedLinear.from_linear(layer, group_size=64, bits=4) if quantized else layer
+        if not quantized or isinstance(layer, nn.QuantizedLinear) or _is_packed_quantized(layer):
+            base = layer
+        elif isinstance(layer, nn.Linear):
+            base = nn.QuantizedLinear.from_linear(layer, group_size=64, bits=4)
+        else:
+            out_features, in_features = _linear_shape(layer)
+            bias = getattr(layer, "bias", None)
+            linear = nn.Linear(in_features, out_features, bias=bias is not None)
+            linear.weight = layer.weight
+            if bias is not None:
+                linear.bias = bias
+            base = nn.QuantizedLinear.from_linear(linear, group_size=64, bits=4)
         replacements.append((name, LoRALinear(base, rank, alpha, dropout)))
     model.update_modules(tree_unflatten(replacements))
     return [name for name, _ in selected]
@@ -83,8 +115,9 @@ def merged_weights(model):
             if key.startswith(name + '.'):
                 del result[key]
         result[name + '.weight'] = layer.merged_weight()
-        if 'bias' in layer.base:
-            result[name + '.bias'] = layer.base.bias
+        bias = getattr(layer.base, "bias", None)
+        if bias is not None:
+            result[name + '.bias'] = bias
     return list(result.items())
 
 
@@ -98,10 +131,13 @@ def load_adapter(model, path, *, base_checkpoint):
     import hashlib
     import json
     from pathlib import Path
+    from telos.models.checkpoint import resolve_checkpoint
+
     path = Path(path)
+    base_file = resolve_checkpoint(base_checkpoint)
     options = json.loads(path.with_suffix('.json').read_text())
     digest = hashlib.sha256()
-    with open(base_checkpoint, 'rb') as source:
+    with open(base_file, 'rb') as source:
         for chunk in iter(lambda: source.read(1024 * 1024), b''):
             digest.update(chunk)
     if digest.hexdigest() != options['base_sha256']:
