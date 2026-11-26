@@ -24,6 +24,7 @@ PINNING_VARIANTS = ("trained_w16", "pinned_w16")
 PROFILING_VARIANTS = ("pinned_w16", "profiled_w16")
 FUSED_NVFP4_VARIANTS = ("pinned_w16", "fused_nvfp4_w16")
 FUSED_ATTENTION_VARIANTS = ("fused_nvfp4_w16", "profiled_fused_attention_w16")
+GROUPED_QUERY_VARIANTS = ("fused_nvfp4_w16", "grouped_query_w16")
 
 
 def write_json(path, value):
@@ -101,8 +102,9 @@ def worker(args):
     mx.set_memory_limit(args.memory_budget_mib * 2**20)
     mx.set_cache_limit(128 * 2**20)
     plan_inkling = inkling2_mlx.plan_inkling
-    pinned = args.worker in (*PROFILING_VARIANTS, *FUSED_ATTENTION_VARIANTS)
-    decode_only = args.compare_pinning or args.profile_pinned or args.compare_fused_nvfp4 or args.profile_fused_attention
+    pinned = args.worker in (*PROFILING_VARIANTS, *FUSED_ATTENTION_VARIANTS, *GROUPED_QUERY_VARIANTS)
+    decode_only = (args.compare_pinning or args.profile_pinned or args.compare_fused_nvfp4
+                   or args.profile_fused_attention or args.compare_grouped_query)
 
     def require_ssd(*plan_args):
         context, limit = plan_inkling(*plan_args)
@@ -124,7 +126,10 @@ def worker(args):
     )
     model = generator.model
     pinned_bytes = model.pin_window_experts() if pinned else 0
-    model.fused_nvfp4_decode = args.worker in FUSED_ATTENTION_VARIANTS
+    model.fused_nvfp4_decode = args.worker in (*FUSED_ATTENTION_VARIANTS, *GROUPED_QUERY_VARIANTS)
+    grouped_query_banks = model.prepare_grouped_query_decode() if args.worker == "grouped_query_w16" else 0
+    if args.worker == "grouped_query_w16" and grouped_query_banks == 0:
+        raise RuntimeError("No attention banks could group their query projections")
     special = _special_token_ids(generator.tokenizer, args.base, json.loads((args.base / "config.json").read_text()))
     quality = []
     for index, row in enumerate([] if decode_only else rows):
@@ -171,6 +176,7 @@ def worker(args):
         "mlx_peak_mib": mx.get_peak_memory() / 2**20, "expert_cache_mib": model._expert_cache.byte_limit / 2**20,
         "pinned_expert_bytes": pinned_bytes,
         "fused_nvfp4_decode": model.fused_nvfp4_decode,
+        "grouped_query_banks": grouped_query_banks,
     })
 
 
@@ -217,7 +223,9 @@ def supervise(args):
         "validation_sha256": validation_hash, "adapter_sha256": adapter_hash,
         "variants": {}, "guards": {},
     }
-    if args.profile_fused_attention:
+    if args.compare_grouped_query:
+        variants = GROUPED_QUERY_VARIANTS
+    elif args.profile_fused_attention:
         variants = FUSED_ATTENTION_VARIANTS
     elif args.compare_fused_nvfp4:
         variants = FUSED_NVFP4_VARIANTS
@@ -271,10 +279,12 @@ def main():
     mode.add_argument("--profile-pinned", action="store_true", help="Measure pinned decode with and without section timing fences")
     mode.add_argument("--compare-fused-nvfp4", action="store_true", help="Compare pinned decode with the experimental NVFP4 Metal kernel")
     mode.add_argument("--profile-fused-attention", action="store_true", help="Split fused pinned decode timing into attention and routing")
+    mode.add_argument("--compare-grouped-query", action="store_true", help="Compare four separate query-input projections with a packed group")
     parser.add_argument("--attention-profile-stride", type=int, choices=(1, 4, 12), default=1,
                         help="Under attention profiling, time one layer visit per N and rotate the sample each token")
     parser.add_argument("--attention-components", action="store_true", help="Split sampled attention into its constituent operations")
-    parser.add_argument("--worker", choices=(*VARIANTS, *PROFILING_VARIANTS, *FUSED_ATTENTION_VARIANTS), help=argparse.SUPPRESS)
+    parser.add_argument("--worker", choices=(*VARIANTS, *PROFILING_VARIANTS, *FUSED_ATTENTION_VARIANTS, "grouped_query_w16"),
+                        help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.worker:
         worker(args)
