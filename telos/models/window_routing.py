@@ -83,6 +83,7 @@ class WindowPinController:
         self.seq_pinned: dict[tuple[int, int], mx.array] = {}
         self.seq_selector_logits: dict[int, list[mx.array]] = {}
         self.seq_selector_windows: dict[int, list[mx.array]] = {}
+        self.seq_anchor_cache: dict[int, list[tuple[mx.array, mx.array, mx.array]]] = {}
         self.teacher_routes: dict[int, list[list[mx.array]]] = {}
 
     def set_window_size(self, window_size: int | None):
@@ -119,6 +120,7 @@ class WindowPinController:
         self.seq_pinned.clear()
         self.seq_selector_logits.clear()
         self.seq_selector_windows.clear()
+        self.seq_anchor_cache.clear()
 
     def clear_sequence(self):
         self.mode = None
@@ -126,6 +128,7 @@ class WindowPinController:
         self.seq_pinned.clear()
         self.seq_selector_logits.clear()
         self.seq_selector_windows.clear()
+        self.seq_anchor_cache.clear()
         self.teacher_routes.clear()
 
     @property
@@ -204,6 +207,9 @@ def _route_sequence(
         controller.seq_pinned[pin_key] = pinned
         controller.seq_selector_logits.setdefault(layer, []).append(sel_logits_biased)
         controller.seq_selector_windows.setdefault(layer, []).append(win_ids)
+        controller.seq_anchor_cache.setdefault(layer, []).append(
+            (mx.stop_gradient(anchor_hidden), mx.stop_gradient(sel_base.reshape(batch, local_wins, -1)), win_ids)
+        )
 
     win_idx_local = mx.clip(win_idx_global - w_min, 0, local_wins - 1)
     pinned_tok = mx.take_along_axis(pinned, mx.stop_gradient(win_idx_local)[:, :, None], axis=1)
@@ -221,6 +227,180 @@ def _route_sequence(
     st_gate = 1.0 + (sel_gathered - mx.stop_gradient(sel_gathered))
     weights = mx.where(is_resp.reshape(-1, 1), selected * st_gate, selected)
     return indices, (weights * route_scale).astype(output_dtype)
+
+
+def zero_grad_tree(tree):
+    from mlx.utils import tree_map
+
+    return tree_map(lambda arr: mx.zeros_like(arr), tree)
+
+
+def add_grad_trees(dst, src):
+    if isinstance(dst, dict):
+        return {k: add_grad_trees(dst[k], src[k]) if k in src else dst[k] for k in dst}
+    if isinstance(dst, list):
+        return [add_grad_trees(d, s) for d, s in zip(dst, src, strict=True)]
+    if isinstance(dst, tuple):
+        return tuple(add_grad_trees(d, s) for d, s in zip(dst, src, strict=True))
+    return dst + src
+
+
+def _layer_router_adapter(layer_mod):
+    if hasattr(layer_mod, "router_adapter"):
+        return layer_mod, "router_adapter", layer_mod.router_adapter
+    for sub_name in ("mlp", "moe"):
+        sub = getattr(layer_mod, sub_name, None)
+        if sub is not None and hasattr(sub, "router_adapter"):
+            return sub, f"{sub_name}.router_adapter", sub.router_adapter
+    return None, "", None
+
+
+def compute_window_coverage_loss_and_grads(
+    model,
+    controller: WindowPinController,
+    teacher_routes: dict[int, list[mx.array]],
+    prompt_lengths: list[int],
+    response_mask: mx.array,
+) -> tuple[mx.array, dict[int, tuple[str, dict]]]:
+    """Compute window selector CE loss and gradients directly from cached anchor states."""
+    if not controller.seq_anchor_cache or not teacher_routes:
+        return mx.array(0.0, dtype=mx.float32), {}
+    batch, seq_len = response_mask.shape
+    win_size = controller.seq_window_size
+    prompt_lens = mx.array(prompt_lengths, dtype=mx.int32)[:, None]
+    positions = mx.arange(seq_len, dtype=mx.int32)[None, :]
+    valid_f = response_mask.astype(mx.float32)
+    win_idx = mx.maximum(positions - prompt_lens, 0) // win_size
+
+    losses = []
+    grads_by_layer: dict[int, tuple[str, dict]] = {}
+    for layer_idx, passes in teacher_routes.items():
+        if layer_idx not in controller.seq_anchor_cache or not passes:
+            continue
+        _, attr_path, adapter = _layer_router_adapter(model.layers[layer_idx])
+        if adapter is None:
+            continue
+        anchors = controller.seq_anchor_cache[layer_idx]
+        anchor_h = anchors[0][0] if len(anchors) == 1 else mx.concatenate([a[0] for a in anchors], axis=1)
+        base_logits = anchors[0][1] if len(anchors) == 1 else mx.concatenate([a[1] for a in anchors], axis=1)
+        win_ids = anchors[0][2] if len(anchors) == 1 else mx.concatenate([a[2] for a in anchors], axis=1)
+        num_experts = base_logits.shape[-1]
+        num_wins = win_ids.shape[1]
+        eye = mx.eye(num_experts, dtype=mx.float32)
+        counts = mx.zeros((batch, num_wins, num_experts), dtype=mx.float32)
+        for pass_indices in passes:
+            one_hot = mx.sum(eye[pass_indices], axis=-2) * valid_f[:, :, None]
+            stacked = mx.stack(
+                [mx.sum(one_hot * (win_idx == win_ids[:, w : w + 1]).astype(mx.float32)[:, :, None], axis=1)
+                 for w in range(num_wins)],
+                axis=1,
+            )
+            counts = counts + stacked
+        win_totals = mx.sum(counts, axis=-1, keepdims=True)
+        has_tokens = (mx.squeeze(win_totals, axis=-1) > 0).astype(mx.float32)
+        target_dist = counts / mx.maximum(win_totals, 1.0)
+        flat_h = anchor_h.reshape(-1, anchor_h.shape[-1])
+        flat_base = base_logits.reshape(-1, num_experts)
+
+        def _layer_ce(r_params):
+            orig = adapter.trainable_parameters()
+            adapter.update(r_params)
+            try:
+                logits = adapter.add_selector_delta(flat_base, flat_h).reshape(batch, num_wins, num_experts)
+                if adapter.selector_bias is not None and not adapter.adapter_disabled:
+                    logits = logits + adapter.selector_bias.astype(mx.float32)
+                log_probs = logits - mx.logsumexp(logits, axis=-1, keepdims=True)
+                ce = -mx.sum(target_dist * log_probs, axis=-1)
+                return mx.sum(ce * has_tokens) / mx.maximum(mx.sum(has_tokens), 1.0)
+            finally:
+                adapter.update(orig)
+
+        l_val, g_val = mx.value_and_grad(_layer_ce)(adapter.trainable_parameters())
+        mx.eval(l_val, g_val)
+        losses.append(l_val)
+        grads_by_layer[layer_idx] = (attr_path, g_val)
+    if not losses:
+        return mx.array(0.0, dtype=mx.float32), {}
+    scale = 1.0 / len(losses)
+    scaled_grads = {
+        layer_idx: (attr_path, {k: v * scale for k, v in g_val.items()})
+        for layer_idx, (attr_path, g_val) in grads_by_layer.items()
+    }
+    return sum(losses) * scale, scaled_grads
+
+
+def sequential_ssd_loss_and_grad(
+    model,
+    ids: mx.array,
+    embed_fn,
+    layer_call_fn,
+    tail_loss_fn,
+    *,
+    controller: WindowPinController | None = None,
+    teacher_routes: dict | None = None,
+    prompt_lengths: list[int] | None = None,
+    response_mask: mx.array | None = None,
+    window_size: int | None = None,
+    cov_weight: float = 0.0,
+):
+    """Differentiate sequential block models one layer at a time to bound SSD weight memory."""
+    accum = zero_grad_tree(model.trainable_parameters())
+    if controller is not None and window_size is not None and prompt_lengths is not None:
+        controller.reset_sequence_student(window_size, prompt_lengths)
+    try:
+        x = embed_fn(ids)
+        mx.eval(x)
+        activations = [x]
+        for mod in model.layers:
+            x = layer_call_fn(mod, x)
+            mx.eval(x)
+            activations.append(x)
+
+        loss_val, d_x = mx.value_and_grad(tail_loss_fn)(x)
+        mx.eval(loss_val, d_x)
+
+        if controller is not None and cov_weight > 0.0 and teacher_routes and prompt_lengths is not None and response_mask is not None:
+            cov_loss, cov_grads = compute_window_coverage_loss_and_grads(
+                model, controller, teacher_routes, prompt_lengths, response_mask,
+            )
+            loss_val = loss_val + cov_weight * cov_loss
+            for layer_idx, (attr_path, g_adapt) in cov_grads.items():
+                parts = attr_path.split(".")
+                dst = accum["layers"][layer_idx]
+                for p in parts[:-1]:
+                    dst = dst[p]
+                dst[parts[-1]] = add_grad_trees(dst[parts[-1]], {k: cov_weight * v for k, v in g_adapt.items()})
+            mx.eval(loss_val)
+
+        from mlx.utils import tree_flatten, tree_unflatten
+
+        for idx in range(len(model.layers) - 1, -1, -1):
+            mod = model.layers[idx]
+            orig = mod.trainable_parameters()
+            flat_items = tree_flatten(orig)
+            keys = [k for k, _ in flat_items]
+            vals = [v for _, v in flat_items]
+            n_p = len(vals)
+            x_in = activations[idx]
+
+            def _one_layer(*args):
+                l_params = tree_unflatten(list(zip(keys, args[:n_p], strict=True)))
+                x_a = args[n_p]
+                mod.update(l_params)
+                try:
+                    return [layer_call_fn(mod, x_a)]
+                finally:
+                    mod.update(orig)
+
+            _, out_grads = mx.vjp(_one_layer, [*vals, x_in], [d_x])
+            mx.eval(out_grads)
+            g_layer = tree_unflatten(list(zip(keys, out_grads[:n_p], strict=True))) if n_p else {}
+            d_x = out_grads[n_p]
+            accum["layers"][idx] = add_grad_trees(accum["layers"][idx], g_layer)
+        return loss_val, accum
+    finally:
+        if controller is not None:
+            controller.clear_sequence()
 
 
 def compute_route(
