@@ -362,3 +362,77 @@ def test_inkling2_dynamic_convolution_uses_per_head_lag_weights():
     tail, _ = convolution(x[:, 2:], cache, inputs[:, 2:])
     assert mx.allclose(full, expected, rtol=1e-6, atol=1e-6).item()
     assert mx.array_equal(tail, full[:, 2:]).item()
+
+
+def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypatch):
+    import mlx.core as mx
+
+    from telos.models import inkling2_mlx
+    from telos.models.ssd_replay import replay_existing
+
+    class FixtureGuard:
+        budget = 2**30
+
+        def check(self):
+            pass
+
+    config = _write_text_fixture(tmp_path, mx)
+    text = config["text_config"]
+    checkpoint = tmp_path / "model.safetensors.index.json"
+    layout = InklingTextLayout.from_checkpoint(checkpoint)
+    sizes = inkling2_mlx._layer_sizes(layout)
+    non_experts = sum(entry.size for name, entry in tensor_ranges(checkpoint).items() if ".mlp.experts." not in name)
+
+    monkeypatch.setattr(inkling2_mlx, "AppleMemoryGuard", FixtureGuard)
+    monkeypatch.setattr(inkling2_mlx, "_PREFILL_CHUNK", 3)
+    resident = TextGenerator.from_checkpoint(tmp_path, memory_budget_mib=1024)
+    assert resident.model.weight_storage == "resident"
+
+    # Size the budget to fit ~13 NVFP4 experts so prefill + decode produce hits and evictions.
+    low, high = 0, FixtureGuard.budget
+    while low < high:
+        mid = (low + high) // 2
+        try:
+            inkling2_mlx.plan_inkling(text, layout, non_experts, mid, 24)
+        except ValueError:
+            low = mid + 1
+        else:
+            high = mid
+    FixtureGuard.budget = high + 12 * sizes[0]
+
+    streamed = TextGenerator.from_checkpoint(tmp_path, memory_budget_mib=1024)
+    assert streamed.model.weight_storage == "ssd_experts"
+    assert resident.model.route_trace is None
+    assert streamed.model.route_trace is None
+
+    streamed.model.route_trace = []
+    prompt = [2, 3, 5, 7, 11, 13]
+    options = (prompt, 5, 0.0, 0, 1.0, None, "dynamic")
+    resident_tokens = list(resident._mlx_tokens(*options))
+    streamed_tokens = list(streamed._mlx_tokens(*options))
+    assert streamed_tokens == resident_tokens
+
+    trace = streamed.model.route_trace
+    # 6 prefill tokens in chunks of 3 => 2 * 16 visits; 4 decode steps => 4 * 16 visits.
+    assert len(trace) == 6 * len(layout.visits)
+    prefill = [entry for entry in trace if entry["phase"] == "prefill"]
+    decode = [entry for entry in trace if entry["phase"] == "decode"]
+    assert len(prefill) == 2 * len(layout.visits)
+    assert len(decode) == 4 * len(layout.visits)
+    assert [entry["token_index"] for entry in decode[::len(layout.visits)]] == [6, 7, 8, 9]
+    assert [entry["loop_pass"] for entry in trace if entry["layer"] == 2][:6] == [0, 1, 2, 0, 1, 2]
+    for entry in trace:
+        assert entry["experts"] == sorted(entry["experts"])
+        assert entry["byte_sizes"] == [sizes[entry["layer"]]] * len(entry["experts"])
+
+    cache = streamed.model._expert_cache
+    assert cache.hits > 0 and cache.misses > 0
+    replayed = replay_existing(trace, cache.byte_limit, layer_sizes=sizes)
+    assert replayed["decode_tokens"] == 4
+    assert replayed["total"]["hits"] == cache.hits
+    assert replayed["total"]["misses"] == cache.misses
+    assert replayed["total"]["bytes_read"] == cache.bytes_read
+    assert replayed["prefill"]["hits"] == sum(entry["hits"] for entry in prefill)
+    assert replayed["prefill"]["bytes_read"] == sum(entry["bytes_read"] for entry in prefill)
+    assert replayed["decode"]["hits"] == sum(entry["hits"] for entry in decode)
+    assert replayed["decode"]["bytes_read"] == sum(entry["bytes_read"] for entry in decode)

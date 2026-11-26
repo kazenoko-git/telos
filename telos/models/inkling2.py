@@ -103,7 +103,7 @@ class InklingExpertBank:
         selected = mx.take_along_axis(scores, indices, axis=-1)
         return indices, selected / (selected.sum(axis=-1, keepdims=True) + 1e-20) * self.route_scale
 
-    def routed(self, hidden, router, cache):
+    def routed(self, hidden, router, cache, *, trace=None):
         import mlx.core as mx
 
         x = hidden.reshape(-1, hidden.shape[-1])
@@ -114,11 +114,21 @@ class InklingExpertBank:
                 rows, slots = routes.setdefault(expert, ([], []))
                 rows.append(row)
                 slots.append(slot)
+        ordered = sorted(routes)
+        if trace is not None:
+            hits_before = getattr(cache, "hits", None)
+            misses_before = getattr(cache, "misses", None)
+            bytes_before = getattr(cache, "bytes_read", None)
+            trace["experts"] = ordered
+            trace["byte_sizes"] = [sum(entry.expert(expert).size for entry in self.ranges.values())
+                                   for expert in ordered]
+            trace["routed_experts"] = indices.tolist()
         prepare = getattr(cache, "prepare", None)
         if prepare is not None and x.shape[0] == 1:
             prepare(self.layer, routes, self.ranges)
         output = mx.zeros(x.shape, dtype=mx.float32)
-        for expert, (rows, slots) in sorted(routes.items()):
+        for expert in ordered:
+            rows, slots = routes[expert]
             rows, slots = mx.array(rows), mx.array(slots)
             packed = cache.get(self.layer, expert, self.ranges)
             values = self.project(x[rows], packed).astype(mx.float32)
@@ -126,6 +136,11 @@ class InklingExpertBank:
             # End the graph before the cache can evict these expert weights.
             mx.eval(output)
             del packed, values
+        if trace is not None and bytes_before is not None:
+            trace["bytes_read"] = cache.bytes_read - bytes_before
+            if hits_before is not None:
+                trace["hits"] = cache.hits - hits_before
+                trace["misses"] = cache.misses - misses_before
         return output.astype(hidden.dtype).reshape(hidden.shape)
 
     def project(self, hidden, tensors):

@@ -94,7 +94,7 @@ class _DecoderLayer(nn.Module):
             for name in ("q", "k", "v", "mlp")
         ) if loop["core_start"] <= index < loop["core_end"] and loop["num_passes"] > 1 else ()
 
-    def __call__(self, x, blocks, messages, previous, offset, limit, experts):
+    def __call__(self, x, blocks, messages, previous, offset, limit, experts, *, trace=None):
         if self.attn_query is None:
             mixed = (x,) * 3
         else:
@@ -119,7 +119,7 @@ class _DecoderLayer(nn.Module):
         hidden = _mix(blocks, residual, self.mlp_query[None], self.normalize_values)[..., 0, :]
         if messages is not None:
             hidden = self.gates[3](hidden, messages[..., 3, :])
-        hidden = self.bank.routed(_norm(hidden, self.mlp_norm, self.eps, x.dtype), self.router, experts)
+        hidden = self.bank.routed(_norm(hidden, self.mlp_norm, self.eps, x.dtype), self.router, experts, trace=trace)
         output, mlp_history = self.mlp_conv(hidden, None if previous is None else previous.mlp_history)
         output = (output.astype(mx.float32) + residual).astype(x.dtype)
         return output, _VisitState(state, attention_history, mlp_history)
@@ -152,6 +152,7 @@ class Inkling2TextMLX(nn.Module):
         self._expert_cache = cache
         self._experts = experts
         self._guard = guard
+        self.route_trace = None
         self._visits = layout.visits
         self._loop_start = text["loop_config"]["core_start"]
         self._loop_end = text["loop_config"]["core_end"]
@@ -178,7 +179,7 @@ class Inkling2TextMLX(nn.Module):
         if weights.tensors:
             raise ValueError(f"Unexpected Inkling 2 text tensor {next(iter(weights.tensors))}")
 
-    def _chunk(self, ids, cache):
+    def _chunk(self, ids, cache, *, phase="prefill"):
         embedded = self.embed.lookup(ids)
         x = _norm(embedded, self.embed_norm, self.eps, embedded.dtype)
         blocks = []
@@ -186,8 +187,11 @@ class Inkling2TextMLX(nn.Module):
         depth = len(self.layers)
         states = [None] * len(self._visits)
         message_bank = None
+        pass_counts = {}
         for layer, slot in self._visits:
             self._guard.check()
+            loop_pass = pass_counts.get(layer, 0)
+            pass_counts[layer] = loop_pass + 1
             if layer == self._loop_start:
                 if slot == layer:
                     prelude, prelude_blocks = x, blocks.copy()
@@ -199,9 +203,20 @@ class Inkling2TextMLX(nn.Module):
             if slot >= depth:
                 messages = _mix(*message_bank, self.message_queries[layer - self._loop_start], True)
             previous = None if cache is None else cache.visits[slot]
+            trace = None
+            if self.route_trace is not None:
+                trace = {
+                    "phase": phase,
+                    "token_index": offset,
+                    "token_count": ids.shape[1],
+                    "layer": layer,
+                    "loop_pass": loop_pass,
+                }
             x, states[slot] = self.layers[layer](
-                x, blocks, messages, previous, offset, self.max_seq_len, self._experts,
+                x, blocks, messages, previous, offset, self.max_seq_len, self._experts, trace=trace,
             )
+            if trace is not None:
+                self.route_trace.append(trace)
         hidden = _mix(blocks, x, self.final_query[None], self.normalize_values)[..., 0, :]
         hidden = _norm(hidden, self.final_norm, self.eps, embedded.dtype)
         # Finish outstanding state before the next chunk and keep cache graphs bounded.
@@ -215,8 +230,9 @@ class Inkling2TextMLX(nn.Module):
         offset = 0 if cache is None else cache.length
         if not is_causal or not length or offset + length > self.max_seq_len:
             raise ValueError(f"Inkling 2 requires a non-empty causal input within {self.max_seq_len} tokens")
+        phase = "prefill" if cache is None or length > 1 else "decode"
         for start in range(0, length, _PREFILL_CHUNK):
-            hidden, cache = self._chunk(ids[:, start:start + _PREFILL_CHUNK], cache)
+            hidden, cache = self._chunk(ids[:, start:start + _PREFILL_CHUNK], cache, phase=phase)
             yield hidden, cache
 
     def hidden_states_with_cache(self, ids, kv_cache=None, *, is_causal=True):

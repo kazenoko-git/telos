@@ -176,6 +176,8 @@ class SSDExpertCache:
         self.guard = guard
         self.resident_bytes = 0
         self.bytes_read = 0
+        self.hits = 0
+        self.misses = 0
         self._entries = OrderedDict()
         self.layer_slots = {}
         # Equal-size banks can divide whole slots evenly without wasting the
@@ -197,6 +199,7 @@ class SSDExpertCache:
         self.guard.check()
         key = (layer, expert)
         if key in self._entries:
+            self.hits += 1
             self._entries.move_to_end(key)
             return self._entries[key][0]
 
@@ -204,6 +207,7 @@ class SSDExpertCache:
         size = sum(entry.size for entry in slices.values())
         if size > self.byte_limit:
             raise ValueError(f"One expert needs {size} bytes, over the Flash-MoE cache budget")
+        self.misses += 1
         if layer in self.layer_slots:
             resident = [key for key in self._entries if key[0] == layer]
             if len(resident) >= self.layer_slots[layer]:
