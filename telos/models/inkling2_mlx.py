@@ -15,6 +15,7 @@ from .inkling2_attention import (
 from .qwen3_mlx import _Weights
 from .ssd_expert_io import LFMSSDExpertCache
 from .ssd_experts import AppleMemoryGuard, tensor_ranges
+from .window_routing import WindowPinController
 
 _MIB = 2**20
 _PREFILL_CHUNK = 128
@@ -71,6 +72,7 @@ class _DecoderLayer(nn.Module):
         self.normalize_values = config["attn_res_normalize_values"]
         self.boundary = index % block_size == 0
         self.bank = bank
+        self.router_adapter = None
         self.router = (
             weights.take(prefix + ".mlp.gate.weight", bank.router_weight.shape),
             weights.take(prefix + ".mlp.gate.e_score_correction_bias", bank.router_bias.shape)
@@ -94,7 +96,7 @@ class _DecoderLayer(nn.Module):
             for name in ("q", "k", "v", "mlp")
         ) if loop["core_start"] <= index < loop["core_end"] and loop["num_passes"] > 1 else ()
 
-    def __call__(self, x, blocks, messages, previous, offset, limit, experts, *, trace=None):
+    def __call__(self, x, blocks, messages, previous, offset, limit, experts, *, trace=None, controller=None):
         if self.attn_query is None:
             mixed = (x,) * 3
         else:
@@ -119,7 +121,14 @@ class _DecoderLayer(nn.Module):
         hidden = _mix(blocks, residual, self.mlp_query[None], self.normalize_values)[..., 0, :]
         if messages is not None:
             hidden = self.gates[3](hidden, messages[..., 3, :])
-        hidden = self.bank.routed(_norm(hidden, self.mlp_norm, self.eps, x.dtype), self.router, experts, trace=trace)
+        hidden = self.bank.routed(
+            _norm(hidden, self.mlp_norm, self.eps, x.dtype),
+            self.router,
+            experts,
+            trace=trace,
+            controller=controller,
+            adapter=self.router_adapter,
+        )
         output, mlp_history = self.mlp_conv(hidden, None if previous is None else previous.mlp_history)
         output = (output.astype(mx.float32) + residual).astype(x.dtype)
         return output, _VisitState(state, attention_history, mlp_history)
@@ -154,6 +163,7 @@ class Inkling2TextMLX(nn.Module):
         self._experts = experts
         self._guard = guard
         self.route_trace = None
+        self._window_controller = WindowPinController()
         self._visits = layout.visits
         self._loop_start = text["loop_config"]["core_start"]
         self._loop_end = text["loop_config"]["core_end"]
@@ -179,6 +189,9 @@ class Inkling2TextMLX(nn.Module):
         self.layers = [_DecoderLayer(weights, text, bank, block, bank.layer in local) for bank in layout.expert_banks]
         if weights.tensors:
             raise ValueError(f"Unexpected Inkling 2 text tensor {next(iter(weights.tensors))}")
+
+    def set_window_size(self, window_size: int | None):
+        self._window_controller.set_window_size(window_size)
 
     def _chunk(self, ids, cache, *, phase="prefill"):
         if phase == "decode":
@@ -218,7 +231,8 @@ class Inkling2TextMLX(nn.Module):
                     "loop_pass": loop_pass,
                 }
             x, states[slot] = self.layers[layer](
-                x, blocks, messages, previous, offset, self.max_seq_len, self._experts, trace=trace,
+                x, blocks, messages, previous, offset, self.max_seq_len, self._experts,
+                trace=trace, controller=self._window_controller,
             )
             if trace is not None:
                 self.route_trace.append(trace)
@@ -236,6 +250,10 @@ class Inkling2TextMLX(nn.Module):
         if not is_causal or not length or offset + length > self.max_seq_len:
             raise ValueError(f"Inkling 2 requires a non-empty causal input within {self.max_seq_len} tokens")
         phase = "prefill" if cache is None or length > 1 else "decode"
+        if cache is None:
+            self._window_controller.begin_prefill()
+        elif phase == "decode":
+            self._window_controller.begin_decode_step()
         for start in range(0, length, _PREFILL_CHUNK):
             hidden, cache = self._chunk(ids[:, start:start + _PREFILL_CHUNK], cache, phase=phase)
             yield hidden, cache
