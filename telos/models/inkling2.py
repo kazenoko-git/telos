@@ -128,6 +128,8 @@ class InklingExpertBank:
         if prepare is not None and x.shape[0] == 1:
             prepare(self.layer, routes, self.ranges)
         visit = getattr(cache, "visit", None)
+        entries = getattr(cache, "_entries", None)
+        all_cached = entries is not None and x.shape[0] == 1 and all((self.layer, e) in entries for e in ordered)
         output = mx.zeros(x.shape, dtype=mx.float32)
         with visit(self.layer, ordered) if visit is not None else _null_visit():
             for expert in ordered:
@@ -136,8 +138,9 @@ class InklingExpertBank:
                 packed = cache.get(self.layer, expert, self.ranges)
                 values = self.project(x[rows], packed).astype(mx.float32)
                 output = output.at[rows].add(values * weights[rows, slots, None])
-                # End the graph before the cache can evict these expert weights.
-                mx.eval(output)
+                if not all_cached:
+                    # End the graph before the cache can evict these expert weights.
+                    mx.eval(output)
                 del packed, values
         if trace is not None and bytes_before is not None:
             trace["bytes_read"] = cache.bytes_read - bytes_before
@@ -149,13 +152,17 @@ class InklingExpertBank:
     def project(self, hidden, tensors):
         import mlx.core as mx
 
+        bits, group = (4, 16) if self.mode == "nvfp4" else (8, 32)
+
         def linear(inputs, name):
-            # Dequantize only the selected expert, including its NVFP4 global scale.
-            weight = mx.dequantize(
-                tensors[name + ".weight"], tensors[name + ".scales"], mode=self.mode,
-                global_scale=tensors.get(name + ".global_scale"), dtype=inputs.dtype,
+            out = mx.quantized_matmul(
+                inputs, tensors[name + ".weight"], tensors[name + ".scales"], None,
+                transpose=True, group_size=group, bits=bits, mode=self.mode,
             )
-            return inputs @ weight.T
+            if self.mode == "nvfp4":
+                # MLX nvfp4 dequantizes with a 2688 (6 * 448) global_scale denominator.
+                out = (out.astype(mx.float32) * (tensors[name + ".global_scale"] / 2688.0)).astype(inputs.dtype)
+            return out
 
         fused = linear(hidden, "gate_up_proj").astype(mx.float32)
         gate, up = fused[..., ::2], fused[..., 1::2]
