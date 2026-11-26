@@ -22,6 +22,10 @@ _HF_TO_MLX_ATTR = {
     "r_proj": ("r", "r_proj"),
     "sink_proj": ("sink", "sink_proj"),
     "in_proj": ("input", "in_proj"),
+    "in_proj_qkv": ("in_proj_qkv",),
+    "in_proj_z": ("in_proj_z",),
+    "in_proj_b": ("in_proj_b",),
+    "in_proj_a": ("in_proj_a",),
     "out_proj": ("output", "out_proj"),
     "qkv_proj": ("qkv", "qkv_proj"),
 }
@@ -602,7 +606,7 @@ def _resolve_layer_module(modules: dict, layer_idx: int, proj_name: str) -> tupl
     """Resolve HF or Telos projection names on layers.{layer_idx}."""
     candidates = _HF_TO_MLX_ATTR.get(proj_name, (proj_name,))
     prefix = f"layers.{layer_idx}."
-    for sub in ("attention", "operator", "self_attn", "mlp", ""):
+    for sub in ("attention", "operator", "self_attn", "linear_attn", "conv", "mlp", ""):
         for attr in candidates:
             full = f"{prefix}{sub}.{attr}" if sub else f"{prefix}{attr}"
             if full in modules:
