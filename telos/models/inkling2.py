@@ -94,21 +94,31 @@ class InklingExpertBank:
     def load_router(self):
         return self.router_weight.load(), self.router_bias.load() if self.router_bias is not None else None
 
-    def route(self, hidden, router):
+    def route(self, hidden, router, *, controller=None, adapter=None):
         import mlx.core as mx
+        from .window_routing import compute_route
 
         weight, bias = router
-        scores = mx.sigmoid(hidden.astype(mx.float32) @ weight.T)
-        ranking = scores if bias is None else scores + bias
-        indices = mx.argsort(-ranking, axis=-1)[..., :self.top_k]
-        selected = mx.take_along_axis(scores, mx.stop_gradient(indices), axis=-1)
-        return indices, selected / (selected.sum(axis=-1, keepdims=True) + 1e-20) * self.route_scale
+        return compute_route(
+            hidden,
+            lambda h: h.astype(mx.float32) @ weight.T,
+            layer=self.layer,
+            top_k=self.top_k,
+            route_scale=self.route_scale,
+            normalize=True,
+            base_bias=bias,
+            adapter=adapter,
+            controller=controller,
+            activation="sigmoid",
+            eps=1e-20,
+            output_dtype=mx.float32,
+        )
 
-    def routed(self, hidden, router, cache, *, trace=None):
+    def routed(self, hidden, router, cache, *, trace=None, controller=None, adapter=None):
         import mlx.core as mx
 
         x = hidden.reshape(-1, hidden.shape[-1])
-        indices, weights = self.route(x, router)
+        indices, weights = self.route(x, router, controller=controller, adapter=adapter)
         routes = {}
         for row, selected in enumerate(indices.tolist()):
             for slot, expert in enumerate(selected):
