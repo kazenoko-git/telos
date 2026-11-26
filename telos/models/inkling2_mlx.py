@@ -250,13 +250,19 @@ class Inkling2TextMLX(nn.Module):
         if not is_causal or not length or offset + length > self.max_seq_len:
             raise ValueError(f"Inkling 2 requires a non-empty causal input within {self.max_seq_len} tokens")
         phase = "prefill" if cache is None or length > 1 else "decode"
-        if cache is None:
-            self._window_controller.begin_prefill()
-        elif phase == "decode":
-            self._window_controller.begin_decode_step()
+        seq_active = self._window_controller.mode in {"teacher", "student"}
+        if not seq_active:
+            if cache is None:
+                self._window_controller.begin_prefill()
+            elif phase == "decode":
+                self._window_controller.begin_decode_step()
         for start in range(0, length, _PREFILL_CHUNK):
+            if seq_active:
+                self._window_controller.chunk_offset = start
             hidden, cache = self._chunk(ids[:, start:start + _PREFILL_CHUNK], cache, phase=phase)
             yield hidden, cache
+        if seq_active:
+            self._window_controller.chunk_offset = 0
 
     def hidden_states_with_cache(self, ids, kv_cache=None, *, is_causal=True):
         parts = []
