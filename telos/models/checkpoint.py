@@ -62,7 +62,7 @@ EXTERNAL_MLX_ARCHITECTURES = EXTERNAL_MLX_MOE_ARCHITECTURES | {"qwen3", "qwen2",
 
 
 def _load_external_causal_checkpoint(checkpoint, config, *, device, context_length,
-                                     memory_budget_mib, prefix_cache_entries):
+                                     memory_budget_mib, prefix_cache_entries, memory_guard):
     family = config["model_type"]
     if family in EXTERNAL_MLX_ARCHITECTURES and device not in ("mlx", "auto"):
         raise ValueError("Native MLX checkpoints require --device mlx or auto.")
@@ -76,9 +76,15 @@ def _load_external_causal_checkpoint(checkpoint, config, *, device, context_leng
             base_source = json.loads(adapter_path.with_suffix(".json").read_text(encoding="utf-8")).get("base_checkpoint")
         if not base_source:
             raise ValueError(f"Adapter checkpoint {adapter_path} is missing base source_checkpoint metadata.")
+        if memory_guard is not None:
+            # Reserve space for the adapter arrays and their loaded parameters.
+            memory_budget_mib -= (2 * adapter_path.stat().st_size + 2**20 - 1) // 2**20
+            if memory_budget_mib < 1:
+                raise ValueError("Adapter cannot fit in its post-training memory share")
         model, _, _, _ = load_checkpoint(
             base_source, device=device, context_length=context_length,
             memory_budget_mib=memory_budget_mib, prefix_cache_entries=prefix_cache_entries,
+            _memory_guard=memory_guard,
         )
         has_window = bool(posttrain_meta.get("window_size"))
         if not has_window and adapter_path.with_suffix(".json").is_file():
@@ -96,6 +102,8 @@ def _load_external_causal_checkpoint(checkpoint, config, *, device, context_leng
             from telos.posttrain.mlx_adapters import load_adapter
 
             load_adapter(model, adapter_path, base_checkpoint=base_source)
+        if memory_guard is not None:
+            memory_guard.check(force=True)
         return model.eval(), "mlx", model.vocab_size, config
     if family in EXTERNAL_MLX_MOE_ARCHITECTURES:
         from telos.training.core import metal_usable
@@ -106,14 +114,22 @@ def _load_external_causal_checkpoint(checkpoint, config, *, device, context_leng
             from .inkling2_mlx import load_inkling2
 
             model = load_inkling2(checkpoint, config, context_length=context_length,
-                                  memory_budget_mib=memory_budget_mib)
+                                  memory_budget_mib=memory_budget_mib, memory_guard=memory_guard)
         else:
             from .qwen3_moe_mlx import load_mlx_moe
 
             model = load_mlx_moe(checkpoint, config, context_length=context_length,
-                                 memory_budget_mib=memory_budget_mib, prefix_cache_entries=prefix_cache_entries)
+                                 memory_budget_mib=memory_budget_mib, prefix_cache_entries=prefix_cache_entries,
+                                 memory_guard=memory_guard)
         return model, "mlx", model.vocab_size, config
-    if memory_budget_mib is not None:
+    if memory_guard is not None:
+        from .ssd_experts import _MIB, tensor_ranges
+
+        weight_bytes = sum(entry.size for entry in tensor_ranges(checkpoint).values())
+        if weight_bytes > memory_budget_mib * _MIB:
+            raise ValueError("Dense MLX weights cannot fit in their post-training memory share")
+        memory_guard.check(force=True)
+    elif memory_budget_mib is not None:
         raise ValueError("--memory-budget-mib is supported for native MLX MoE checkpoints.")
     if family == "qwen3":
         from .qwen3_mlx import Qwen3MLX as model_cls
@@ -127,6 +143,8 @@ def _load_external_causal_checkpoint(checkpoint, config, *, device, context_leng
         raise ValueError(f"Unsupported native inference model architecture: {family}")
 
     model = model_cls(config, _load_mlx_arrays(checkpoint)).eval()
+    if memory_guard is not None:
+        memory_guard.check(force=True)
     return model, "mlx", model.vocab_size, config
 
 
@@ -137,9 +155,12 @@ def load_model_from_checkpoint(checkpoint_path: str | Path, config: dict | None 
 
 
 def load_checkpoint(checkpoint_path: str | Path, config: dict | None = None, *, strict_metadata=False,
-                    device="auto", context_length=None, memory_budget_mib=None, prefix_cache_entries=0):
+                    device="auto", context_length=None, memory_budget_mib=None, prefix_cache_entries=0,
+                    _memory_guard=None):
     """Return native model, backend, vocabulary size and checkpoint metadata."""
     cp = resolve_checkpoint(checkpoint_path)
+    if _memory_guard is not None and cp.suffix in {".pt", ".bin"}:
+        raise ValueError("Budgeted MLX post-training requires Safetensors weights for preflight")
     cfg_file = cp.parent / "config.json"
     if not cfg_file.exists():
         cfg_file = cp.parent / "config.yaml"
@@ -182,9 +203,16 @@ def load_checkpoint(checkpoint_path: str | Path, config: dict | None = None, *, 
     if is_external and (strict_metadata or full_cfg.get("model_type") in EXTERNAL_MLX_ARCHITECTURES):
         return _load_external_causal_checkpoint(
             cp, full_cfg, device=device, context_length=context_length, memory_budget_mib=memory_budget_mib,
-            prefix_cache_entries=prefix_cache_entries,
+            prefix_cache_entries=prefix_cache_entries, memory_guard=_memory_guard,
         )
-    if memory_budget_mib is not None:
+    if _memory_guard is not None:
+        from .ssd_experts import _MIB, tensor_ranges
+
+        weight_bytes = sum(entry.size for entry in tensor_ranges(cp).values())
+        if 2 * weight_bytes > memory_budget_mib * _MIB:
+            raise ValueError("Telos checkpoint and its loading workspace cannot fit in the post-training memory share")
+        _memory_guard.check(force=True)
+    elif memory_budget_mib is not None:
         raise ValueError("--memory-budget-mib is supported for native MLX MoE checkpoints.")
 
     vocab_size = m_cfg.get("vocab_size", 8192)

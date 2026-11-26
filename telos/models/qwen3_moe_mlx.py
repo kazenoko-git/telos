@@ -163,7 +163,7 @@ def plan_experts(config, ranges, budget, context_length, prefix_cache_entries):
     return context, remaining
 
 
-def load_mlx_moe(checkpoint, config, *, context_length, memory_budget_mib, prefix_cache_entries):
+def load_mlx_moe(checkpoint, config, *, context_length, memory_budget_mib, prefix_cache_entries, memory_guard=None):
     if config["model_type"] == "lfm2_moe":
         from .lfm2_moe_mlx import LFM2MoEMLX, LFM2RoutedMLP
 
@@ -174,7 +174,7 @@ def load_mlx_moe(checkpoint, config, *, context_length, memory_budget_mib, prefi
         model_class = Qwen3MLX
         expert_class = RoutedMLP
     ranges = tensor_ranges(checkpoint)
-    guard = AppleMemoryGuard()
+    guard = memory_guard if memory_guard is not None else AppleMemoryGuard()
     recommended = mx.device_info()["max_recommended_working_set_size"]
     budget = min(guard.budget, recommended)
     if memory_budget_mib is not None:

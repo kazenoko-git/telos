@@ -483,14 +483,14 @@ def _load(entry, guard):
     return value
 
 
-def load_inkling2(checkpoint, config, *, context_length, memory_budget_mib):
+def load_inkling2(checkpoint, config, *, context_length, memory_budget_mib, memory_guard=None):
     ranges = tensor_ranges(checkpoint)
     layout = InklingTextLayout.from_checkpoint(checkpoint, config=config, ranges=ranges)
     expert_names = {f"{_TEXT}layers.{bank.layer}.mlp.experts.{name}"
                     for bank in layout.expert_banks for name in bank.ranges}
     non_experts = {name: entry for name, entry in ranges.items()
                    if name.startswith((_TEXT, "lm_head.")) and name not in expert_names}
-    guard = AppleMemoryGuard()
+    guard = memory_guard if memory_guard is not None else AppleMemoryGuard()
     budget = min(guard.budget, mx.device_info()["max_recommended_working_set_size"])
     if memory_budget_mib is not None:
         budget = min(budget, memory_budget_mib * _MIB)

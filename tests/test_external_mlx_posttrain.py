@@ -352,3 +352,64 @@ def test_inkling2_loop_posttrain_dpo_and_guards(tmp_path, monkeypatch):
             ckpt, tmp_path / "grpo.jsonl", tmp_path / "bad_grpo",
             method="grpo", hardware="mlx", finetune="lora", max_steps=1,
         )
+
+
+def test_mlx_posttrain_shares_budget_with_separate_teacher(tmp_path, monkeypatch):
+    import mlx.core as mx
+    from telos.posttrain import memory, trainer
+
+    mib = 2**20
+    monkeypatch.setattr(memory, "_rss_bytes", lambda: 128 * mib)
+    monkeypatch.setattr(memory, "_command", lambda *args: str(16 * 1024 * mib))
+    monkeypatch.setattr(memory, "_free_percent", lambda: 90)
+    monkeypatch.setattr(memory, "_swapout_bytes", lambda: 0)
+    checkpoint = _write_lfm2_moe_fixture(tmp_path / "moe", mx)
+    data = tmp_path / "data.jsonl"
+    data.write_text(json.dumps({"prompt": "t2 t3", "response": "t4"}) + "\n")
+    loads = []
+    actual_load = trainer._load_mlx_compatible
+
+    def record_load(path, **kwargs):
+        loads.append((kwargs["memory_budget_mib"], kwargs["memory_guard"]))
+        return actual_load(path, **kwargs)
+
+    monkeypatch.setattr(trainer, "_load_mlx_compatible", record_load)
+    out = posttrain(
+        checkpoint, data, tmp_path / "out", method="distill", teacher=checkpoint,
+        hardware="mlx", finetune="lora", lora_rank=4, memory_budget_mib=1536,
+        max_steps=1, batch_size=1, max_length=10, save_every=0,
+    )
+    assert out.is_file()
+    assert [share for share, _ in loads] == [704, 704]
+    assert loads[0][1] is loads[1][1]
+
+    from telos.models.ssd_experts import TensorRange
+
+    def reject_payload(*args, **kwargs):
+        pytest.fail("A rejected training plan tried to read weight payloads")
+
+    monkeypatch.setattr(TensorRange, "load", reject_payload)
+    with pytest.raises(ValueError, match="cannot fit"):
+        posttrain(
+            checkpoint, data, tmp_path / "rejected", method="distill", teacher=checkpoint,
+            hardware="mlx", finetune="lora", memory_budget_mib=1000,
+            max_steps=1, batch_size=1, max_length=10, save_every=0,
+        )
+
+
+def test_posttrain_memory_guard_checks_rss_and_swap(monkeypatch):
+    from telos.posttrain import memory
+
+    mib = 2**20
+    rss, swap = 128 * mib, 0
+    monkeypatch.setattr(memory, "_rss_bytes", lambda: rss)
+    monkeypatch.setattr(memory, "_command", lambda *args: str(16 * 1024 * mib))
+    monkeypatch.setattr(memory, "_free_percent", lambda: 90)
+    monkeypatch.setattr(memory, "_swapout_bytes", lambda: swap)
+    with memory.MLXPosttrainMemory(1536) as guard:
+        rss = 1536 * mib
+        with pytest.raises(RuntimeError, match="exceeded its 1536 MiB memory budget"):
+            guard.check(force=True)
+        rss, swap = 128 * mib, 16384
+        with pytest.raises(RuntimeError, match="new swap writes"):
+            guard.check(force=True)

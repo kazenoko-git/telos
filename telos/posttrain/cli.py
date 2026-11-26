@@ -44,7 +44,7 @@ def main():
     parser.add_argument("--window-size", type=int, default=None, help="Pin decode MoE experts in W-token windows during distillation")
     parser.add_argument("--selector-rank", type=int, default=32, help="Low-rank adapter rank for window-pinned MoE selectors")
     parser.add_argument("--window-cov-weight", type=float, default=0.25, help="Teacher expert coverage loss weight for window distillation")
-    parser.add_argument("--memory-budget-mib", type=int, default=None, help="Optional RAM budget in MiB for Flash-MoE MLX checkpoints")
+    parser.add_argument("--memory-budget-mib", type=int, default=None, help="Combined RAM budget in MiB for native MLX MoE post-training")
     args = parser.parse_args()
     posttrain(
         args.checkpoint, args.data, args.output,

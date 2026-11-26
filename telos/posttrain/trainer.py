@@ -10,7 +10,7 @@ import random
 import hashlib
 import math
 import re
-from contextlib import nullcontext
+from contextlib import ExitStack, nullcontext
 from pathlib import Path
 from typing import Any
 
@@ -631,15 +631,22 @@ def _has_quantized_weights(model) -> bool:
 
 
 def _load_mlx_compatible(checkpoint_path: Path, *, max_length: int | None = None,
-                         memory_budget_mib: int | None = None):
+                         memory_budget_mib: int | None = None, memory_guard=None):
+    if memory_guard is not None and checkpoint_path.suffix in {".pt", ".bin"}:
+        raise ValueError("Budgeted MLX post-training requires Safetensors weights for preflight")
     cfg = _checkpoint_config(checkpoint_path)
     is_moe = cfg.get("model_type") in EXTERNAL_MLX_MOE_ARCHITECTURES
+    if memory_guard is not None:
+        memory_guard.check(force=True)
     model, backend, vocab_size, _ = load_checkpoint(
         checkpoint_path,
         device="mlx",
         context_length=(max_length if is_moe and max_length is not None else None),
-        memory_budget_mib=(memory_budget_mib if is_moe else None),
+        memory_budget_mib=memory_budget_mib,
+        _memory_guard=memory_guard,
     )
+    if memory_guard is not None:
+        memory_guard.check(force=True)
     return model, backend, vocab_size
 
 
@@ -683,7 +690,7 @@ def _to_mlx_causal_model(source_model, source_backend, checkpoint_path, precisio
 def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config, records, tokenizer,
                    out_dir, *, method, max_steps, batch_size, learning_rate, beta,
                    max_length, save_every, seed, resume=None, options=None,
-                   memory_budget_mib=None):
+                   memory_budget_mib=None, memory_guard=None):
     import mlx.core as mx
     import mlx.optimizers as optim
     import mlx.nn as nn
@@ -694,7 +701,7 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         raise ValueError("External MLX checkpoints require --finetune lora or qlora")
     model = _to_mlx_causal_model(source_model, source_backend, checkpoint_path, options["precision"])
     prev_cache_limit = None
-    if getattr(model, "weight_storage", None) == "ssd_experts":
+    if memory_guard is None and getattr(model, "weight_storage", None) == "ssd_experts":
         prev_cache_limit = mx.set_cache_limit(128 * 2**20)
 
     _seed_host_rng(seed)
@@ -720,7 +727,7 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
     if explicit_teacher:
         teacher_path = Path(distill["teacher"])
         t_model, t_backend, _ = _load_mlx_compatible(
-            teacher_path, max_length=max_length, memory_budget_mib=memory_budget_mib,
+            teacher_path, max_length=max_length, memory_budget_mib=memory_budget_mib, memory_guard=memory_guard,
         )
         reference = _to_mlx_causal_model(t_model, t_backend, teacher_path, options["precision"])
         if reference.vocab_size != model.vocab_size:
@@ -750,6 +757,8 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         raise FileExistsError(f"Output directory already contains MLX checkpoints: {out_dir}")
 
     def save(step, final=False):
+        if memory_guard is not None:
+            memory_guard.check(force=True)
         step_name = f"checkpoint_step_{step}.adapter.safetensors" if is_external else f"checkpoint_step_{step}.safetensors"
         path = final_path if final else out_dir / step_name
         tokenizer_file = export_checkpoint_tokenizer(out_dir, tokenizer)
@@ -947,6 +956,8 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         options["reference_cache_size"] if options["cache_reference"] else 0, batch_size)
     try:
         for step in range(session.step + 1, max_steps + 1):
+            if memory_guard is not None:
+                memory_guard.check(force=True)
             batch = randomizer.choices(prepared, k=batch_size)
             metrics = ""
             if rl:
@@ -1038,6 +1049,8 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
                         loss = step_fn(ids, labels, ref_c, ref_r)
                         mx.eval(model.trainable_parameters(), optimizer.state, loss,
                                 master_params if master_params is not None else [])
+            if memory_guard is not None:
+                memory_guard.check(force=True)
             if step == 1 or step % 10 == 0 or step == max_steps:
                 print(f"[{method.upper()}/MLX] step {step}/{max_steps} loss={loss.item():.4f}{metrics}", flush=True)
             if save_every and step % save_every == 0 and step != max_steps:
@@ -1283,6 +1296,7 @@ def _posttrain(
     selector_rank: int = 32,
     window_cov_weight: float = 0.25,
     memory_budget_mib: int | None = None,
+    _resources: ExitStack,
 ) -> Path:
     """Run SFT, DPO, distillation or online GRPO and export a native checkpoint."""
     method = method.lower()
@@ -1352,6 +1366,10 @@ def _posttrain(
     options["base_sha256"] = _sha256_file(checkpoint_path)
     options["base_checkpoint"] = str(checkpoint_path.resolve())
     source_config = _checkpoint_config(checkpoint_path)
+    is_external_mlx = backend_name == "mlx" and source_config.get("model_type") in EXTERNAL_MLX_ARCHITECTURES
+    is_mlx_moe = is_external_mlx and source_config["model_type"] in EXTERNAL_MLX_MOE_ARCHITECTURES
+    if memory_budget_mib is not None and not is_mlx_moe:
+        raise ValueError("--memory-budget-mib is supported for native MLX MoE checkpoints.")
     tokenizer_ref = checkpoint_tokenizer_path(checkpoint_path, source_config, tokenizer_path)
     options["quantization"] = "affine_int4_group64" if backend_name == "mlx" and finetune == "qlora" else ("nf4_block64" if finetune == "qlora" else None)
     print(f"[POSTTRAIN] method={method.upper()} backend={backend_name}", flush=True)
@@ -1382,18 +1400,23 @@ def _posttrain(
         }
         return _posttrain_xla(arguments)
 
-    is_external_mlx = backend_name == "mlx" and source_config.get("model_type") in EXTERNAL_MLX_ARCHITECTURES
+    memory_guard = None
+    model_budget_mib = None
     if is_external_mlx:
         if method == "grpo":
             raise ValueError("GRPO currently supports native Telos checkpoints; use sft, dpo or distill for external checkpoints")
         if finetune == "full":
             raise ValueError("External MLX checkpoints require --finetune lora or qlora")
+        separate_teacher = bool(options.get("distill", {}).get("teacher"))
+        if is_mlx_moe and (memory_budget_mib is not None or separate_teacher):
+            from .memory import MLXPosttrainMemory
+
+            memory_guard = _resources.enter_context(MLXPosttrainMemory(memory_budget_mib))
+            model_budget_mib = memory_guard.model_budget_mib(separate_teacher=separate_teacher)
         model, backend, _ = _load_mlx_compatible(
-            checkpoint_path, max_length=max_length, memory_budget_mib=memory_budget_mib,
+            checkpoint_path, max_length=max_length, memory_budget_mib=model_budget_mib, memory_guard=memory_guard,
         )
     else:
-        if memory_budget_mib is not None:
-            raise ValueError("--memory-budget-mib is supported for native MLX MoE checkpoints.")
         model, backend, _ = load_model_from_checkpoint(checkpoint_path)
     model_config = source_config.get("model", source_config)
     paradigm = str(source_config.get("paradigm", model_config.get("paradigm", ""))).lower()
@@ -1437,7 +1460,7 @@ def _posttrain(
             method=method, max_steps=max_steps, batch_size=batch_size,
             learning_rate=learning_rate, beta=beta, max_length=max_length,
             save_every=save_every, seed=seed, resume=resume, options=options,
-            memory_budget_mib=memory_budget_mib,
+            memory_budget_mib=model_budget_mib, memory_guard=memory_guard,
         )
 
     if backend != "pytorch":
@@ -1726,7 +1749,8 @@ def posttrain(*args, **kwargs):
             dist.init_process_group("nccl")
             owned_group = True
     try:
-        return _posttrain(*args, **kwargs)
+        with ExitStack() as resources:
+            return _posttrain(*args, _resources=resources, **kwargs)
     finally:
         if owned_group:
             torch.distributed.destroy_process_group()
