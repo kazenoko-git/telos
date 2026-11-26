@@ -63,6 +63,20 @@ def _norm(x, weight, eps, dtype):
     return mx.fast.rms_norm(x.astype(mx.float32), weight.astype(mx.float32), eps).astype(dtype)
 
 
+@lru_cache(maxsize=4)
+def _compiled_message_gate(eps):
+    def _run(x, message, down, forget, gain):
+        pair = mx.concatenate(
+            (mx.fast.rms_norm(x.astype(mx.float32), None, eps),
+             mx.fast.rms_norm(message, None, eps)), axis=-1,
+        )
+        hidden = (pair.astype(down.dtype) @ down.T).astype(mx.float32)
+        return ((1 - mx.tanh(hidden @ forget.T)) * x
+                + mx.tanh(hidden @ gain.T) * message)
+
+    return mx.compile(_run)
+
+
 class _MessageGate(nn.Module):
     def __init__(self, weights, prefix, width, rank, eps):
         super().__init__()
@@ -71,7 +85,9 @@ class _MessageGate(nn.Module):
         self.gain = weights.take(prefix + ".message_gate_proj.weight", (width, rank))
         self.eps = eps
 
-    def __call__(self, x, message):
+    def __call__(self, x, message, *, compiled=False):
+        if compiled:
+            return _compiled_message_gate(self.eps)(x, message, self.down, self.forget, self.gain)
         pair = mx.concatenate(
             (mx.fast.rms_norm(x.astype(mx.float32), None, self.eps),
              mx.fast.rms_norm(message, None, self.eps)), axis=-1,
@@ -126,7 +142,8 @@ class _DecoderLayer(nn.Module):
             if len(mixed) == 1:
                 mixed *= 3
         if messages is not None:
-            mixed = tuple(self.gates[i](part, messages[..., i, :]) for i, part in enumerate(mixed))
+            mixed = tuple(self.gates[i](part, messages[..., i, :], compiled=compiled_helpers)
+                          for i, part in enumerate(mixed))
         norms = self.input_norms if len(self.input_norms) == 3 else self.input_norms * 3
         return [_norm(part, norm, self.eps, x.dtype) for part, norm in zip(mixed, norms, strict=True)]
 
@@ -140,7 +157,7 @@ class _DecoderLayer(nn.Module):
         hidden = _mix(blocks, residual, self.mlp_query[None], self.normalize_values,
                       compiled=compiled_helpers)[..., 0, :]
         if messages is not None:
-            hidden = self.gates[3](hidden, messages[..., 3, :])
+            hidden = self.gates[3](hidden, messages[..., 3, :], compiled=compiled_helpers)
         return _norm(hidden, self.mlp_norm, self.eps, x.dtype), residual, history
 
     def __call__(self, x, blocks, messages, previous, offset, limit, experts, *, trace=None, controller=None,

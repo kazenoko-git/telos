@@ -64,6 +64,27 @@ class StaticConvolution(nn.Module):
         return result.astype(x.dtype), tail
 
 
+@lru_cache(maxsize=8)
+def _compiled_dynamic_conv(kernel, heads):
+    scale = math.sqrt(2 * kernel + 1)
+
+    def _run(x, history, dynamic_out, static_weight):
+        context = mx.concatenate((history, x.astype(mx.float32)), axis=1)
+        tail = context[:, 1:, :]
+        batch, length, channels = x.shape
+        shape = batch, length, heads, channels // heads
+        dynamic = dynamic_out.astype(mx.float32).reshape(batch, length, heads, 1, kernel)
+        weights = dynamic + static_weight.astype(mx.float32).T.reshape(heads, -1, kernel)
+        result = mx.zeros(shape, dtype=mx.float32)
+        for lag in range(kernel):
+            start = kernel - 1 - lag
+            result = result + context[:, start:start + length].reshape(shape) * weights[..., lag]
+        result = (result.reshape(x.shape) + x.astype(mx.float32)) / scale
+        return result.astype(x.dtype), tail
+
+    return mx.compile(_run)
+
+
 class DynamicConvolution(nn.Module):
     def __init__(self, weights, prefix, width, channels, heads, kernel):
         super().__init__()
@@ -72,7 +93,9 @@ class DynamicConvolution(nn.Module):
         self.static = weights.take(prefix + ".static_weight", (kernel, channels))
         self.dynamic = weights.matrix(prefix + ".weight_proj", heads * kernel, width)
 
-    def __call__(self, x, history, inputs):
+    def __call__(self, x, history, inputs, *, compiled=False):
+        if compiled and history is not None and x.shape[1] == 1:
+            return _compiled_dynamic_conv(self.kernel, self.heads)(x, history, self.dynamic(inputs), self.static)
         context, tail = _convolution_context(x, history, self.kernel)
         batch, length, channels = x.shape
         shape = batch, length, self.heads, channels // self.heads
@@ -220,8 +243,8 @@ class InklingAttention(nn.Module):
         kh = None if previous is None else previous.key_history
         vh = None if previous is None else previous.value_history
         if self.window is None:
-            k, kh = self.key_conv(k, kh, k_input)
-            v, vh = self.value_conv(v, vh, v_input)
+            k, kh = self.key_conv(k, kh, k_input, compiled=compiled_helpers)
+            v, vh = self.value_conv(v, vh, v_input, compiled=compiled_helpers)
         else:
             k, kh = self.key_conv(k, kh, compiled=compiled_helpers)
             v, vh = self.value_conv(v, vh, compiled=compiled_helpers)
