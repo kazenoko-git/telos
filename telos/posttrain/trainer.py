@@ -517,11 +517,10 @@ def _mlx_preference_loss(chosen, rejected, ref_chosen, ref_rejected, beta):
     return mx.mean(mx.logaddexp(0.0, -margin))
 
 
-def _mlx_distill_loss(model, ids, labels, teacher_logits, alpha, temperature):
+def _mlx_distill_from_logits(student_logits, labels, teacher_logits, alpha, temperature):
     import mlx.core as mx
 
     from telos.training.mlx_losses import cross_entropy
-    student_logits = _mlx_logits(model, ids).astype(mx.float32)
     targets = labels[:, 1:]
     valid = (targets != -100).astype(mx.float32)
     denom = mx.maximum(mx.sum(valid), 1.0)
@@ -538,6 +537,90 @@ def _mlx_distill_loss(model, ids, labels, teacher_logits, alpha, temperature):
         ce = cross_entropy(student_logits, safe_targets, reduction="none") * valid
         loss = loss + (1.0 - alpha) * (mx.sum(ce) / denom)
     return loss
+
+
+def _mlx_distill_loss(model, ids, labels, teacher_logits, alpha, temperature):
+    import mlx.core as mx
+
+    student_logits = _mlx_logits(model, ids).astype(mx.float32)
+    return _mlx_distill_from_logits(student_logits, labels, teacher_logits, alpha, temperature)
+
+
+def _batch_prompt_lengths(labels) -> list[int]:
+    lengths = []
+    for row in labels.tolist():
+        idx = next((i for i, val in enumerate(row) if val != -100), len(row))
+        lengths.append(idx)
+    return lengths
+
+
+def _run_window_teacher(model, ids, prompt_lengths: list[int]):
+    import mlx.core as mx
+
+    ctrl = model._window_controller
+    try:
+        if getattr(model, "max_batch_size", None) == 1 and ids.shape[0] > 1:
+            logits_rows = []
+            merged_routes = {}
+            for i in range(ids.shape[0]):
+                ctrl.reset_sequence_teacher([prompt_lengths[i]])
+                row_logits = model.logits_from_hidden(
+                    model.hidden_states(ids[i : i + 1], is_causal=True)[:, :-1]
+                ).astype(mx.float32)
+                logits_rows.append(row_logits)
+                for layer, passes in ctrl.teacher_routes.items():
+                    joined = [c[0] if len(c) == 1 else mx.concatenate(c, axis=1) for c in passes]
+                    per_pass = merged_routes.setdefault(layer, [[] for _ in joined])
+                    for p_idx, arr in enumerate(joined):
+                        per_pass[p_idx].append(arr)
+            routes = {
+                layer: [mx.concatenate(chunks, axis=0) for chunks in passes]
+                for layer, passes in merged_routes.items()
+            }
+            return mx.concatenate(logits_rows, axis=0), routes
+        ctrl.reset_sequence_teacher(prompt_lengths)
+        logits = _mlx_logits(model, ids).astype(mx.float32)
+        routes = {
+            layer: [c[0] if len(c) == 1 else mx.concatenate(c, axis=1) for c in passes]
+            for layer, passes in ctrl.teacher_routes.items()
+        }
+        return logits, routes
+    finally:
+        ctrl.clear_sequence()
+
+
+def _mlx_window_distill_loss(model, ids, labels, teacher_logits, teacher_routes,
+                             prompt_lengths: list[int], alpha: float,
+                             temperature: float, cov_weight: float, window_size: int):
+    import mlx.core as mx
+    from telos.models.window_routing import compute_window_coverage_loss
+
+    ctrl = model._window_controller
+    try:
+        if getattr(model, "max_batch_size", None) == 1 and ids.shape[0] > 1:
+            logits_rows = []
+            cov_losses = []
+            for i in range(ids.shape[0]):
+                ctrl.reset_sequence_student(window_size, [prompt_lengths[i]])
+                logits_rows.append(
+                    model.logits_from_hidden(model.hidden_states(ids[i : i + 1], is_causal=True)[:, :-1]).astype(mx.float32)
+                )
+                row_routes = {
+                    layer: [arr[i : i + 1] for arr in passes]
+                    for layer, passes in teacher_routes.items()
+                }
+                cov_losses.append(
+                    compute_window_coverage_loss(ctrl, row_routes, [prompt_lengths[i]], labels[i : i + 1] != -100)
+                )
+            student_logits = mx.concatenate(logits_rows, axis=0)
+            cov_loss = sum(cov_losses) / max(1, len(cov_losses))
+        else:
+            ctrl.reset_sequence_student(window_size, prompt_lengths)
+            student_logits = _mlx_logits(model, ids).astype(mx.float32)
+            cov_loss = compute_window_coverage_loss(ctrl, teacher_routes, prompt_lengths, labels != -100)
+        return _mlx_distill_from_logits(student_logits, labels, teacher_logits, alpha, temperature) + cov_weight * cov_loss
+    finally:
+        ctrl.clear_sequence()
 
 
 def _has_quantized_weights(model) -> bool:
@@ -614,6 +697,17 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
     _seed_host_rng(seed)
     mx.random.seed(seed)
     _apply_adapters(model, options, "mlx")
+    window_cfg = options.get("window")
+    if window_cfg:
+        from telos.models.window_routing import init_window_adapters
+
+        init_window_adapters(
+            model,
+            selector_rank=window_cfg["selector_rank"],
+            selector_alpha=window_cfg["selector_alpha"],
+            token_router_rank=window_cfg["token_router_rank"],
+            token_scale=window_cfg["token_router_scale"],
+        )
     # Rollouts and policy scoring share the same dropout-free distribution.
     model.train(method != "grpo")
     distill = options.get("distill")
@@ -690,6 +784,8 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         }
         if is_external:
             posttrain_info["adapter"] = path.name
+        if window_cfg:
+            posttrain_info["window_size"] = window_cfg["window_size"]
         cfg["posttrain"] = posttrain_info
         (out_dir / "config.json").write_text(json.dumps(cfg, indent=2, default=str), encoding="utf-8")
         return path
@@ -741,7 +837,13 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         idx = mx.array(keep_rows, dtype=mx.int32)
         return [(k[idx], v[idx]) for k, v in cache]
 
-    def distill_loss(active_model, ids, labels, teacher_logits):
+    def distill_loss(active_model, ids, labels, teacher_logits, teacher_routes=None, prompt_lengths=None):
+        if window_cfg is not None:
+            return _mlx_window_distill_loss(
+                active_model, ids, labels, teacher_logits, teacher_routes, prompt_lengths,
+                distill["alpha"], distill["temperature"],
+                window_cfg["cov_weight"], window_cfg["window_size"],
+            )
         return _mlx_distill_loss(active_model, ids, labels, teacher_logits,
                                  distill["alpha"], distill["temperature"])
 
@@ -809,19 +911,39 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
                     mx.eval(model.trainable_parameters(), optimizer.state, loss,
                             master_params if master_params is not None else [])
             elif method == "distill":
-                if reference is not None:
-                    with _expert_request(reference):
-                        teacher_logits = mx.stop_gradient(_mlx_logits(reference, ids).astype(mx.float32))
-                        mx.eval(teacher_logits)
+                if window_cfg is not None:
+                    prompt_lengths = _batch_prompt_lengths(labels)
+                    if reference is not None:
+                        if not hasattr(reference, "_window_controller"):
+                            raise ValueError("Window-pinned distillation requires a MoE teacher when --teacher is provided")
+                        with _expert_request(reference):
+                            teacher_logits, teacher_routes = _run_window_teacher(reference, ids, prompt_lengths)
+                            teacher_logits = mx.stop_gradient(teacher_logits)
+                            mx.eval(teacher_logits, teacher_routes)
+                    else:
+                        from .mlx_adapters import disable_lora_adapters
+                        with _expert_request(model), disable_lora_adapters(model):
+                            teacher_logits, teacher_routes = _run_window_teacher(model, ids, prompt_lengths)
+                            teacher_logits = mx.stop_gradient(teacher_logits)
+                            mx.eval(teacher_logits, teacher_routes)
+                    with _expert_request(model):
+                        loss = step_fn(ids, labels, teacher_logits, teacher_routes, prompt_lengths)
+                        mx.eval(model.trainable_parameters(), optimizer.state, loss,
+                                master_params if master_params is not None else [])
                 else:
-                    from .mlx_adapters import disable_lora_adapters
-                    with _expert_request(model), disable_lora_adapters(model):
-                        teacher_logits = mx.stop_gradient(_mlx_logits(model, ids).astype(mx.float32))
-                        mx.eval(teacher_logits)
-                with _expert_request(model):
-                    loss = step_fn(ids, labels, teacher_logits)
-                    mx.eval(model.trainable_parameters(), optimizer.state, loss,
-                            master_params if master_params is not None else [])
+                    if reference is not None:
+                        with _expert_request(reference):
+                            teacher_logits = mx.stop_gradient(_mlx_logits(reference, ids).astype(mx.float32))
+                            mx.eval(teacher_logits)
+                    else:
+                        from .mlx_adapters import disable_lora_adapters
+                        with _expert_request(model), disable_lora_adapters(model):
+                            teacher_logits = mx.stop_gradient(_mlx_logits(model, ids).astype(mx.float32))
+                            mx.eval(teacher_logits)
+                    with _expert_request(model):
+                        loss = step_fn(ids, labels, teacher_logits)
+                        mx.eval(model.trainable_parameters(), optimizer.state, loss,
+                                master_params if master_params is not None else [])
             else:
                 for item, key in zip(rows, [row["_chosen_key"] for row in batch] +
                                           [row["_rejected_key"] for row in batch]):
@@ -1081,6 +1203,9 @@ def _posttrain(
     teacher: str | Path | None = None,
     distill_alpha: float = 0.5,
     distill_temperature: float = 1.0,
+    window_size: int | None = None,
+    selector_rank: int = 32,
+    window_cov_weight: float = 0.25,
     memory_budget_mib: int | None = None,
 ) -> Path:
     """Run SFT, DPO, distillation or online GRPO and export a native checkpoint."""
@@ -1118,6 +1243,21 @@ def _posttrain(
                 "temperature": distill_temperature,
             }
     backend_name = _resolve_backend(hardware)
+    if window_size is not None:
+        if type(window_size) is not int or window_size < 1:
+            raise ValueError("window_size must be a positive integer")
+        if selector_rank < 1 or not math.isfinite(window_cov_weight) or window_cov_weight < 0:
+            raise ValueError("selector_rank must be positive and window_cov_weight must be finite and non-negative")
+        if method != "distill" or backend_name != "mlx" or finetune == "full":
+            raise ValueError("Window-pinned distillation requires --method distill, MLX backend, and --finetune lora or qlora")
+        options["window"] = {
+            "window_size": window_size,
+            "selector_rank": selector_rank,
+            "selector_alpha": 32.0,
+            "token_router_rank": 16,
+            "token_router_scale": 2.0,
+            "cov_weight": window_cov_weight,
+        }
     if method == "grpo":
         distributed_cuda = (
             backend_name == "cuda" and torch.distributed.is_initialized()
@@ -1187,6 +1327,8 @@ def _posttrain(
     if not is_external_mlx:
         model_config.setdefault("max_seq_len", configured_length)
     if backend_name == "mlx":
+        if options.get("window") and not hasattr(model, "set_window_size"):
+            raise ValueError("Window-pinned distillation requires an MLX MoE checkpoint")
         if backend == "mlx":
             if not is_external_mlx:
                 model_config.setdefault("vocab_size", model.vocab_size)
