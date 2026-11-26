@@ -98,7 +98,20 @@ def save_mlx_state(path, state):
     structure = encode(state, arrays)
     arrays["structure"] = mx.array(list(json.dumps(structure).encode()), dtype=mx.uint8)
     mx.eval(*arrays.values())
-    atomic_write(path, lambda temporary: mx.savez(temporary, **arrays))
+    if len(arrays) <= 1024:
+        atomic_write(path, lambda temporary: mx.savez(temporary, **arrays))
+    else:
+        import io
+        import zipfile
+
+        def _write_npz(temporary):
+            with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_STORED) as archive:
+                for key, value in arrays.items():
+                    buf = io.BytesIO()
+                    mx.save(buf, value)
+                    archive.writestr(f"{key}.npy", buf.getvalue())
+
+        atomic_write(path, _write_npz)
 
 
 def load_mlx_state(path):
