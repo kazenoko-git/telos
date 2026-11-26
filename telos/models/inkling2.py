@@ -121,12 +121,13 @@ class InklingExpertBank:
         indices, weights = self.route(x, router, controller=controller, adapter=adapter)
         profile = getattr(cache, "profile", None)
         split = profile is not None and profile.split_step
+        section = "routing" if split and profile.split_attention_step else "backbone_router"
         if split:
             # Pinned indices can already be materialized. The weights depend on
             # this token's backbone work, so fence them before timing the experts.
-            profile.evaluate(mx.eval, weights, section="backbone_router")
+            profile.evaluate(mx.eval, weights, section=section)
         # The router sync also evaluates the preceding attention and residual work.
-        selected_rows = indices.tolist() if profile is None else profile.evaluate(indices.tolist, section="backbone_router")
+        selected_rows = indices.tolist() if profile is None else profile.evaluate(indices.tolist, section=section)
         routes = {}
         for row, selected in enumerate(selected_rows):
             for slot, expert in enumerate(selected):

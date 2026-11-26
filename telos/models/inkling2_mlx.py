@@ -103,6 +103,8 @@ class _DecoderLayer(nn.Module):
 
     def __call__(self, x, blocks, messages, previous, offset, limit, experts, *, trace=None, controller=None,
                  fused_nvfp4=False):
+        profile = getattr(experts, "profile", None)
+        split_attention = profile is not None and profile.split_attention_step
         if self.attn_query is None:
             mixed = (x,) * 3
         else:
@@ -114,7 +116,11 @@ class _DecoderLayer(nn.Module):
             mixed = tuple(self.gates[i](part, messages[..., i, :]) for i, part in enumerate(mixed))
         norms = self.input_norms if len(self.input_norms) == 3 else self.input_norms * 3
         inputs = [_norm(part, norm, self.eps, x.dtype) for part, norm in zip(mixed, norms, strict=True)]
+        if split_attention:
+            profile.evaluate(mx.eval, inputs, section="residual_mix")
         attention, state = self.attention(*inputs, None if previous is None else previous.attention, offset, limit)
+        if split_attention:
+            profile.evaluate(mx.eval, attention, state, section="attention")
         residual, attention_history = self.attention_conv(
             attention, None if previous is None else previous.attention_history,
         )
@@ -127,8 +133,11 @@ class _DecoderLayer(nn.Module):
         hidden = _mix(blocks, residual, self.mlp_query[None], self.normalize_values)[..., 0, :]
         if messages is not None:
             hidden = self.gates[3](hidden, messages[..., 3, :])
+        expert_input = _norm(hidden, self.mlp_norm, self.eps, x.dtype)
+        if split_attention:
+            profile.evaluate(mx.eval, expert_input, attention_history, section="residual_mix")
         hidden = self.bank.routed(
-            _norm(hidden, self.mlp_norm, self.eps, x.dtype),
+            expert_input,
             self.router,
             experts,
             trace=trace,
@@ -138,6 +147,8 @@ class _DecoderLayer(nn.Module):
         )
         output, mlp_history = self.mlp_conv(hidden, None if previous is None else previous.mlp_history)
         output = (output.astype(mx.float32) + residual).astype(x.dtype)
+        if split_attention:
+            profile.evaluate(mx.eval, output, mlp_history, section="residual_mix")
         return output, _VisitState(state, attention_history, mlp_history)
 
 

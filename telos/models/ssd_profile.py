@@ -7,16 +7,21 @@ class SSDGenerationProfile:
     """Collect time spent at existing SSD and MLX synchronization points."""
 
     _SECTIONS = ("backbone_router", "experts", "tail", "sampling")
+    _ATTENTION_SECTIONS = ("attention", "routing", "residual_mix", "experts", "tail", "sampling")
 
-    def __init__(self, *, split_decode=False):
+    def __init__(self, *, split_decode=False, split_attention=False):
         self.steps = []
-        self._split_decode = split_decode
+        self._split_decode = split_decode or split_attention
+        self._split_attention = split_attention
+        self._sections = self._ATTENTION_SECTIONS if split_attention else self._SECTIONS
         self.split_step = False
+        self.split_attention_step = False
 
     def begin_step(self, phase, cache):
         self._phase = phase
         self.split_step = self._split_decode and phase == "decode"
-        self._section_ns = dict.fromkeys(self._SECTIONS, 0) if self.split_step else None
+        self.split_attention_step = self.split_step and self._split_attention
+        self._section_ns = dict.fromkeys(self._sections, 0) if self.split_step else None
         self._bytes_read = cache.bytes_read
         self._hits = cache.hits
         self._misses = cache.misses
@@ -59,7 +64,7 @@ class SSDGenerationProfile:
         }
         if self._split_decode:
             step.update({f"{name}_eval_seconds": ns / 1e9
-                         for name, ns in (self._section_ns or dict.fromkeys(self._SECTIONS, 0)).items()})
+                         for name, ns in (self._section_ns or dict.fromkeys(self._sections, 0)).items()})
         self.steps.append(step)
 
     def report(self):
