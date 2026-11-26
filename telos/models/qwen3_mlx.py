@@ -260,10 +260,11 @@ class Qwen3MLX(nn.Module):
             raise ValueError("Native Qwen3 supports causal attention")
         if ids.shape[1] < 1:
             raise ValueError("Native Qwen3 requires at least one token per row")
-        if kv_cache is None:
-            self._window_controller.begin_prefill()
-        elif ids.shape[1] == 1:
-            self._window_controller.begin_decode_step()
+        if self._window_controller.mode is None:
+            if kv_cache is None:
+                self._window_controller.begin_prefill()
+            elif ids.shape[1] == 1:
+                self._window_controller.begin_decode_step()
         offset = kv_cache[0].length if kv_cache is not None else 0
         if offset + ids.shape[1] > self.max_seq_len:
             raise ValueError(f"Qwen3 context exceeds the model limit of {self.max_seq_len} tokens")
