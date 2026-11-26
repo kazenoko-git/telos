@@ -14,6 +14,7 @@ from telos.training.inkling2_window_distill import (
     export_adapter,
     load_adapter,
     patch_inkling_for_window_distill,
+    patch_moe_for_window_distill,
 )
 
 
@@ -115,7 +116,7 @@ def test_window_pinned_distill_gradients_checkpointing_and_export(tmp_path):
     input_ids = torch.randint(0, 32, (2, 12))
     prompt_lengths = torch.tensor([4, 5])
 
-    optimizer = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=2e-2)
+    optimizer = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=5e-4)
     initial_loss = None
     for step in range(8):
         optimizer.zero_grad()
@@ -157,3 +158,148 @@ def test_window_pinned_distill_gradients_checkpointing_and_export(tmp_path):
     for n, p in model.named_parameters():
         if p.requires_grad:
             assert torch.equal(p, dict(fresh.named_parameters())[n])
+
+
+def test_qwen3_moe_hf_window_distill(tmp_path):
+    from transformers import Qwen3MoeConfig, Qwen3MoeForCausalLM
+
+    torch.manual_seed(11)
+    cfg = Qwen3MoeConfig(
+        vocab_size=32, hidden_size=16, intermediate_size=24, moe_intermediate_size=16,
+        num_hidden_layers=2, num_attention_heads=2, num_key_value_heads=1,
+        num_experts=4, num_experts_per_tok=2, norm_topk_prob=True,
+    )
+    model = Qwen3MoeForCausalLM(cfg)
+    ctx = patch_moe_for_window_distill(model, window_size=4, lora_rank=4, selector_rank=4, token_router_rank=4)
+
+    trainable = [n for n, p in model.named_parameters() if p.requires_grad]
+    assert any("mlp.gate.selector.selector_b" in n for n in trainable)
+    assert any("self_attn.o_proj.lora_b" in n for n in trainable)
+    assert model.model.layers[0].mlp.gate.activation == "softmax"
+
+    input_ids = torch.randint(0, 32, (2, 10))
+    attn_mask = torch.ones_like(input_ids)
+    prompt_lengths = torch.tensor([3, 4])
+    opt = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=2e-2)
+    first_loss = None
+    for step in range(4):
+        opt.zero_grad()
+        loss, metrics = distill_step(model, ctx, input_ids, prompt_lengths, attn_mask)
+        if first_loss is None:
+            first_loss = metrics["loss"]
+        loss.backward()
+        if step == 0:
+            assert model.model.layers[0].mlp.gate.selector.selector_b.grad.abs().sum() > 0
+            assert model.model.layers[0].self_attn.q_proj.lora_b.grad.abs().sum() > 0
+        opt.step()
+    assert metrics["loss"] <= first_loss
+
+    adapter_path = tmp_path / "qwen3_moe_w4.safetensors"
+    export_adapter(model, str(adapter_path), metadata={"model_type": "qwen3_moe", "lora_alpha": 8.0, "window": {"window_size": 4}})
+    assert adapter_path.with_suffix(".json").is_file()
+
+
+class _ToyLfm2Layer(nn.Module):
+    def __init__(self, hidden_dim=16, *, kind="conv", moe=True):
+        super().__init__()
+        if kind == "conv":
+            self.conv = nn.Module()
+            self.conv.in_proj = nn.Linear(hidden_dim, hidden_dim * 2, bias=False)
+            self.conv.out_proj = nn.Linear(hidden_dim, hidden_dim, bias=False)
+        else:
+            self.self_attn = nn.Module()
+            for name in ("q_proj", "k_proj", "v_proj", "out_proj"):
+                setattr(self.self_attn, name, nn.Linear(hidden_dim, hidden_dim, bias=False))
+        self.feed_forward = nn.Module()
+        if moe:
+            self.feed_forward.gate = _ToyRouter(hidden_dim, num_experts=4, top_k=2)
+            self.feed_forward.expert_bias = nn.Parameter(torch.zeros(4), requires_grad=False)
+            self.feed_forward.experts = nn.ModuleList([nn.Linear(hidden_dim, hidden_dim, bias=False) for _ in range(4)])
+        else:
+            self.feed_forward.gate_proj = nn.Linear(hidden_dim, hidden_dim, bias=False)
+
+    def forward(self, x):
+        if hasattr(self, "conv"):
+            h = x + 0.1 * self.conv.out_proj(torch.relu(self.conv.in_proj(x)[..., : x.shape[-1]]))
+        else:
+            h = x + 0.1 * self.self_attn.out_proj(self.self_attn.q_proj(x) + self.self_attn.k_proj(x) + self.self_attn.v_proj(x))
+        if hasattr(self.feed_forward, "gate"):
+            b, s, d = h.shape
+            _, weights, indices = self.feed_forward.gate(h)
+            out = torch.zeros(b * s, d, dtype=h.dtype, device=h.device)
+            flat = h.reshape(-1, d)
+            for k in range(indices.shape[-1]):
+                for e_idx in range(4):
+                    mask = indices[:, k] == e_idx
+                    if mask.any():
+                        out[mask] = out[mask] + self.feed_forward.experts[e_idx](flat[mask]) * weights[mask, k : k + 1]
+            return h + out.reshape(b, s, d)
+        return h + self.feed_forward.gate_proj(h)
+
+
+def test_lfm2_moe_hybrid_window_distill():
+    torch.manual_seed(13)
+    model = nn.Module()
+    model.config = SimpleNamespace(model_type="lfm2_moe", hidden_size=16, num_experts=4, num_experts_per_tok=2)
+    model.embed = nn.Embedding(32, 16)
+    model.model = SimpleNamespace(layers=nn.ModuleList([
+        _ToyLfm2Layer(16, kind="conv", moe=False),
+        _ToyLfm2Layer(16, kind="full_attention", moe=True),
+        _ToyLfm2Layer(16, kind="conv", moe=True),
+    ]))
+    model.layers = model.model.layers
+    model.head = nn.Linear(16, 32, bias=False)
+    model.forward = lambda input_ids, attention_mask=None, use_cache=False: SimpleNamespace(
+        logits=model.head(model.model.layers[2](model.model.layers[1](model.model.layers[0](model.embed(input_ids)))))
+    )
+
+    ctx = patch_moe_for_window_distill(model, window_size=4, lora_rank=4, selector_rank=4, token_router_rank=4)
+    trainable = [n for n, p in model.named_parameters() if p.requires_grad]
+    assert any("layers.1.feed_forward.gate.selector.selector_b" in n for n in trainable)
+    assert any("layers.2.conv.in_proj.lora_b" in n for n in trainable)
+    assert any("layers.1.self_attn.out_proj.lora_b" in n for n in trainable)
+    assert not hasattr(model.model.layers[0].feed_forward, "selector")
+
+    input_ids = torch.randint(0, 32, (2, 8))
+    prompt_lengths = torch.tensor([3, 4])
+    loss, _ = distill_step(model, ctx, input_ids, prompt_lengths)
+    loss.backward()
+    assert model.model.layers[1].feed_forward.gate.selector.selector_b.grad.abs().sum() > 0
+    assert model.model.layers[2].conv.out_proj.lora_b.grad.abs().sum() > 0
+
+
+def test_external_torch_posttrain_dense_and_rejects_mlx_quantized(tmp_path):
+    import json
+    from tokenizers import Tokenizer, models, pre_tokenizers
+    from transformers import Qwen3Config, Qwen3ForCausalLM
+    from telos.posttrain.trainer import posttrain
+
+    ckpt = tmp_path / "hf_qwen3"
+    ckpt.mkdir()
+    cfg = Qwen3Config(
+        vocab_size=32, hidden_size=16, intermediate_size=32,
+        num_hidden_layers=1, num_attention_heads=2, num_key_value_heads=1, head_dim=8,
+    )
+    hf_model = Qwen3ForCausalLM(cfg)
+    hf_model.save_pretrained(ckpt, safe_serialization=True)
+    tok = Tokenizer(models.WordLevel({"[UNK]": 0, "<|im_end|>": 1, **{f"t{i}": i for i in range(2, 20)}}, unk_token="[UNK]"))
+    tok.pre_tokenizer = pre_tokenizers.WhitespaceSplit()
+    tok.save(str(ckpt / "tokenizer.json"))
+    (ckpt / "generation_config.json").write_text(json.dumps({"eos_token_id": 1, "pad_token_id": 0}))
+
+    data = tmp_path / "data.jsonl"
+    data.write_text(json.dumps({"prompt": "t2 t3", "response": "t4 t5"}) + "\n")
+    out = posttrain(
+        ckpt, data, tmp_path / "out_qwen3",
+        method="distill", hardware="cpu", finetune="lora",
+        lora_rank=4, lora_alpha=8.0, max_steps=2, batch_size=1, grad_accum=2, max_length=16,
+    )
+    assert out.is_file()
+    assert out.with_suffix(".json").is_file()
+
+    cfg_path = ckpt / "config.json"
+    bad_cfg = json.loads(cfg_path.read_text())
+    bad_cfg["quantization"] = {"bits": 4, "group_size": 64}
+    cfg_path.write_text(json.dumps(bad_cfg))
+    with pytest.raises(ValueError, match="unpacked HuggingFace checkpoint"):
+        posttrain(ckpt, data, tmp_path / "out_bad", method="sft", hardware="cpu", finetune="lora", max_steps=1)
