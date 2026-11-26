@@ -636,6 +636,8 @@ def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypa
     assert all(step["batched_expert_visits"] > 0 for step in batched.steps[2:])
     pinned.model._window_controller.compile_nvfp4_experts = True
     assert list(pinned._mlx_tokens(*long_options)) == list(streamed._mlx_tokens(*long_options))
+    pinned.model._window_controller.combine_nvfp4_experts = True
+    assert list(pinned._mlx_tokens(*long_options)) == list(streamed._mlx_tokens(*long_options))
     pinned.model.fused_nvfp4_decode = False
     detailed = SSDGenerationProfile(split_decode=True)
     assert list(pinned._mlx_tokens(*long_options, ssd_profile=detailed)) == list(streamed._mlx_tokens(*long_options))

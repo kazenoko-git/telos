@@ -150,3 +150,31 @@ def nvfp4_resident_project(x, tensors, gate_softcap, up_softcap, *, compiled=Fal
     if compiled:
         return _compiled_resident_project(gate_softcap, up_softcap)(x, tensors)
     return _resident_project(x, tensors, gate_softcap, up_softcap)
+
+
+_COMBINE = mx.fast.metal_kernel(
+    name="telos_inkling_combine_resident_experts",
+    input_names=["values", "weights", "slots"], output_names=["out"],
+    source="""
+#pragma clang fp contract(off)
+uint column = thread_position_in_grid.x;
+if (column >= WIDTH) return;
+float sum = 0.0f;
+#pragma clang loop unroll(full)
+for (uint expert = 0; expert < COUNT; ++expert) {
+    float product = float(values[expert * WIDTH + column]) * weights[slots[expert]];
+    sum += product;
+}
+out[column] = sum;
+""",
+)
+
+
+def combine_resident_experts(values, weights, slots):
+    """Keep sorted expert addition and separate FP32 multiplication rounding."""
+    count, _, width = values.shape
+    return _COMBINE(
+        inputs=[values, weights, slots], template=[("COUNT", count), ("WIDTH", width)],
+        grid=((width + 63) // 64 * 64, 1, 1), threadgroup=(64, 1, 1),
+        output_shapes=[(1, width)], output_dtypes=[mx.float32],
+    )[0]

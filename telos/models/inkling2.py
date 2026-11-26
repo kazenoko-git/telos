@@ -155,10 +155,12 @@ class InklingExpertBank:
                     slots.append(slot)
             ordered = sorted(routes)
             route_arrays = {expert: (mx.array(rows), mx.array(slots)) for expert, (rows, slots) in routes.items()}
+            combine_slots = (mx.array([routes[expert][1][0] for expert in ordered])
+                             if reuse and controller.combine_nvfp4_experts and self.mode == "nvfp4" else None)
             if reuse:
-                controller.host_routes[self.layer] = (selected_rows, ordered, route_arrays)
+                controller.host_routes[self.layer] = (selected_rows, ordered, route_arrays, combine_slots)
         else:
-            selected_rows, ordered, route_arrays = plan
+            selected_rows, ordered, route_arrays, combine_slots = plan
         if trace is not None:
             hits_before = getattr(cache, "hits", None)
             misses_before = getattr(cache, "misses", None)
@@ -186,22 +188,27 @@ class InklingExpertBank:
                 )
                 if batched is not None and profile is not None:
                     profile.batched_expert_visits += 1
-            for i, expert in enumerate(ordered):
-                rows, slots = route_arrays[expert]
-                if batched is None:
-                    packed = packed_group[i] if packed_group is not None else cache.get(self.layer, expert, self.ranges)
-                    values = self.project(x[rows], packed, fused_nvfp4=fused_nvfp4).astype(mx.float32)
-                    del packed
-                else:
-                    values = batched[i].astype(mx.float32)
-                output = output.at[rows].add(values * weights[rows, slots, None])
-                if not all_cached:
-                    # End the graph before the cache can evict these expert weights.
-                    if profile is None:
-                        mx.eval(output)
+            if batched is not None and combine_slots is not None:
+                from .inkling2_nvfp4 import combine_resident_experts
+
+                output = combine_resident_experts(batched, weights, combine_slots)
+            else:
+                for i, expert in enumerate(ordered):
+                    rows, slots = route_arrays[expert]
+                    if batched is None:
+                        packed = packed_group[i] if packed_group is not None else cache.get(self.layer, expert, self.ranges)
+                        values = self.project(x[rows], packed, fused_nvfp4=fused_nvfp4).astype(mx.float32)
+                        del packed
                     else:
-                        profile.evaluate(mx.eval, output, section="experts")
-                del values
+                        values = batched[i].astype(mx.float32)
+                    output = output.at[rows].add(values * weights[rows, slots, None])
+                    if not all_cached:
+                        # End the graph before the cache can evict these expert weights.
+                        if profile is None:
+                            mx.eval(output)
+                        else:
+                            profile.evaluate(mx.eval, output, section="experts")
+                    del values
             if all_cached and split:
                 profile.evaluate(mx.eval, output, section="experts")
         if trace is not None and bytes_before is not None:

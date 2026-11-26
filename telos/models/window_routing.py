@@ -78,6 +78,7 @@ class WindowPinController:
         self.reuse_host_routes = False
         self.batch_nvfp4_experts = False
         self.compile_nvfp4_experts = False
+        self.combine_nvfp4_experts = False
         self.host_routes = {}
         # Sequence-level distillation state.
         self.mode: str | None = None
