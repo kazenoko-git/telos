@@ -1,13 +1,15 @@
 """Native Inkling text attention and causal convolution state."""
 
 import math
+from itertools import accumulate
 from typing import NamedTuple
 
 import mlx.core as mx
 from mlx import nn
 
 from .inkling2 import _integer, _positive_number
-from .qwen3_mlx import _LayerCache
+from .mlx_quantized import AffineWeights
+from .qwen3_mlx import _LayerCache, _QuantizedProjection
 
 
 class AttentionState(NamedTuple):
@@ -100,6 +102,7 @@ class InklingAttention(nn.Module):
         self.gate = weights.matrix(prefix + ".gate_proj", query, width)
         self.sink = weights.matrix(prefix + ".sink_proj", self.heads, width)
         self.output = weights.matrix(prefix + ".o_proj", width, query, bias=config.get("o_bias", False))
+        self._query_group = None
         self.q_scale = weights.take(prefix + ".q_l2_clip.scale", (self.heads, self.head_dim))
         self.r_scale = weights.take(prefix + ".rel_l2_clip.scale", (self.heads, self.d_rel))
         self.relative = weights.take(prefix + ".rel_logits_proj.proj", (self.d_rel, self.extent))
@@ -111,7 +114,48 @@ class InklingAttention(nn.Module):
             self.key_conv = DynamicConvolution(weights, key_conv, width, kv, self.kv_heads, kernel)
             self.value_conv = DynamicConvolution(weights, value_conv, width, kv, self.kv_heads, kernel)
 
-    def __call__(self, q_input, k_input, v_input, previous, offset, limit, *, profile=None):
+    def prepare_query_group(self):
+        from telos.posttrain.mlx_adapters import LoRALinear
+
+        if self._query_group is not None:
+            return True
+        projections = (self.q, self.r, self.sink, self.gate)
+        bases = [layer.base if isinstance(layer, LoRALinear) else layer for layer in projections]
+        if not all(isinstance(layer, _QuantizedProjection) for layer in bases):
+            return False
+        parts = [layer.packed for layer in bases]
+        first = parts[0]
+        if any((p.bits, p.group_size, p.weight.shape[1], p.scales.dtype)
+               != (first.bits, first.group_size, first.weight.shape[1], first.scales.dtype) for p in parts[1:]):
+            return False
+
+        ends = list(accumulate(p.weight.shape[0] for p in parts))
+        packed = AffineWeights(
+            mx.concatenate([p.weight for p in parts]), mx.concatenate([p.scales for p in parts]),
+            mx.concatenate([p.biases for p in parts]),
+            shape=(ends[-1], first.weight.shape[1] * 32 // first.bits), group_size=first.group_size, bits=first.bits,
+        )
+        mx.eval(packed.parameters())
+        # Original projection methods use row views of the same packed storage.
+        for part, start, end in zip(parts, (0, *ends[:-1]), ends, strict=True):
+            part.weight, part.scales, part.biases = packed.weight[start:end], packed.scales[start:end], packed.biases[start:end]
+        self._query_group = (packed, ends[:-1], tuple(zip(projections, bases, strict=True)))
+        return True
+
+    def _query_projections(self, x, *, grouped):
+        if not grouped or self._query_group is None or x.shape[:2] != (1, 1):
+            return self.q(x), self.r(x), self.sink(x), self.gate(x)
+        packed, boundaries, members = self._query_group
+        results = []
+        for out, (projection, base) in zip(mx.split(packed.as_linear(x), boundaries, axis=-1), members, strict=True):
+            if base.bias is not None:
+                out = out + base.bias
+            if projection is not base:
+                out = projection.add_delta(x, out)
+            results.append(out)
+        return results
+
+    def __call__(self, q_input, k_input, v_input, previous, offset, limit, *, profile=None, grouped_query=False):
         batch, length, _ = q_input.shape
         k, v = self.k(k_input), self.v(v_input)
         if profile is not None:
@@ -127,8 +171,7 @@ class InklingAttention(nn.Module):
         if profile is not None:
             profile.evaluate(mx.eval, k, v, kh, vh, section="attention_convolutions")
 
-        q, r = self.q(q_input), self.r(q_input)
-        sink, gate = self.sink(q_input), self.gate(q_input)
+        q, r, sink, gate = self._query_projections(q_input, grouped=grouped_query)
         if profile is not None:
             profile.evaluate(mx.eval, q, r, sink, gate, section="attention_projections")
         q = _clip_heads(q.reshape(batch, length, self.heads, self.head_dim), self.qk_clip, self.q_scale)

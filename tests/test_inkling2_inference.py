@@ -346,6 +346,40 @@ def test_inkling2_text_prefill_decode_and_ssd_parity(tmp_path, monkeypatch):
     assert cache.bytes_read > cache.byte_limit and cache.resident_bytes <= cache.byte_limit
 
 
+def test_inkling2_grouped_query_keeps_active_lora_and_decode_bits(tmp_path, monkeypatch):
+    import mlx.core as mx
+
+    from telos.models import inkling2_mlx
+    from telos.posttrain.mlx_adapters import apply_lora
+
+    class FixtureGuard:
+        budget = 2**30
+
+        def check(self):
+            pass
+
+    _write_text_fixture(tmp_path, mx)
+    monkeypatch.setattr(inkling2_mlx, "AppleMemoryGuard", FixtureGuard)
+    model = TextGenerator.from_checkpoint(tmp_path).model
+    apply_lora(model, rank=4, alpha=4.0, targets=["q", "gate", "sink"])
+    for index, layer in enumerate(model.layers):
+        for name in ("q", "gate", "sink"):
+            projection = getattr(layer.attention, name)
+            projection.lora_b = 0.05 * mx.random.normal(projection.lora_b.shape, key=mx.random.key(index))
+    model.eval()
+
+    prompt = mx.array([[2, 3, 5, 7]], dtype=mx.int32)
+    next_id = mx.array([[11]], dtype=mx.int32)
+    prefill, previous = model.hidden_states_with_cache(prompt)
+    expected, _ = model.hidden_states_with_cache(next_id, kv_cache=previous)
+    assert model.prepare_grouped_query_decode() == len(model.layers)
+    new_prefill, new_previous = model.hidden_states_with_cache(prompt)
+    actual, _ = model.hidden_states_with_cache(next_id, kv_cache=new_previous)
+    assert mx.array_equal(prefill, new_prefill).item()
+    assert mx.array_equal(expected.view(mx.uint16), actual.view(mx.uint16)).item()
+    assert mx.array_equal(model.logits_from_hidden(expected), model.logits_from_hidden(actual)).item()
+
+
 def test_inkling2_relative_attention_sink_and_sliding_history():
     import mlx.core as mx
 

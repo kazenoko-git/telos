@@ -40,7 +40,9 @@ class LoRALinear(nn.Module):
         self.base.freeze()
 
     def __call__(self, x):
-        out = self.base(x)
+        return self.add_delta(x, self.base(x))
+
+    def add_delta(self, x, out):
         if self.adapter_disabled:
             return out
         delta = (self.dropout(x).astype(mx.float32) @ self.lora_a.T) @ self.lora_b.T
