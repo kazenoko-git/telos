@@ -69,10 +69,13 @@ def _load_hf_model(model_id: str, dtype):
     try:
         return AutoModelForCausalLM.from_pretrained(model_id, dtype=dtype, device_map="cuda"), cfg
     except (KeyError, ValueError):
-        model_type = getattr(cfg, "model_type", "")
-        if "inkling" in model_type and hasattr(transformers, "Inkling2LoopForConditionalGeneration"):
-            cls = transformers.Inkling2LoopForConditionalGeneration
-            return cls.from_pretrained(model_id, dtype=dtype, device_map="cuda"), cfg
+        for arch in getattr(cfg, "architectures", None) or ():
+            cls = getattr(transformers, arch, None)
+            if cls is not None:
+                return cls.from_pretrained(model_id, dtype=dtype, device_map="cuda"), cfg
+        auto_vl = getattr(transformers, "AutoModelForImageTextToText", None)
+        if auto_vl is not None:
+            return auto_vl.from_pretrained(model_id, dtype=dtype, device_map="cuda"), cfg
         raise
 
 
