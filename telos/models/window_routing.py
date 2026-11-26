@@ -1,7 +1,8 @@
-"""Shared MLX window-pinned MoE routing and distilled window adapter loader."""
+"""Shared MLX window-pinned MoE routing, distillation controllers, and adapter loader."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -47,16 +48,17 @@ class RouterAdapter(nn.Module):
         self.token_a = token_a
         self.token_b = token_b
         self.token_scale = float(token_scale)
+        self.adapter_disabled = False
 
     def add_selector_delta(self, base_logits: mx.array, x: mx.array) -> mx.array:
-        if self.selector_a is None or self.selector_b is None:
+        if self.adapter_disabled or self.selector_a is None or self.selector_b is None:
             return base_logits
         xf = x.astype(mx.float32)
         delta = (xf @ self.selector_a.astype(mx.float32).T) @ self.selector_b.astype(mx.float32).T
         return base_logits + delta * self.selector_scale
 
     def add_token_delta(self, base_logits: mx.array, x: mx.array) -> mx.array:
-        if self.token_a is None or self.token_b is None:
+        if self.adapter_disabled or self.token_a is None or self.token_b is None:
             return base_logits
         xf = x.astype(mx.float32)
         delta = (xf @ self.token_a.astype(mx.float32).T) @ self.token_b.astype(mx.float32).T
@@ -64,7 +66,7 @@ class RouterAdapter(nn.Module):
 
 
 class WindowPinController:
-    """Tracks per-request decode window boundaries and caches pinned expert IDs per layer."""
+    """Tracks decode-step or sequence-level window pinning per layer."""
 
     def __init__(self, window_size: int | None = None):
         if window_size is not None and (type(window_size) is not int or window_size < 1):
@@ -73,6 +75,15 @@ class WindowPinController:
         self._active = False
         self._decode_step = 0
         self._pinned: dict[int, mx.array] = {}
+        # Sequence-level distillation state.
+        self.mode: str | None = None
+        self.seq_window_size: int = 16
+        self.prompt_lengths: list[int] = []
+        self.chunk_offset: int = 0
+        self.seq_pinned: dict[tuple[int, int], mx.array] = {}
+        self.seq_selector_logits: dict[int, list[mx.array]] = {}
+        self.seq_selector_windows: dict[int, list[mx.array]] = {}
+        self.teacher_routes: dict[int, list[list[mx.array]]] = {}
 
     def set_window_size(self, window_size: int | None):
         if window_size is not None and (type(window_size) is not int or window_size < 1):
@@ -94,15 +105,122 @@ class WindowPinController:
             self._pinned.clear()
         self._decode_step += 1
 
+    def reset_sequence_teacher(self, prompt_lengths: list[int]):
+        self.mode = "teacher"
+        self.prompt_lengths = list(prompt_lengths)
+        self.chunk_offset = 0
+        self.teacher_routes.clear()
+
+    def reset_sequence_student(self, window_size: int, prompt_lengths: list[int]):
+        self.mode = "student"
+        self.seq_window_size = int(window_size)
+        self.prompt_lengths = list(prompt_lengths)
+        self.chunk_offset = 0
+        self.seq_pinned.clear()
+        self.seq_selector_logits.clear()
+        self.seq_selector_windows.clear()
+
+    def clear_sequence(self):
+        self.mode = None
+        self.chunk_offset = 0
+        self.seq_pinned.clear()
+        self.seq_selector_logits.clear()
+        self.seq_selector_windows.clear()
+        self.teacher_routes.clear()
+
     @property
     def active(self) -> bool:
-        return self.window_size is not None and self._active
+        return self.mode is None and self.window_size is not None and self._active
 
     def get(self, layer: int) -> mx.array | None:
         return self._pinned.get(layer)
 
     def set(self, layer: int, indices: mx.array):
         self._pinned[layer] = indices
+
+
+def _route_sequence(
+    flat: mx.array,
+    base_logits_fn,
+    *,
+    layer: int,
+    top_k: int,
+    route_scale: float,
+    normalize: bool,
+    base_bias: mx.array | None,
+    adapter: RouterAdapter | None,
+    controller: WindowPinController,
+    activation: str,
+    eps: float,
+    output_dtype,
+):
+    batch = max(1, len(controller.prompt_lengths))
+    chunk_len = flat.shape[0] // batch
+    width = flat.shape[-1]
+    base_logits = base_logits_fn(flat).astype(mx.float32)
+    tok_logits = base_logits if adapter is None else adapter.add_token_delta(base_logits, flat)
+    tok_probs = mx.softmax(tok_logits, axis=-1) if activation == "softmax" else mx.sigmoid(tok_logits)
+
+    if controller.mode == "teacher":
+        ranking = tok_probs if base_bias is None else tok_probs + base_bias.astype(mx.float32)
+        indices = mx.stop_gradient(mx.argsort(-ranking, axis=-1)[..., :top_k])
+        routes = controller.teacher_routes.setdefault(layer, [])
+        if controller.chunk_offset == 0:
+            routes.append([indices.reshape(batch, chunk_len, top_k)])
+        else:
+            routes[-1].append(indices.reshape(batch, chunk_len, top_k))
+        selected = mx.take_along_axis(tok_probs, indices, axis=-1)
+        if normalize:
+            selected = selected / (selected.sum(axis=-1, keepdims=True) + eps)
+        return indices, (selected * route_scale).astype(output_dtype)
+
+    h_seq = flat.reshape(batch, chunk_len, width)
+    win_size = controller.seq_window_size
+    prompt_lens = mx.array(controller.prompt_lengths, dtype=mx.int32)[:, None]
+    start = controller.chunk_offset
+    positions = mx.arange(start, start + chunk_len, dtype=mx.int32)[None, :]
+    is_resp = positions >= prompt_lens
+    rel_pos = mx.maximum(positions - prompt_lens, 0)
+    win_idx_global = rel_pos // win_size
+    w_min = int(mx.min(win_idx_global).item())
+    w_max = int(mx.max(win_idx_global).item())
+    local_wins = max(1, w_max - w_min + 1)
+    win_ids = mx.arange(w_min, w_min + local_wins, dtype=mx.int32)[None, :]
+    anchors_global = prompt_lens + win_ids * win_size
+    anchors_local = mx.clip(anchors_global - start, 0, chunk_len - 1)
+    anchor_hidden = mx.stop_gradient(mx.take_along_axis(h_seq, mx.stop_gradient(anchors_local)[:, :, None], axis=1))
+    anchor_flat = anchor_hidden.reshape(-1, width)
+    sel_base = base_logits_fn(anchor_flat).astype(mx.float32)
+    sel_logits = (sel_base if adapter is None else adapter.add_selector_delta(sel_base, anchor_flat)).reshape(batch, local_wins, -1)
+    bias = adapter.selector_bias if (adapter is not None and adapter.selector_bias is not None and not adapter.adapter_disabled) else base_bias
+    sel_logits_biased = sel_logits if bias is None else sel_logits + bias.astype(mx.float32)
+    sel_probs = mx.softmax(sel_logits, axis=-1) if activation == "softmax" else mx.sigmoid(sel_logits)
+
+    pin_key = (layer, start)
+    pinned = controller.seq_pinned.get(pin_key)
+    if pinned is None:
+        sel_rank_probs = sel_probs if bias is None else sel_probs + bias.astype(mx.float32)
+        pinned = mx.stop_gradient(mx.argsort(-sel_rank_probs, axis=-1)[..., :top_k])
+        controller.seq_pinned[pin_key] = pinned
+        controller.seq_selector_logits.setdefault(layer, []).append(sel_logits_biased)
+        controller.seq_selector_windows.setdefault(layer, []).append(win_ids)
+
+    win_idx_local = mx.clip(win_idx_global - w_min, 0, local_wins - 1)
+    pinned_tok = mx.take_along_axis(pinned, mx.stop_gradient(win_idx_local)[:, :, None], axis=1)
+    sel_tok_probs = mx.take_along_axis(sel_probs, mx.stop_gradient(win_idx_local)[:, :, None], axis=1)
+
+    prompt_ranking = tok_probs if base_bias is None else tok_probs + base_bias.astype(mx.float32)
+    prompt_indices = mx.stop_gradient(mx.argsort(-prompt_ranking, axis=-1)[..., :top_k]).reshape(batch, chunk_len, top_k)
+    indices = mx.where(is_resp[:, :, None], pinned_tok, prompt_indices).reshape(-1, top_k)
+
+    selected = mx.take_along_axis(tok_probs, mx.stop_gradient(indices), axis=-1)
+    if normalize:
+        selected = selected / (selected.sum(axis=-1, keepdims=True) + eps)
+
+    sel_gathered = mx.take_along_axis(sel_tok_probs.reshape(-1, sel_tok_probs.shape[-1]), mx.stop_gradient(indices), axis=-1)
+    st_gate = 1.0 + (sel_gathered - mx.stop_gradient(sel_gathered))
+    weights = mx.where(is_resp.reshape(-1, 1), selected * st_gate, selected)
+    return indices, (weights * route_scale).astype(output_dtype)
 
 
 def compute_route(
@@ -120,8 +238,24 @@ def compute_route(
     eps: float = 1e-20,
     output_dtype=mx.float32,
 ):
-    """Select top-k experts (or reuse window-pinned IDs in decode) and score them per token."""
+    """Select top-k experts (per-token, decode-window, or sequence-distill) and score them."""
     flat = x.reshape(-1, x.shape[-1])
+    if controller is not None and controller.mode in {"teacher", "student"}:
+        return _route_sequence(
+            flat,
+            base_logits_fn,
+            layer=layer,
+            top_k=top_k,
+            route_scale=route_scale,
+            normalize=normalize,
+            base_bias=base_bias,
+            adapter=adapter,
+            controller=controller,
+            activation=activation,
+            eps=eps,
+            output_dtype=output_dtype,
+        )
+
     base_logits = base_logits_fn(flat).astype(mx.float32)
     tok_logits = base_logits if adapter is None else adapter.add_token_delta(base_logits, flat)
     probs = mx.softmax(tok_logits, axis=-1) if activation == "softmax" else mx.sigmoid(tok_logits)
@@ -131,7 +265,7 @@ def compute_route(
         if pinned is None:
             sel_logits = base_logits if adapter is None else adapter.add_selector_delta(base_logits, flat)
             sel_probs = mx.softmax(sel_logits, axis=-1) if activation == "softmax" else mx.sigmoid(sel_logits)
-            bias = adapter.selector_bias if (adapter is not None and adapter.selector_bias is not None) else base_bias
+            bias = adapter.selector_bias if (adapter is not None and adapter.selector_bias is not None and not adapter.adapter_disabled) else base_bias
             ranking = sel_probs if bias is None else sel_probs + bias.astype(mx.float32)
             pinned = mx.argsort(-ranking, axis=-1)[..., :top_k]
             controller.set(layer, pinned)
@@ -144,6 +278,100 @@ def compute_route(
     if normalize:
         selected = selected / (selected.sum(axis=-1, keepdims=True) + eps)
     return indices, (selected * route_scale).astype(output_dtype)
+
+
+def compute_window_coverage_loss(
+    controller: WindowPinController,
+    teacher_routes: dict[int, list[mx.array]],
+    prompt_lengths: list[int],
+    response_mask: mx.array,
+) -> mx.array:
+    """Train RouterAdapter window selectors against empirical teacher expert distributions."""
+    if not controller.seq_selector_logits or not teacher_routes:
+        return mx.array(0.0, dtype=mx.float32)
+    batch, seq_len = response_mask.shape
+    win_size = controller.seq_window_size
+    prompt_lens = mx.array(prompt_lengths, dtype=mx.int32)[:, None]
+    positions = mx.arange(seq_len, dtype=mx.int32)[None, :]
+    valid_f = response_mask.astype(mx.float32)
+    win_idx = mx.maximum(positions - prompt_lens, 0) // win_size
+
+    losses = []
+    for layer, passes in teacher_routes.items():
+        if layer not in controller.seq_selector_logits or not passes:
+            continue
+        logits_chunks = controller.seq_selector_logits[layer]
+        sel_logits = logits_chunks[0] if len(logits_chunks) == 1 else mx.concatenate(logits_chunks, axis=1)
+        win_chunks = controller.seq_selector_windows[layer]
+        win_ids = win_chunks[0] if len(win_chunks) == 1 else mx.concatenate(win_chunks, axis=1)
+        num_experts = sel_logits.shape[-1]
+        num_wins = sel_logits.shape[1]
+        eye = mx.eye(num_experts, dtype=mx.float32)
+        counts = mx.zeros((batch, num_wins, num_experts), dtype=mx.float32)
+        for pass_indices in passes:
+            one_hot = mx.sum(eye[pass_indices], axis=-2) * valid_f[:, :, None]
+            stacked = mx.stack(
+                [mx.sum(one_hot * (win_idx == win_ids[:, w : w + 1]).astype(mx.float32)[:, :, None], axis=1)
+                 for w in range(num_wins)],
+                axis=1,
+            )
+            counts = counts + stacked
+        win_totals = mx.sum(counts, axis=-1, keepdims=True)
+        has_tokens = (mx.squeeze(win_totals, axis=-1) > 0).astype(mx.float32)
+        target_dist = counts / mx.maximum(win_totals, 1.0)
+        log_probs = sel_logits - mx.logsumexp(sel_logits, axis=-1, keepdims=True)
+        ce = -mx.sum(target_dist * log_probs, axis=-1)
+        losses.append(mx.sum(ce * has_tokens) / mx.maximum(mx.sum(has_tokens), 1.0))
+    if not losses:
+        return mx.array(0.0, dtype=mx.float32)
+    return sum(losses) / len(losses)
+
+
+def init_window_adapters(
+    model,
+    *,
+    selector_rank: int = 32,
+    selector_alpha: float = 32.0,
+    token_router_rank: int = 16,
+    token_scale: float = 2.0,
+) -> list[str]:
+    """Attach trainable RouterAdapter modules onto all MoE layers of an MLX model."""
+    from telos.posttrain.mlx_adapters import _linear_shape
+
+    if selector_rank < 1 or token_router_rank < 1 or selector_alpha <= 0:
+        raise ValueError("Window adapter ranks and alpha must be positive")
+    attached = []
+    for idx, layer in enumerate(model.layers):
+        if hasattr(layer, "router_adapter") and hasattr(layer, "router"):
+            base_w, base_b = layer.router
+            num_experts, width = base_w.shape
+            target = layer
+        else:
+            target = next((sub for sub in (getattr(layer, "mlp", None), getattr(layer, "moe", None))
+                           if sub is not None and hasattr(sub, "router_adapter")), None)
+            if target is None:
+                continue
+            num_experts, width = _linear_shape(target.router)
+            base_b = getattr(target, "bias", None)
+        bias = (mx.zeros((num_experts,), dtype=mx.float32) if base_b is None
+                else base_b.astype(mx.float32))
+        adapter = RouterAdapter(
+            selector_a=mx.random.uniform(-1 / math.sqrt(width), 1 / math.sqrt(width),
+                                         (selector_rank, width), dtype=mx.float32),
+            selector_b=mx.zeros((num_experts, selector_rank), dtype=mx.float32),
+            selector_scale=selector_alpha / selector_rank,
+            selector_bias=bias,
+            token_a=mx.random.uniform(-1 / math.sqrt(width), 1 / math.sqrt(width),
+                                      (token_router_rank, width), dtype=mx.float32),
+            token_b=mx.zeros((num_experts, token_router_rank), dtype=mx.float32),
+            token_scale=token_scale,
+        )
+        adapter.unfreeze()
+        target.router_adapter = adapter
+        attached.append(f"layers.{idx}.router_adapter")
+    if not attached:
+        raise ValueError("Window-pinned training requires a model with MoE router layers")
+    return attached
 
 
 def _resolve_layer_module(modules: dict, layer_idx: int, proj_name: str) -> tuple[str, nn.Module] | None:
@@ -168,7 +396,7 @@ def _attach_router_adapter(model, layer_idx: int, tensors: dict[str, mx.array], 
         selector_a=sel_a,
         selector_b=sel_b,
         selector_scale=sel_scale,
-        selector_bias=tensors.get("bias"),
+        selector_bias=tensors.get("selector_bias", tensors.get("bias")),
         token_a=tensors.get("token_a"),
         token_b=tensors.get("token_b"),
         token_scale=token_scale,
@@ -189,17 +417,31 @@ def apply_window_adapter(
     lora_alpha: float | None = None,
     selector_alpha: float = 32.0,
     token_scale: float = 2.0,
+    base_checkpoint: str | Path | None = None,
 ):
     """Load an H100 or native distilled window-routing + LoRA adapter onto an MLX MoE model."""
+    from telos.models.checkpoint import resolve_checkpoint
     from telos.posttrain.mlx_adapters import LoRALinear
 
     path = Path(path)
     meta = {}
     if path.with_suffix(".json").is_file():
         meta = json.loads(path.with_suffix(".json").read_text(encoding="utf-8"))
+    if base_checkpoint is not None and "base_sha256" in meta:
+        base_file = resolve_checkpoint(base_checkpoint)
+        digest = hashlib.sha256()
+        with open(base_file, "rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
+        if digest.hexdigest() != meta["base_sha256"]:
+            raise ValueError("Adapter base checkpoint hash mismatch")
     raw = mx.load(str(path))
     if not raw:
         raise ValueError(f"Empty window adapter file: {path}")
+
+    win_meta = meta.get("window") if isinstance(meta.get("window"), dict) else {}
+    eff_selector_alpha = float(win_meta.get("selector_alpha", meta.get("selector_alpha", selector_alpha)))
+    eff_token_scale = float(win_meta.get("token_router_scale", meta.get("token_router_scale", token_scale)))
 
     router_by_layer: dict[int, dict[str, mx.array]] = {}
     lora_pairs: dict[tuple[int, str], dict[str, mx.array]] = {}
@@ -213,31 +455,35 @@ def apply_window_adapter(
             continue
         layer_idx = int(parts[li + 1])
         tail = parts[li + 2 :]
-        if tail[-1] in ("selector_a", "selector_b", "bias", "token_a", "token_b"):
+        if tail[-1] in ("selector_a", "selector_b", "selector_bias", "bias", "token_a", "token_b"):
             router_by_layer.setdefault(layer_idx, {})[tail[-1]] = tensor
         elif tail[-1] in ("lora_a", "lora_b"):
-            # Supports both `...self_attn.q_proj.lora_a` and `...self_attn.gate_proj.gate_proj.lora_a`.
-            proj_name = tail[-2]
-            if len(tail) >= 3 and tail[-2] == tail[-3]:
-                proj_name = tail[-3]
-            lora_pairs.setdefault((layer_idx, proj_name), {})[tail[-1]] = tensor
+            # Supports Telos nested paths (`attention.q.lora_a`) and HF paths (`self_attn.gate_proj.gate_proj.lora_a`).
+            mod_prefix = ".".join(tail[:-1])
+            lora_pairs.setdefault((layer_idx, mod_prefix), {})[tail[-1]] = tensor
 
     for layer_idx, r_tensors in sorted(router_by_layer.items()):
         _attach_router_adapter(
             model, layer_idx, r_tensors,
-            selector_alpha=float(meta.get("selector_alpha", selector_alpha)),
-            token_scale=float(meta.get("token_router_scale", token_scale)),
+            selector_alpha=eff_selector_alpha,
+            token_scale=eff_token_scale,
         )
 
     modules = dict(model.named_modules())
     replacements = []
-    for (layer_idx, proj_name), pair in sorted(lora_pairs.items()):
+    for (layer_idx, mod_prefix), pair in sorted(lora_pairs.items()):
         if set(pair) != {"lora_a", "lora_b"}:
-            raise ValueError(f"Incomplete LoRA pair for layer {layer_idx} projection {proj_name}")
-        resolved = _resolve_layer_module(modules, layer_idx, proj_name)
-        if resolved is None:
-            raise ValueError(f"Cannot map adapter projection layers.{layer_idx}.{proj_name} onto {type(model).__name__}")
-        mod_path, base = resolved
+            raise ValueError(f"Incomplete LoRA pair for layer {layer_idx} projection {mod_prefix}")
+        exact_path = f"layers.{layer_idx}.{mod_prefix}"
+        if exact_path in modules:
+            mod_path, base = exact_path, modules[exact_path]
+        else:
+            parts = mod_prefix.split(".")
+            proj_name = parts[-2] if len(parts) >= 2 and parts[-1] == parts[-2] else parts[-1]
+            resolved = _resolve_layer_module(modules, layer_idx, proj_name)
+            if resolved is None:
+                raise ValueError(f"Cannot map adapter projection {exact_path} onto {type(model).__name__}")
+            mod_path, base = resolved
         if isinstance(base, LoRALinear):
             base = base.base
         rank = int(pair["lora_a"].shape[0])
@@ -251,7 +497,7 @@ def apply_window_adapter(
     if replacements:
         model.update_modules(tree_unflatten(replacements))
 
-    effective_window = window_size if window_size is not None else meta.get("window_size", 16)
+    effective_window = window_size if window_size is not None else win_meta.get("window_size", meta.get("window_size", 16))
     if effective_window is not None and hasattr(model, "set_window_size"):
         model.set_window_size(int(effective_window))
     mx.eval(model.parameters())
