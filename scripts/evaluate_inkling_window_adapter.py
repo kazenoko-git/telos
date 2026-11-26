@@ -144,6 +144,9 @@ def worker(args):
                                                        or args.worker == "compiled_layers_w16")
     model._window_controller.combine_nvfp4_experts = args.worker == "fused_reduce_w16"
     model.compiled_steady_decode = args.worker == "compiled_layers_w16"
+    if model.compiled_steady_decode and args.eager_tensor_layer:
+        for layer in model.layers:
+            layer._compiled_visit = layer._steady_tensor_layer
     grouped_query_banks = model.prepare_grouped_query_decode() if args.worker == "grouped_query_w16" else 0
     if args.worker == "grouped_query_w16" and grouped_query_banks == 0:
         raise RuntimeError("No attention banks could group their query projections")
@@ -200,6 +203,7 @@ def worker(args):
         "grouped_query_banks": grouped_query_banks,
         "window_size": None if stock else window,
         "compiled_steady_decode": model.compiled_steady_decode,
+        "eager_tensor_layer": model.compiled_steady_decode and args.eager_tensor_layer,
     })
 
 
@@ -315,11 +319,14 @@ def main():
                         help="Under attention profiling, time one layer visit per N and rotate the sample each token")
     parser.add_argument("--attention-components", action="store_true", help="Split sampled attention into its constituent operations")
     parser.add_argument("--background-memory-guard", action="store_true", help="Keep the model memory guard off the decode thread")
+    parser.add_argument("--eager-tensor-layer", action="store_true", help="Diagnose fixed KV numerics without the whole-layer compiler")
     parser.add_argument("--reverse-order", action="store_true", help="Run the decode comparison in reverse order")
     parser.add_argument("--worker", choices=WORKERS, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.reverse_order and args.variants == VARIANTS:
         parser.error("--reverse-order requires a decode comparison")
+    if args.eager_tensor_layer and args.variants != COMPILED_LAYER_VARIANTS:
+        parser.error("--eager-tensor-layer requires --compare-compiled-layer")
     if args.worker:
         worker(args)
     else:
