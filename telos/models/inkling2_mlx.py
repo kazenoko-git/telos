@@ -1,5 +1,6 @@
 """Native, fixed-loop Inkling 2 Mini text inference on MLX."""
 
+from functools import lru_cache
 from typing import NamedTuple
 
 import mlx.core as mx
@@ -38,7 +39,20 @@ class _TextState(NamedTuple):
     visits: tuple[_VisitState, ...]
 
 
-def _mix(blocks, partial, query, normalize_values):
+@lru_cache(maxsize=32)
+def _compiled_mix(n_blocks, normalize_values):
+    def _run(partial, query, *blocks):
+        states = mx.stack((*blocks, partial), axis=-2).astype(mx.float32)
+        keys = mx.fast.rms_norm(states, None, 1e-6)
+        scores = (query.astype(mx.float32) @ keys.swapaxes(-1, -2)) * states.shape[-1] ** -0.5
+        return mx.softmax(scores, axis=-1) @ (keys if normalize_values else states)
+
+    return mx.compile(_run)
+
+
+def _mix(blocks, partial, query, normalize_values, *, compiled=False):
+    if compiled:
+        return _compiled_mix(len(blocks), normalize_values)(partial, query, *blocks)
     states = mx.stack((*blocks, partial), axis=-2).astype(mx.float32)
     keys = mx.fast.rms_norm(states, None, 1e-6)
     scores = (query.astype(mx.float32) @ keys.swapaxes(-1, -2)) * states.shape[-1] ** -0.5
@@ -102,11 +116,12 @@ class _DecoderLayer(nn.Module):
             for name in ("q", "k", "v", "mlp")
         ) if loop["core_start"] <= index < loop["core_end"] and loop["num_passes"] > 1 else ()
 
-    def _attention_inputs(self, x, blocks, messages):
+    def _attention_inputs(self, x, blocks, messages, *, compiled_helpers=False):
         if self.attn_query is None:
             mixed = (x,) * 3
         else:
-            mixed = _mix(blocks, x, self.attn_query.reshape(-1, x.shape[-1]), self.normalize_values)
+            mixed = _mix(blocks, x, self.attn_query.reshape(-1, x.shape[-1]), self.normalize_values,
+                         compiled=compiled_helpers)
             mixed = tuple(mixed[..., i, :] for i in range(mixed.shape[-2]))
             if len(mixed) == 1:
                 mixed *= 3
@@ -115,34 +130,36 @@ class _DecoderLayer(nn.Module):
         norms = self.input_norms if len(self.input_norms) == 3 else self.input_norms * 3
         return [_norm(part, norm, self.eps, x.dtype) for part, norm in zip(mixed, norms, strict=True)]
 
-    def _expert_input(self, x, blocks, messages, attention, history):
-        residual, history = self.attention_conv(attention, history)
+    def _expert_input(self, x, blocks, messages, attention, history, *, compiled_helpers=False):
+        residual, history = self.attention_conv(attention, history, compiled=compiled_helpers)
         residual = residual.astype(mx.float32)
         if self.boundary:
             blocks = (*blocks, x)
         else:
             residual = residual + x.astype(mx.float32)
-        hidden = _mix(blocks, residual, self.mlp_query[None], self.normalize_values)[..., 0, :]
+        hidden = _mix(blocks, residual, self.mlp_query[None], self.normalize_values,
+                      compiled=compiled_helpers)[..., 0, :]
         if messages is not None:
             hidden = self.gates[3](hidden, messages[..., 3, :])
         return _norm(hidden, self.mlp_norm, self.eps, x.dtype), residual, history
 
     def __call__(self, x, blocks, messages, previous, offset, limit, experts, *, trace=None, controller=None,
-                 fused_nvfp4=False, grouped_query=False, fused_mask=False):
+                 fused_nvfp4=False, grouped_query=False, fused_mask=False, compiled_helpers=False):
         profile = getattr(experts, "profile", None)
         split_attention = profile is not None and profile.split_attention_step
-        inputs = self._attention_inputs(x, blocks, messages)
+        inputs = self._attention_inputs(x, blocks, messages, compiled_helpers=compiled_helpers)
         if split_attention:
             profile.evaluate(mx.eval, inputs, section="residual_mix")
         component_profile = profile if split_attention and profile.attention_components else None
         attention, state = self.attention(
             *inputs, None if previous is None else previous.attention, offset, limit, profile=component_profile,
-            grouped_query=grouped_query, fused_mask=fused_mask,
+            grouped_query=grouped_query, fused_mask=fused_mask, compiled_helpers=compiled_helpers,
         )
         if split_attention and component_profile is None:
             profile.evaluate(mx.eval, attention, state, section="attention")
         expert_input, residual, attention_history = self._expert_input(
             x, blocks, messages, attention, None if previous is None else previous.attention_history,
+            compiled_helpers=compiled_helpers,
         )
         if self.boundary:
             blocks.append(x)
@@ -157,7 +174,8 @@ class _DecoderLayer(nn.Module):
             adapter=self.router_adapter,
             fused_nvfp4=fused_nvfp4,
         )
-        output, mlp_history = self.mlp_conv(hidden, None if previous is None else previous.mlp_history)
+        output, mlp_history = self.mlp_conv(hidden, None if previous is None else previous.mlp_history,
+                                            compiled=compiled_helpers)
         output = (output.astype(mx.float32) + residual).astype(x.dtype)
         if split_attention:
             profile.evaluate(mx.eval, output, mlp_history, section="residual_mix")
@@ -236,6 +254,7 @@ class Inkling2TextMLX(nn.Module):
         self.grouped_query_decode = False
         self.fused_mask_decode = False
         self.compiled_steady_decode = False
+        self.compiled_steady_helpers = False
         self.pipeline_steady_decode = False
         self._window_controller = WindowPinController()
         self._visits = layout.visits
@@ -283,6 +302,7 @@ class Inkling2TextMLX(nn.Module):
         fused_nvfp4 = self.fused_nvfp4_decode and phase == "decode" and not self.training
         grouped_query = self.grouped_query_decode and phase == "decode" and not self.training
         fused_mask = self.fused_mask_decode and phase == "decode" and not self.training
+        compiled_helpers = self.compiled_steady_helpers and phase == "decode" and not self.training
         if phase == "decode":
             step_decode = getattr(self._expert_cache, "step_decode", None)
             if step_decode is not None:
@@ -319,7 +339,8 @@ class Inkling2TextMLX(nn.Module):
                     x, blocks = prelude, prelude_blocks.copy()
             messages = None
             if slot >= depth:
-                messages = _mix(*message_bank, self.message_queries[layer - self._loop_start], True)
+                messages = _mix(*message_bank, self.message_queries[layer - self._loop_start], True,
+                                compiled=compiled_helpers)
             previous = None if cache is None else cache.visits[slot]
             block = self.layers[layer]
             plan = controller.host_routes.get(layer) if compiled else None
@@ -356,11 +377,11 @@ class Inkling2TextMLX(nn.Module):
             x, states[slot] = block(
                 x, blocks, messages, previous, offset, self.max_seq_len, self._experts,
                 trace=trace, controller=self._window_controller, fused_nvfp4=fused_nvfp4,
-                grouped_query=grouped_query, fused_mask=fused_mask,
+                grouped_query=grouped_query, fused_mask=fused_mask, compiled_helpers=compiled_helpers,
             )
             if trace is not None:
                 self.route_trace.append(trace)
-        hidden = _mix(blocks, x, self.final_query[None], self.normalize_values)[..., 0, :]
+        hidden = _mix(blocks, x, self.final_query[None], self.normalize_values, compiled=compiled_helpers)[..., 0, :]
         hidden = _norm(hidden, self.final_norm, self.eps, embedded.dtype)
         # Finish outstanding state before the next chunk unless pipelining a steady decode step.
         if not defer_eval:

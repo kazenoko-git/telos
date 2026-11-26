@@ -1,5 +1,6 @@
 """Native Inkling text attention and causal convolution state."""
 
+from functools import lru_cache
 import math
 from itertools import accumulate
 from typing import NamedTuple
@@ -34,13 +35,29 @@ def _convolution_context(x, history, kernel):
     return context, tail
 
 
+@lru_cache(maxsize=4)
+def _compiled_static_conv(kernel):
+    scale = math.sqrt(kernel + 1)
+
+    def _run(x, history, weight):
+        context = mx.concatenate((history, x.astype(mx.float32)), axis=1)
+        tail = context[:, 1:, :]
+        result = mx.conv1d(context, weight.astype(mx.float32), groups=x.shape[-1])
+        result = (result + x.astype(mx.float32)) / scale
+        return result.astype(x.dtype), tail
+
+    return mx.compile(_run)
+
+
 class StaticConvolution(nn.Module):
     def __init__(self, weights, prefix, channels, kernel):
         super().__init__()
         self.kernel = kernel
         self.weight = weights.take(prefix + ".conv1d.weight", (channels, kernel, 1))
 
-    def __call__(self, x, history):
+    def __call__(self, x, history, *, compiled=False):
+        if compiled and history is not None and x.shape[1] == 1:
+            return _compiled_static_conv(self.kernel)(x, history, self.weight)
         context, tail = _convolution_context(x, history, self.kernel)
         result = mx.conv1d(context, self.weight.astype(mx.float32), groups=x.shape[-1])
         result = (result + x.astype(mx.float32)) / math.sqrt(self.kernel + 1)
@@ -69,7 +86,29 @@ class DynamicConvolution(nn.Module):
         return result.astype(x.dtype), tail
 
 
-def _clip_heads(x, threshold, scale=None):
+@lru_cache(maxsize=8)
+def _compiled_clip_heads(threshold, has_scale):
+    if has_scale:
+        def _run(x, scale):
+            value = x.astype(mx.float32) * scale.astype(mx.float32)
+            norm = mx.sqrt(mx.sum(mx.square(value), axis=-1, keepdims=True))
+            return (value * mx.minimum(threshold / (norm + 1e-6), 1.0)).astype(x.dtype)
+
+        return mx.compile(_run)
+
+    def _run(x):
+        value = x.astype(mx.float32)
+        norm = mx.sqrt(mx.sum(mx.square(value), axis=-1, keepdims=True))
+        return (value * mx.minimum(threshold / (norm + 1e-6), 1.0)).astype(x.dtype)
+
+    return mx.compile(_run)
+
+
+def _clip_heads(x, threshold, scale=None, *, compiled=False):
+    if compiled:
+        if scale is not None:
+            return _compiled_clip_heads(threshold, True)(x, scale)
+        return _compiled_clip_heads(threshold, False)(x)
     value = x.astype(mx.float32)
     if scale is not None:
         value = value * scale.astype(mx.float32)
@@ -173,7 +212,7 @@ class InklingAttention(nn.Module):
         return results
 
     def __call__(self, q_input, k_input, v_input, previous, offset, limit, *, profile=None, grouped_query=False,
-                 fused_mask=False, kv_cursor=None):
+                 fused_mask=False, kv_cursor=None, compiled_helpers=False):
         batch, length, _ = q_input.shape
         k, v = self.k(k_input), self.v(v_input)
         if profile is not None:
@@ -184,20 +223,23 @@ class InklingAttention(nn.Module):
             k, kh = self.key_conv(k, kh, k_input)
             v, vh = self.value_conv(v, vh, v_input)
         else:
-            k, kh = self.key_conv(k, kh)
-            v, vh = self.value_conv(v, vh)
+            k, kh = self.key_conv(k, kh, compiled=compiled_helpers)
+            v, vh = self.value_conv(v, vh, compiled=compiled_helpers)
         if profile is not None:
             profile.evaluate(mx.eval, k, v, kh, vh, section="attention_convolutions")
 
         q, r, sink, gate = self._query_projections(q_input, grouped=grouped_query)
         if profile is not None:
             profile.evaluate(mx.eval, q, r, sink, gate, section="attention_projections")
-        q = _clip_heads(q.reshape(batch, length, self.heads, self.head_dim), self.qk_clip, self.q_scale)
-        k = _clip_heads(k.reshape(batch, length, self.kv_heads, self.head_dim), self.qk_clip)
+        q = _clip_heads(q.reshape(batch, length, self.heads, self.head_dim), self.qk_clip, self.q_scale,
+                        compiled=compiled_helpers)
+        k = _clip_heads(k.reshape(batch, length, self.kv_heads, self.head_dim), self.qk_clip,
+                        compiled=compiled_helpers)
         v = v.reshape(k.shape)
         if self.value_norm:
             v = mx.fast.rms_norm(v.astype(mx.float32), None, self.eps).astype(q.dtype)
-        r = _clip_heads(r.reshape(batch, length, self.heads, self.d_rel), self.rel_clip, self.r_scale)
+        r = _clip_heads(r.reshape(batch, length, self.heads, self.d_rel), self.rel_clip, self.r_scale,
+                        compiled=compiled_helpers)
         if self.log_floor is not None:
             pos = (mx.arange(offset + 1, offset + length + 1, dtype=mx.float32) if kv_cursor is None
                    else (kv_cursor + 1).reshape(1).astype(mx.float32))
