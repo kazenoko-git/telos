@@ -8,7 +8,7 @@ from mlx import nn
 
 from .qwen3_mlx import _LayerCache, _positive, _rope_parameters, _Weights
 from .qwen3_moe_mlx import RoutedMLP
-from .window_routing import WindowPinController, compute_route
+from .window_routing import WindowPinController, compute_route, sequential_ssd_loss_and_grad
 
 
 def layer_types(config):
@@ -222,3 +222,29 @@ class LFM2MoEMLX(nn.Module):
 
     def logits_from_hidden(self, hidden):
         return (self.embedding if self.head is None else self.head)(hidden)
+
+    def ssd_loss_and_grad(
+        self,
+        ids,
+        loss_from_logits_fn,
+        *,
+        teacher_routes=None,
+        prompt_lengths=None,
+        response_mask=None,
+        window_size=None,
+        cov_weight=0.0,
+    ):
+        """Run NOGRAD forward + per-layer reverse-mode VJP to keep SSD expert memory bounded."""
+        return sequential_ssd_loss_and_grad(
+            self,
+            ids,
+            lambda x: self.embedding.lookup(x),
+            lambda mod, x: mod(x, None, self.max_seq_len)[0],
+            lambda x: loss_from_logits_fn(self.logits_from_hidden(mx.fast.rms_norm(x, self.norm, self.eps))[:, :-1]),
+            controller=self._window_controller,
+            teacher_routes=teacher_routes,
+            prompt_lengths=prompt_lengths,
+            response_mask=response_mask,
+            window_size=window_size,
+            cov_weight=cov_weight,
+        )
