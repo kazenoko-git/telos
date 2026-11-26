@@ -226,6 +226,7 @@ class InklingExpertBank:
                     x, packed_group, self.gate_softcap, self.up_softcap,
                     compiled=controller.compile_nvfp4_experts,
                     fuse_swiglu=controller.fuse_nvfp4_swiglu,
+                    fast_kernel=controller.fast_nvfp4_kernel,
                 )
                 if batched is not None and profile is not None:
                     profile.batched_expert_visits += 1

@@ -79,6 +79,7 @@ class WindowPinController:
         self.batch_nvfp4_experts = False
         self.compile_nvfp4_experts = False
         self.fuse_nvfp4_swiglu = False
+        self.fast_nvfp4_kernel = False
         self.combine_nvfp4_experts = False
         self.batch_mxfp8_experts = False
         self.host_routes = {}
