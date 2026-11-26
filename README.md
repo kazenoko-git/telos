@@ -214,6 +214,16 @@ On MLX, `telos generate` can also read full-attention Qwen3 Safetensors checkpoi
 
 **Flash-MoE on Apple Silicon.** Native Qwen3-MoE and LFM2.5-8B-A1B (`lfm2_moe`) support expert-major MLX Safetensors, including sharded files. `telos generate` and `telos serve` estimate weight, model-state, and workspace requirements before loading the weights. If a resident run exceeds the estimated RAM budget, Telos reads routed experts from the checkpoint as needed. The expert cache uses available budget up to 1 GiB for LFM and 512 MiB for Qwen3-MoE. During decode, LFM's per-layer cache uses access frequency within the current request to decide which experts to keep. Expert reads are read-only. KV and LFM short-convolution state stay in RAM. SSD mode requires dynamic KV caching and disables cross-request prefix retention. LFM also disables cross-request prefix retention in resident mode because its convolution state contains only a short tail.
 
+**Download checkpoints.** `telos download OWNER/MODEL` downloads Safetensors and their companion files into `~/.cache/telos/models/OWNER/MODEL/COMMIT` and prints the local path. Use `--revision` to select a branch, tag, or commit, `--cache-dir` to choose another storage root, and `--dry-run` to see the download size before fetching weights. `--metadata-only` downloads configuration, tokenizer files, and the shard index for inspection. Downloading a checkpoint does not load it or establish native inference support.
+
+```bash
+telos download mlx-community/Inkling-2-Mini-4bit --metadata-only
+telos download mlx-community/Qwen3.5-35B-A3B-4bit --metadata-only
+telos download mlx-community/gemma-4-26b-a4b-4bit --metadata-only
+```
+
+These are checkpoint candidates for native inference work. Inkling 2 Mini uses a looped transformer, and the two other checkpoints use the Qwen 3.5 MoE and Gemma 4 architectures.
+
 The default context for these MoE models is at most 2,048 tokens. Use `--context-length` and `--memory-budget-mib` to request a different context or a lower RAM ceiling. The budget is an admission estimate. Telos rejects requests that cannot reserve room for resident weights, generation state, and one expert, and checks macOS memory pressure and cumulative swap-outs during expert reads. In `telos serve`, `/health` reports `weight_storage` as `resident` or `ssd_experts`. Dense architectures and other MoE formats use their existing loader support.
 
 LFM2.5 partitions equal-size expert banks by layer when the cache can hold at least one expert per routed layer. Its SSD path reuses read-only file descriptors and staging buffers within each request. For single-token steps it queues only router-selected misses, using up to four readers and 24 MiB of asynchronous staging.
