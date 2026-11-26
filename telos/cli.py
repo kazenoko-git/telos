@@ -39,6 +39,7 @@ def main():
         print("Available Commands:")
         print("  dataprep   Prepare raw text, code directories, JSONL, or HF datasets into binary token stream (.bin)")
         print("  pretrain   Unified model pretraining (AR, MDLM, UNDLM, COROSred, custom)")
+        print("  pretrain routing  Experimental prompt-fixed and token-level expert training")
         print("  train      Alias for pretrain")
         print("  posttrain  Post-train a causal Telos checkpoint (SFT, DPO or GRPO)")
         print("  generate   Generate text with a native causal Telos checkpoint")

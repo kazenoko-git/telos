@@ -418,6 +418,10 @@ def train(
 
 
 def main():
+    if sys.argv[1:2] == ["routing"]:
+        from telos.training.routing_experiment import main as routing_main
+        return routing_main(sys.argv[2:])
+
     parser = argparse.ArgumentParser(description="Télos Unified Dimensional Trainer (Zero Config)")
     
     # 6 Fundamental Dimensions
