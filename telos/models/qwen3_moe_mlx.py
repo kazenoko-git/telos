@@ -70,6 +70,11 @@ class RoutedMLP(nn.Module):
         return mx.quantized_matmul(x, weight, tensors[name + ".scales"], tensors[name + ".biases"],
                                    transpose=True, **settings)
 
+    def _eval_expert(self, inputs, tensors):
+        gate = self._project(inputs, tensors, "gate")
+        up = self._project(inputs, tensors, "up")
+        return self._project(nn.silu(gate) * up, tensors, "down")
+
     def _route(self, x):
         return compute_route(
             x,
@@ -104,20 +109,18 @@ class RoutedMLP(nn.Module):
         output = mx.zeros_like(x)
         for expert, (tokens, slots) in sorted(routes.items()):
             rows, columns = mx.array(tokens), mx.array(slots)
+            inputs = x[rows]
             if self._cache is None:
                 tensors = {name: bank[expert] for name, bank in self._bank.items()}
             else:
                 tensors = self._cache.get(self.layer, expert, self._ranges)
-            inputs = x[rows]
-            gate = self._project(inputs, tensors, "gate")
-            up = self._project(inputs, tensors, "up")
-            values = self._project(nn.silu(gate) * up, tensors, "down")
+            values = self._eval_expert(inputs, tensors)
             values = (values * scores[rows, columns, None]).astype(output.dtype)
             output = output.at[rows].add(values)
             if self._cache is not None:
                 # Release all lazy references before the next expert can evict these weights.
                 mx.eval(output)
-                del gate, up, values, tensors
+                del values, tensors
         return output.reshape(hidden.shape)
 
 
