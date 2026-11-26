@@ -693,6 +693,9 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
     if is_external and options["finetune"] == "full":
         raise ValueError("External MLX checkpoints require --finetune lora or qlora")
     model = _to_mlx_causal_model(source_model, source_backend, checkpoint_path, options["precision"])
+    prev_cache_limit = None
+    if getattr(model, "weight_storage", None) == "ssd_experts":
+        prev_cache_limit = mx.set_cache_limit(128 * 2**20)
 
     _seed_host_rng(seed)
     mx.random.seed(seed)
@@ -858,8 +861,77 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
     if master_params is not None:
         state.append(master_params)
 
+    use_ssd_segmented = (
+        getattr(model, "weight_storage", None) == "ssd_experts"
+        and hasattr(model, "ssd_loss_and_grad")
+        and method in {"sft", "distill"}
+    )
+
+    def _ssd_step_loss_and_grad(*args):
+        from telos.models.window_routing import add_grad_trees, zero_grad_tree
+        from telos.training.mlx_losses import cross_entropy
+
+        if method == "sft":
+            ids, labels = args
+            t_logits = t_routes = prompt_lens = None
+        else:
+            ids, labels = args[0], args[1]
+            t_logits = args[2]
+            t_routes = args[3] if len(args) > 3 else None
+            prompt_lens = args[4] if len(args) > 4 else None
+
+        def _row_fn(row_labels, row_tlog):
+            def _fn(logits):
+                targets = row_labels[:, 1:]
+                valid = (targets != -100).astype(mx.float32)
+                if method == "sft":
+                    denom = mx.maximum(mx.sum(valid), 1.0)
+                    ce = cross_entropy(logits, mx.maximum(targets, 0), reduction="none") * valid
+                    return mx.sum(ce) / denom
+                return _mlx_distill_from_logits(
+                    logits.astype(mx.float32), row_labels, row_tlog, distill["alpha"], distill["temperature"],
+                )
+            return _fn
+
+        if getattr(model, "max_batch_size", None) == 1 and ids.shape[0] > 1:
+            total_valid = float(mx.maximum(mx.sum((labels[:, 1:] != -100).astype(mx.float32)), 1.0).item())
+            total_loss = mx.array(0.0, dtype=mx.float32)
+            accum = zero_grad_tree(model.trainable_parameters())
+            for i in range(ids.shape[0]):
+                row_lbl = labels[i : i + 1]
+                row_valid = float(mx.sum((row_lbl[:, 1:] != -100).astype(mx.float32)).item())
+                if row_valid <= 0.0:
+                    continue
+                weight = row_valid / total_valid
+                row_tlog = None if t_logits is None else t_logits[i : i + 1]
+                row_routes = (None if t_routes is None else
+                              {layer: [arr[i : i + 1] for arr in passes] for layer, passes in t_routes.items()})
+                row_pl = None if prompt_lens is None else [prompt_lens[i]]
+                r_loss, r_grad = model.ssd_loss_and_grad(
+                    ids[i : i + 1],
+                    _row_fn(row_lbl, row_tlog),
+                    teacher_routes=row_routes,
+                    prompt_lengths=row_pl,
+                    response_mask=row_lbl != -100,
+                    window_size=window_cfg["window_size"] if window_cfg else None,
+                    cov_weight=window_cfg["cov_weight"] if window_cfg else 0.0,
+                )
+                total_loss = total_loss + weight * r_loss
+                accum = add_grad_trees(accum, tree_map(lambda v: v * weight, r_grad))
+            return total_loss, accum
+
+        return model.ssd_loss_and_grad(
+            ids,
+            _row_fn(labels, t_logits),
+            teacher_routes=t_routes,
+            prompt_lengths=prompt_lens,
+            response_mask=labels != -100,
+            window_size=window_cfg["window_size"] if window_cfg else None,
+            cov_weight=window_cfg["cov_weight"] if window_cfg else 0.0,
+        )
+
     def update(*args):
-        loss, grads = value_and_grad(model, *args)
+        loss, grads = _ssd_step_loss_and_grad(*args) if use_ssd_segmented else value_and_grad(model, *args)
         if rl:
             grads, _ = optim.clip_grad_norm(grads, 1.0)
         if master_params is not None:
@@ -873,105 +945,109 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
     step_fn = mx.compile(update, inputs=state, outputs=state) if can_compile else update
     ref_cache = ReferenceScores(
         options["reference_cache_size"] if options["cache_reference"] else 0, batch_size)
-    for step in range(session.step + 1, max_steps + 1):
-        batch = randomizer.choices(prepared, k=batch_size)
-        metrics = ""
-        if rl:
-            rows, action_logps, advantages, mean_reward, uniform = grpo.collect_rollouts_cached(
-                batch, tokenizer, eos, pad, rl["group_size"], rl["max_new_tokens"],
-                sample_prefill, sample_decode, slice_cache, reward,
-            )
-            ids, labels = collate_mlx(rows, max_length, fixed=fixed)
-            old = mx.array(grpo.collate_old_logps(rows, action_logps, ids.shape[1]))
-            if reference is not None:
-                ref = _mlx_token_logps(reference, ids, labels)
-            elif use_lora_base_ref:
-                from .mlx_adapters import disable_lora_adapters
-                with disable_lora_adapters(model):
-                    ref = mx.stop_gradient(_mlx_token_logps(model, ids, labels))
-            else:
-                ref = old
-            advantages = mx.array(advantages)
-            mx.eval(old, ref, advantages)
-            if beta == 0 and uniform >= 1.0:
-                loss = mx.array(0.0, dtype=mx.float32)
-            else:
-                for _ in range(rl["policy_updates"]):
-                    loss = step_fn(ids, labels, old, ref, advantages)
-                    mx.eval(model.trainable_parameters(), optimizer.state, loss,
-                            master_params if master_params is not None else [])
-            metrics = f" reward={mean_reward:.4g} uniform_groups={uniform:.1%}"
-        else:
-            rows = _response_rows(batch, "response") if method in {"sft", "distill"} else (
-                _response_rows(batch, "chosen") + _response_rows(batch, "rejected"))
-            ids, labels = collate_mlx(rows, max_length, fixed=fixed)
-            if method == "sft":
-                with _expert_request(model):
-                    loss = step_fn(ids, labels)
-                    mx.eval(model.trainable_parameters(), optimizer.state, loss,
-                            master_params if master_params is not None else [])
-            elif method == "distill":
-                if window_cfg is not None:
-                    prompt_lengths = _batch_prompt_lengths(labels)
-                    if reference is not None:
-                        if not hasattr(reference, "_window_controller"):
-                            raise ValueError("Window-pinned distillation requires a MoE teacher when --teacher is provided")
-                        with _expert_request(reference):
-                            teacher_logits, teacher_routes = _run_window_teacher(reference, ids, prompt_lengths)
-                            teacher_logits = mx.stop_gradient(teacher_logits)
-                            mx.eval(teacher_logits, teacher_routes)
-                    else:
-                        from .mlx_adapters import disable_lora_adapters
-                        with _expert_request(model), disable_lora_adapters(model):
-                            teacher_logits, teacher_routes = _run_window_teacher(model, ids, prompt_lengths)
-                            teacher_logits = mx.stop_gradient(teacher_logits)
-                            mx.eval(teacher_logits, teacher_routes)
-                    with _expert_request(model):
-                        loss = step_fn(ids, labels, teacher_logits, teacher_routes, prompt_lengths)
-                        mx.eval(model.trainable_parameters(), optimizer.state, loss,
-                                master_params if master_params is not None else [])
+    try:
+        for step in range(session.step + 1, max_steps + 1):
+            batch = randomizer.choices(prepared, k=batch_size)
+            metrics = ""
+            if rl:
+                rows, action_logps, advantages, mean_reward, uniform = grpo.collect_rollouts_cached(
+                    batch, tokenizer, eos, pad, rl["group_size"], rl["max_new_tokens"],
+                    sample_prefill, sample_decode, slice_cache, reward,
+                )
+                ids, labels = collate_mlx(rows, max_length, fixed=fixed)
+                old = mx.array(grpo.collate_old_logps(rows, action_logps, ids.shape[1]))
+                if reference is not None:
+                    ref = _mlx_token_logps(reference, ids, labels)
+                elif use_lora_base_ref:
+                    from .mlx_adapters import disable_lora_adapters
+                    with disable_lora_adapters(model):
+                        ref = mx.stop_gradient(_mlx_token_logps(model, ids, labels))
                 else:
-                    if reference is not None:
-                        with _expert_request(reference):
-                            teacher_logits = mx.stop_gradient(_mlx_logits(reference, ids).astype(mx.float32))
-                            mx.eval(teacher_logits)
-                    else:
-                        from .mlx_adapters import disable_lora_adapters
-                        with _expert_request(model), disable_lora_adapters(model):
-                            teacher_logits = mx.stop_gradient(_mlx_logits(model, ids).astype(mx.float32))
-                            mx.eval(teacher_logits)
-                    with _expert_request(model):
-                        loss = step_fn(ids, labels, teacher_logits)
+                    ref = old
+                advantages = mx.array(advantages)
+                mx.eval(old, ref, advantages)
+                if beta == 0 and uniform >= 1.0:
+                    loss = mx.array(0.0, dtype=mx.float32)
+                else:
+                    for _ in range(rl["policy_updates"]):
+                        loss = step_fn(ids, labels, old, ref, advantages)
                         mx.eval(model.trainable_parameters(), optimizer.state, loss,
                                 master_params if master_params is not None else [])
+                metrics = f" reward={mean_reward:.4g} uniform_groups={uniform:.1%}"
             else:
-                for item, key in zip(rows, [row["_chosen_key"] for row in batch] +
-                                          [row["_rejected_key"] for row in batch]):
-                    item["_reference_key"] = key
-                def _compute_mlx_ref():
-                    if reference is not None:
-                        with _expert_request(reference):
-                            ref_scores = _mlx_logps(reference, ids, labels)
+                rows = _response_rows(batch, "response") if method in {"sft", "distill"} else (
+                    _response_rows(batch, "chosen") + _response_rows(batch, "rejected"))
+                ids, labels = collate_mlx(rows, max_length, fixed=fixed)
+                if method == "sft":
+                    with _expert_request(model):
+                        loss = step_fn(ids, labels)
+                        mx.eval(model.trainable_parameters(), optimizer.state, loss,
+                                master_params if master_params is not None else [])
+                elif method == "distill":
+                    if window_cfg is not None:
+                        prompt_lengths = _batch_prompt_lengths(labels)
+                        if reference is not None:
+                            if not hasattr(reference, "_window_controller"):
+                                raise ValueError("Window-pinned distillation requires a MoE teacher when --teacher is provided")
+                            with _expert_request(reference):
+                                teacher_logits, teacher_routes = _run_window_teacher(reference, ids, prompt_lengths)
+                                teacher_logits = mx.stop_gradient(teacher_logits)
+                                mx.eval(teacher_logits, teacher_routes)
+                        else:
+                            from .mlx_adapters import disable_lora_adapters
+                            with _expert_request(model), disable_lora_adapters(model):
+                                teacher_logits, teacher_routes = _run_window_teacher(model, ids, prompt_lengths)
+                                teacher_logits = mx.stop_gradient(teacher_logits)
+                                mx.eval(teacher_logits, teacher_routes)
+                        with _expert_request(model):
+                            loss = step_fn(ids, labels, teacher_logits, teacher_routes, prompt_lengths)
+                            mx.eval(model.trainable_parameters(), optimizer.state, loss,
+                                    master_params if master_params is not None else [])
+                    else:
+                        if reference is not None:
+                            with _expert_request(reference):
+                                teacher_logits = mx.stop_gradient(_mlx_logits(reference, ids).astype(mx.float32))
+                                mx.eval(teacher_logits)
+                        else:
+                            from .mlx_adapters import disable_lora_adapters
+                            with _expert_request(model), disable_lora_adapters(model):
+                                teacher_logits = mx.stop_gradient(_mlx_logits(model, ids).astype(mx.float32))
+                                mx.eval(teacher_logits)
+                        with _expert_request(model):
+                            loss = step_fn(ids, labels, teacher_logits)
+                            mx.eval(model.trainable_parameters(), optimizer.state, loss,
+                                    master_params if master_params is not None else [])
+                else:
+                    for item, key in zip(rows, [row["_chosen_key"] for row in batch] +
+                                              [row["_rejected_key"] for row in batch]):
+                        item["_reference_key"] = key
+                    def _compute_mlx_ref():
+                        if reference is not None:
+                            with _expert_request(reference):
+                                ref_scores = _mlx_logps(reference, ids, labels)
+                                mx.eval(ref_scores)
+                                return ref_scores
+                        from .mlx_adapters import disable_lora_adapters
+                        with _expert_request(model), disable_lora_adapters(model):
+                            ref_scores = mx.stop_gradient(_mlx_logps(model, ids, labels))
                             mx.eval(ref_scores)
                             return ref_scores
-                    from .mlx_adapters import disable_lora_adapters
-                    with _expert_request(model), disable_lora_adapters(model):
-                        ref_scores = mx.stop_gradient(_mlx_logps(model, ids, labels))
-                        mx.eval(ref_scores)
-                        return ref_scores
-                ref = ref_cache.get(rows, ids.shape[1], _compute_mlx_ref)
-                ref_c, ref_r = mx.split(ref, 2)
-                with _expert_request(model):
-                    loss = step_fn(ids, labels, ref_c, ref_r)
-                    mx.eval(model.trainable_parameters(), optimizer.state, loss,
-                            master_params if master_params is not None else [])
-        if step == 1 or step % 10 == 0 or step == max_steps:
-            print(f"[{method.upper()}/MLX] step {step}/{max_steps} loss={loss.item():.4f}{metrics}", flush=True)
-        if save_every and step % save_every == 0 and step != max_steps:
-            save(step)
-    result = save(max_steps, final=True)
-    print(f"Saved MLX post-trained checkpoint: {result}", flush=True)
-    return result
+                    ref = ref_cache.get(rows, ids.shape[1], _compute_mlx_ref)
+                    ref_c, ref_r = mx.split(ref, 2)
+                    with _expert_request(model):
+                        loss = step_fn(ids, labels, ref_c, ref_r)
+                        mx.eval(model.trainable_parameters(), optimizer.state, loss,
+                                master_params if master_params is not None else [])
+            if step == 1 or step % 10 == 0 or step == max_steps:
+                print(f"[{method.upper()}/MLX] step {step}/{max_steps} loss={loss.item():.4f}{metrics}", flush=True)
+            if save_every and step % save_every == 0 and step != max_steps:
+                save(step)
+        result = save(max_steps, final=True)
+        print(f"Saved MLX post-trained checkpoint: {result}", flush=True)
+        return result
+    finally:
+        if prev_cache_limit is not None:
+            mx.set_cache_limit(prev_cache_limit)
 
 
 def _to_cpu(value):
