@@ -21,13 +21,20 @@ class RoutedFFN(nn.Module):
         self.gate_up = mx.random.uniform(-scale, scale, (experts, 2 * inner, width))
         self.down = mx.random.uniform(-scale, scale, (experts, width, inner))
 
-    def train_routes(self, x, prompt):
+    def train_routes(self, x, prompt, valid=None):
         probabilities = mx.softmax(self.router(x if prompt is None else prompt).astype(mx.float32), axis=-1)
         ids = mx.stop_gradient(mx.argmax(probabilities, axis=-1, keepdims=True))
         chosen = mx.take_along_axis(probabilities, ids, axis=-1)
         assignment = (ids == mx.arange(self.count)).astype(mx.float32)
-        balance = self.count * (probabilities.reshape(-1, self.count).mean(axis=0)
-                                * assignment.reshape(-1, self.count).mean(axis=0)).sum()
+        if prompt is None and valid is not None:
+            weight = valid[..., None].astype(mx.float32)
+            count = weight.sum()
+            average = (probabilities * weight).sum(axis=(0, 1)) / count
+            frequency = (assignment * weight).sum(axis=(0, 1)) / count
+        else:
+            average = probabilities.reshape(-1, self.count).mean(axis=0)
+            frequency = assignment.reshape(-1, self.count).mean(axis=0)
+        balance = self.count * (average * frequency).sum()
         ids = mx.broadcast_to(ids, (*x.shape[:-1], 1)).squeeze(-1)
         gate_up = mx.gather_mm(x[..., None, :], self.gate_up.swapaxes(-1, -2), rhs_indices=ids).squeeze(-2)
         gate, up = mx.split(gate_up, 2, axis=-1)
@@ -50,16 +57,24 @@ class RoutedTransformer(nn.Module):
         for layer in self.layers:
             layer.mlp = RoutedFFN(width, inner, experts, layer.mlp)
 
-    def __call__(self, ids, prompt_length):
-        if not 1 <= prompt_length <= ids.shape[1]:
+    def __call__(self, ids, prompt_length, sequence_length=None):
+        if isinstance(prompt_length, int) and not 1 <= prompt_length <= ids.shape[1]:
             raise ValueError("Prompt length must be within the input sequence")
         x = self.emb(ids)
-        prompt = x[:, :prompt_length].mean(axis=1, keepdims=True) if self.routing == "prompt" else None
+        positions = mx.arange(ids.shape[1])[None, :]
+        valid = None if sequence_length is None else positions < sequence_length[:, None]
+        prompt = None
+        if self.routing == "prompt":
+            if isinstance(prompt_length, int):
+                prompt = x[:, :prompt_length].mean(axis=1, keepdims=True)
+            else:
+                mask = (positions < prompt_length[:, None])[..., None]
+                prompt = mx.where(mask, x, 0).sum(axis=1, keepdims=True) / prompt_length[:, None, None]
         balance = mx.array(0.0)
         for layer in self.layers:
             x, _ = layer.attention_residual(x)
             pooled = None if prompt is None else layer.norm2(prompt)
-            output, auxiliary = layer.mlp.train_routes(layer.norm2(x), pooled)
+            output, auxiliary = layer.mlp.train_routes(layer.norm2(x), pooled, valid)
             x = x + output
             balance = balance + auxiliary
         return self.emb.as_linear(self.norm(x)), balance / len(self.layers)
