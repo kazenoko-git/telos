@@ -17,6 +17,7 @@ def main():
     parser.add_argument("--devices", default="auto", help="XLA device count to require, or auto for the full runtime")
     parser.add_argument("--max-steps", type=int, default=1000, help="Training steps (rollout batches for GRPO)")
     parser.add_argument("--batch-size", type=int, default=4)
+    parser.add_argument("--grad-accum", type=int, default=1, help="Gradient accumulation micro-steps per optimizer update")
     parser.add_argument("--learning-rate", type=float, default=2e-5)
     parser.add_argument("--beta", type=float, default=0.1, help="DPO divergence scale or GRPO reference KL weight")
     parser.add_argument("--max-length", type=int, default=None)
@@ -49,7 +50,7 @@ def main():
     posttrain(
         args.checkpoint, args.data, args.output,
         method=args.method, tokenizer_path=args.tokenizer, hardware=args.hardware, devices=args.devices,
-        max_steps=args.max_steps, batch_size=args.batch_size,
+        max_steps=args.max_steps, batch_size=args.batch_size, grad_accum=args.grad_accum,
         learning_rate=args.learning_rate, beta=args.beta,
         max_length=args.max_length, save_every=args.save_every, seed=args.seed, resume=args.resume,
         finetune=args.finetune, lora_rank=args.lora_rank, lora_alpha=args.lora_alpha,
