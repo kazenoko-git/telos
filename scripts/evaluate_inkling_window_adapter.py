@@ -22,6 +22,7 @@ PERF_ROWS = 3
 VARIANTS = ("stock", "untrained_w16", "trained_w16")
 PINNING_VARIANTS = ("trained_w16", "pinned_w16")
 PROFILING_VARIANTS = ("pinned_w16", "profiled_w16")
+FUSED_NVFP4_VARIANTS = ("pinned_w16", "fused_nvfp4_w16")
 
 
 def write_json(path, value):
@@ -95,8 +96,8 @@ def worker(args):
     mx.set_memory_limit(args.memory_budget_mib * 2**20)
     mx.set_cache_limit(128 * 2**20)
     plan_inkling = inkling2_mlx.plan_inkling
-    pinned = args.worker in PROFILING_VARIANTS
-    decode_only = args.compare_pinning or args.profile_pinned
+    pinned = args.worker in (*PROFILING_VARIANTS, *FUSED_NVFP4_VARIANTS)
+    decode_only = args.compare_pinning or args.profile_pinned or args.compare_fused_nvfp4
 
     def require_ssd(*plan_args):
         context, limit = plan_inkling(*plan_args)
@@ -113,11 +114,12 @@ def worker(args):
     rows = [json.loads(line) for line in args.validation.read_text().splitlines() if line.strip()]
     stock = args.worker == "stock"
     generator = TextGenerator.from_checkpoint(
-        args.adapter if args.worker in (*PINNING_VARIANTS, *PROFILING_VARIANTS) else args.base, device="mlx",
+        args.adapter if pinned or args.worker == "trained_w16" else args.base, device="mlx",
         context_length=CONTEXT, memory_budget_mib=args.memory_budget_mib, window_size=None if stock else WINDOW,
     )
     model = generator.model
     pinned_bytes = model.pin_window_experts() if pinned else 0
+    model.fused_nvfp4_decode = args.worker == "fused_nvfp4_w16"
     special = _special_token_ids(generator.tokenizer, args.base, json.loads((args.base / "config.json").read_text()))
     quality = []
     for index, row in enumerate([] if decode_only else rows):
@@ -160,6 +162,7 @@ def worker(args):
         "quality": quality, "decode": speed, "mlx_version": mx.__version__,
         "mlx_peak_mib": mx.get_peak_memory() / 2**20, "expert_cache_mib": model._expert_cache.byte_limit / 2**20,
         "pinned_expert_bytes": pinned_bytes,
+        "fused_nvfp4_decode": model.fused_nvfp4_decode,
     })
 
 
@@ -204,7 +207,12 @@ def supervise(args):
         "validation_sha256": validation_hash, "adapter_sha256": adapter_hash,
         "variants": {}, "guards": {},
     }
-    variants = PROFILING_VARIANTS if args.profile_pinned else PINNING_VARIANTS if args.compare_pinning else VARIANTS
+    if args.compare_fused_nvfp4:
+        variants = FUSED_NVFP4_VARIANTS
+    elif args.profile_pinned:
+        variants = PROFILING_VARIANTS
+    else:
+        variants = PINNING_VARIANTS if args.compare_pinning else VARIANTS
     for variant in variants:
         start = sample()
         guard_check(start, initial, preflight=True)
@@ -249,7 +257,8 @@ def main():
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--compare-pinning", action="store_true", help="Compare the trained adapter with and without bank pinning")
     mode.add_argument("--profile-pinned", action="store_true", help="Measure pinned decode with and without section timing fences")
-    parser.add_argument("--worker", choices=(*VARIANTS, *PROFILING_VARIANTS), help=argparse.SUPPRESS)
+    mode.add_argument("--compare-fused-nvfp4", action="store_true", help="Compare pinned decode with the experimental NVFP4 Metal kernel")
+    parser.add_argument("--worker", choices=(*VARIANTS, *PROFILING_VARIANTS, "fused_nvfp4_w16"), help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.worker:
         worker(args)
