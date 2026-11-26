@@ -25,6 +25,8 @@ PROFILING_VARIANTS = ("pinned_w16", "profiled_w16")
 FUSED_NVFP4_VARIANTS = ("pinned_w16", "fused_nvfp4_w16")
 FUSED_ATTENTION_VARIANTS = ("fused_nvfp4_w16", "profiled_fused_attention_w16")
 GROUPED_QUERY_VARIANTS = ("fused_nvfp4_w16", "grouped_query_w16")
+FUSED_MASK_VARIANTS = ("fused_nvfp4_w16", "fused_mask_w16")
+WORKERS = (*VARIANTS, *PROFILING_VARIANTS, *FUSED_ATTENTION_VARIANTS, "grouped_query_w16", "fused_mask_w16")
 
 
 def write_json(path, value):
@@ -102,9 +104,8 @@ def worker(args):
     mx.set_memory_limit(args.memory_budget_mib * 2**20)
     mx.set_cache_limit(128 * 2**20)
     plan_inkling = inkling2_mlx.plan_inkling
-    pinned = args.worker in (*PROFILING_VARIANTS, *FUSED_ATTENTION_VARIANTS, *GROUPED_QUERY_VARIANTS)
-    decode_only = (args.compare_pinning or args.profile_pinned or args.compare_fused_nvfp4
-                   or args.profile_fused_attention or args.compare_grouped_query)
+    pinned = args.worker not in VARIANTS
+    decode_only = args.variants != VARIANTS
 
     def require_ssd(*plan_args):
         context, limit = plan_inkling(*plan_args)
@@ -126,7 +127,8 @@ def worker(args):
     )
     model = generator.model
     pinned_bytes = model.pin_window_experts() if pinned else 0
-    model.fused_nvfp4_decode = args.worker in (*FUSED_ATTENTION_VARIANTS, *GROUPED_QUERY_VARIANTS)
+    model.fused_nvfp4_decode = pinned and args.worker not in PROFILING_VARIANTS
+    model.fused_mask_decode = args.worker == "fused_mask_w16"
     grouped_query_banks = model.prepare_grouped_query_decode() if args.worker == "grouped_query_w16" else 0
     if args.worker == "grouped_query_w16" and grouped_query_banks == 0:
         raise RuntimeError("No attention banks could group their query projections")
@@ -176,6 +178,7 @@ def worker(args):
         "mlx_peak_mib": mx.get_peak_memory() / 2**20, "expert_cache_mib": model._expert_cache.byte_limit / 2**20,
         "pinned_expert_bytes": pinned_bytes,
         "fused_nvfp4_decode": model.fused_nvfp4_decode,
+        "fused_mask_decode": model.fused_mask_decode,
         "grouped_query_banks": grouped_query_banks,
     })
 
@@ -224,18 +227,7 @@ def supervise(args):
         "validation_sha256": validation_hash, "adapter_sha256": adapter_hash,
         "variants": {}, "guards": {},
     }
-    if args.compare_grouped_query:
-        variants = GROUPED_QUERY_VARIANTS
-    elif args.profile_fused_attention:
-        variants = FUSED_ATTENTION_VARIANTS
-    elif args.compare_fused_nvfp4:
-        variants = FUSED_NVFP4_VARIANTS
-    elif args.profile_pinned:
-        variants = PROFILING_VARIANTS
-    else:
-        variants = PINNING_VARIANTS if args.compare_pinning else VARIANTS
-    if args.reverse_order:
-        variants = variants[::-1]
+    variants = args.variants[::-1] if args.reverse_order else args.variants
     for variant in variants:
         start = sample()
         guard_check(start, initial, preflight=True)
@@ -278,20 +270,23 @@ def main():
     parser.add_argument("--memory-budget-mib", type=int, choices=(2048, 3072), default=BUDGET_MIB)
     parser.add_argument("--max-decode-tokens", type=int, choices=range(1, CONTEXT), default=DECODE_TOKENS, metavar="N")
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--compare-pinning", action="store_true", help="Compare the trained adapter with and without bank pinning")
-    mode.add_argument("--profile-pinned", action="store_true", help="Measure pinned decode with and without section timing fences")
-    mode.add_argument("--compare-fused-nvfp4", action="store_true", help="Compare pinned decode with the experimental NVFP4 Metal kernel")
-    mode.add_argument("--profile-fused-attention", action="store_true", help="Split fused pinned decode timing into attention and routing")
-    mode.add_argument("--compare-grouped-query", action="store_true", help="Compare four separate query-input projections with a packed group")
+    for flag, variants, help_text in (
+        ("--compare-pinning", PINNING_VARIANTS, "Compare the trained adapter with and without bank pinning"),
+        ("--profile-pinned", PROFILING_VARIANTS, "Measure pinned decode with and without section timing fences"),
+        ("--compare-fused-nvfp4", FUSED_NVFP4_VARIANTS, "Compare pinned decode with the NVFP4 Metal kernel"),
+        ("--profile-fused-attention", FUSED_ATTENTION_VARIANTS, "Split fused pinned decode timing into attention and routing"),
+        ("--compare-grouped-query", GROUPED_QUERY_VARIANTS, "Compare separate and grouped query-input projections"),
+        ("--compare-fused-mask", FUSED_MASK_VARIANTS, "Compare relative attention mask construction with and without Metal fusion"),
+    ):
+        mode.add_argument(flag, dest="variants", action="store_const", const=variants, help=help_text)
+    parser.set_defaults(variants=VARIANTS)
     parser.add_argument("--attention-profile-stride", type=int, choices=(1, 4, 12), default=1,
                         help="Under attention profiling, time one layer visit per N and rotate the sample each token")
     parser.add_argument("--attention-components", action="store_true", help="Split sampled attention into its constituent operations")
     parser.add_argument("--reverse-order", action="store_true", help="Run the decode comparison in reverse order")
-    parser.add_argument("--worker", choices=(*VARIANTS, *PROFILING_VARIANTS, *FUSED_ATTENTION_VARIANTS, "grouped_query_w16"),
-                        help=argparse.SUPPRESS)
+    parser.add_argument("--worker", choices=WORKERS, help=argparse.SUPPRESS)
     args = parser.parse_args()
-    if args.reverse_order and not (args.compare_pinning or args.profile_pinned or args.compare_fused_nvfp4
-                                   or args.profile_fused_attention or args.compare_grouped_query):
+    if args.reverse_order and args.variants == VARIANTS:
         parser.error("--reverse-order requires a decode comparison")
     if args.worker:
         worker(args)
