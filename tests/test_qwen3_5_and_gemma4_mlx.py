@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("mlx.core")
+
 from telos.eval.runner import load_model_from_checkpoint
 from telos.inference import TextGenerator
 from telos.models import qwen3_moe_mlx as moe_loader
