@@ -102,7 +102,7 @@ class _DecoderLayer(nn.Module):
         ) if loop["core_start"] <= index < loop["core_end"] and loop["num_passes"] > 1 else ()
 
     def __call__(self, x, blocks, messages, previous, offset, limit, experts, *, trace=None, controller=None,
-                 fused_nvfp4=False, grouped_query=False):
+                 fused_nvfp4=False, grouped_query=False, fused_mask=False):
         profile = getattr(experts, "profile", None)
         split_attention = profile is not None and profile.split_attention_step
         if self.attn_query is None:
@@ -121,7 +121,7 @@ class _DecoderLayer(nn.Module):
         component_profile = profile if split_attention and profile.attention_components else None
         attention, state = self.attention(
             *inputs, None if previous is None else previous.attention, offset, limit, profile=component_profile,
-            grouped_query=grouped_query,
+            grouped_query=grouped_query, fused_mask=fused_mask,
         )
         if split_attention and component_profile is None:
             profile.evaluate(mx.eval, attention, state, section="attention")
@@ -189,6 +189,7 @@ class Inkling2TextMLX(nn.Module):
         self.route_trace = None
         self.fused_nvfp4_decode = False
         self.grouped_query_decode = False
+        self.fused_mask_decode = False
         self._window_controller = WindowPinController()
         self._visits = layout.visits
         self._loop_start = text["loop_config"]["core_start"]
@@ -234,6 +235,7 @@ class Inkling2TextMLX(nn.Module):
     def _chunk(self, ids, cache, *, phase="prefill"):
         fused_nvfp4 = self.fused_nvfp4_decode and phase == "decode" and not self.training
         grouped_query = self.grouped_query_decode and phase == "decode" and not self.training
+        fused_mask = self.fused_mask_decode and phase == "decode" and not self.training
         if phase == "decode":
             step_decode = getattr(self._expert_cache, "step_decode", None)
             if step_decode is not None:
@@ -276,7 +278,7 @@ class Inkling2TextMLX(nn.Module):
             x, states[slot] = self.layers[layer](
                 x, blocks, messages, previous, offset, self.max_seq_len, self._experts,
                 trace=trace, controller=self._window_controller, fused_nvfp4=fused_nvfp4,
-                grouped_query=grouped_query,
+                grouped_query=grouped_query, fused_mask=fused_mask,
             )
             if trace is not None:
                 self.route_trace.append(trace)

@@ -77,6 +77,23 @@ def _clip_heads(x, threshold, scale=None):
     return (value * mx.minimum(threshold / (norm + 1e-6), 1.0)).astype(x.dtype)
 
 
+def _relative_attention_mask(relative, sink, keys, window, *, fused=False):
+    batch, length, _, extent = relative.shape
+    if fused and batch == length == 1 and relative.dtype == sink.dtype:
+        from .inkling2_mask import fused_decode_mask
+
+        return fused_decode_mask(relative, sink, keys, window)
+    distance = mx.arange(keys - length, keys)[:, None] - mx.arange(keys)[None, :]
+    bias = mx.take_along_axis(relative.transpose(0, 2, 1, 3), mx.clip(distance, 0, extent - 1)[None, None], axis=-1)
+    bias = mx.where((distance >= 0) & (distance < extent), bias, 0)
+    allowed = distance >= 0
+    if window is not None:
+        allowed = allowed & (distance < window)
+    mask = mx.where(allowed, bias, -math.inf)
+    # A zero key and value let a learned logit absorb probability without adding an output.
+    return mx.concatenate((mask, sink.transpose(0, 2, 1)[..., None]), axis=-1)
+
+
 class InklingAttention(nn.Module):
     def __init__(self, weights, prefix, config, *, sliding):
         super().__init__()
@@ -155,7 +172,8 @@ class InklingAttention(nn.Module):
             results.append(out)
         return results
 
-    def __call__(self, q_input, k_input, v_input, previous, offset, limit, *, profile=None, grouped_query=False):
+    def __call__(self, q_input, k_input, v_input, previous, offset, limit, *, profile=None, grouped_query=False,
+                 fused_mask=False):
         batch, length, _ = q_input.shape
         k, v = self.k(k_input), self.v(v_input)
         if profile is not None:
@@ -195,16 +213,8 @@ class InklingAttention(nn.Module):
             kv = _LayerCache(mx.concatenate((previous.kv.keys, k), axis=2),
                              mx.concatenate((previous.kv.values, v), axis=2), previous.kv.length + length)
         k, v = kv.keys[:, :, :kv.length], kv.values[:, :, :kv.length]
-        distance = mx.arange(kv.length - length, kv.length)[:, None] - mx.arange(kv.length)[None, :]
-        relative = (r @ self.relative.astype(r.dtype)).transpose(0, 2, 1, 3)
-        bias = mx.take_along_axis(relative, mx.clip(distance, 0, self.extent - 1)[None, None], axis=-1)
-        bias = mx.where((distance >= 0) & (distance < self.extent), bias, 0)
-        allowed = distance >= 0
-        if self.window is not None:
-            allowed = allowed & (distance < self.window)
-        mask = mx.where(allowed, bias, -math.inf)
-        # A zero key and value let a learned logit absorb probability without adding an output.
-        mask = mx.concatenate((mask, sink.transpose(0, 2, 1)[..., None]), axis=-1)
+        relative = r @ self.relative.astype(r.dtype)
+        mask = _relative_attention_mask(relative, sink, kv.length, self.window, fused=fused_mask)
         k, v = (mx.pad(a, ((0, 0), (0, 0), (0, 1), (0, 0))) for a in (k, v))
         if profile is not None:
             profile.evaluate(mx.eval, q, k, v, mask, section="attention_setup")

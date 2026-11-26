@@ -317,6 +317,7 @@ def test_inkling2_text_prefill_decode_and_ssd_parity(tmp_path, monkeypatch):
     next_token = mx.array([[17]], dtype=mx.int32)
     left, left_state = resident.model.hidden_states_with_cache(prompt)
     streamed.model.fused_nvfp4_decode = True
+    streamed.model.fused_mask_decode = True
     with cache.request():
         right, right_state = streamed.model.hidden_states_with_cache(prompt)
         rd, right_next = streamed.model.hidden_states_with_cache(next_token, kv_cache=right_state)
@@ -378,6 +379,25 @@ def test_inkling2_grouped_query_keeps_active_lora_and_decode_bits(tmp_path, monk
     assert mx.array_equal(prefill, new_prefill).item()
     assert mx.array_equal(expected.view(mx.uint16), actual.view(mx.uint16)).item()
     assert mx.array_equal(model.logits_from_hidden(expected), model.logits_from_hidden(actual)).item()
+
+
+@pytest.mark.parametrize("dtype", ["bfloat16", "float32"])
+def test_fused_relative_decode_mask_matches_reference_bits(dtype):
+    import mlx.core as mx
+
+    from telos.models.inkling2_attention import _relative_attention_mask
+
+    array_dtype = getattr(mx, dtype)
+    bit_dtype = mx.uint16 if dtype == "bfloat16" else mx.uint32
+    heads = 24
+    sink = mx.random.normal((1, 1, heads), key=mx.random.key(17)).astype(array_dtype)
+    for keys, extent, window in ((1, 8, None), (64, 38, None), (129, 128, 128),
+                                 (512, 64, None), (65, 9, 32), (512, 512, 512)):
+        relative = mx.random.normal((1, 1, heads, extent), key=mx.random.key(extent)).astype(array_dtype)
+        expected = _relative_attention_mask(relative, sink, keys, window)
+        actual = _relative_attention_mask(relative, sink, keys, window, fused=True)
+        assert actual.shape == (1, heads, 1, keys + 1)
+        assert mx.array_equal(expected.view(bit_dtype), actual.view(bit_dtype)).item()
 
 
 def test_inkling2_relative_attention_sink_and_sliding_history():
@@ -571,6 +591,9 @@ def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypa
     assert list(pinned._mlx_tokens(*long_options, ssd_profile=pin_profile)) == list(streamed._mlx_tokens(*long_options))
     assert all(step["expert_bytes_read"] == 0 for step in pin_profile.steps[2:])
     pinned.model.fused_nvfp4_decode = True
+    pinned.model.fused_mask_decode = True
+    assert list(pinned._mlx_tokens(*long_options)) == list(streamed._mlx_tokens(*long_options))
+    pinned.model.fused_mask_decode = False
     attention_profile = SSDGenerationProfile(split_attention=True)
     assert list(pinned._mlx_tokens(*long_options, ssd_profile=attention_profile)) == list(streamed._mlx_tokens(*long_options))
     for step in attention_profile.steps[2:]:
