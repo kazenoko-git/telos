@@ -23,6 +23,7 @@ _HF_TO_MLX_ATTR = {
     "sink_proj": ("sink", "sink_proj"),
     "in_proj": ("input", "in_proj"),
     "out_proj": ("output", "out_proj"),
+    "qkv_proj": ("qkv", "qkv_proj"),
 }
 
 
