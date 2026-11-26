@@ -180,6 +180,10 @@ class Inkling2TextMLX(nn.Module):
             raise ValueError(f"Unexpected Inkling 2 text tensor {next(iter(weights.tensors))}")
 
     def _chunk(self, ids, cache, *, phase="prefill"):
+        if phase == "decode":
+            step_decode = getattr(self._expert_cache, "step_decode", None)
+            if step_decode is not None:
+                step_decode()
         embedded = self.embed.lookup(ids)
         x = _norm(embedded, self.embed_norm, self.eps, embedded.dtype)
         blocks = []
@@ -259,6 +263,13 @@ def _layer_sizes(layout):
             for bank in layout.expert_banks}
 
 
+def _layer_visits(layout):
+    counts = {}
+    for layer, _ in layout.visits:
+        counts[layer] = counts.get(layer, 0) + 1
+    return counts
+
+
 def plan_inkling(text, layout, non_expert_bytes, budget, context_length):
     limit = _integer(text, "model_max_length", minimum=2)
     context = min(2048, limit) if context_length is None else context_length
@@ -310,8 +321,11 @@ def load_inkling2(checkpoint, config, *, context_length, memory_budget_mib):
     arrays = {name: _load(entry, guard) for name, entry in non_experts.items()}
     cache = None
     if cache_limit is not None:
+        visits = _layer_visits(layout)
         cache = LFMSSDExpertCache(
             cache_limit, guard, layer_sizes=_layer_sizes(layout),
+            layer_weights={layer: count ** 2 for layer, count in visits.items()},
+            decode_decay=0.5,
             fragment_size=max(entry.size // bank.router_weight.shape[0] for bank in layout.expert_banks
                               for entry in bank.ranges.values()),
             top_k=layout.expert_banks[0].top_k,

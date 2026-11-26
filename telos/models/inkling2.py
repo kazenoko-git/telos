@@ -2,6 +2,7 @@
 
 import json
 import math
+from contextlib import nullcontext as _null_visit
 from dataclasses import dataclass
 
 from .checkpoint import resolve_checkpoint
@@ -126,16 +127,18 @@ class InklingExpertBank:
         prepare = getattr(cache, "prepare", None)
         if prepare is not None and x.shape[0] == 1:
             prepare(self.layer, routes, self.ranges)
+        visit = getattr(cache, "visit", None)
         output = mx.zeros(x.shape, dtype=mx.float32)
-        for expert in ordered:
-            rows, slots = routes[expert]
-            rows, slots = mx.array(rows), mx.array(slots)
-            packed = cache.get(self.layer, expert, self.ranges)
-            values = self.project(x[rows], packed).astype(mx.float32)
-            output = output.at[rows].add(values * weights[rows, slots, None])
-            # End the graph before the cache can evict these expert weights.
-            mx.eval(output)
-            del packed, values
+        with visit(self.layer, ordered) if visit is not None else _null_visit():
+            for expert in ordered:
+                rows, slots = routes[expert]
+                rows, slots = mx.array(rows), mx.array(slots)
+                packed = cache.get(self.layer, expert, self.ranges)
+                values = self.project(x[rows], packed).astype(mx.float32)
+                output = output.at[rows].add(values * weights[rows, slots, None])
+                # End the graph before the cache can evict these expert weights.
+                mx.eval(output)
+                del packed, values
         if trace is not None and bytes_before is not None:
             trace["bytes_read"] = cache.bytes_read - bytes_before
             if hits_before is not None:

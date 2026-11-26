@@ -2,7 +2,7 @@
 
 import fcntl
 import os
-from collections import Counter
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from threading import Lock
@@ -70,10 +70,12 @@ class _ExpertReadSession:
 class LFMSSDExpertCache(SSDExpertCache):
     """Per-layer eviction with request-scoped, reusable read resources."""
 
-    def __init__(self, byte_limit, guard, *, layer_sizes, fragment_size, top_k):
-        super().__init__(byte_limit, guard, layer_sizes=layer_sizes)
+    def __init__(self, byte_limit, guard, *, layer_sizes, fragment_size, top_k,
+                 layer_weights=None, decode_decay=1.0):
+        super().__init__(byte_limit, guard, layer_sizes=layer_sizes, layer_weights=layer_weights)
         self._fragment_size = fragment_size
         self._async_size = min(24 * _MIB, max(layer_sizes.values()) * top_k)
+        self._decode_decay = decode_decay
         self._session = None
         self._decode_uses = None
         self._lock = Lock()
@@ -92,7 +94,12 @@ class LFMSSDExpertCache(SSDExpertCache):
 
     def begin_decode(self):
         if self._session is not None and self.layer_slots:
-            self._decode_uses = Counter()
+            self._decode_uses = defaultdict(float if self._decode_decay != 1.0 else int)
+
+    def step_decode(self):
+        if self._decode_uses is not None and self._decode_decay != 1.0:
+            for key in list(self._decode_uses):
+                self._decode_uses[key] *= self._decode_decay
 
     def get(self, layer, expert, ranges):
         if self._decode_uses is not None:

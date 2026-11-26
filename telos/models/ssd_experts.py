@@ -7,6 +7,7 @@ import re
 import subprocess
 import time
 from collections import OrderedDict
+from contextlib import contextmanager
 from dataclasses import dataclass
 from itertools import pairwise
 from pathlib import Path
@@ -168,10 +169,44 @@ class AppleMemoryGuard:
             raise RuntimeError("Flash-MoE stopped because of system memory pressure or new swap writes")
 
 
+def allocate_layer_slots(byte_limit, layer_sizes, layer_weights=None):
+    """Assign whole-expert per-layer slot quotas within a shared byte budget."""
+    if not layer_sizes:
+        return {}
+    if layer_weights is None:
+        if len(set(layer_sizes.values())) != 1:
+            return {}
+        slots = byte_limit // next(iter(layer_sizes.values()))
+        n = len(layer_sizes)
+        if slots < n:
+            return {}
+        return {layer: (i + 1) * slots // n - i * slots // n for i, layer in enumerate(sorted(layer_sizes))}
+
+    counts = dict.fromkeys(layer_sizes, 0)
+    used = 0
+    ordered = sorted(layer_sizes)
+    while True:
+        best_layer = None
+        best_score = -1.0
+        for layer in ordered:
+            weight = layer_weights.get(layer, 1.0)
+            size = layer_sizes[layer]
+            if weight > 0 and used + size <= byte_limit:
+                score = weight / (counts[layer] + 1)
+                if score > best_score:
+                    best_score = score
+                    best_layer = layer
+        if best_layer is None:
+            break
+        counts[best_layer] += 1
+        used += layer_sizes[best_layer]
+    return counts
+
+
 class SSDExpertCache:
     """Retain recently selected experts up to a shared byte budget."""
 
-    def __init__(self, byte_limit, guard, *, layer_sizes=None):
+    def __init__(self, byte_limit, guard, *, layer_sizes=None, layer_weights=None):
         self.byte_limit = byte_limit
         self.guard = guard
         self.resident_bytes = 0
@@ -179,15 +214,17 @@ class SSDExpertCache:
         self.hits = 0
         self.misses = 0
         self._entries = OrderedDict()
-        self.layer_slots = {}
-        # Equal-size banks can divide whole slots evenly without wasting the
-        # remainder. A cache too small for one slot per layer remains global.
-        if layer_sizes and len(set(layer_sizes.values())) == 1:
-            slots = byte_limit // next(iter(layer_sizes.values()))
-            n = len(layer_sizes)
-            if slots >= n:
-                self.layer_slots = {layer: (i + 1) * slots // n - i * slots // n
-                                    for i, layer in enumerate(sorted(layer_sizes))}
+        self._protected = set()
+        self.layer_slots = allocate_layer_slots(byte_limit, layer_sizes, layer_weights)
+
+    @contextmanager
+    def visit(self, layer, experts):
+        """Protect unconsumed resident experts for the current routed layer visit."""
+        self._protected = {(layer, expert) for expert in experts}
+        try:
+            yield
+        finally:
+            self._protected.clear()
 
     def _evict(self, key):
         self.resident_bytes -= self._entries.pop(key)[1]
@@ -198,6 +235,7 @@ class SSDExpertCache:
     def get(self, layer, expert, ranges):
         self.guard.check()
         key = (layer, expert)
+        self._protected.discard(key)
         if key in self._entries:
             self.hits += 1
             self._entries.move_to_end(key)
@@ -209,14 +247,23 @@ class SSDExpertCache:
             raise ValueError(f"One expert needs {size} bytes, over the Flash-MoE cache budget")
         self.misses += 1
         if layer in self.layer_slots:
-            resident = [key for key in self._entries if key[0] == layer]
-            if len(resident) >= self.layer_slots[layer]:
-                victim = self._layer_victim(resident, key)
+            slots = self.layer_slots[layer]
+            if slots == 0:
+                return self._read_expert(slices, size)
+            resident = [k for k in self._entries if k[0] == layer]
+            if len(resident) >= slots:
+                candidates = [k for k in resident if k not in self._protected]
+                if not candidates:
+                    return self._read_expert(slices, size)
+                victim = self._layer_victim(candidates, key)
                 if victim is None:
                     return self._read_expert(slices, size)
                 self._evict(victim)
         while self.resident_bytes + size > self.byte_limit:
-            self._evict(next(iter(self._entries)))
+            victim = next((k for k in self._entries if k not in self._protected), None)
+            if victim is None:
+                return self._read_expert(slices, size)
+            self._evict(victim)
 
         arrays = self._read_expert(slices, size)
         self._entries[key] = (arrays, size)

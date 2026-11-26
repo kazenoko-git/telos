@@ -368,7 +368,7 @@ def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypa
     import mlx.core as mx
 
     from telos.models import inkling2_mlx
-    from telos.models.ssd_replay import replay_existing
+    from telos.models.ssd_replay import replay_existing, replay_policy
 
     class FixtureGuard:
         budget = 2**30
@@ -381,6 +381,7 @@ def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypa
     checkpoint = tmp_path / "model.safetensors.index.json"
     layout = InklingTextLayout.from_checkpoint(checkpoint)
     sizes = inkling2_mlx._layer_sizes(layout)
+    visits = inkling2_mlx._layer_visits(layout)
     non_experts = sum(entry.size for name, entry in tensor_ranges(checkpoint).items() if ".mlp.experts." not in name)
 
     monkeypatch.setattr(inkling2_mlx, "AppleMemoryGuard", FixtureGuard)
@@ -427,7 +428,11 @@ def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypa
 
     cache = streamed.model._expert_cache
     assert cache.hits > 0 and cache.misses > 0
-    replayed = replay_existing(trace, cache.byte_limit, layer_sizes=sizes)
+    replayed = replay_policy(
+        trace, cache.byte_limit, layer_sizes=sizes,
+        layer_weights={layer: count ** 2 for layer, count in visits.items()},
+        decode_decay=0.5, protect_visit=True,
+    )
     assert replayed["decode_tokens"] == 4
     assert replayed["total"]["hits"] == cache.hits
     assert replayed["total"]["misses"] == cache.misses
@@ -436,3 +441,39 @@ def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypa
     assert replayed["prefill"]["bytes_read"] == sum(entry["bytes_read"] for entry in prefill)
     assert replayed["decode"]["hits"] == sum(entry["hits"] for entry in decode)
     assert replayed["decode"]["bytes_read"] == sum(entry["bytes_read"] for entry in decode)
+
+    # Also verify global-LRU SSDExpertCache matches legacy replay_existing.
+    global_cache = SSDExpertCache(cache.byte_limit, FixtureGuard())
+    for entry in trace:
+        for expert in entry["experts"]:
+            global_cache.get(entry["layer"], expert, layout.expert_banks[entry["layer"]].ranges)
+    legacy = replay_existing(trace, global_cache.byte_limit, layer_sizes=sizes)
+    assert legacy["total"]["hits"] == global_cache.hits
+    assert legacy["total"]["misses"] == global_cache.misses
+    assert legacy["total"]["bytes_read"] == global_cache.bytes_read
+
+
+def test_inkling2_visit_protection_prevents_self_eviction(tmp_path):
+    import struct
+
+    class FixtureGuard:
+        def check(self):
+            pass
+
+    path = tmp_path / "experts.bin"
+    path.write_bytes(struct.pack("<ffff", 1.0, 2.0, 3.0, 4.0))
+    ranges = {"weight": TensorRange(path, 0, 16, "F32", (4, 1))}
+    cache = SSDExpertCache(8, FixtureGuard(), layer_sizes={0: 4, 1: 4}, layer_weights={0: 1.0, 1: 0.0})
+    assert cache.layer_slots == {0: 2, 1: 0}
+
+    # Layer 0 holds (0, 1) and (0, 2); visit needs (0, 0), (0, 1), (0, 2).
+    assert cache.get(0, 1, ranges)["weight"].item() == 2.0
+    assert cache.get(0, 2, ranges)["weight"].item() == 3.0
+    with cache.visit(0, [0, 1, 2]):
+        assert cache.get(0, 0, ranges)["weight"].item() == 1.0
+        assert cache.get(0, 1, ranges)["weight"].item() == 2.0
+        assert cache.get(0, 2, ranges)["weight"].item() == 3.0
+    assert cache.hits == 2 and cache.misses == 3 and cache.bytes_read == 12
+    # Layer 1 has zero quota and bypasses caching without error.
+    assert cache.get(1, 3, ranges)["weight"].item() == 4.0
+    assert cache.resident_bytes == 8
