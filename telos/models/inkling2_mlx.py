@@ -257,7 +257,7 @@ class Inkling2TextMLX(nn.Module):
         if profile is None:
             mx.eval(hidden, states)
         else:
-            profile.evaluate(mx.eval, hidden, states)
+            profile.evaluate(mx.eval, hidden, states, section="tail")
         return hidden, _TextState(offset + ids.shape[1], tuple(states))
 
     def _chunks(self, ids, cache, is_causal):

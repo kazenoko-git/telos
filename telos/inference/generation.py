@@ -351,7 +351,7 @@ class TextGenerator:
             if ssd_profile is None:
                 token = _mlx_sample(logits, temperature, top_k, top_p, subkey)
             else:
-                token = ssd_profile.evaluate(_mlx_sample, logits, temperature, top_k, top_p, subkey)
+                token = ssd_profile.evaluate(_mlx_sample, logits, temperature, top_k, top_p, subkey, section="sampling")
                 ssd_profile.end_step(expert_cache)
             yield token
             ids = [*ids, token] if cache_mode == "off" else [token]

@@ -6,11 +6,17 @@ from time import perf_counter_ns
 class SSDGenerationProfile:
     """Collect time spent at existing SSD and MLX synchronization points."""
 
-    def __init__(self):
+    _SECTIONS = ("backbone_router", "experts", "tail", "sampling")
+
+    def __init__(self, *, split_decode=False):
         self.steps = []
+        self._split_decode = split_decode
+        self.split_step = False
 
     def begin_step(self, phase, cache):
         self._phase = phase
+        self.split_step = self._split_decode and phase == "decode"
+        self._section_ns = dict.fromkeys(self._SECTIONS, 0) if self.split_step else None
         self._bytes_read = cache.bytes_read
         self._hits = cache.hits
         self._misses = cache.misses
@@ -27,16 +33,19 @@ class SSDGenerationProfile:
             self._sync_read_ns += elapsed
         return result
 
-    def evaluate(self, function, *args):
+    def evaluate(self, function, *args, section=None):
         started = perf_counter_ns()
         result = function(*args)
-        self._mlx_eval_ns += perf_counter_ns() - started
+        elapsed = perf_counter_ns() - started
+        self._mlx_eval_ns += elapsed
+        if self.split_step and section is not None:
+            self._section_ns[section] += elapsed
         return result
 
     def end_step(self, cache):
         wall_ns = perf_counter_ns() - self._started_ns
         ssd_wait_ns = self._sync_read_ns + self._async_wait_ns
-        self.steps.append({
+        step = {
             "phase": self._phase,
             "wall_seconds": wall_ns / 1e9,
             "ssd_wait_seconds": ssd_wait_ns / 1e9,
@@ -47,7 +56,11 @@ class SSDGenerationProfile:
             "expert_bytes_read": cache.bytes_read - self._bytes_read,
             "expert_hits": cache.hits - self._hits,
             "expert_misses": cache.misses - self._misses,
-        })
+        }
+        if self._split_decode:
+            step.update({f"{name}_eval_seconds": ns / 1e9
+                         for name, ns in (self._section_ns or dict.fromkeys(self._SECTIONS, 0)).items()})
+        self.steps.append(step)
 
     def report(self):
         phases = {}

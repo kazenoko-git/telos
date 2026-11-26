@@ -517,6 +517,15 @@ def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypa
     long_options = (prompt, 13, 0.0, 0, 1.0, None, "dynamic")
     assert list(pinned._mlx_tokens(*long_options, ssd_profile=pin_profile)) == list(streamed._mlx_tokens(*long_options))
     assert all(step["expert_bytes_read"] == 0 for step in pin_profile.steps[2:])
+    detailed = SSDGenerationProfile(split_decode=True)
+    assert list(pinned._mlx_tokens(*long_options, ssd_profile=detailed)) == list(streamed._mlx_tokens(*long_options))
+    for step in detailed.steps[2:]:
+        assert step["expert_bytes_read"] == 0
+        assert step["experts_eval_seconds"] > 0
+        assert step["backbone_router_eval_seconds"] > 0
+        assert step["mlx_eval_wall_seconds"] == pytest.approx(sum(
+            step[f"{section}_eval_seconds"] for section in ("experts", "backbone_router", "tail", "sampling")
+        ))
     assert pinned_cache.layer_slots is prefill_slots
     assert all(sum(key[0] == layer for key in pinned_cache._entries) <= slots for layer, slots in prefill_slots.items())
     pinned.model.set_window_size(None)
