@@ -185,6 +185,11 @@ class MLXBlock(nn.Module):
         self._scale = 1.0 / math.sqrt(self.head_dim)
 
     def __call__(self, x, mask_override=None, kv_cache=None, return_kv: bool = False):
+        x, present = self.attention_residual(x, mask_override, kv_cache)
+        x = x + self.mlp(self.norm2(x))
+        return (x, present) if return_kv else x
+
+    def attention_residual(self, x, mask_override=None, kv_cache=None):
         B, T, D = x.shape
         h = self.norm1(x)
         offset = 0 if kv_cache is None else kv_cache[0].shape[2]
@@ -233,8 +238,4 @@ class MLXBlock(nn.Module):
 
         out = out.transpose(0, 2, 1, 3).reshape(B, T, D)
 
-        x = x + self.out(out)
-        x = x + self.mlp(self.norm2(x))
-        if return_kv:
-            return x, (k, v)
-        return x
+        return x + self.out(out), (k, v)
