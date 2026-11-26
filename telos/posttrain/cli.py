@@ -41,6 +41,7 @@ def main():
     parser.add_argument("--teacher", default=None, help="Teacher checkpoint for --method distill (defaults to starting weights)")
     parser.add_argument("--distill-alpha", type=float, default=0.5, help="Distillation KL weight in [0, 1]; remainder is response cross-entropy")
     parser.add_argument("--distill-temperature", type=float, default=1.0, help="Softmax temperature for distillation KL")
+    parser.add_argument("--memory-budget-mib", type=int, default=None, help="Optional RAM budget in MiB for Flash-MoE MLX checkpoints")
     args = parser.parse_args()
     posttrain(
         args.checkpoint, args.data, args.output,
@@ -55,6 +56,7 @@ def main():
         group_size=args.group_size, max_new_tokens=args.max_new_tokens,
         policy_updates=args.policy_updates, clip_epsilon=args.clip_epsilon, reward=args.reward,
         teacher=args.teacher, distill_alpha=args.distill_alpha, distill_temperature=args.distill_temperature,
+        memory_budget_mib=args.memory_budget_mib,
     )
 
 
