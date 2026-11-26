@@ -151,6 +151,16 @@ class WindowPinController:
     def refresh_step(self) -> bool:
         return self.active and (self._decode_step - 1) % self.window_size == 0
 
+    @property
+    def next_step_steady(self) -> bool:
+        """Return True when the upcoming decode step will reuse already-pinned routes."""
+        return (
+            self.active
+            and self.reuse_host_routes
+            and self._decode_step % self.window_size != 0
+            and bool(self.host_routes)
+        )
+
     def get(self, layer: int) -> mx.array | None:
         return self._pinned.get(layer)
 

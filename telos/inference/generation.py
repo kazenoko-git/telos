@@ -328,7 +328,54 @@ class TextGenerator:
             key = mx.random.key((secrets.randbits(64) if seed is None else seed) & ((1 << 64) - 1))
         cache = initial_cache
         expert_cache = getattr(self.model, "_expert_cache", None)
-        for step in range(count):
+        controller = getattr(self.model, "_window_controller", None)
+        can_pipeline = (
+            cache_mode == "dynamic"
+            and count > 2
+            and getattr(self.model, "pipeline_steady_decode", False)
+            and controller is not None
+            and (ssd_profile is None or not ssd_profile._split_decode)
+        )
+
+        def next_subkey():
+            nonlocal key
+            if key is None:
+                return None
+            key, subkey = mx.random.split(key)
+            return subkey
+
+        pending_token = None
+        step = 0
+        while step < count:
+            if pending_token is not None:
+                if controller.next_step_steady:
+                    hidden, cache = self.model.hidden_states_with_cache(
+                        pending_token.reshape(1, 1), kv_cache=cache, is_causal=True, defer_eval=True,
+                    )
+                    logits = self.model.logits_from_hidden(hidden[:, -1])[0, :self.vocab_size]
+                    next_device = _mlx_sample_device(logits, temperature, top_k, top_p, next_subkey())
+                    mx.async_eval(next_device, cache)
+                    if ssd_profile is None:
+                        token = int(pending_token.item())
+                    else:
+                        token = int(ssd_profile.evaluate(pending_token.item, section="sampling"))
+                        ssd_profile.end_step(expert_cache)
+                    yield token
+                    pending_token = next_device
+                    step += 1
+                    if ssd_profile is not None:
+                        ssd_profile.begin_step("decode", expert_cache)
+                    continue
+                if ssd_profile is None:
+                    token = int(pending_token.item())
+                else:
+                    token = int(ssd_profile.evaluate(pending_token.item, section="sampling"))
+                    ssd_profile.end_step(expert_cache)
+                pending_token = None
+                yield token
+                ids = [token]
+                continue
+
             if ssd_profile is not None:
                 ssd_profile.begin_step("prefill" if step == 0 else "decode", expert_cache)
             input_ids = mx.array([ids], dtype=mx.int32)
@@ -343,18 +390,32 @@ class TextGenerator:
                     begin_decode = getattr(expert_cache, "begin_decode", None)
                     if begin_decode is not None:
                         begin_decode()
+                if can_pipeline and controller.next_step_steady and step + 1 < count:
+                    hidden, cache = self.model.hidden_states_with_cache(
+                        input_ids, kv_cache=cache, is_causal=True, defer_eval=True,
+                    )
+                    logits = self.model.logits_from_hidden(hidden[:, -1])[0, :self.vocab_size]
+                    pending_token = _mlx_sample_device(logits, temperature, top_k, top_p, next_subkey())
+                    mx.async_eval(pending_token, cache)
+                    step += 1
+                    continue
                 hidden, cache = self.model.hidden_states_with_cache(input_ids, kv_cache=cache, is_causal=True)
-            subkey = None
-            if key is not None:
-                key, subkey = mx.random.split(key)
             logits = self.model.logits_from_hidden(hidden[:, -1])[0, :self.vocab_size]
             if ssd_profile is None:
-                token = _mlx_sample(logits, temperature, top_k, top_p, subkey)
+                token = _mlx_sample(logits, temperature, top_k, top_p, next_subkey())
             else:
-                token = ssd_profile.evaluate(_mlx_sample, logits, temperature, top_k, top_p, subkey, section="sampling")
+                token = ssd_profile.evaluate(_mlx_sample, logits, temperature, top_k, top_p, next_subkey(), section="sampling")
                 ssd_profile.end_step(expert_cache)
             yield token
             ids = [*ids, token] if cache_mode == "off" else [token]
+            step += 1
+        if pending_token is not None:
+            if ssd_profile is None:
+                token = int(pending_token.item())
+            else:
+                token = int(ssd_profile.evaluate(pending_token.item, section="sampling"))
+                ssd_profile.end_step(expert_cache)
+            yield token
 
     def _mlx_pipelined_cached_tokens(self, ids, count, temperature=0.0, top_k=0, top_p=1.0,
                                      seed=None, *, initial_cache=None, prompt_ids=None):

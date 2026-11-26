@@ -236,6 +236,7 @@ class Inkling2TextMLX(nn.Module):
         self.grouped_query_decode = False
         self.fused_mask_decode = False
         self.compiled_steady_decode = False
+        self.pipeline_steady_decode = False
         self._window_controller = WindowPinController()
         self._visits = layout.visits
         self._loop_start = text["loop_config"]["core_start"]
@@ -278,7 +279,7 @@ class Inkling2TextMLX(nn.Module):
         self.grouped_query_decode = prepared > 0
         return prepared
 
-    def _chunk(self, ids, cache, *, phase="prefill"):
+    def _chunk(self, ids, cache, *, phase="prefill", defer_eval=False):
         fused_nvfp4 = self.fused_nvfp4_decode and phase == "decode" and not self.training
         grouped_query = self.grouped_query_decode and phase == "decode" and not self.training
         fused_mask = self.fused_mask_decode and phase == "decode" and not self.training
@@ -296,13 +297,17 @@ class Inkling2TextMLX(nn.Module):
         pass_counts = {}
         profile = self._expert_cache.profile if self._expert_cache is not None else None
         controller = self._window_controller
+        steady_no_read = (
+            phase == "decode" and controller.active and not controller.refresh_step and controller.reuse_host_routes
+        )
         compiled = (self.compiled_steady_decode and fused_nvfp4 and not grouped_query and self.route_trace is None
                     and controller.active and not controller.refresh_step)
         cursor = mx.array(offset, dtype=mx.int32) if compiled else None
         for visit, (layer, slot) in enumerate(self._visits):
             if profile is not None:
                 profile.begin_visit(visit)
-            self._guard.check()
+            if not steady_no_read:
+                self._guard.check()
             loop_pass = pass_counts.get(layer, 0)
             pass_counts[layer] = loop_pass + 1
             if layer == self._loop_start:
@@ -357,14 +362,15 @@ class Inkling2TextMLX(nn.Module):
                 self.route_trace.append(trace)
         hidden = _mix(blocks, x, self.final_query[None], self.normalize_values)[..., 0, :]
         hidden = _norm(hidden, self.final_norm, self.eps, embedded.dtype)
-        # Finish outstanding state before the next chunk and keep cache graphs bounded.
-        if profile is None:
-            mx.eval(hidden, states)
-        else:
-            profile.evaluate(mx.eval, hidden, states, section="tail")
+        # Finish outstanding state before the next chunk unless pipelining a steady decode step.
+        if not defer_eval:
+            if profile is None:
+                mx.eval(hidden, states)
+            else:
+                profile.evaluate(mx.eval, hidden, states, section="tail")
         return hidden, _TextState(offset + ids.shape[1], tuple(states))
 
-    def _chunks(self, ids, cache, is_causal):
+    def _chunks(self, ids, cache, is_causal, *, defer_eval=False):
         if ids.ndim != 2 or ids.shape[0] != 1:
             raise ValueError("Inkling 2 text inference requires one token sequence per request")
         length = ids.shape[1]
@@ -381,14 +387,17 @@ class Inkling2TextMLX(nn.Module):
         for start in range(0, length, _PREFILL_CHUNK):
             if seq_active:
                 self._window_controller.chunk_offset = start
-            hidden, cache = self._chunk(ids[:, start:start + _PREFILL_CHUNK], cache, phase=phase)
+            hidden, cache = self._chunk(
+                ids[:, start:start + _PREFILL_CHUNK], cache, phase=phase,
+                defer_eval=defer_eval and phase == "decode",
+            )
             yield hidden, cache
         if seq_active:
             self._window_controller.chunk_offset = 0
 
-    def hidden_states_with_cache(self, ids, kv_cache=None, *, is_causal=True):
+    def hidden_states_with_cache(self, ids, kv_cache=None, *, is_causal=True, defer_eval=False):
         parts = []
-        for hidden, state in self._chunks(ids, kv_cache, is_causal):
+        for hidden, state in self._chunks(ids, kv_cache, is_causal, defer_eval=defer_eval):
             parts.append(hidden)
         return (parts[0] if len(parts) == 1 else mx.concatenate(parts, axis=1)), state
 
