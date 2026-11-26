@@ -21,6 +21,7 @@ DECODE_TOKENS = 16
 PERF_ROWS = 3
 VARIANTS = ("stock", "untrained_w16", "trained_w16")
 PINNING_VARIANTS = ("trained_w16", "pinned_w16")
+PROFILING_VARIANTS = ("pinned_w16", "profiled_w16")
 
 
 def write_json(path, value):
@@ -44,7 +45,7 @@ def disk_delta(before, after):
     return {key: after[key] - before[key] for key in before}
 
 
-def benchmark(generator, prompt, *, token_cap, per_step=False):
+def benchmark(generator, prompt, *, token_cap, per_step=False, split_decode=False):
     from telos.models.ssd_profile import SSDGenerationProfile
 
     cache = generator.model._expert_cache
@@ -53,7 +54,7 @@ def benchmark(generator, prompt, *, token_cap, per_step=False):
     ids = generator.tokenizer.encode(prompt, add_special_tokens=False).ids
     if generator.add_bos and ids[0] != generator.bos_id:
         ids.insert(0, generator.bos_id)
-    profile = SSDGenerationProfile()
+    profile = SSDGenerationProfile(split_decode=split_decode)
     initial = disk_counters()
     start = time.perf_counter()
     stream = generator._mlx_tokens(ids, token_cap, 0.0, 0, 1.0, None, "dynamic", ssd_profile=profile)
@@ -94,12 +95,14 @@ def worker(args):
     mx.set_memory_limit(args.memory_budget_mib * 2**20)
     mx.set_cache_limit(128 * 2**20)
     plan_inkling = inkling2_mlx.plan_inkling
+    pinned = args.worker in PROFILING_VARIANTS
+    decode_only = args.compare_pinning or args.profile_pinned
 
     def require_ssd(*plan_args):
         context, limit = plan_inkling(*plan_args)
         if limit is None:
             raise RuntimeError("SSD-only evaluation rejected a resident weight plan")
-        if args.worker == "pinned_w16":
+        if pinned:
             layout = plan_args[1]
             sizes = inkling2_mlx._layer_sizes(layout)
             if sum(sizes[b.layer] * b.top_k for b in layout.expert_banks) > limit:
@@ -110,14 +113,14 @@ def worker(args):
     rows = [json.loads(line) for line in args.validation.read_text().splitlines() if line.strip()]
     stock = args.worker == "stock"
     generator = TextGenerator.from_checkpoint(
-        args.adapter if args.worker in PINNING_VARIANTS else args.base, device="mlx",
+        args.adapter if args.worker in (*PINNING_VARIANTS, *PROFILING_VARIANTS) else args.base, device="mlx",
         context_length=CONTEXT, memory_budget_mib=args.memory_budget_mib, window_size=None if stock else WINDOW,
     )
     model = generator.model
-    pinned_bytes = model.pin_window_experts() if args.worker == "pinned_w16" else 0
+    pinned_bytes = model.pin_window_experts() if pinned else 0
     special = _special_token_ids(generator.tokenizer, args.base, json.loads((args.base / "config.json").read_text()))
     quality = []
-    for index, row in enumerate([] if args.compare_pinning else rows):
+    for index, row in enumerate([] if decode_only else rows):
         tokens, labels, _ = _encode(generator.tokenizer, row["prompt"], row["response"], 64, None, special_ids=special)
         start = next(i for i, label in enumerate(labels) if label != -100)
         ids = mx.array([tokens], dtype=mx.int32)
@@ -148,7 +151,10 @@ def worker(args):
         print(f"{args.worker}: held-out {index + 1}/{len(rows)}", flush=True)
     speed = []
     for index, row in enumerate(rows[:PERF_ROWS]):
-        speed.append(benchmark(generator, row["prompt"], token_cap=args.max_decode_tokens, per_step=args.compare_pinning))
+        speed.append(benchmark(
+            generator, row["prompt"], token_cap=args.max_decode_tokens, per_step=decode_only,
+            split_decode=args.worker == "profiled_w16",
+        ))
         print(f"{args.worker}: decode {index + 1}/{min(PERF_ROWS, len(rows))}", flush=True)
     write_json(args.output / f"{args.worker}.json", {
         "quality": quality, "decode": speed, "mlx_version": mx.__version__,
@@ -198,7 +204,8 @@ def supervise(args):
         "validation_sha256": validation_hash, "adapter_sha256": adapter_hash,
         "variants": {}, "guards": {},
     }
-    for variant in PINNING_VARIANTS if args.compare_pinning else VARIANTS:
+    variants = PROFILING_VARIANTS if args.profile_pinned else PINNING_VARIANTS if args.compare_pinning else VARIANTS
+    for variant in variants:
         start = sample()
         guard_check(start, initial, preflight=True)
         print(f"Starting guarded {variant} evaluation at {start['free_percent']}% free", flush=True)
@@ -239,8 +246,10 @@ def main():
         parser.add_argument(f"--{arg}", type=Path, required=True)
     parser.add_argument("--memory-budget-mib", type=int, choices=(2048, 3072), default=BUDGET_MIB)
     parser.add_argument("--max-decode-tokens", type=int, choices=range(1, CONTEXT), default=DECODE_TOKENS, metavar="N")
-    parser.add_argument("--compare-pinning", action="store_true", help="Compare the trained adapter with and without bank pinning")
-    parser.add_argument("--worker", choices=(*VARIANTS, "pinned_w16"), help=argparse.SUPPRESS)
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--compare-pinning", action="store_true", help="Compare the trained adapter with and without bank pinning")
+    mode.add_argument("--profile-pinned", action="store_true", help="Measure pinned decode with and without section timing fences")
+    parser.add_argument("--worker", choices=(*VARIANTS, *PROFILING_VARIANTS), help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.worker:
         worker(args)
