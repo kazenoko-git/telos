@@ -7,7 +7,7 @@ from telos.training.core import metal_usable
 pytestmark = pytest.mark.skipif(not metal_usable(), reason="MLX Metal required")
 
 
-@pytest.mark.parametrize("mode", ["prompt", "token"])
+@pytest.mark.parametrize("mode", ["prompt", "token", "hybrid4", "hybrid8"])
 def test_routed_training_is_causal_after_the_prompt(mode):
     import mlx.core as mx
     from mlx import nn
@@ -24,10 +24,11 @@ def test_routed_training_is_causal_after_the_prompt(mode):
     prefill, state = model.step(a[:, :5])
     assert mx.allclose(prefill, logits[0, 4], atol=1e-5, rtol=1e-5).item()
     _, next_state = model.step(a[:, 5:6], state)
-    if mode == "prompt":
-        assert all(first is not None and first == second for (_, first), (_, second) in zip(state, next_state, strict=True))
+    if mode != "token":
+        assert all(first is not None and first == second
+                   for (_, first), (_, second) in zip(state.layers, next_state.layers, strict=True))
     else:
-        assert all(fixed is None for _, fixed in next_state)
+        assert all(fixed is None for _, fixed in next_state.layers)
 
     def loss(net):
         predictions, balance = net(a, 5)
@@ -37,7 +38,7 @@ def test_routed_training_is_causal_after_the_prompt(mode):
     assert all(mx.any(layer["mlp"]["router"]["weight"] != 0).item() for layer in gradients["layers"])
 
 
-@pytest.mark.parametrize("mode", ["prompt", "token"])
+@pytest.mark.parametrize("mode", ["prompt", "token", "hybrid4", "hybrid8"])
 def test_variable_prompt_lengths_exclude_completion_padding_and_future_tokens(mode):
     import mlx.core as mx
 
@@ -59,3 +60,42 @@ def test_variable_prompt_lengths_exclude_completion_padding_and_future_tokens(mo
     for row, prompt in enumerate(prompts.tolist()):
         prefill, _ = model.step(ids[row:row+1, :prompt])
         assert mx.allclose(prefill, logits[row, prompt-1], atol=1e-5, rtol=1e-5).item()
+
+
+@pytest.mark.parametrize(("mode", "interval"), [("hybrid4", 4), ("hybrid8", 8)])
+def test_hybrid_refresh_boundaries_match_teacher_forcing(mode, interval):
+    import mlx.core as mx
+    from mlx import nn
+
+    from telos.models.prompt_routing_mlx import RoutedTransformer
+
+    class RouterSpy(nn.Module):
+        def __init__(self, source):
+            super().__init__()
+            self.source = source
+            self.calls = 0
+
+        def __call__(self, features):
+            self.calls += 1
+            return self.source(features)
+
+    mx.random.seed(14)
+    model = RoutedTransformer(routing=mode, vocab_size=40)
+    ids = mx.array([[37, 2, 5, 6, 38, *range(21, 39)]], dtype=mx.int32)
+    prefix = 5
+    logits, _ = model(ids, mx.array([prefix]), mx.array([ids.shape[1]]))
+    spies = []
+    for layer in model.layers:
+        spy = RouterSpy(layer.mlp.router)
+        layer.mlp.router = spy
+        spies.append(spy)
+
+    actual, state = model.step(ids[:, :prefix])
+    assert all(spy.calls == 1 for spy in spies)
+    assert mx.allclose(actual, logits[0, prefix-1], atol=3e-5, rtol=1e-5).item()
+    for i in range(1, ids.shape[1]-prefix+1):
+        pos = prefix+i-1
+        actual, state = model.step(ids[:, pos:pos+1], state)
+        assert state.decoded == i
+        assert all(spy.calls == 1+i//interval for spy in spies)
+        assert mx.allclose(actual, logits[0, pos], atol=3e-5, rtol=1e-5).item()
