@@ -93,7 +93,10 @@ class LFMSSDExpertCache(SSDExpertCache):
     def reserve_window_slots(self, slots):
         if self._session is not None:
             raise RuntimeError("Configure window expert slots before starting an SSD request")
-        if slots.keys() != self._layer_sizes.keys() or any(n < 1 for n in slots.values()):
+        if slots is None:
+            self._window_slots = None
+            return 0
+        if slots.keys() != self._layer_sizes.keys() or any(type(n) is not int or n < 1 for n in slots.values()):
             raise ValueError("Window expert pinning requires a positive slot count for every bank")
         required = sum(self._layer_sizes[layer] * count for layer, count in slots.items())
         if required > self.byte_limit:
@@ -112,25 +115,30 @@ class LFMSSDExpertCache(SSDExpertCache):
                 yield
             finally:
                 self._decode_uses = None
-                self.layer_slots = prefill_slots
+                if self.layer_slots is not prefill_slots:
+                    self._apply_layer_slots(prefill_slots)
                 self._session = None
                 self.profile = None
                 session.close()
 
     def begin_decode(self):
         if self._session is not None and self._window_slots is not None:
-            self.layer_slots = self._window_slots
             self._decode_uses = None
-            kept = defaultdict(int)
-            for key in reversed(list(self._entries)):
-                layer, _ = key
-                if kept[layer] == self.layer_slots[layer]:
-                    self._evict(key)
-                else:
-                    kept[layer] += 1
+            self._apply_layer_slots(self._window_slots)
             return
         if self._session is not None and self.layer_slots:
             self._decode_uses = defaultdict(float if self._decode_decay != 1.0 else int)
+
+    def _apply_layer_slots(self, slots):
+        self.layer_slots = slots
+        if slots:
+            kept = defaultdict(int)
+            for key in reversed(tuple(self._entries)):
+                layer, _ = key
+                if kept[layer] == slots[layer]:
+                    self._evict(key)
+                else:
+                    kept[layer] += 1
 
     def step_decode(self):
         if self._decode_uses is not None and self._decode_decay != 1.0:

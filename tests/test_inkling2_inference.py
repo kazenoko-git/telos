@@ -510,11 +510,17 @@ def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypa
         streamed.model.pin_window_experts()
     monkeypatch.setattr(inkling2_mlx, "plan_inkling", lambda *args: (24, required))
     pinned = TextGenerator.from_checkpoint(tmp_path, window_size=4)
+    pinned_cache = pinned.model._expert_cache
+    prefill_slots = pinned_cache.layer_slots
     assert pinned.model.pin_window_experts() == required
     pin_profile = SSDGenerationProfile()
     long_options = (prompt, 13, 0.0, 0, 1.0, None, "dynamic")
     assert list(pinned._mlx_tokens(*long_options, ssd_profile=pin_profile)) == list(streamed._mlx_tokens(*long_options))
     assert all(step["expert_bytes_read"] == 0 for step in pin_profile.steps[2:])
+    assert pinned_cache.layer_slots is prefill_slots
+    assert all(sum(key[0] == layer for key in pinned_cache._entries) <= slots for layer, slots in prefill_slots.items())
+    pinned.model.set_window_size(None)
+    assert pinned_cache._window_slots is None
 
 
 def test_inkling2_visit_protection_prevents_self_eviction(tmp_path):

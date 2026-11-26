@@ -198,6 +198,8 @@ class Inkling2TextMLX(nn.Module):
             raise ValueError(f"Unexpected Inkling 2 text tensor {next(iter(weights.tensors))}")
 
     def set_window_size(self, window_size: int | None):
+        if window_size is None and self._expert_cache is not None:
+            self._expert_cache.reserve_window_slots(None)
         self._window_controller.set_window_size(window_size)
 
     def pin_window_experts(self):
