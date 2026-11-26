@@ -198,10 +198,11 @@ class LFM2MoEMLX(nn.Module):
     def hidden_states_with_cache(self, ids, kv_cache=None, *, is_causal=True):
         if not is_causal or ids.shape[1] < 1:
             raise ValueError("LFM2-MoE requires causal attention and at least one token per row")
-        if kv_cache is None:
-            self._window_controller.begin_prefill()
-        elif ids.shape[1] == 1:
-            self._window_controller.begin_decode_step()
+        if self._window_controller.mode is None:
+            if kv_cache is None:
+                self._window_controller.begin_prefill()
+            elif ids.shape[1] == 1:
+                self._window_controller.begin_decode_step()
         offset = 0 if kv_cache is None else kv_cache[0].length
         if offset + ids.shape[1] > self.max_seq_len:
             raise ValueError(f"LFM2-MoE context exceeds the model limit of {self.max_seq_len} tokens")
