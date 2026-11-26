@@ -151,13 +151,18 @@ def _swapout_bytes():
     return int(page_size[1]) * int(pages[1])
 
 
+def apple_memory_budget(physical_bytes, free_percent):
+    """Available budget after the native loader's system headroom reserve."""
+    return physical_bytes * max(0, free_percent - 15) // 100
+
+
 class AppleMemoryGuard:
     """Use live headroom for admission and stop on new swap writes during streaming."""
 
     def __init__(self):
         physical = int(_command("sysctl", "-n", "hw.memsize"))
         free = _free_percent()
-        self.budget = physical * max(0, free - 15) // 100
+        self.budget = apple_memory_budget(physical, free)
         self._swap_start = _swapout_bytes()
         self._checked_at = 0.0
         self._background = False

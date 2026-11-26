@@ -196,18 +196,23 @@ def worker(args):
 
 
 def sample():
-    from telos.models.ssd_experts import _swapout_bytes
+    from telos.models.ssd_experts import _swapout_bytes, apple_memory_budget
 
     free, swap, free_swap = memory_sample()
+    pressure, physical_bytes = map(int, read_command("sysctl", "-n", "kern.memorystatus_vm_pressure_level", "hw.memsize").split())
     return {"free_percent": free, "swap_used_mib": swap, "free_swap_mib": free_swap,
-            "swapout_bytes": _swapout_bytes()}
+            "swapout_bytes": _swapout_bytes(), "pressure_level": pressure,
+            "loader_budget_mib": apple_memory_budget(physical_bytes, free) / 2**20}
 
 
-def guard_check(current, initial, *, preflight=False):
+def guard_check(current, initial, *, requested_budget_mib=None):
     if current["swap_used_mib"] > initial["swap_used_mib"] or current["swapout_bytes"] > initial["swapout_bytes"]:
         raise RuntimeError("Guard stopped after swap growth")
-    if current["free_percent"] < (45 if preflight else 35):
-        raise RuntimeError("Guard stopped for low memory headroom")
+    if current["pressure_level"] != 1:
+        raise RuntimeError("Guard stopped because macOS memory pressure left normal")
+    if requested_budget_mib is not None and current["loader_budget_mib"] < requested_budget_mib:
+        raise RuntimeError(f"The native loader only has {current['loader_budget_mib']:.0f} MiB of headroom "
+                           f"for a {requested_budget_mib} MiB worker")
     if current["free_swap_mib"] is not None and current["free_swap_mib"] < 768:
         raise RuntimeError("Guard stopped for low free swap")
 
@@ -225,7 +230,7 @@ def supervise(args):
     if source != (args.base / "model.safetensors.index.json").resolve() or posttrain.get("window_size") != WINDOW:
         raise ValueError("The W=16 adapter must reference the supplied stock checkpoint")
     initial = sample()
-    guard_check(initial, initial, preflight=True)
+    guard_check(initial, initial, requested_budget_mib=args.memory_budget_mib)
     with args.validation.open("rb") as validation, (args.adapter / "model.adapter.safetensors").open("rb") as adapter:
         validation_hash = hashlib.file_digest(validation, "sha256").hexdigest()
         adapter_hash = hashlib.file_digest(adapter, "sha256").hexdigest()
@@ -243,7 +248,7 @@ def supervise(args):
     variants = args.variants[::-1] if args.reverse_order else args.variants
     for variant in variants:
         start = sample()
-        guard_check(start, initial, preflight=True)
+        guard_check(start, initial, requested_budget_mib=args.memory_budget_mib)
         print(f"Starting guarded {variant} evaluation at {start['free_percent']}% free", flush=True)
         process = subprocess.Popen([sys.executable, __file__, *sys.argv[1:], "--worker", variant],
                                    env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1])})

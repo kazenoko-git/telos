@@ -19,7 +19,7 @@ def main():
     from telos.models.inkling2 import InklingTextLayout
 
     initial = sample()
-    guard_check(initial, initial, preflight=True)
+    guard_check(initial, initial)
     mx.set_memory_limit(3072 * 2**20)
     mx.set_cache_limit(128 * 2**20)
     bank = InklingTextLayout.from_checkpoint(args.base).expert_banks[6]
