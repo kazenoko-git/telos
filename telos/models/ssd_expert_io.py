@@ -80,6 +80,8 @@ class LFMSSDExpertCache(SSDExpertCache):
     def __init__(self, byte_limit, guard, *, layer_sizes, fragment_size, top_k,
                  layer_weights=None, decode_decay=1.0):
         super().__init__(byte_limit, guard, layer_sizes=layer_sizes, layer_weights=layer_weights)
+        self._layer_sizes = layer_sizes.copy()
+        self._window_slots = None
         self._fragment_size = fragment_size
         self._async_size = min(24 * _MIB, max(layer_sizes.values()) * top_k)
         self._decode_decay = decode_decay
@@ -88,9 +90,21 @@ class LFMSSDExpertCache(SSDExpertCache):
         self._decode_uses = None
         self._lock = Lock()
 
+    def reserve_window_slots(self, slots):
+        if self._session is not None:
+            raise RuntimeError("Configure window expert slots before starting an SSD request")
+        if slots.keys() != self._layer_sizes.keys() or any(n < 1 for n in slots.values()):
+            raise ValueError("Window expert pinning requires a positive slot count for every bank")
+        required = sum(self._layer_sizes[layer] * count for layer, count in slots.items())
+        if required > self.byte_limit:
+            raise ValueError(f"Window experts need {required / _MIB:.2f} MiB but the cache has {self.byte_limit / _MIB:.2f} MiB")
+        self._window_slots = slots.copy()
+        return required
+
     @contextmanager
     def request(self, *, profile=None):
         with self._lock:
+            prefill_slots = self.layer_slots
             session = _ExpertReadSession(self._fragment_size, self._async_size, profile)
             self._session = session
             self.profile = profile
@@ -98,11 +112,23 @@ class LFMSSDExpertCache(SSDExpertCache):
                 yield
             finally:
                 self._decode_uses = None
+                self.layer_slots = prefill_slots
                 self._session = None
                 self.profile = None
                 session.close()
 
     def begin_decode(self):
+        if self._session is not None and self._window_slots is not None:
+            self.layer_slots = self._window_slots
+            self._decode_uses = None
+            kept = defaultdict(int)
+            for key in reversed(list(self._entries)):
+                layer, _ = key
+                if kept[layer] == self.layer_slots[layer]:
+                    self._evict(key)
+                else:
+                    kept[layer] += 1
+            return
         if self._session is not None and self.layer_slots:
             self._decode_uses = defaultdict(float if self._decode_decay != 1.0 else int)
 

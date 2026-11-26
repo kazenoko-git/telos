@@ -168,6 +168,7 @@ class Inkling2TextMLX(nn.Module):
         self._expert_cache = cache
         self._experts = experts
         self._guard = guard
+        self._bank_top_k = {bank.layer: bank.top_k for bank in layout.expert_banks}
         self.route_trace = None
         self._window_controller = WindowPinController()
         self._visits = layout.visits
@@ -198,6 +199,11 @@ class Inkling2TextMLX(nn.Module):
 
     def set_window_size(self, window_size: int | None):
         self._window_controller.set_window_size(window_size)
+
+    def pin_window_experts(self):
+        if self._expert_cache is None or self._window_controller.window_size is None:
+            raise ValueError("Pinning window experts requires SSD weights and a decode window")
+        return self._expert_cache.reserve_window_slots(self._bank_top_k)
 
     def _chunk(self, ids, cache, *, phase="prefill"):
         if phase == "decode":

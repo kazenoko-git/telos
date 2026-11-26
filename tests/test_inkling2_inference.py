@@ -504,6 +504,18 @@ def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypa
     assert legacy["total"]["misses"] == global_cache.misses
     assert legacy["total"]["bytes_read"] == global_cache.bytes_read
 
+    required = 2 * sum(sizes.values())
+    streamed.model.set_window_size(4)
+    with pytest.raises(ValueError, match="Window experts need"):
+        streamed.model.pin_window_experts()
+    monkeypatch.setattr(inkling2_mlx, "plan_inkling", lambda *args: (24, required))
+    pinned = TextGenerator.from_checkpoint(tmp_path, window_size=4)
+    assert pinned.model.pin_window_experts() == required
+    pin_profile = SSDGenerationProfile()
+    long_options = (prompt, 13, 0.0, 0, 1.0, None, "dynamic")
+    assert list(pinned._mlx_tokens(*long_options, ssd_profile=pin_profile)) == list(streamed._mlx_tokens(*long_options))
+    assert all(step["expert_bytes_read"] == 0 for step in pin_profile.steps[2:])
+
 
 def test_inkling2_visit_protection_prevents_self_eviction(tmp_path):
     import struct
