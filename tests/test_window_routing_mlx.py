@@ -426,3 +426,61 @@ def test_local_mlx_window_distill_lfm2_moe_ssd_and_cli(tmp_path, monkeypatch):
     gen = TextGenerator.from_checkpoint(out_dir)
     assert gen.model.weight_storage == "ssd_experts" and gen.model._window_controller.window_size == 4
     assert len(gen.generate("t1 t2", max_new_tokens=4, temperature=0.0)) > 0
+
+
+def test_ssd_segmented_vjp_matches_exact_autograd(tmp_path, monkeypatch):
+    """Verify NOGRAD forward + layerwise VJP matches full autograd identically."""
+    import mlx.core as mx
+    import mlx.nn as nn
+    from mlx.utils import tree_flatten
+    from telos.models import inkling2_mlx, qwen3_moe_mlx as loader
+    from telos.models.checkpoint import load_checkpoint
+    from telos.models.ssd_experts import tensor_ranges
+    from telos.models.window_routing import init_window_adapters
+    from telos.posttrain.mlx_adapters import apply_lora
+    from telos.posttrain.trainer import _mlx_distill_from_logits, _mlx_window_distill_loss, _run_window_teacher
+
+    class FixtureGuard:
+        budget = 2**30
+
+        def check(self):
+            pass
+
+    monkeypatch.setattr(inkling2_mlx, "AppleMemoryGuard", FixtureGuard)
+    monkeypatch.setattr(loader, "AppleMemoryGuard", FixtureGuard)
+
+    ckpt = _write_inkling_fixture(tmp_path / "inkling_eq", mx)
+    model, _, _, _ = load_checkpoint(ckpt, device="mlx")
+    apply_lora(model, rank=4, alpha=16.0, targets=["q", "k", "v", "output", "gate"])
+    init_window_adapters(model, selector_rank=4)
+    # Give non-zero lora_b so attention projections receive distinct downstream gradients.
+    for mod in model.layers:
+        mod.attention.q.lora_b = mx.ones_like(mod.attention.q.lora_b) * 0.05
+    mx.eval(model.trainable_parameters())
+
+    ids = mx.array([[1, 2, 3, 4, 5, 6, 7, 8]], dtype=mx.int32)
+    labels = mx.array([[-100, -100, -100, 4, 5, 6, 7, 8]], dtype=mx.int32)
+    pl = [3]
+    t_logits, t_routes = _run_window_teacher(model, ids, pl)
+    t_logits = mx.stop_gradient(t_logits)
+    mx.eval(t_logits, t_routes)
+
+    ref_loss, ref_grads = nn.value_and_grad(model, _mlx_window_distill_loss)(
+        model, ids, labels, t_logits, t_routes, pl, 0.9, 1.0, 0.25, 4,
+    )
+    seg_loss, seg_grads = model.ssd_loss_and_grad(
+        ids,
+        lambda logits: _mlx_distill_from_logits(logits.astype(mx.float32), labels, t_logits, 0.9, 1.0),
+        teacher_routes=t_routes,
+        prompt_lengths=pl,
+        response_mask=labels != -100,
+        window_size=4,
+        cov_weight=0.25,
+    )
+    mx.eval(ref_loss, ref_grads, seg_loss, seg_grads)
+    assert mx.allclose(ref_loss, seg_loss, rtol=1e-4, atol=1e-5).item()
+    ref_flat = dict(tree_flatten(ref_grads))
+    seg_flat = dict(tree_flatten(seg_grads))
+    assert ref_flat.keys() == seg_flat.keys()
+    for name in ref_flat:
+        assert mx.allclose(ref_flat[name], seg_flat[name], rtol=1e-3, atol=1e-4).item(), name
