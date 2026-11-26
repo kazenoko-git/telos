@@ -1285,12 +1285,8 @@ def _posttrain_xla(arguments):
 
 
 _EXTERNAL_TORCH_EXTRA = frozenset({
-    "qwen3_5_moe",
-    "qwen3_5_moe_text",
     "qwen3_5",
     "qwen3_5_text",
-    "gemma4",
-    "gemma4_text",
 })
 EXTERNAL_TORCH_ARCHITECTURES = EXTERNAL_MLX_ARCHITECTURES | _EXTERNAL_TORCH_EXTRA
 
