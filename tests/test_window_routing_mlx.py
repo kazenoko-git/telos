@@ -3,6 +3,9 @@
 import json
 
 import pytest
+
+pytest.importorskip("mlx.core")
+
 from tokenizers import Tokenizer, models, pre_tokenizers
 
 from telos.inference import TextGenerator
