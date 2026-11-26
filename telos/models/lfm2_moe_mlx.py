@@ -34,7 +34,7 @@ class LFM2RoutedMLP(RoutedMLP):
         # The correction bias changes selection only, never an expert's mixture weight.
         ranking = weights if self.bias is None else weights + self.bias
         indices = mx.argsort(-ranking, axis=-1)[:, :self.top_k]
-        scores = mx.take_along_axis(weights, indices, axis=-1)
+        scores = mx.take_along_axis(weights, mx.stop_gradient(indices), axis=-1)
         if self.normalize:
             scores = scores / (scores.sum(axis=-1, keepdims=True) + 1e-6)
         return indices, (scores * self.scaling).astype(x.dtype)
