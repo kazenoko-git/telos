@@ -15,7 +15,7 @@ from threading import Event, Thread
 
 _MIB = 2**20
 _EXPERT_KEY = re.compile(
-    r"model\.layers\.\d+\.(?:mlp|feed_forward)\.switch_mlp\.(?:gate|up|down)_proj\.(?:weight|scales|biases)"
+    r"(?:language_model\.)?model\.layers\.(\d+)\.(?:(?:mlp|feed_forward)\.switch_mlp|experts\.switch_glu)\.(?:gate|up|down)_proj\.(?:weight|scales|biases)"
 )
 _DTYPES = {"F32": ("<f4", 4), "F16": ("<f2", 2), "BF16": ("<u2", 2), "U32": ("<u4", 4), "U8": ("u1", 1)}
 
@@ -120,13 +120,16 @@ def is_expert_tensor(name):
 def expert_layer_sizes(ranges, experts):
     sizes = {}
     for name, entry in ranges.items():
-        if is_expert_tensor(name):
-            layer = int(name.split(".")[2])
+        match = _EXPERT_KEY.fullmatch(name)
+        if match is not None:
+            layer = int(match.group(1))
             if len(entry.shape) != 3 or entry.shape[0] != experts:
                 raise ValueError(f"Expected an expert-major tensor for {name}")
             sizes[layer] = sizes.get(layer, 0) + entry.size // experts
         elif any(f".{module}.{bank}." in name
                  for module in ("mlp", "feed_forward") for bank in ("switch_mlp", "experts")):
+            raise ValueError(f"Unsupported expert tensor {name}")
+        elif ".experts.switch_glu." in name:
             raise ValueError(f"Unsupported expert tensor {name}")
     return sizes
 
