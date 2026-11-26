@@ -15,7 +15,12 @@ from .inkling2_attention import (
 from .qwen3_mlx import _Weights
 from .ssd_expert_io import LFMSSDExpertCache
 from .ssd_experts import AppleMemoryGuard, tensor_ranges
-from .window_routing import WindowPinController
+from .window_routing import (
+    WindowPinController,
+    add_grad_trees,
+    compute_window_coverage_loss_and_grads,
+    zero_grad_tree,
+)
 
 _MIB = 2**20
 _PREFILL_CHUNK = 128
@@ -281,6 +286,154 @@ class Inkling2TextMLX(nn.Module):
     def logits_from_hidden(self, hidden):
         logits = self.head(hidden.astype(mx.float32))[..., :self.vocab_size]
         return mx.tanh(logits / self.logit_cap) * self.logit_cap
+
+    def ssd_loss_and_grad(
+        self,
+        ids,
+        loss_from_logits_fn,
+        *,
+        teacher_routes=None,
+        prompt_lengths=None,
+        response_mask=None,
+        window_size=None,
+        cov_weight=0.0,
+    ):
+        """Run NOGRAD forward + per-visit reverse-mode VJP to keep SSD expert memory bounded."""
+        if ids.ndim != 2 or ids.shape[0] != 1:
+            raise ValueError("Inkling 2 text forward requires one token sequence per call")
+        if ids.shape[1] > _PREFILL_CHUNK:
+            raise ValueError(f"Inkling 2 SSD segmented backward supports sequences up to {_PREFILL_CHUNK} tokens")
+
+        ctrl = self._window_controller
+        accum = zero_grad_tree(self.trainable_parameters())
+        if window_size is not None and prompt_lengths is not None:
+            ctrl.reset_sequence_student(window_size, prompt_lengths)
+        try:
+            embedded = self.embed.lookup(ids)
+            x0 = _norm(embedded, self.embed_norm, self.eps, embedded.dtype)
+            mx.eval(x0)
+            nodes = {0: x0}
+            cur_id = 0
+            next_id = 1
+            blocks_ids = []
+            message_bank_ids = None
+            depth = len(self.layers)
+            records = []
+
+            for layer, slot in self._visits:
+                self._guard.check()
+                if layer == self._loop_start:
+                    if slot == layer:
+                        prelude_id = cur_id
+                        prelude_blocks_len = len(blocks_ids)
+                    else:
+                        message_bank_ids = (tuple(blocks_ids[prelude_blocks_len + 1 :]), cur_id)
+                        cur_id = prelude_id
+                        blocks_ids = blocks_ids[:prelude_blocks_len]
+                x_in_id = cur_id
+                b_ids = tuple(blocks_ids)
+                mb_ids = message_bank_ids if slot >= depth else None
+                msgs = (_mix([nodes[i] for i in mb_ids[0]], nodes[mb_ids[1]],
+                             self.message_queries[layer - self._loop_start], True)
+                        if mb_ids is not None else None)
+                local_blocks = [nodes[i] for i in b_ids]
+                x_out, _ = self.layers[layer](
+                    nodes[x_in_id], local_blocks, msgs, None, 0, self.max_seq_len, self._experts,
+                    controller=ctrl,
+                )
+                mx.eval(x_out)
+                if self.layers[layer].boundary:
+                    blocks_ids.append(x_in_id)
+                out_id = next_id
+                next_id += 1
+                nodes[out_id] = x_out
+                records.append((layer, slot, x_in_id, b_ids, mb_ids, out_id))
+                cur_id = out_id
+
+            final_x_id = cur_id
+            final_b_ids = tuple(blocks_ids)
+
+            def _tail_loss(x_last, *b_tensors):
+                h = _mix(b_tensors, x_last, self.final_query[None], self.normalize_values)[..., 0, :]
+                h = _norm(h, self.final_norm, self.eps, embedded.dtype)
+                logits = self.logits_from_hidden(h)[:, :-1]
+                return loss_from_logits_fn(logits)
+
+            argnums = list(range(1 + len(final_b_ids)))
+            loss_val, tail_grads = mx.value_and_grad(_tail_loss, argnums=argnums)(
+                nodes[final_x_id], *(nodes[i] for i in final_b_ids),
+            )
+            mx.eval(loss_val, tail_grads)
+
+            cotangents = {}
+
+            def _add_cot(nid, g):
+                cotangents[nid] = g if nid not in cotangents else cotangents[nid] + g
+
+            _add_cot(final_x_id, tail_grads[0])
+            for bid, grad in zip(final_b_ids, tail_grads[1:], strict=True):
+                _add_cot(bid, grad)
+
+            if cov_weight > 0.0 and teacher_routes and prompt_lengths is not None and response_mask is not None:
+                cov_loss, cov_grads = compute_window_coverage_loss_and_grads(
+                    self, ctrl, teacher_routes, prompt_lengths, response_mask,
+                )
+                loss_val = loss_val + cov_weight * cov_loss
+                for l_idx, (_, g_adapt) in cov_grads.items():
+                    accum["layers"][l_idx]["router_adapter"] = add_grad_trees(
+                        accum["layers"][l_idx]["router_adapter"],
+                        {k: cov_weight * v for k, v in g_adapt.items()},
+                    )
+                mx.eval(loss_val)
+
+            from mlx.utils import tree_flatten, tree_unflatten
+
+            for layer, slot, x_in_id, b_ids, mb_ids, out_id in reversed(records):
+                d_out = cotangents.pop(out_id, None)
+                if d_out is None:
+                    continue
+                self._guard.check()
+                mod = self.layers[layer]
+                orig = mod.trainable_parameters()
+                flat_items = tree_flatten(orig)
+                keys = [k for k, _ in flat_items]
+                vals = [v for _, v in flat_items]
+                n_p = len(vals)
+                mb_flat = (*mb_ids[0], mb_ids[1]) if mb_ids is not None else ()
+                inputs_list = [*vals, nodes[x_in_id], *(nodes[i] for i in b_ids), *(nodes[i] for i in mb_flat)]
+                n_b = len(b_ids)
+
+                def _one_visit(*args):
+                    l_params = tree_unflatten(list(zip(keys, args[:n_p], strict=True)))
+                    x_a = args[n_p]
+                    extra = args[n_p + 1 :]
+                    mod.update(l_params)
+                    try:
+                        b_list = list(extra[:n_b])
+                        msgs = None
+                        if mb_ids is not None:
+                            mb_args = extra[n_b:]
+                            msgs = _mix(mb_args[:-1], mb_args[-1],
+                                        self.message_queries[layer - self._loop_start], True)
+                        res, _ = mod(x_a, b_list, msgs, None, 0, self.max_seq_len, self._experts, controller=ctrl)
+                        return [res]
+                    finally:
+                        mod.update(orig)
+
+                _, all_grads = mx.vjp(_one_visit, inputs_list, [d_out])
+                mx.eval(all_grads)
+                g_layer = tree_unflatten(list(zip(keys, all_grads[:n_p], strict=True))) if n_p else {}
+                accum["layers"][layer] = add_grad_trees(accum["layers"][layer], g_layer)
+                _add_cot(x_in_id, all_grads[n_p])
+                for bid, g in zip(b_ids, all_grads[n_p + 1 : n_p + 1 + n_b], strict=True):
+                    _add_cot(bid, g)
+                for mid, g in zip(mb_flat, all_grads[n_p + 1 + n_b :], strict=True):
+                    _add_cot(mid, g)
+
+            return loss_val, accum
+        finally:
+            if window_size is not None:
+                ctrl.clear_sequence()
 
 
 def _layer_sizes(layout):
