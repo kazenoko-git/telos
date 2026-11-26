@@ -7,6 +7,7 @@ import mlx.core as mx
 import mlx.nn as nn
 
 from .mlx_quantized import AffineWeights
+from .window_routing import WindowPinController
 
 
 def _positive(config, name, default=None):
@@ -231,14 +232,21 @@ class Qwen3MLX(nn.Module):
                 or any(kind != "full_attention" for kind in (config.get("layer_types") or ()))):
             raise ValueError("Native Qwen3 requires full attention, full rotary dimensions and SiLU")
         self._rotary = _rope_parameters(config, head_dim, self.max_seq_len)
+        self._window_controller = WindowPinController()
         weights = _Weights(arrays, config.get("quantization") or {})
         self.embedding = weights.matrix("model.embed_tokens", self.vocab_size, width)
         self.layers = [_Block(weights, i, config, width, heads, kv_heads, head_dim, mlp_width,
                               expert_factory=expert_factory) for i in range(depth)]
+        for layer in self.layers:
+            if layer.moe is not None:
+                layer.moe._window_controller = self._window_controller
         self.norm = weights.take("model.norm.weight", (width,))
         self.head = None if config.get("tie_word_embeddings", False) else weights.matrix("lm_head", self.vocab_size, width)
         if weights.tensors:
             raise ValueError(f"Unexpected Qwen3 checkpoint tensor: {next(iter(weights.tensors))}")
+
+    def set_window_size(self, window_size: int | None):
+        self._window_controller.set_window_size(window_size)
 
     def prefill_last_hidden(self, ids, kv_cache=None):
         """Return the final prompt position and the complete prompt KV cache."""
@@ -252,6 +260,10 @@ class Qwen3MLX(nn.Module):
             raise ValueError("Native Qwen3 supports causal attention")
         if ids.shape[1] < 1:
             raise ValueError("Native Qwen3 requires at least one token per row")
+        if kv_cache is None:
+            self._window_controller.begin_prefill()
+        elif ids.shape[1] == 1:
+            self._window_controller.begin_decode_step()
         offset = kv_cache[0].length if kv_cache is not None else 0
         if offset + ids.shape[1] > self.max_seq_len:
             raise ValueError(f"Qwen3 context exceeds the model limit of {self.max_seq_len} tokens")
