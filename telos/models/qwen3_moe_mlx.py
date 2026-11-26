@@ -29,7 +29,7 @@ class RoutedMLP(nn.Module):
         self._cache = cache
         prefix = f"model.layers.{layer}.{module}"
         self.router = weights.matrix(prefix + ".gate", count, width)
-        self.bank = {}
+        self._bank = {}
         self._ranges = {}
         self._quantization = {}
         for projection, rows, cols in (("gate", inner, width), ("up", inner, width), ("down", width, inner)):
@@ -55,7 +55,7 @@ class RoutedMLP(nn.Module):
                 if entry is None or entry.shape != shape or entry.dtype not in dtypes:
                     raise ValueError(f"Missing or invalid expert tensor {name}")
                 if cache is None:
-                    self.bank[projection + suffix] = weights.take(name)
+                    self._bank[projection + suffix] = weights.take(name)
                 else:
                     self._ranges[projection + suffix] = entry
 
@@ -71,7 +71,7 @@ class RoutedMLP(nn.Module):
         logits = self.router(x)
         probs = mx.softmax(logits.astype(mx.float32), axis=-1)
         indices = mx.argsort(-probs, axis=-1)[:, :self.top_k]
-        scores = mx.take_along_axis(probs, indices, axis=-1)
+        scores = mx.take_along_axis(probs, mx.stop_gradient(indices), axis=-1)
         if self.normalize:
             scores = scores / scores.sum(axis=-1, keepdims=True)
         return indices, scores.astype(logits.dtype)
@@ -96,7 +96,7 @@ class RoutedMLP(nn.Module):
         for expert, (tokens, slots) in sorted(routes.items()):
             rows, columns = mx.array(tokens), mx.array(slots)
             if self._cache is None:
-                tensors = {name: bank[expert] for name, bank in self.bank.items()}
+                tensors = {name: bank[expert] for name, bank in self._bank.items()}
             else:
                 tensors = self._cache.get(self.layer, expert, self._ranges)
             inputs = x[rows]
