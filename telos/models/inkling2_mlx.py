@@ -138,6 +138,7 @@ class Inkling2TextMLX(nn.Module):
     is_causal = True
     paradigm = "ar"
     supports_prefix_cache = False
+    max_batch_size = 1
 
     def __init__(self, config, arrays, layout, experts, cache, guard, context):
         super().__init__()
