@@ -8,6 +8,7 @@ from mlx import nn
 
 from .qwen3_mlx import _LayerCache, _positive, _rope_parameters, _Weights
 from .qwen3_moe_mlx import RoutedMLP
+from .window_routing import WindowPinController, compute_route
 
 
 def layer_types(config):
@@ -30,14 +31,20 @@ class LFM2RoutedMLP(RoutedMLP):
             raise ValueError("LFM2-MoE routed_scaling_factor must be positive and finite")
 
     def _route(self, x):
-        weights = mx.sigmoid(self.router(x).astype(mx.float32))
-        # The correction bias changes selection only, never an expert's mixture weight.
-        ranking = weights if self.bias is None else weights + self.bias
-        indices = mx.argsort(-ranking, axis=-1)[:, :self.top_k]
-        scores = mx.take_along_axis(weights, mx.stop_gradient(indices), axis=-1)
-        if self.normalize:
-            scores = scores / (scores.sum(axis=-1, keepdims=True) + 1e-6)
-        return indices, (scores * self.scaling).astype(x.dtype)
+        return compute_route(
+            x,
+            self.router,
+            layer=self.layer,
+            top_k=self.top_k,
+            route_scale=self.scaling,
+            normalize=self.normalize,
+            base_bias=self.bias,
+            adapter=self.router_adapter,
+            controller=self._window_controller,
+            activation="sigmoid",
+            eps=1e-6,
+            output_dtype=x.dtype,
+        )
 
 
 class _ConvState(NamedTuple):
@@ -166,6 +173,7 @@ class LFM2MoEMLX(nn.Module):
         weights = _Weights(arrays, config.get("quantization") or {})
         self.embedding = weights.matrix("model.embed_tokens", self.vocab_size, width)
         self.layers = []
+        self._window_controller = WindowPinController()
         for index, kind in enumerate(layer_types(config)):
             prefix = f"model.layers.{index}"
             if kind == "conv":
@@ -176,6 +184,7 @@ class LFM2MoEMLX(nn.Module):
                 mlp = _DenseMLP(weights, prefix + ".feed_forward", width, _positive(config, "intermediate_size"))
             else:
                 mlp = expert_factory(weights, index, config, width)
+                mlp._window_controller = self._window_controller
             self.layers.append(_Layer(weights, index, width, operator, mlp, self.eps))
         self.norm = weights.take("model.embedding_norm.weight", (width,))
         self.head = (None if config.get("tie_word_embeddings", True)
@@ -183,9 +192,16 @@ class LFM2MoEMLX(nn.Module):
         if weights.tensors:
             raise ValueError(f"Unexpected LFM2-MoE checkpoint tensor: {next(iter(weights.tensors))}")
 
+    def set_window_size(self, window_size: int | None):
+        self._window_controller.set_window_size(window_size)
+
     def hidden_states_with_cache(self, ids, kv_cache=None, *, is_causal=True):
         if not is_causal or ids.shape[1] < 1:
             raise ValueError("LFM2-MoE requires causal attention and at least one token per row")
+        if kv_cache is None:
+            self._window_controller.begin_prefill()
+        elif ids.shape[1] == 1:
+            self._window_controller.begin_decode_step()
         offset = 0 if kv_cache is None else kv_cache[0].length
         if offset + ids.shape[1] > self.max_seq_len:
             raise ValueError(f"LFM2-MoE context exceeds the model limit of {self.max_seq_len} tokens")
