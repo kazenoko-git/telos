@@ -1,12 +1,12 @@
-"""Modal H100 distillation job for Inkling 2 Mini W=16 window-pinned routing.
+"""Modal H100 window-pinned MoE distillation job across Inkling2, LFM2-MoE, Qwen3-MoE, and dense models.
 
 Uploads only the lightweight `telos` Python package (`add_local_python_source("telos")`),
-caches `thinkingmachines/Inkling-2-Mini` on a persistent Modal Volume inside datacenter storage,
+caches Hugging Face checkpoints on a persistent Modal Volume inside datacenter storage,
 runs teacher-student distillation on an 80 GB H100, and writes the compact LoRA + window-selector
-Safetensors adapter to `/vol/outputs`.
+Safetensors adapter (plus companion JSON metadata for MLX loading) to `/vol/outputs`.
 """
 
-import os
+import json
 from pathlib import Path
 
 import modal
@@ -34,19 +34,46 @@ image = (
 )
 
 
-def _format_example(tokenizer, instruction: str, context: str, response: str, max_len: int):
+def _format_example(tokenizer, model_type: str, instruction: str, context: str, response: str, max_len: int):
     user = f"{instruction}\n\n{context}" if context else instruction
-    prompt = (
-        "<|message_system|><|content_text|>Thinking effort level: 0<|end_message|>"
-        f"<|message_user|><|content_text|>{user}<|end_message|>"
-        "<|message_model|><|content_text|>"
-    )
+    if "inkling" in model_type:
+        prompt = (
+            "<|message_system|><|content_text|>Thinking effort level: 0<|end_message|>"
+            f"<|message_user|><|content_text|>{user}<|end_message|>"
+            "<|message_model|><|content_text|>"
+        )
+        eos = "<|end_message|>"
+    elif getattr(tokenizer, "chat_template", None):
+        prompt = tokenizer.apply_chat_template(
+            [{"role": "user", "content": user}],
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        eos = tokenizer.eos_token or ""
+    else:
+        prompt = f"User: {user}\n\nAssistant: "
+        eos = tokenizer.eos_token or ""
     prompt_ids = tokenizer.encode(prompt, add_special_tokens=False)
-    resp_ids = tokenizer.encode(response + "<|end_message|>", add_special_tokens=False)
+    resp_ids = tokenizer.encode(response + eos, add_special_tokens=False)
     ids = (prompt_ids + resp_ids)[:max_len]
     if len(ids) <= len(prompt_ids) + 4:
         return None
     return ids, len(prompt_ids)
+
+
+def _load_hf_model(model_id: str, dtype):
+    import transformers
+    from transformers import AutoConfig, AutoModelForCausalLM
+
+    cfg = AutoConfig.from_pretrained(model_id)
+    try:
+        return AutoModelForCausalLM.from_pretrained(model_id, dtype=dtype, device_map="cuda"), cfg
+    except (KeyError, ValueError):
+        model_type = getattr(cfg, "model_type", "")
+        if "inkling" in model_type and hasattr(transformers, "Inkling2LoopForConditionalGeneration"):
+            cls = transformers.Inkling2LoopForConditionalGeneration
+            return cls.from_pretrained(model_id, dtype=dtype, device_map="cuda"), cfg
+        raise
 
 
 @app.function(
@@ -58,55 +85,60 @@ def _format_example(tokenizer, instruction: str, context: str, response: str, ma
 )
 def distill_inkling_w16(
     *,
+    model_id: str = MODEL_ID,
     steps: int = 200,
     batch_size: int = 2,
     grad_accum: int = 4,
     max_len: int = 256,
-    window_size: int = 16,
+    window_size: int | None = 16,
     lr: float = 5e-4,
     lora_rank: int = 16,
+    lora_alpha: float = 32.0,
     selector_rank: int = 32,
     dataset_name: str = "databricks/databricks-dolly-15k",
     output_name: str = "inkling2_w16_adapter.safetensors",
 ):
-    import json
     import time
 
     import torch
     from datasets import load_dataset
-    from transformers import AutoTokenizer, Inkling2LoopForConditionalGeneration
+    from transformers import AutoTokenizer
 
     from telos.training.inkling2_window_distill import (
         distill_step,
         export_adapter,
-        patch_inkling_for_window_distill,
+        patch_moe_for_window_distill,
     )
 
     out_dir = Path("/vol/outputs")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     t0 = time.perf_counter()
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
-    model = Inkling2LoopForConditionalGeneration.from_pretrained(
-        MODEL_ID,
-        dtype=torch.bfloat16,
-        device_map="cuda",
-    )
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    model, cfg = _load_hf_model(model_id, torch.bfloat16)
+    model_type = str(getattr(cfg, "model_type", "")).lower()
 
     model.train()
-    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
-    ctx = patch_inkling_for_window_distill(
-        model, window_size=window_size, lora_rank=lora_rank, selector_rank=selector_rank,
+    if hasattr(model, "gradient_checkpointing_enable"):
+        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+    ctx = patch_moe_for_window_distill(
+        model,
+        window_size=window_size,
+        lora_rank=lora_rank,
+        lora_alpha=lora_alpha,
+        selector_rank=selector_rank,
+        require_moe=(window_size is not None),
     )
     trainable = [p for p in model.parameters() if p.requires_grad]
     n_params = sum(p.numel() for p in trainable)
-    print(f"Loaded {MODEL_ID} in {time.perf_counter() - t0:.1f}s | trainable params={n_params:,d}")
+    print(f"Loaded {model_id} ({model_type}) in {time.perf_counter() - t0:.1f}s | trainable params={n_params:,d}")
 
     ds = load_dataset(dataset_name, split="train")
     samples = []
     for row in ds:
         formatted = _format_example(
             tokenizer,
+            model_type,
             row.get("instruction", ""),
             row.get("context", ""),
             row.get("response", ""),
@@ -119,7 +151,7 @@ def distill_inkling_w16(
     print(f"Prepared {len(samples)} training sequences")
 
     optimizer = torch.optim.AdamW(trainable, lr=lr, weight_decay=0.01)
-    pad_id = tokenizer.pad_token_id or 0
+    pad_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else (tokenizer.eos_token_id or 0)
     cursor = 0
     history = []
 
@@ -153,7 +185,16 @@ def distill_inkling_w16(
             )
 
     adapter_path = out_dir / output_name
-    keys = export_adapter(model, str(adapter_path))
+    meta = {
+        "model_type": model_type,
+        "source_model": model_id,
+        "lora_alpha": lora_alpha,
+        "window": (
+            {"window_size": window_size, "selector_alpha": 32.0, "token_router_scale": 2.0}
+            if window_size is not None else None
+        ),
+    }
+    keys = export_adapter(model, str(adapter_path), metadata=meta)
     (out_dir / f"{output_name}.metrics.json").write_text(json.dumps(history, indent=2) + "\n")
     volume.commit()
     print(f"Saved {len(keys)} adapter tensors to {adapter_path}")
@@ -161,9 +202,21 @@ def distill_inkling_w16(
 
 
 @app.local_entrypoint()
-def main(steps: int = 200, batch_size: int = 2, grad_accum: int = 4, window_size: int = 16):
+def main(
+    model_id: str = MODEL_ID,
+    steps: int = 200,
+    batch_size: int = 2,
+    grad_accum: int = 4,
+    window_size: int = 16,
+    output_name: str = "inkling2_w16_adapter.safetensors",
+):
     result = distill_inkling_w16.remote(
-        steps=steps, batch_size=batch_size, grad_accum=grad_accum, window_size=window_size,
+        model_id=model_id,
+        steps=steps,
+        batch_size=batch_size,
+        grad_accum=grad_accum,
+        window_size=window_size,
+        output_name=output_name,
     )
     print("Modal run finished:", result)
-    print(f"Download adapter locally with: modal volume get telos-inkling2-cache outputs/inkling2_w16_adapter.safetensors ./")
+    print(f"Download adapter locally with: modal volume get telos-inkling2-cache outputs/{output_name} ./")
