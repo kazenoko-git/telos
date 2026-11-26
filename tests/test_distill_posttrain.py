@@ -139,3 +139,46 @@ def test_distill_validation_errors(tmp_path):
         posttrain(student, data, tmp_path / "o2", method="distill", hardware="cpu", distill_temperature=0.0)
     with pytest.raises(ValueError, match="vocab size"):
         posttrain(student, data, tmp_path / "o3", method="distill", hardware="cpu", teacher=bad_teacher)
+    with pytest.raises(ValueError, match="grad"):
+        posttrain(student, data, tmp_path / "o4", method="distill", hardware="cpu", grad_accum=0)
+    with pytest.raises(ValueError, match="GRPO"):
+        posttrain(student, data, tmp_path / "o5", method="grpo", hardware="cpu", grad_accum=2)
+
+
+@pytest.mark.parametrize("hardware", ["cpu", "mlx"])
+def test_grad_accum_and_resume_parity(tmp_path, hardware):
+    if hardware == "mlx":
+        from telos.training.core import metal_usable
+
+        if not metal_usable():
+            pytest.skip("Metal required")
+
+    tok = load_tokenizer()
+    vocab = len(tok.get_vocab())
+    source = tmp_path / "student.pt"
+    _write_checkpoint(source, vocab, d_model=64, n_layers=1, seed=7)
+
+    data = tmp_path / "data.jsonl"
+    data.write_text("\n".join(json.dumps({"prompt": p, "response": "2"}) for p in ("1+1?", "2+2?", "3+3?")))
+
+    opts = dict(
+        method="distill", hardware=hardware, finetune="lora", lora_rank=4,
+        max_steps=3, batch_size=1, grad_accum=2, max_length=12, save_every=1, learning_rate=0.002,
+        precision="bf16" if hardware == "mlx" else "auto",
+    )
+    final = posttrain(source, data, tmp_path / "run1", **opts)
+    suffix = ".resume.npz" if hardware == "mlx" else ".resume.pt"
+    resumed = posttrain(
+        source, data, tmp_path / ("run1" if hardware == "mlx" else "run2"),
+        resume=tmp_path / "run1" / ("checkpoint_step_1" + suffix), **opts,
+    )
+    if hardware == "cpu":
+        a, b = [torch.load(p, weights_only=True)["model_state_dict"] for p in (final, resumed)]
+        for key in a:
+            torch.testing.assert_close(a[key], b[key], rtol=0, atol=0)
+    else:
+        import mlx.core as mx
+
+        a, b = mx.load(str(final)), mx.load(str(resumed))
+        for key in a:
+            assert mx.allclose(a[key], b[key], rtol=1e-5, atol=1e-6).item(), key
