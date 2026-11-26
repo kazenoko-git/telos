@@ -4,6 +4,7 @@ import mlx.core as mx
 from mlx import nn
 
 from .qwen3_mlx import Qwen3MLX, _positive
+from .window_routing import compute_route
 from .ssd_experts import (
     AppleMemoryGuard,
     SSDExpertCache,
@@ -27,6 +28,8 @@ class RoutedMLP(nn.Module):
         self.normalize = config.get("norm_topk_prob", False)
         self.layer = layer
         self._cache = cache
+        self.router_adapter = None
+        self._window_controller = None
         prefix = f"model.layers.{layer}.{module}"
         self.router = weights.matrix(prefix + ".gate", count, width)
         self._bank = {}
@@ -68,13 +71,19 @@ class RoutedMLP(nn.Module):
                                    transpose=True, **settings)
 
     def _route(self, x):
-        logits = self.router(x)
-        probs = mx.softmax(logits.astype(mx.float32), axis=-1)
-        indices = mx.argsort(-probs, axis=-1)[:, :self.top_k]
-        scores = mx.take_along_axis(probs, mx.stop_gradient(indices), axis=-1)
-        if self.normalize:
-            scores = scores / scores.sum(axis=-1, keepdims=True)
-        return indices, scores.astype(logits.dtype)
+        return compute_route(
+            x,
+            self.router,
+            layer=self.layer,
+            top_k=self.top_k,
+            route_scale=1.0,
+            normalize=self.normalize,
+            adapter=self.router_adapter,
+            controller=self._window_controller,
+            activation="softmax",
+            eps=0.0,
+            output_dtype=x.dtype,
+        )
 
     def __call__(self, hidden):
         x = hidden.reshape(-1, hidden.shape[-1])
