@@ -247,6 +247,8 @@ model = TelosTransformer(config)
 
 ## Research with Télos
 
+`telos pretrain routing --routing both --output /tmp/telos-routing` runs the experimental MLX comparison of prompt-fixed and token-level expert routing. It trains a matched pair on a tiny synthetic corpus and records held-out quality, resident-versus-SSD parity, decode speed, and SSD reads. [Experiment setup and results](reports/prompt_routing_2026-11-26/README.md)
+
 Télos supports experiments in autoregressive language modeling and discrete diffusion, including masked and uniform-noise diffusion. The research program has examined training data budgets, scaling behavior, positional encodings, and evaluation methods. The current training and research mainline is autoregressive modeling.
 
 Browse the [research index](research/README.md) for papers, reports, and experiment notes. See [deployment and hardware guidance](DEPLOYMENT.md) for setup details.
