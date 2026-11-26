@@ -161,6 +161,7 @@ def test_window_pinned_distill_gradients_checkpointing_and_export(tmp_path):
 
 
 def test_qwen3_moe_hf_window_distill(tmp_path):
+    pytest.importorskip("transformers")
     from transformers import Qwen3MoeConfig, Qwen3MoeForCausalLM
 
     torch.manual_seed(11)
@@ -270,6 +271,7 @@ def test_lfm2_moe_hybrid_window_distill():
 
 def test_external_torch_posttrain_dense_and_rejects_mlx_quantized(tmp_path):
     import json
+    pytest.importorskip("transformers")
     from tokenizers import Tokenizer, models, pre_tokenizers
     from transformers import Qwen3Config, Qwen3ForCausalLM
     from telos.posttrain.trainer import posttrain
