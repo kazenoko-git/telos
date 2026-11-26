@@ -50,6 +50,18 @@ def _take_range(ranges, key, dtype, shape):
     return entry
 
 
+def _gated_activation(fused, gate_softcap, up_softcap):
+    import mlx.core as mx
+
+    dtype = fused.dtype
+    fused = fused.astype(mx.float32)
+    gate, up = fused[..., ::2], fused[..., 1::2]
+    return (
+        gate_softcap * mx.tanh(gate / gate_softcap) * mx.sigmoid(gate)
+        * (up_softcap * mx.tanh(up / up_softcap))
+    ).astype(dtype)
+
+
 @dataclass(frozen=True)
 class InklingExpertBank:
     layer: int
@@ -163,10 +175,25 @@ class InklingExpertBank:
         all_cached = entries is not None and x.shape[0] == 1 and all((self.layer, e) in entries for e in ordered)
         output = mx.zeros(x.shape, dtype=mx.float32)
         with visit(self.layer, ordered) if visit is not None else _null_visit():
-            for expert in ordered:
+            packed_group = None
+            batched = None
+            if reuse and all_cached and fused_nvfp4 and controller.batch_nvfp4_experts and self.mode == "nvfp4":
+                packed_group = [cache.get(self.layer, expert, self.ranges) for expert in ordered]
+                from .inkling2_nvfp4 import nvfp4_resident_project
+
+                batched = nvfp4_resident_project(
+                    x, packed_group, self.gate_softcap, self.up_softcap, compiled=controller.compile_nvfp4_experts,
+                )
+                if batched is not None and profile is not None:
+                    profile.batched_expert_visits += 1
+            for i, expert in enumerate(ordered):
                 rows, slots = route_arrays[expert]
-                packed = cache.get(self.layer, expert, self.ranges)
-                values = self.project(x[rows], packed, fused_nvfp4=fused_nvfp4).astype(mx.float32)
+                if batched is None:
+                    packed = packed_group[i] if packed_group is not None else cache.get(self.layer, expert, self.ranges)
+                    values = self.project(x[rows], packed, fused_nvfp4=fused_nvfp4).astype(mx.float32)
+                    del packed
+                else:
+                    values = batched[i].astype(mx.float32)
                 output = output.at[rows].add(values * weights[rows, slots, None])
                 if not all_cached:
                     # End the graph before the cache can evict these expert weights.
@@ -174,7 +201,7 @@ class InklingExpertBank:
                         mx.eval(output)
                     else:
                         profile.evaluate(mx.eval, output, section="experts")
-                del packed, values
+                del values
             if all_cached and split:
                 profile.evaluate(mx.eval, output, section="experts")
         if trace is not None and bytes_before is not None:
@@ -207,13 +234,8 @@ class InklingExpertBank:
                 transpose=True, group_size=32, bits=8, mode=self.mode,
             )
 
-        fused = linear(hidden, "gate_up_proj").astype(mx.float32)
-        gate, up = fused[..., ::2], fused[..., 1::2]
-        activated = (
-            self.gate_softcap * mx.tanh(gate / self.gate_softcap) * mx.sigmoid(gate)
-            * (self.up_softcap * mx.tanh(up / self.up_softcap))
-        ).astype(hidden.dtype)
-        return linear(activated, "down_proj")
+        fused = linear(hidden, "gate_up_proj")
+        return linear(_gated_activation(fused, self.gate_softcap, self.up_softcap), "down_proj")
 
 
 @dataclass(frozen=True)

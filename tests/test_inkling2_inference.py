@@ -139,6 +139,23 @@ def test_fused_nvfp4_matches_bf16_gemv_bits(width, rows):
     assert nvfp4_gemv(hidden.astype(mx.float32), packed, scales, global_scale) is None
 
 
+def test_batched_nvfp4_binds_eight_expert_buffers_exactly():
+    import mlx.core as mx
+
+    from telos.models.inkling2_nvfp4 import nvfp4_gemv, nvfp4_resident_gemv
+
+    weights = mx.random.normal((8, 32, 128), key=mx.random.key(42))
+    packed, scales = mx.quantize(weights, mode="nvfp4")
+    inputs = mx.random.normal((8, 1, 128), key=mx.random.key(43)).astype(mx.bfloat16)
+    tensors = [{"proj.weight": packed[i], "proj.scales": scales[i], "proj.global_scale": mx.array(1300.0 + i)}
+               for i in range(8)]
+    for distinct in (False, True):
+        expected = mx.stack([nvfp4_gemv(inputs[i if distinct else 0], tensors[i]["proj.weight"],
+                                       tensors[i]["proj.scales"], tensors[i]["proj.global_scale"]) for i in range(8)])
+        actual = nvfp4_resident_gemv(inputs if distinct else inputs[0], tensors, "proj", per_expert_input=distinct)
+        assert mx.array_equal(expected.view(mx.uint16), actual.view(mx.uint16)).item()
+
+
 def test_inkling2_rejects_invalid_loop_before_opening_weight_shards(tmp_path):
     config = {
         "model_type": "inkling2_loop",
@@ -613,6 +630,12 @@ def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypa
     reused = SSDGenerationProfile()
     assert list(pinned._mlx_tokens(*long_options, ssd_profile=reused)) == list(streamed._mlx_tokens(*long_options))
     assert [step["route_materializations"] for step in reused.steps[1:]] == [len(sizes), 0, 0, 0] * 3
+    pinned.model._window_controller.batch_nvfp4_experts = True
+    batched = SSDGenerationProfile()
+    assert list(pinned._mlx_tokens(*long_options, ssd_profile=batched)) == list(streamed._mlx_tokens(*long_options))
+    assert all(step["batched_expert_visits"] > 0 for step in batched.steps[2:])
+    pinned.model._window_controller.compile_nvfp4_experts = True
+    assert list(pinned._mlx_tokens(*long_options)) == list(streamed._mlx_tokens(*long_options))
     pinned.model.fused_nvfp4_decode = False
     detailed = SSDGenerationProfile(split_decode=True)
     assert list(pinned._mlx_tokens(*long_options, ssd_profile=detailed)) == list(streamed._mlx_tokens(*long_options))
