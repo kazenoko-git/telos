@@ -7,9 +7,9 @@ from .trainer import posttrain
 
 def main():
     parser = argparse.ArgumentParser(description="Post-train a causal Télos checkpoint")
-    parser.add_argument("--method", choices=["sft", "dpo", "grpo"], default="sft")
+    parser.add_argument("--method", choices=["sft", "dpo", "grpo", "distill"], default="sft")
     parser.add_argument("--checkpoint", required=True, help="Native Telos .pt/.safetensors checkpoint or directory")
-    parser.add_argument("--data", required=True, help="JSONL: prompt/response for SFT; prompt/chosen/rejected for DPO; prompt/answer for GRPO")
+    parser.add_argument("--data", required=True, help="JSONL: prompt/response for SFT/distill; prompt/chosen/rejected for DPO; prompt/answer for GRPO")
     parser.add_argument("--output", required=True, help="Output directory for post-trained checkpoints")
     parser.add_argument("--tokenizer", default=None, help="Tokenizer JSON path (defaults to checkpoint setting or bundled tokenizer)")
     parser.add_argument("--hardware", "--device", dest="hardware", choices=["auto", "mlx", "cuda", "xla", "cpu"], default="auto",
@@ -38,6 +38,9 @@ def main():
     parser.add_argument("--policy-updates", type=int, default=2, help="GRPO optimizer updates per rollout batch")
     parser.add_argument("--clip-epsilon", type=float, default=0.2, help="GRPO policy ratio clipping radius")
     parser.add_argument("--reward", default="exact", help="GRPO verifier: exact or module:function")
+    parser.add_argument("--teacher", default=None, help="Teacher checkpoint for --method distill (defaults to starting weights)")
+    parser.add_argument("--distill-alpha", type=float, default=0.5, help="Distillation KL weight in [0, 1]; remainder is response cross-entropy")
+    parser.add_argument("--distill-temperature", type=float, default=1.0, help="Softmax temperature for distillation KL")
     args = parser.parse_args()
     posttrain(
         args.checkpoint, args.data, args.output,
@@ -51,6 +54,7 @@ def main():
         reference_cache_size=args.reference_cache_size,
         group_size=args.group_size, max_new_tokens=args.max_new_tokens,
         policy_updates=args.policy_updates, clip_epsilon=args.clip_epsilon, reward=args.reward,
+        teacher=args.teacher, distill_alpha=args.distill_alpha, distill_temperature=args.distill_temperature,
     )
 
 

@@ -67,6 +67,7 @@ def _checkpoint_config(path: Path) -> dict[str, Any]:
 def _read_records(path: str | Path, method: str, reward="exact") -> list[dict[str, Any]]:
     required = {
         "sft": {"prompt", "response"},
+        "distill": {"prompt", "response"},
         "dpo": {"prompt", "chosen", "rejected"},
         "grpo": {"prompt", "answer"} if reward == "exact" else {"prompt"},
     }[method]
@@ -113,7 +114,7 @@ def _prepare_records(records, tokenizer, max_length, method):
     prepared = []
     for row in records:
         item = dict(row)
-        for key in (("response",) if method == "sft" else ("chosen", "rejected")):
+        for key in (("response",) if method in {"sft", "distill"} else ("chosen", "rejected")):
             item["_" + key] = _encode(tokenizer, row["prompt"], row[key], max_length, None)
         prepared.append(item)
     return prepared
@@ -202,6 +203,40 @@ def _torch_precision(device, precision):
 
 def _autocast(device, dtype):
     return torch.autocast(device.type, dtype=dtype) if dtype is not None else nullcontext()
+
+
+def _torch_distill_loss(student_logits, teacher_logits, labels, device, world_size, alpha, temperature):
+    valid = labels[:, 1:].ne(-100)
+    count = valid.sum().float()
+    if device.type == "xla":
+        import torch_xla.core.xla_model as xm
+        count = xm.all_reduce(xm.REDUCE_SUM, count) / world_size
+    elif torch.distributed.is_initialized():
+        torch.distributed.all_reduce(count)
+        count /= torch.distributed.get_world_size()
+    denom = count.clamp_min(1)
+    loss = student_logits.sum() * 0.0
+    if alpha > 0.0:
+        t_logp = F.log_softmax(teacher_logits / temperature, dim=-1)
+        s_logp = F.log_softmax(student_logits / temperature, dim=-1)
+        kl = (t_logp.exp() * (t_logp - s_logp)).sum(dim=-1) * (temperature * temperature)
+        loss = loss + alpha * ((kl * valid).sum() / denom)
+    if alpha < 1.0:
+        targets = labels[:, 1:].masked_fill(~valid, -100)
+        ce = F.cross_entropy(
+            student_logits.reshape(-1, student_logits.shape[-1]), targets.reshape(-1),
+            ignore_index=-100, reduction="sum",
+        )
+        loss = loss + (1.0 - alpha) * (ce / denom)
+    return loss
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _sft_loss(logits, labels, device, world_size=1):
@@ -427,13 +462,32 @@ def _mlx_preference_loss(chosen, rejected, ref_chosen, ref_rejected, beta):
     return mx.mean(mx.logaddexp(0.0, -margin))
 
 
-def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config, records, tokenizer,
-                   out_dir, *, method, max_steps, batch_size, learning_rate, beta,
-                   max_length, save_every, seed, resume=None, options=None):
+def _mlx_distill_loss(model, ids, labels, teacher_logits, alpha, temperature):
     import mlx.core as mx
-    import mlx.optimizers as optim
-    import mlx.nn as nn
-    from mlx.utils import tree_flatten, tree_map
+
+    from telos.training.mlx_losses import cross_entropy
+    student_logits = model(ids, is_causal=True, next_token_only=True).astype(mx.float32)
+    targets = labels[:, 1:]
+    valid = (targets != -100).astype(mx.float32)
+    denom = mx.maximum(mx.sum(valid), 1.0)
+    loss = mx.array(0.0, dtype=mx.float32)
+    if alpha > 0.0:
+        t_scaled = teacher_logits / temperature
+        s_scaled = student_logits / temperature
+        t_logp = t_scaled - mx.logsumexp(t_scaled, axis=-1, keepdims=True)
+        s_logp = s_scaled - mx.logsumexp(s_scaled, axis=-1, keepdims=True)
+        kl = mx.sum(mx.exp(t_logp) * (t_logp - s_logp), axis=-1) * (temperature * temperature)
+        loss = loss + alpha * (mx.sum(kl * valid) / denom)
+    if alpha < 1.0:
+        safe_targets = mx.maximum(targets, 0)
+        ce = cross_entropy(student_logits, safe_targets, reduction="none") * valid
+        loss = loss + (1.0 - alpha) * (mx.sum(ce) / denom)
+    return loss
+
+
+def _to_mlx_causal_model(source_model, source_backend, checkpoint_path, precision):
+    import mlx.core as mx
+    from mlx.utils import tree_flatten
     from telos.models import MLXTelosTransformer
 
     if source_backend == "mlx":
@@ -460,20 +514,42 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
             raise ValueError(f"PyTorch checkpoint is missing MLX model parameters: {sorted(missing)[:8]}")
         model.load_weights(list(weights.items()), strict=False)
     model.is_causal = True
-    if options["precision"] == "fp16":
+    if precision == "fp16":
         raise ValueError("MLX post-training supports auto, float32 or bf16 precision")
-    if options["precision"] != "auto":
-        model.set_dtype(mx.bfloat16 if options["precision"] == "bf16" else mx.float32)
+    if precision != "auto":
+        model.set_dtype(mx.bfloat16 if precision == "bf16" else mx.float32)
     mx.eval(model.parameters())
+    return model
+
+
+def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config, records, tokenizer,
+                   out_dir, *, method, max_steps, batch_size, learning_rate, beta,
+                   max_length, save_every, seed, resume=None, options=None):
+    import mlx.core as mx
+    import mlx.optimizers as optim
+    import mlx.nn as nn
+    from mlx.utils import tree_flatten, tree_map
+
+    model = _to_mlx_causal_model(source_model, source_backend, checkpoint_path, options["precision"])
 
     _seed_host_rng(seed)
     mx.random.seed(seed)
     _apply_adapters(model, options, "mlx")
     # Rollouts and policy scoring share the same dropout-free distribution.
     model.train(method != "grpo")
-    need_ref = method == "dpo" or (method == "grpo" and beta)
-    use_lora_base_ref = need_ref and options["finetune"] in {"lora", "qlora"}
-    reference = copy.deepcopy(model) if (need_ref and not use_lora_base_ref) else None
+    distill = options.get("distill")
+    need_ref = method in {"dpo", "distill"} or (method == "grpo" and beta)
+    explicit_teacher = bool(distill and distill["teacher"])
+    use_lora_base_ref = need_ref and not explicit_teacher and options["finetune"] in {"lora", "qlora"}
+    if explicit_teacher:
+        teacher_path = Path(distill["teacher"])
+        t_model, t_backend, _ = load_model_from_checkpoint(teacher_path)
+        reference = _to_mlx_causal_model(t_model, t_backend, teacher_path, options["precision"])
+        if reference.vocab_size != model.vocab_size:
+            raise ValueError(f"Teacher vocab size {reference.vocab_size} does not match student {model.vocab_size}")
+        reference.freeze()
+    else:
+        reference = copy.deepcopy(model) if (need_ref and not use_lora_base_ref) else None
     if reference is not None:
         reference.eval()
     optimizer = optim.AdamW(learning_rate=learning_rate)
@@ -567,11 +643,15 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
         idx = mx.array(keep_rows, dtype=mx.int32)
         return [(k[idx], v[idx]) for k, v in cache]
 
+    def distill_loss(active_model, ids, labels, teacher_logits):
+        return _mlx_distill_loss(active_model, ids, labels, teacher_logits,
+                                 distill["alpha"], distill["temperature"])
+
     def grpo_loss(active_model, ids, labels, old, ref, advantages):
         policy = _mlx_token_logps(active_model, ids, labels)
         return grpo.mlx_loss(policy, old, ref, labels, advantages, beta, rl["clip_epsilon"])
 
-    loss_fn = {"sft": _mlx_loss, "dpo": dpo_loss, "grpo": grpo_loss}[method]
+    loss_fn = {"sft": _mlx_loss, "dpo": dpo_loss, "distill": distill_loss, "grpo": grpo_loss}[method]
     value_and_grad = nn.value_and_grad(model, loss_fn)
     optimizer.init(master_params if master_params is not None else model.trainable_parameters())
     state = [model.state, optimizer.state, mx.random.state]
@@ -621,11 +701,24 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
                             master_params if master_params is not None else [])
             metrics = f" reward={mean_reward:.4g} uniform_groups={uniform:.1%}"
         else:
-            rows = _response_rows(batch, "response") if method == "sft" else (
+            rows = _response_rows(batch, "response") if method in {"sft", "distill"} else (
                 _response_rows(batch, "chosen") + _response_rows(batch, "rejected"))
             ids, labels = collate_mlx(rows, max_length, fixed=fixed)
             if method == "sft":
                 loss = step_fn(ids, labels)
+            elif method == "distill":
+                if reference is not None:
+                    teacher_logits = mx.stop_gradient(
+                        reference(ids, is_causal=True, next_token_only=True).astype(mx.float32)
+                    )
+                else:
+                    from .mlx_adapters import disable_lora_adapters
+                    with disable_lora_adapters(model):
+                        teacher_logits = mx.stop_gradient(
+                            model(ids, is_causal=True, next_token_only=True).astype(mx.float32)
+                        )
+                mx.eval(teacher_logits)
+                loss = step_fn(ids, labels, teacher_logits)
             else:
                 for item, key in zip(rows, [row["_chosen_key"] for row in batch] +
                                           [row["_rejected_key"] for row in batch]):
@@ -703,7 +796,19 @@ def _xla_posttrain_worker(index, arguments):
     model.to(device)
     amp_dtype = _torch_precision(device, options["precision"])
     model.train()
-    reference = copy.deepcopy(model).eval() if arguments["method"] == "dpo" else None
+    distill = options.get("distill")
+    reference = None
+    if arguments["method"] in {"dpo", "distill"}:
+        if distill and distill["teacher"]:
+            t_path = Path(distill["teacher"])
+            reference, t_backend, _ = load_model_from_checkpoint(t_path)
+            if t_backend != "pytorch":
+                raise ValueError("XLA distillation teacher must be a native PyTorch checkpoint")
+            reference.config.max_seq_len = model.config.max_seq_len
+            reference.config.is_causal = True
+            reference.to(device).eval()
+        else:
+            reference = copy.deepcopy(model).eval()
     if reference is not None:
         for parameter in reference.parameters():
             parameter.requires_grad_(False)
@@ -769,13 +874,21 @@ def _xla_posttrain_worker(index, arguments):
         local_batch = global_batch[rank * batch_size:(rank + 1) * batch_size]
         optimizer.zero_grad(set_to_none=True)
         method = arguments["method"]
-        rows = _response_rows(local_batch, "response") if method == "sft" else (
+        rows = _response_rows(local_batch, "response") if method in {"sft", "distill"} else (
             _response_rows(local_batch, "chosen") + _response_rows(local_batch, "rejected"))
         ids, labels = _collate(rows, tokenizer, max_length, device, fixed=True)
         with _autocast(device, amp_dtype):
             if method == "sft":
                 logits = model(ids, mask_override=True, next_token_only=True).float()
                 loss = _sft_loss(logits, labels, device, world_size)
+            elif method == "distill":
+                with torch.no_grad():
+                    teacher_logits = reference(ids, mask_override=True, next_token_only=True).float()
+                student_logits = model(ids, mask_override=True, next_token_only=True).float()
+                loss = _torch_distill_loss(
+                    student_logits, teacher_logits, labels, device, world_size,
+                    distill["alpha"], distill["temperature"],
+                )
             else:
                 key = tuple(tuple(row["_encoded"][0]) + tuple(row["_encoded"][1]) for row in rows)
                 if not options["cache_reference"] or key not in ref_cache:
@@ -856,13 +969,16 @@ def _posttrain(
     policy_updates: int = 2,
     clip_epsilon: float = 0.2,
     reward: str = "exact",
+    teacher: str | Path | None = None,
+    distill_alpha: float = 0.5,
+    distill_temperature: float = 1.0,
 ) -> Path:
-    """Run SFT, DPO or online GRPO and export a native checkpoint."""
+    """Run SFT, DPO, distillation or online GRPO and export a native checkpoint."""
     method = method.lower()
-    if method not in {"sft", "dpo", "grpo"}:
-        raise ValueError("method must be 'sft', 'dpo' or 'grpo'")
+    if method not in {"sft", "dpo", "grpo", "distill"}:
+        raise ValueError("method must be 'sft', 'dpo', 'grpo' or 'distill'")
     if (max_steps < 1 or batch_size < 1 or not math.isfinite(learning_rate) or learning_rate <= 0
-            or not math.isfinite(beta) or beta < 0 or (beta == 0 and method != "grpo") or save_every < 0):
+            or not math.isfinite(beta) or beta < 0 or (beta == 0 and method not in {"grpo", "distill"}) or save_every < 0):
         raise ValueError("Invalid steps, batch size, learning rate, beta, or save cadence")
 
     options = _adapter_options(finetune, lora_rank, lora_alpha, lora_dropout, lora_targets)
@@ -872,6 +988,25 @@ def _posttrain(
         raise ValueError("Invalid precision or reference cache size")
     options.update(precision=precision, compile_step=compile_step, padding=padding,
                    cache_reference=cache_reference, reference_cache_size=reference_cache_size)
+    if method == "distill":
+        if (not math.isfinite(distill_alpha) or not 0.0 <= distill_alpha <= 1.0
+                or not math.isfinite(distill_temperature) or distill_temperature <= 0.0):
+            raise ValueError("Distillation requires alpha in [0, 1] and temperature > 0")
+        if teacher is not None:
+            teacher_path = _checkpoint_file(teacher)
+            options["distill"] = {
+                "teacher": str(teacher_path.resolve()),
+                "teacher_sha256": _sha256_file(teacher_path),
+                "alpha": distill_alpha,
+                "temperature": distill_temperature,
+            }
+        else:
+            options["distill"] = {
+                "teacher": None,
+                "teacher_sha256": None,
+                "alpha": distill_alpha,
+                "temperature": distill_temperature,
+            }
     backend_name = _resolve_backend(hardware)
     if method == "grpo":
         distributed_cuda = (
@@ -888,11 +1023,7 @@ def _posttrain(
         options["grpo"] = dict(group_size=group_size, max_new_tokens=max_new_tokens,
                                policy_updates=policy_updates, clip_epsilon=clip_epsilon, reward=reward)
     checkpoint_path = _checkpoint_file(checkpoint)
-    digest = hashlib.sha256()
-    with checkpoint_path.open("rb") as source:
-        for chunk in iter(lambda: source.read(1024 * 1024), b""):
-            digest.update(chunk)
-    options["base_sha256"] = digest.hexdigest()
+    options["base_sha256"] = _sha256_file(checkpoint_path)
     options["base_checkpoint"] = str(checkpoint_path.resolve())
     source_config = _checkpoint_config(checkpoint_path)
     tokenizer_ref = checkpoint_tokenizer_path(checkpoint_path, source_config, tokenizer_path)
@@ -997,10 +1128,26 @@ def _posttrain(
     _apply_adapters(model, options, backend_name)
     model.to(device)
     amp_dtype = _torch_precision(device, precision)
-    need_ref = method == "dpo" or (method == "grpo" and beta)
-    use_lora_base_ref = need_ref and options["finetune"] in {"lora", "qlora"} and not ddp
+    distill = options.get("distill")
+    need_ref = method in {"dpo", "distill"} or (method == "grpo" and beta)
+    explicit_teacher = bool(distill and distill["teacher"])
+    use_lora_base_ref = need_ref and not explicit_teacher and options["finetune"] in {"lora", "qlora"} and not ddp
     reference = None
-    if need_ref and not use_lora_base_ref:
+    if explicit_teacher:
+        teacher_path = Path(distill["teacher"])
+        reference, t_backend, _ = load_model_from_checkpoint(teacher_path)
+        if t_backend != "pytorch":
+            raise ValueError("CUDA/CPU distillation teacher must be a native PyTorch checkpoint")
+        if reference.config.vocab_size != model.config.vocab_size:
+            raise ValueError(
+                f"Teacher vocab size {reference.config.vocab_size} does not match student {model.config.vocab_size}"
+            )
+        reference.config.max_seq_len = max_length
+        reference.config.is_causal = True
+        reference.to(device).eval()
+        for parameter in reference.parameters():
+            parameter.requires_grad_(False)
+    elif need_ref and not use_lora_base_ref:
         reference = copy.deepcopy(model).eval()
         for parameter in reference.parameters():
             parameter.requires_grad_(False)
@@ -1160,12 +1307,28 @@ def _posttrain(
             metrics = f" reward={mean_reward:.4g} uniform_groups={uniform:.1%}"
         else:
             optimizer.zero_grad(set_to_none=True)
-            rows = _response_rows(batch, "response") if method == "sft" else (
+            rows = _response_rows(batch, "response") if method in {"sft", "distill"} else (
                 _response_rows(batch, "chosen") + _response_rows(batch, "rejected"))
             input_ids, labels = _collate(rows, tokenizer, max_length, device, fixed=fixed)
             with _autocast(device, amp_dtype):
                 if method == "sft":
                     loss = _sft_loss_from_model(active_model, input_ids, labels, device, world_size)
+                elif method == "distill":
+                    with torch.no_grad():
+                        if reference is not None:
+                            teacher_logits = reference(input_ids, mask_override=True, next_token_only=True).float()
+                        else:
+                            from .adapters import disable_lora_adapters
+                            was_training = model.training
+                            model.eval()
+                            with disable_lora_adapters(model):
+                                teacher_logits = model(input_ids, mask_override=True, next_token_only=True).float()
+                            model.train(was_training)
+                    student_logits = active_model(input_ids, mask_override=True, next_token_only=True).float()
+                    loss = _torch_distill_loss(
+                        student_logits, teacher_logits, labels, device, world_size,
+                        distill["alpha"], distill["temperature"],
+                    )
                 else:
                     key = tuple(tuple(row["_encoded"][0]) + tuple(row["_encoded"][1]) for row in rows)
                     if not cache_reference or key not in ref_cache:
