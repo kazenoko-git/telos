@@ -387,9 +387,13 @@ def test_inkling2_dynamic_convolution_uses_per_head_lag_weights():
 
 
 def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypatch):
+    import sys
+
     import mlx.core as mx
 
+    from telos.inference.cli import main as generate_cli
     from telos.models import inkling2_mlx
+    from telos.models.ssd_profile import SSDGenerationProfile
     from telos.models.ssd_replay import replay_existing, replay_policy
 
     class FixtureGuard:
@@ -432,7 +436,8 @@ def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypa
     prompt = [2, 3, 5, 7, 11, 13]
     options = (prompt, 5, 0.0, 0, 1.0, None, "dynamic")
     resident_tokens = list(resident._mlx_tokens(*options))
-    streamed_tokens = list(streamed._mlx_tokens(*options))
+    profile = SSDGenerationProfile()
+    streamed_tokens = list(streamed._mlx_tokens(*options, ssd_profile=profile))
     assert streamed_tokens == resident_tokens
 
     trace = streamed.model.route_trace
@@ -463,6 +468,31 @@ def test_inkling2_route_tracing_and_offline_replay_match_live(tmp_path, monkeypa
     assert replayed["prefill"]["bytes_read"] == sum(entry["bytes_read"] for entry in prefill)
     assert replayed["decode"]["hits"] == sum(entry["hits"] for entry in decode)
     assert replayed["decode"]["bytes_read"] == sum(entry["bytes_read"] for entry in decode)
+
+    assert cache.profile is None
+    report = profile.report()
+    assert [step["phase"] for step in report["steps"]] == ["prefill"] + ["decode"] * 4
+    assert report["phases"]["prefill"]["sync_read_seconds"] > 0
+    for phase, timings in report["phases"].items():
+        assert timings["expert_bytes_read"] == replayed[phase]["bytes_read"]
+        assert timings["expert_hits"] == replayed[phase]["hits"]
+        assert timings["expert_misses"] == replayed[phase]["misses"]
+        assert timings["mlx_eval_wall_seconds"] > 0 and timings["other_seconds"] >= 0
+        assert timings["wall_seconds"] == pytest.approx(
+            timings["ssd_wait_seconds"] + timings["mlx_eval_wall_seconds"] + timings["other_seconds"]
+        )
+    with pytest.raises(ValueError, match="requires native Inkling 2 with SSD"):
+        resident.generate("t2 t3", ssd_profile=SSDGenerationProfile())
+
+    output = tmp_path / "profile.json"
+    monkeypatch.setattr(sys, "argv", [
+        "telos generate", "--checkpoint", str(tmp_path), "--prompt", "t2 t3 t5 t7 t11 t13",
+        "--max-new-tokens", "5", "--ssd-profile", str(output), "--stream",
+    ])
+    generate_cli()
+    saved = json.loads(output.read_text())
+    assert [step["phase"] for step in saved["steps"]] == ["prefill"] + ["decode"] * 4
+    assert saved["phases"]["decode"]["expert_bytes_read"] == replayed["decode"]["bytes_read"]
 
     # Also verify global-LRU SSDExpertCache matches legacy replay_existing.
     global_cache = SSDExpertCache(cache.byte_limit, FixtureGuard())

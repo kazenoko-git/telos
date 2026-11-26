@@ -119,8 +119,11 @@ class InklingExpertBank:
 
         x = hidden.reshape(-1, hidden.shape[-1])
         indices, weights = self.route(x, router, controller=controller, adapter=adapter)
+        profile = getattr(cache, "profile", None)
+        # The router sync also evaluates the preceding attention and residual work.
+        selected_rows = indices.tolist() if profile is None else profile.evaluate(indices.tolist)
         routes = {}
-        for row, selected in enumerate(indices.tolist()):
+        for row, selected in enumerate(selected_rows):
             for slot, expert in enumerate(selected):
                 rows, slots = routes.setdefault(expert, ([], []))
                 rows.append(row)
@@ -133,7 +136,7 @@ class InklingExpertBank:
             trace["experts"] = ordered
             trace["byte_sizes"] = [sum(entry.expert(expert).size for entry in self.ranges.values())
                                    for expert in ordered]
-            trace["routed_experts"] = indices.tolist()
+            trace["routed_experts"] = selected_rows
         prepare = getattr(cache, "prepare", None)
         if prepare is not None and x.shape[0] == 1:
             prepare(self.layer, routes, self.ranges)
@@ -150,7 +153,10 @@ class InklingExpertBank:
                 output = output.at[rows].add(values * weights[rows, slots, None])
                 if not all_cached:
                     # End the graph before the cache can evict these expert weights.
-                    mx.eval(output)
+                    if profile is None:
+                        mx.eval(output)
+                    else:
+                        profile.evaluate(mx.eval, output)
                 del packed, values
         if trace is not None and bytes_before is not None:
             trace["bytes_read"] = cache.bytes_read - bytes_before

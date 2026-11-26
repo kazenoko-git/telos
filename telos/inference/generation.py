@@ -16,6 +16,7 @@ from telos.models.checkpoint import (
     load_checkpoint,
     resolve_checkpoint,
 )
+from telos.models.ssd_profile import SSDGenerationProfile
 from .prefix_cache import PrefixKVCache
 
 
@@ -290,13 +291,18 @@ class TextGenerator:
             return prefill(inputs, kv_cache=kv_cache) if kv_cache is not None else prefill(inputs)
         return self.model.hidden_states_with_cache(inputs, kv_cache=kv_cache, is_causal=True)
 
-    def _mlx_tokens(self, ids, count, temperature, top_k, top_p, seed, cache_mode):
+    def _mlx_tokens(self, ids, count, temperature, top_k, top_p, seed, cache_mode, *, ssd_profile=None):
         cache = getattr(self.model, "_expert_cache", None)
         request = getattr(cache, "request", None)
-        with request() if request is not None else nullcontext():
-            yield from self._mlx_request_tokens(ids, count, temperature, top_k, top_p, seed, cache_mode)
+        if ssd_profile is not None:
+            context = request(profile=ssd_profile)
+        else:
+            context = request() if request is not None else nullcontext()
+        with context:
+            yield from self._mlx_request_tokens(ids, count, temperature, top_k, top_p, seed, cache_mode,
+                                                ssd_profile=ssd_profile)
 
-    def _mlx_request_tokens(self, ids, count, temperature, top_k, top_p, seed, cache_mode):
+    def _mlx_request_tokens(self, ids, count, temperature, top_k, top_p, seed, cache_mode, *, ssd_profile=None):
         import secrets
 
         import mlx.core as mx
@@ -321,7 +327,10 @@ class TextGenerator:
         if temperature:
             key = mx.random.key((secrets.randbits(64) if seed is None else seed) & ((1 << 64) - 1))
         cache = initial_cache
+        expert_cache = getattr(self.model, "_expert_cache", None)
         for step in range(count):
+            if ssd_profile is not None:
+                ssd_profile.begin_step("prefill" if step == 0 else "decode", expert_cache)
             input_ids = mx.array([ids], dtype=mx.int32)
             if cache_mode == "off":
                 hidden = self.model.hidden_states(input_ids, is_causal=True)
@@ -331,7 +340,7 @@ class TextGenerator:
                     self.prefix_cache.put(prompt_ids, cache)
             else:
                 if step == 1:
-                    begin_decode = getattr(getattr(self.model, "_expert_cache", None), "begin_decode", None)
+                    begin_decode = getattr(expert_cache, "begin_decode", None)
                     if begin_decode is not None:
                         begin_decode()
                 hidden, cache = self.model.hidden_states_with_cache(input_ids, kv_cache=cache, is_causal=True)
@@ -339,7 +348,11 @@ class TextGenerator:
             if key is not None:
                 key, subkey = mx.random.split(key)
             logits = self.model.logits_from_hidden(hidden[:, -1])[0, :self.vocab_size]
-            token = _mlx_sample(logits, temperature, top_k, top_p, subkey)
+            if ssd_profile is None:
+                token = _mlx_sample(logits, temperature, top_k, top_p, subkey)
+            else:
+                token = ssd_profile.evaluate(_mlx_sample, logits, temperature, top_k, top_p, subkey)
+                ssd_profile.end_step(expert_cache)
             yield token
             ids = [*ids, token] if cache_mode == "off" else [token]
 
@@ -387,7 +400,7 @@ class TextGenerator:
         yield from self._mlx_pipelined_cached_tokens(ids, count, 0.0, 0, 1.0, None)
 
     def stream_with_stats(self, prompt, *, max_new_tokens=128, temperature=0.0, top_k=0, top_p=1.0,
-                          seed=None, stop=(), add_bos=None, cache="auto"):
+                          seed=None, stop=(), add_bos=None, cache="auto", ssd_profile: SSDGenerationProfile | None = None):
         """Return a GenerationStream that yields text chunks and records usage/timing."""
         if not isinstance(max_new_tokens, int) or max_new_tokens < 0:
             raise ValueError("max_new_tokens must be a non-negative integer.")
@@ -410,6 +423,10 @@ class TextGenerator:
             cache = "dynamic" if self.backend == "mlx" else "static"
         if cache == "off" and getattr(self.model, "weight_storage", None) == "ssd_experts":
             raise ValueError("SSD expert streaming requires the dynamic KV cache.")
+        if ssd_profile is not None and (
+            not getattr(self.model, "supports_ssd_profiling", False) or self.model.weight_storage != "ssd_experts"
+        ):
+            raise ValueError("SSD profiling requires native Inkling 2 with SSD expert streaming.")
 
         ids = self.tokenizer.encode(prompt, add_special_tokens=False).ids
         if add_bos is None:
@@ -449,7 +466,8 @@ class TextGenerator:
             generated = []
             pending = ""
             decoded_length = 0
-            for token in tokens(ids, count, temperature, top_k, top_p, seed, cache):
+            profile_options = {"ssd_profile": ssd_profile} if ssd_profile is not None else {}
+            for token in tokens(ids, count, temperature, top_k, top_p, seed, cache, **profile_options):
                 if state["ttft_seconds"] is None:
                     state["ttft_seconds"] = time.perf_counter() - started
                 if token in self.stop_ids:

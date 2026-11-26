@@ -1,9 +1,11 @@
 """Command-line interface for native text generation."""
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
+from telos.models.ssd_profile import SSDGenerationProfile
 from .generation import TextGenerator
 
 
@@ -29,10 +31,14 @@ def main():
     parser.add_argument("--bos", action=argparse.BooleanOptionalAction, default=None,
                         help="Override BOS insertion (default: on for post-trained checkpoints)")
     parser.add_argument("--stream", action="store_true", help="Flush output as text becomes available")
+    parser.add_argument("--ssd-profile", type=Path, metavar="JSON",
+                        help="Write SSD wait and MLX evaluation timings for native Inkling 2 SSD generation")
     parser.add_argument("--cache", choices=("auto", "dynamic", "static", "off"), default="auto")
     args = parser.parse_args()
 
     try:
+        if args.ssd_profile is not None and args.ssd_profile.exists():
+            raise FileExistsError(f"SSD profile already exists: {args.ssd_profile}")
         config = None
         if args.config is not None:
             import yaml
@@ -63,10 +69,17 @@ def main():
             "add_bos": args.bos,
             "cache": args.cache,
         }
+        if args.ssd_profile is not None:
+            profile = SSDGenerationProfile()
+            options["ssd_profile"] = profile
         if args.stream:
             for chunk in generator.stream(prompt, **options):
                 print(chunk, end="", flush=True)
         else:
             print(generator.generate(prompt, **options), end="")
+        if args.ssd_profile is not None:
+            with args.ssd_profile.open("x", encoding="utf-8") as output:
+                json.dump(profile.report(), output, indent=2)
+                output.write("\n")
     except (OSError, ValueError, RuntimeError, ImportError) as exc:
         parser.exit(2, f"telos generate: {exc}\n")

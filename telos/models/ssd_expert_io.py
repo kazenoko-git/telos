@@ -13,12 +13,13 @@ _MIB = 2**20
 
 
 class _ExpertReadSession:
-    def __init__(self, fragment_size, async_size):
+    def __init__(self, fragment_size, async_size, profile=None):
         self._sync_buffer = memoryview(bytearray(fragment_size))
         self._async_buffer = memoryview(bytearray(async_size))
         self._files = {}
         self._pending = {}
         self._workers = ThreadPoolExecutor(max_workers=4, thread_name_prefix="telos-expert-read")
+        self._profile = profile
 
     def _fd(self, path):
         # Only the inference thread opens and closes descriptors.
@@ -53,7 +54,13 @@ class _ExpertReadSession:
     def load(self, entry):
         future = self._pending.pop(entry, None)
         if future is None:
-            data = self._read(self._fd(entry.path), entry, self._sync_buffer[:entry.size])
+            fd, view = self._fd(entry.path), self._sync_buffer[:entry.size]
+            if self._profile is None:
+                data = self._read(fd, entry, view)
+            else:
+                data = self._profile.read(self._read, fd, entry, view, asynchronous=False)
+        elif self._profile is not None and not future.done():
+            data = self._profile.read(future.result, asynchronous=True)
         else:
             data = future.result()
         # MLX copies the NumPy input before another read can reuse this storage.
@@ -77,19 +84,22 @@ class LFMSSDExpertCache(SSDExpertCache):
         self._async_size = min(24 * _MIB, max(layer_sizes.values()) * top_k)
         self._decode_decay = decode_decay
         self._session = None
+        self.profile = None
         self._decode_uses = None
         self._lock = Lock()
 
     @contextmanager
-    def request(self):
+    def request(self, *, profile=None):
         with self._lock:
-            session = _ExpertReadSession(self._fragment_size, self._async_size)
+            session = _ExpertReadSession(self._fragment_size, self._async_size, profile)
             self._session = session
+            self.profile = profile
             try:
                 yield
             finally:
                 self._decode_uses = None
                 self._session = None
+                self.profile = None
                 session.close()
 
     def begin_decode(self):

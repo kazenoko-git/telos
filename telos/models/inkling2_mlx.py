@@ -152,6 +152,7 @@ class Inkling2TextMLX(nn.Module):
     is_causal = True
     paradigm = "ar"
     supports_prefix_cache = False
+    supports_ssd_profiling = True
     max_batch_size = 1
 
     def __init__(self, config, arrays, layout, experts, cache, guard, context):
@@ -244,7 +245,11 @@ class Inkling2TextMLX(nn.Module):
         hidden = _mix(blocks, x, self.final_query[None], self.normalize_values)[..., 0, :]
         hidden = _norm(hidden, self.final_norm, self.eps, embedded.dtype)
         # Finish outstanding state before the next chunk and keep cache graphs bounded.
-        mx.eval(hidden, states)
+        profile = self._expert_cache.profile if self._expert_cache is not None else None
+        if profile is None:
+            mx.eval(hidden, states)
+        else:
+            profile.evaluate(mx.eval, hidden, states)
         return hidden, _TextState(offset + ids.shape[1], tuple(states))
 
     def _chunks(self, ids, cache, is_causal):
