@@ -4,6 +4,7 @@ import argparse
 import fcntl
 import json
 import math
+import re
 import shutil
 import time
 from collections import Counter
@@ -19,72 +20,64 @@ from telos.models.ssd_expert_io import LFMSSDExpertCache
 from telos.models.ssd_experts import AppleMemoryGuard, tensor_ranges
 
 from .mlx_step import build_training_step
+from .routing_data import ANSWER, instruction_corpus, synthetic_corpus
 
-VOCAB = 40
-PROMPT = 5
-ANSWER = 24
 MICROBATCH = 16
 ACCUMULATION = 2
 
 
-def corpus():
-    """Four symbol transformations with disjoint held-out seed/offset pairs."""
-    rng = np.random.default_rng(2026)
-    train, heldout = [], []
-    for task in range(4):
-        table = rng.permutation(16)
-        for seed in range(16):
-            for offset in range(16):
-                row = [37, task+1, seed+5, offset+5, 38]
-                value = (seed + offset) % 16
-                for _ in range(ANSWER):
-                    row.append(int(value)+21)
-                    value = table[value]
-                target = heldout if (seed + 3*offset + task) % 5 == 0 else train
-                target.append(row)
-    return np.array(train, np.int32), np.array(heldout, np.int32)
+def _batch(sequences, selection):
+    return tuple(mx.array(value[selection]) for value in (sequences.ids, sequences.prompts, sequences.lengths))
 
 
-def _completion(model, ids):
-    logits, balance = model(ids, PROMPT)
-    return logits[:, PROMPT-1:-1], ids[:, PROMPT:], balance
+def _completion(model, ids, prompts, lengths):
+    logits, balance = model(ids, prompts, lengths)
+    position = mx.arange(1, ids.shape[1])[None, :]
+    mask = (position >= prompts[:, None]) & (position < lengths[:, None])
+    return logits[:, :-1], ids[:, 1:], mask, balance
 
 
 def _quality(model, heldout):
     losses = correct = count = 0
     for start in range(0, len(heldout), MICROBATCH):
-        logits, targets, _ = _completion(model, mx.array(heldout[start:start+MICROBATCH]))
-        losses += nn.losses.cross_entropy(logits, targets, reduction="sum").item()
-        correct += (logits.argmax(axis=-1) == targets).sum().item()
-        count += targets.size
+        logits, targets, mask, _ = _completion(model, *_batch(heldout, slice(start, start+MICROBATCH)))
+        losses += mx.where(mask, nn.losses.cross_entropy(logits, targets, reduction="none"), 0).sum().item()
+        correct += ((logits.argmax(axis=-1) == targets) & mask).sum().item()
+        count += mask.sum().item()
     return {"examples": len(heldout), "tokens": count, "nll": losses/count,
             "perplexity": math.exp(losses/count), "token_accuracy": correct/count}
 
 
-def _train(mode, train, heldout, *, steps, seed, path, guard):
+def _train(mode, data, *, steps, seed, path, guard):
     mx.random.seed(seed)
     rng = np.random.default_rng(seed)
-    model = RoutedTransformer(routing=mode, vocab_size=VOCAB)
+    model = RoutedTransformer(routing=mode, vocab_size=data.vocab_size)
     optimizer = optimizers.AdamW(1e-3)
     optimizer.init(model.trainable_parameters())
 
-    def loss_fn(model, ids):
-        logits, labels, balance = _completion(model, ids)
-        loss = nn.losses.cross_entropy(logits, labels, reduction="mean")
+    def loss_fn(model, ids, prompts, lengths):
+        logits, labels, mask, balance = _completion(model, ids, prompts, lengths)
+        losses = nn.losses.cross_entropy(logits, labels, reduction="none")
+        loss = mx.where(mask, losses, 0).sum() / mask.sum()
         return loss + 0.02*balance, loss
 
     gradients = nn.value_and_grad(model, loss_fn)
 
-    def microbatch(ids):
-        (objective, nll), grads = gradients(model, ids)
+    def microbatch(*batch):
+        (objective, nll), grads = gradients(model, *batch)
         return objective, nll, grads
 
     train_step = build_training_step(model, optimizer, microbatch, [model.state], {}, grad_clip=1.0)
     started = time.perf_counter()
     curve = []
+    train = data.train
+    scheduled_tokens = supervised_tokens = 0
     for step in range(1, steps+1):
         guard.check()
-        batches = ((mx.array(train[rng.integers(len(train), size=MICROBATCH)]),) for _ in range(ACCUMULATION))
+        selections = rng.integers(len(train), size=(ACCUMULATION, MICROBATCH))
+        scheduled_tokens += int(train.lengths[selections].sum())
+        supervised_tokens += int((train.lengths[selections] - train.prompts[selections]).sum())
+        batches = (_batch(train, selection) for selection in selections)
         _, nll = train_step(batches, grad_accum=ACCUMULATION)
         if step == 1 or step % 50 == 0 or step == steps:
             curve.append({"step": step, "train_nll": float(nll.item())})
@@ -92,15 +85,16 @@ def _train(mode, train, heldout, *, steps, seed, path, guard):
     train_step.synchronize()
     elapsed = time.perf_counter()-started
     model.eval()
-    result = {"seconds": elapsed, "curve": curve, "quality": _quality(model, heldout),
+    result = {"seconds": elapsed, "curve": curve, "quality": _quality(model, data.heldout),
+              "training_tokens": scheduled_tokens, "supervised_tokens": supervised_tokens,
               "parameters": sum(value.size for _,value in nn.utils.tree_flatten(model.parameters()))}
     model.save_weights(str(path))
     print(f"{mode} held-out NLL {result['quality']['nll']:.3f}", flush=True)
     return result
 
 
-def _open(mode, checkpoint, guard, *, ssd):
-    model = RoutedTransformer(routing=mode, vocab_size=VOCAB).eval()
+def _open(mode, checkpoint, guard, vocab_size, *, ssd):
+    model = RoutedTransformer(routing=mode, vocab_size=vocab_size).eval()
     if not ssd:
         model.load_weights(str(checkpoint))
         return model, None, None
@@ -141,24 +135,24 @@ def _greedy(model, cache, reader, prompt):
     return tokens, prefill, elapsed, prefill_bytes
 
 
-def _parity(mode, path, prompts, guard):
-    resident, _, _ = _open(mode, path, guard, ssd=False)
-    ssd, cache, read = _open(mode, path, guard, ssd=True)
-    for row in prompts:
+def _parity(mode, path, examples, guard, vocab_size):
+    resident, _, _ = _open(mode, path, guard, vocab_size, ssd=False)
+    ssd, cache, read = _open(mode, path, guard, vocab_size, ssd=True)
+    for prompt, _ in examples:
         a = b = None
         with cache.request():
-            ids = mx.array(row[None, :PROMPT])
+            ids = mx.array([prompt], dtype=mx.int32)
             for _ in range(ANSWER):
                 left, a = resident.step(ids, a)
                 right, b = ssd.step(ids, b, read)
                 if not mx.array_equal(left, right).item():
                     raise RuntimeError(f"{mode} resident and SSD logits differ")
                 ids = left.argmax().reshape(1,1)
-    return len(prompts)*ANSWER
+    return len(examples)*ANSWER
 
 
-def _benchmark(mode, path, examples, guard, disk_sample):
-    model, cache, read = _open(mode, path, guard, ssd=True)
+def _benchmark(mode, path, examples, guard, disk_sample, data):
+    model, cache, read = _open(mode, path, guard, data.vocab_size, ssd=True)
     counts = [Counter() for _ in model.layers]
 
     def record(layer, expert):
@@ -166,31 +160,56 @@ def _benchmark(mode, path, examples, guard, disk_sample):
         return read(layer, expert)
 
     prefill = seconds = prefill_bytes = decode_bytes = correct = exact = 0
+    decoded = []
     disk_before = disk_sample()
-    for row in examples:
+    for prompt, _ in examples:
         # Clear request residency so both arms start from the same empty cache.
         cache._entries.clear()
         cache.resident_bytes = 0
         before = cache.bytes_read
         with cache.request():
-            tokens, first, rest, after_first = _greedy(model, cache, record, row[:PROMPT].tolist())
+            tokens, first, rest, after_first = _greedy(model, cache, record, prompt)
         prefill += first
         seconds += rest
         prefill_bytes += after_first-before
         decode_bytes += cache.bytes_read-after_first
-        labels = row[PROMPT:].tolist()
-        correct += sum(a == b for a, b in zip(tokens, labels, strict=True))
-        exact += tokens == labels
+        decoded.append(tokens)
     device_bytes = disk_sample()-disk_before
     if device_bytes < 0:
         raise RuntimeError("SSD read counter reset during the trial")
+    if data.tokenizer is None:
+        for tokens, (_, labels) in zip(decoded, examples, strict=True):
+            correct += sum(a == b for a, b in zip(tokens, labels, strict=True))
+            exact += tokens == labels
+        quality = {"greedy_token_accuracy": correct/(ANSWER*len(examples)), "greedy_exact_sequences": exact}
+    else:
+        quality = _instruction_quality(data.tokenizer, data.eos_id, decoded, examples)
     return {"examples": len(examples), "generated_tokens": ANSWER*len(examples),
             "decode_tokens": (ANSWER-1)*len(examples), "decode_seconds": seconds,
             "decode_tok_s": (ANSWER-1)*len(examples)/seconds, "mean_ttft_s": prefill/len(examples),
             "prefill_expert_bytes": prefill_bytes, "decode_expert_bytes": decode_bytes,
             "device_request_read_bytes": device_bytes, "expert_cache_bytes": cache.byte_limit,
-            "greedy_token_accuracy": correct/(ANSWER*len(examples)), "greedy_exact_sequences": exact,
-            "expert_requests_by_layer": counts}
+            "expert_requests_by_layer": counts, **quality}
+
+
+def _instruction_quality(tokenizer, eos_id, decoded, examples):
+    overlap = exact = ended = 0
+    samples = []
+    for index, (tokens, (_, target)) in enumerate(zip(decoded, examples, strict=True)):
+        if eos_id in tokens:
+            ended += 1
+            tokens = tokens[:tokens.index(eos_id)]
+        generated = tokenizer.decode(tokens, skip_special_tokens=True)
+        reference = tokenizer.decode(target, skip_special_tokens=True)
+        candidate_words = re.findall(r"\w+", generated.casefold())
+        reference_words = re.findall(r"\w+", reference.casefold())
+        matching = sum((Counter(candidate_words) & Counter(reference_words)).values())
+        overlap += 2 * matching / max(1, len(candidate_words) + len(reference_words))
+        exact += bool(candidate_words) and candidate_words == reference_words
+        if index < 4:
+            samples.append({"sample_index": index, "completion": generated})
+    return {"greedy_word_f1": overlap/len(examples), "greedy_exact_sequences": exact,
+            "ended_before_limit": ended, "sample_completions": samples}
 
 
 def _copy_uncached(checkpoint, target):
@@ -234,31 +253,37 @@ def main(argv=None):
     parser.add_argument("--steps", type=int, default=250)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--data", type=Path, help="Instruction JSONL with instruction, response and optional context")
     args = parser.parse_args(argv)
     if args.steps < 1 or args.seed < 0:
         parser.error("--steps must be positive and --seed non-negative")
     args.output.mkdir(parents=True, exist_ok=False)
     modes = ("prompt","token") if args.routing == "both" else (args.routing,)
-    train, heldout = corpus()
-    sample_rng = np.random.default_rng(2027)
-    domains = [heldout[heldout[:, 1] == task+1] for task in range(4)]
-    examples = np.concatenate([rows[sample_rng.choice(len(rows), 8, replace=False)] for rows in domains])
+    data = synthetic_corpus() if args.data is None else instruction_corpus(args.data)
+    if data.tokenizer is not None:
+        data.tokenizer.save(str(args.output/"tokenizer.json"))
+    examples = list(data.heldout.examples(data.benchmark_indices))
     guard = AppleMemoryGuard()
     disk_sample = _disk_sampler(args.output)
     checkpoints = {mode: args.output/f"{mode}.safetensors" for mode in modes}
-    results = {"mlx": mx.__version__, "seed": args.seed, "steps": args.steps, "train_examples": len(train),
+    results = {"mlx": mx.__version__, "seed": args.seed, "steps": args.steps, "train_examples": len(data.train),
+               "data": args.data.name if args.data is not None else "synthetic",
+               "vocab_size": data.vocab_size, "sequence_width": data.train.ids.shape[1],
+               "benchmark_indices": data.benchmark_indices.tolist(),
                "microbatch": MICROBATCH, "accumulation": ACCUMULATION, "effective_batch": MICROBATCH*ACCUMULATION,
-               "prompt_tokens": PROMPT, "answer_tokens": ANSWER, "models": {}, "trials": []}
+               "generation_limit_tokens": ANSWER, "models": {}, "trials": []}
+    if data.tokenizer is None:
+        results.update(prompt_tokens=int(data.train.prompts[0]), answer_tokens=ANSWER)
 
     def save():
         (args.output/"results.json").write_text(json.dumps(results, indent=2)+"\n")
 
     for mode in modes:
-        results["models"][mode] = _train(mode, train, heldout, steps=args.steps, seed=args.seed,
+        results["models"][mode] = _train(mode, data, steps=args.steps, seed=args.seed,
                                          path=checkpoints[mode], guard=guard)
         save()
     for mode in modes:
-        results["models"][mode]["exact_parity_logits"] = _parity(mode, checkpoints[mode], examples[::8], guard)
+        results["models"][mode]["exact_parity_logits"] = _parity(mode, checkpoints[mode], examples[::8], guard, data.vocab_size)
         save()
     before = disk_sample()
     started = time.perf_counter()
@@ -269,7 +294,7 @@ def main(argv=None):
         for run, mode in enumerate((*modes, *reversed(modes))):
             path = Path(scratch)/f"{mode}-{run}.safetensors"
             _copy_uncached(checkpoints[mode], path)
-            trial = _benchmark(mode, path, examples, guard, disk_sample)
+            trial = _benchmark(mode, path, examples, guard, disk_sample, data)
             results["trials"].append({"mode": mode, **trial})
             save()
             print(f"{mode} SSD decode {trial['decode_tok_s']:.1f} tok/s", flush=True)

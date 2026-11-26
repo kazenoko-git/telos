@@ -35,3 +35,27 @@ def test_routed_training_is_causal_after_the_prompt(mode):
 
     _, gradients = nn.value_and_grad(model, loss)(model)
     assert all(mx.any(layer["mlp"]["router"]["weight"] != 0).item() for layer in gradients["layers"])
+
+
+@pytest.mark.parametrize("mode", ["prompt", "token"])
+def test_variable_prompt_lengths_exclude_completion_padding_and_future_tokens(mode):
+    import mlx.core as mx
+
+    from telos.models.prompt_routing_mlx import RoutedTransformer
+    from telos.training.routing_experiment import _completion
+
+    mx.random.seed(9)
+    model = RoutedTransformer(routing=mode, vocab_size=40)
+    ids = mx.array([[37, 2, 38, 21, 23, 0, 0], [37, 2, 9, 8, 38, 25, 0]])
+    changed_padding = mx.array([[37, 2, 38, 21, 23, 10, 30], [37, 2, 9, 8, 38, 25, 31]])
+    prompts, ends = mx.array([3, 5]), mx.array([5, 6])
+    logits, _, mask, balance = _completion(model, ids, prompts, ends)
+    changed, _, _, changed_balance = _completion(model, changed_padding, prompts, ends)
+    assert mask.tolist() == [[False, False, True, True, False, False],
+                             [False, False, False, False, True, False]]
+    assert mx.array_equal(mx.where(mask[..., None], logits, 0), mx.where(mask[..., None], changed, 0)).item()
+    assert mx.array_equal(balance, changed_balance).item()
+
+    for row, prompt in enumerate(prompts.tolist()):
+        prefill, _ = model.step(ids[row:row+1, :prompt])
+        assert mx.allclose(prefill, logits[row, prompt-1], atol=1e-5, rtol=1e-5).item()
