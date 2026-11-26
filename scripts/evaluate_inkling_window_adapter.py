@@ -47,7 +47,8 @@ def disk_delta(before, after):
     return {key: after[key] - before[key] for key in before}
 
 
-def benchmark(generator, prompt, *, token_cap, per_step=False, split_decode=False, split_attention=False, attention_stride=1):
+def benchmark(generator, prompt, *, token_cap, per_step=False, split_decode=False, split_attention=False,
+              attention_stride=1, attention_components=False):
     from telos.models.ssd_profile import SSDGenerationProfile
 
     cache = generator.model._expert_cache
@@ -58,6 +59,7 @@ def benchmark(generator, prompt, *, token_cap, per_step=False, split_decode=Fals
         ids.insert(0, generator.bos_id)
     profile = SSDGenerationProfile(
         split_decode=split_decode, split_attention=split_attention, attention_stride=attention_stride,
+        attention_components=attention_components,
     )
     initial = disk_counters()
     start = time.perf_counter()
@@ -161,6 +163,7 @@ def worker(args):
             split_decode=args.worker == "profiled_w16",
             split_attention=args.worker == "profiled_fused_attention_w16",
             attention_stride=args.attention_profile_stride,
+            attention_components=args.attention_components and args.worker == "profiled_fused_attention_w16",
         ))
         print(f"{args.worker}: decode {index + 1}/{min(PERF_ROWS, len(rows))}", flush=True)
     write_json(args.output / f"{args.worker}.json", {
@@ -210,6 +213,7 @@ def supervise(args):
         "power": read_command("pmset", "-g"), "budget_mib": args.memory_budget_mib, "context": CONTEXT,
         "window": WINDOW, "decode_token_cap": args.max_decode_tokens,
         "attention_profile_stride": args.attention_profile_stride,
+        "attention_components": args.attention_components,
         "validation_sha256": validation_hash, "adapter_sha256": adapter_hash,
         "variants": {}, "guards": {},
     }
@@ -269,6 +273,7 @@ def main():
     mode.add_argument("--profile-fused-attention", action="store_true", help="Split fused pinned decode timing into attention and routing")
     parser.add_argument("--attention-profile-stride", type=int, choices=(1, 4, 12), default=1,
                         help="Under attention profiling, time one layer visit per N and rotate the sample each token")
+    parser.add_argument("--attention-components", action="store_true", help="Split sampled attention into its constituent operations")
     parser.add_argument("--worker", choices=(*VARIANTS, *PROFILING_VARIANTS, *FUSED_ATTENTION_VARIANTS), help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.worker:

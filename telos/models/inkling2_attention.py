@@ -111,9 +111,11 @@ class InklingAttention(nn.Module):
             self.key_conv = DynamicConvolution(weights, key_conv, width, kv, self.kv_heads, kernel)
             self.value_conv = DynamicConvolution(weights, value_conv, width, kv, self.kv_heads, kernel)
 
-    def __call__(self, q_input, k_input, v_input, previous, offset, limit):
+    def __call__(self, q_input, k_input, v_input, previous, offset, limit, *, profile=None):
         batch, length, _ = q_input.shape
         k, v = self.k(k_input), self.v(v_input)
+        if profile is not None:
+            profile.evaluate(mx.eval, k, v, section="attention_projections")
         kh = None if previous is None else previous.key_history
         vh = None if previous is None else previous.value_history
         if self.window is None:
@@ -122,13 +124,19 @@ class InklingAttention(nn.Module):
         else:
             k, kh = self.key_conv(k, kh)
             v, vh = self.value_conv(v, vh)
+        if profile is not None:
+            profile.evaluate(mx.eval, k, v, kh, vh, section="attention_convolutions")
 
-        q = _clip_heads(self.q(q_input).reshape(batch, length, self.heads, self.head_dim), self.qk_clip, self.q_scale)
+        q, r = self.q(q_input), self.r(q_input)
+        sink, gate = self.sink(q_input), self.gate(q_input)
+        if profile is not None:
+            profile.evaluate(mx.eval, q, r, sink, gate, section="attention_projections")
+        q = _clip_heads(q.reshape(batch, length, self.heads, self.head_dim), self.qk_clip, self.q_scale)
         k = _clip_heads(k.reshape(batch, length, self.kv_heads, self.head_dim), self.qk_clip)
         v = v.reshape(k.shape)
         if self.value_norm:
             v = mx.fast.rms_norm(v.astype(mx.float32), None, self.eps).astype(q.dtype)
-        r = _clip_heads(self.r(q_input).reshape(batch, length, self.heads, self.d_rel), self.rel_clip, self.r_scale)
+        r = _clip_heads(r.reshape(batch, length, self.heads, self.d_rel), self.rel_clip, self.r_scale)
         if self.log_floor is not None:
             pos = mx.arange(offset + 1, offset + length + 1, dtype=mx.float32)
             scale = (1 + self.log_alpha * mx.log(mx.maximum(pos / self.log_floor, 1)))[None, :, None, None]
@@ -153,14 +161,23 @@ class InklingAttention(nn.Module):
             allowed = allowed & (distance < self.window)
         mask = mx.where(allowed, bias, -math.inf)
         # A zero key and value let a learned logit absorb probability without adding an output.
-        mask = mx.concatenate((mask, self.sink(q_input).transpose(0, 2, 1)[..., None]), axis=-1)
+        mask = mx.concatenate((mask, sink.transpose(0, 2, 1)[..., None]), axis=-1)
         k, v = (mx.pad(a, ((0, 0), (0, 0), (0, 1), (0, 0))) for a in (k, v))
+        if profile is not None:
+            profile.evaluate(mx.eval, q, k, v, mask, section="attention_setup")
         output = mx.fast.scaled_dot_product_attention(q, k, v, scale=self.head_dim ** -0.5, mask=mask)
+        if profile is not None:
+            profile.evaluate(mx.eval, output, section="attention_sdpa")
         output = output.transpose(0, 2, 1, 3).reshape(batch, length, -1)
-        output = (output.astype(mx.float32) * mx.sigmoid(self.gate(q_input).astype(mx.float32))).astype(q.dtype)
+        output = (output.astype(mx.float32) * mx.sigmoid(gate.astype(mx.float32))).astype(q.dtype)
 
         if self.window is not None and kv.length >= self.window:
             # The current query sees up to window keys. Future queries need window - 1.
             tail = mx.arange(kv.length - self.window + 1, kv.length)
             kv = _LayerCache(mx.take(kv.keys, tail, axis=2), mx.take(kv.values, tail, axis=2), self.window - 1)
-        return self.output(output), AttentionState(kv, kh, vh)
+        if profile is not None:
+            profile.evaluate(mx.eval, output, kv, section="attention_setup")
+        output = self.output(output)
+        if profile is not None:
+            profile.evaluate(mx.eval, output, section="attention_projections")
+        return output, AttentionState(kv, kh, vh)

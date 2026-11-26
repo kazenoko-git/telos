@@ -118,8 +118,11 @@ class _DecoderLayer(nn.Module):
         inputs = [_norm(part, norm, self.eps, x.dtype) for part, norm in zip(mixed, norms, strict=True)]
         if split_attention:
             profile.evaluate(mx.eval, inputs, section="residual_mix")
-        attention, state = self.attention(*inputs, None if previous is None else previous.attention, offset, limit)
-        if split_attention:
+        component_profile = profile if split_attention and profile.attention_components else None
+        attention, state = self.attention(
+            *inputs, None if previous is None else previous.attention, offset, limit, profile=component_profile,
+        )
+        if split_attention and component_profile is None:
             profile.evaluate(mx.eval, attention, state, section="attention")
         residual, attention_history = self.attention_conv(
             attention, None if previous is None else previous.attention_history,

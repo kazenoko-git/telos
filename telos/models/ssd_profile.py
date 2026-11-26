@@ -8,8 +8,9 @@ class SSDGenerationProfile:
 
     _SECTIONS = ("backbone_router", "experts", "tail", "sampling")
     _ATTENTION_SECTIONS = ("attention", "routing", "residual_mix", "experts", "tail", "sampling")
+    _ATTENTION_COMPONENTS = ("attention_projections", "attention_convolutions", "attention_setup", "attention_sdpa")
 
-    def __init__(self, *, split_decode=False, split_attention=False, attention_stride=1):
+    def __init__(self, *, split_decode=False, split_attention=False, attention_stride=1, attention_components=False):
         if type(attention_stride) is not int or attention_stride < 1:
             raise ValueError("Attention profiling stride must be a positive integer")
         self.steps = []
@@ -17,6 +18,9 @@ class SSDGenerationProfile:
         self._split_attention = split_attention
         self._attention_stride = attention_stride
         self._sections = self._ATTENTION_SECTIONS if split_attention else self._SECTIONS
+        self.attention_components = attention_components
+        if attention_components:
+            self._sections = (*self._sections, *self._ATTENTION_COMPONENTS)
         self.split_step = False
         self.split_attention_step = False
 
