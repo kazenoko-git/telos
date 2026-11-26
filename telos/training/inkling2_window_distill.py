@@ -19,13 +19,17 @@ DEFAULT_LORA_TARGETS = (
     "out_proj",
     "gate_proj",
     "in_proj",
+    "in_proj_qkv",
+    "in_proj_z",
+    "in_proj_b",
+    "in_proj_a",
     "qkv_proj",
     "r_proj",
     "sink_proj",
 )
 _MOE_BLOCK_ATTRS = ("mlp", "feed_forward", "moe")
-_OPERATOR_ATTRS = ("self_attn", "conv", "attention", "operator")
-_SOFTMAX_FAMILIES = ("qwen", "mixtral")
+_OPERATOR_ATTRS = ("self_attn", "linear_attn", "conv", "attention", "operator")
+_SOFTMAX_FAMILIES = ("qwen", "mixtral", "gemma4")
 
 
 
@@ -110,7 +114,7 @@ class DistillContext:
 
 
 class WindowPinnedRouter(nn.Module):
-    """Wraps any MoE gate for teacher or W-token window-pinned student passes."""
+    """Wraps any MoE gate/router for teacher or W-token window-pinned student passes."""
 
     def __init__(
         self,
@@ -126,6 +130,8 @@ class WindowPinnedRouter(nn.Module):
         activation: str = "sigmoid",
         normalize: bool = True,
         eps: float = 1e-20,
+        return_probs: bool = False,
+        per_expert_scale: torch.Tensor | None = None,
         selector_rank: int = 32,
         selector_alpha: float = 32.0,
         token_router_rank: int = 16,
@@ -137,7 +143,8 @@ class WindowPinnedRouter(nn.Module):
             param.requires_grad_(False)
         self.layer_idx = layer_idx
         self.context = context
-        w_experts, w_hidden = base_gate.weight.shape
+        proj_mod = getattr(base_gate, "proj", base_gate)
+        w_experts, w_hidden = proj_mod.weight.shape
         self.top_k = int(top_k if top_k is not None else getattr(base_gate, "top_k"))
         self.num_experts = int(num_experts if num_experts is not None else getattr(base_gate, "num_experts", w_experts))
         self.hidden_dim = int(hidden_dim if hidden_dim is not None else getattr(base_gate, "hidden_dim", w_hidden))
@@ -148,6 +155,15 @@ class WindowPinnedRouter(nn.Module):
         self.activation = activation
         self.normalize = bool(normalize)
         self.eps = float(eps)
+        self._return_probs = bool(return_probs)
+        self._has_base_preprocess = hasattr(base_gate, "norm") or hasattr(base_gate, "scalar_root_size")
+        self.register_buffer("_proj_weight", proj_mod.weight.detach())
+
+        expert_scale = per_expert_scale if per_expert_scale is not None else getattr(base_gate, "per_expert_scale", None)
+        if expert_scale is not None:
+            self.register_buffer("per_expert_scale", expert_scale.detach().float().clone())
+        else:
+            self.per_expert_scale = None
 
         detected_bias = base_bias
         if detected_bias is None:
@@ -157,18 +173,33 @@ class WindowPinnedRouter(nn.Module):
             init_bias = self.base_bias
         else:
             self.base_bias = None
-            init_bias = torch.zeros(self.num_experts, dtype=torch.float32, device=base_gate.weight.device)
+            init_bias = torch.zeros(self.num_experts, dtype=torch.float32, device=proj_mod.weight.device)
 
         self.selector = WindowSelector(
-            base_gate.weight, init_bias, rank=selector_rank, alpha=selector_alpha,
+            proj_mod.weight, init_bias, rank=selector_rank, alpha=selector_alpha,
         )
         context.selectors[layer_idx] = self.selector
         self.token_a = nn.Parameter(torch.empty(token_router_rank, self.hidden_dim, dtype=torch.float32,
-                                                device=base_gate.weight.device))
+                                                device=proj_mod.weight.device))
         self.token_b = nn.Parameter(torch.zeros(self.num_experts, token_router_rank, dtype=torch.float32,
-                                                device=base_gate.weight.device))
+                                                device=proj_mod.weight.device))
         nn.init.kaiming_uniform_(self.token_a, a=math.sqrt(5))
         self.token_scale = float(token_scale)
+
+    def _prepare_input(self, flat: torch.Tensor) -> torch.Tensor:
+        if not self._has_base_preprocess:
+            return flat.float()
+        x = flat
+        norm = getattr(self.base_gate, "norm", None)
+        if norm is not None:
+            x = norm(x)
+        scale = getattr(self.base_gate, "scale", None)
+        if scale is not None:
+            x = x * scale
+        root = getattr(self.base_gate, "scalar_root_size", None)
+        if root is not None:
+            x = x * root
+        return x.float()
 
     def _activate(self, logits: torch.Tensor) -> torch.Tensor:
         if self.activation == "softmax":
@@ -182,7 +213,10 @@ class WindowPinnedRouter(nn.Module):
         weights = probs.gather(-1, indices)
         if self.normalize:
             weights = weights / (weights.sum(dim=-1, keepdim=True) + self.eps)
-        return weights * self.routed_scaling_factor, indices
+        weights = weights * self.routed_scaling_factor
+        if self.per_expert_scale is not None:
+            weights = weights * self.per_expert_scale[indices]
+        return weights, indices
 
     def forward(self, hidden_states: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         flat = hidden_states.reshape(-1, self.hidden_dim)
@@ -202,11 +236,11 @@ class WindowPinnedRouter(nn.Module):
         assert prompt_lengths is not None
         batch_size = prompt_lengths.shape[0]
         seq_len = flat.shape[0] // batch_size
-        h_seq = flat.float().reshape(batch_size, seq_len, self.hidden_dim)
+        h_seq = self._prepare_input(flat).reshape(batch_size, seq_len, self.hidden_dim)
 
         # Base + adapted token logits across the sequence.
         tok_logits = (
-            F.linear(h_seq, self.base_gate.weight.float())
+            F.linear(h_seq, self._proj_weight.float())
             + F.linear(F.linear(h_seq, self.token_a), self.token_b) * self.token_scale
         )
         tok_probs = self._activate(tok_logits)
@@ -255,9 +289,12 @@ class WindowPinnedRouter(nn.Module):
         sel_gathered = sel_tok_probs.gather(-1, indices)
         st_gate = 1.0 + (sel_gathered - sel_gathered.detach())
         weights = torch.where(is_resp.unsqueeze(-1), weights * st_gate, weights)
+        if self.per_expert_scale is not None:
+            weights = weights * self.per_expert_scale[indices]
 
+        head_out = tok_probs if self._return_probs else tok_logits
         return (
-            tok_logits.reshape(-1, self.num_experts),
+            head_out.reshape(-1, self.num_experts),
             weights.to(hidden_states.dtype).reshape(-1, self.top_k),
             indices.reshape(-1, self.top_k),
         )
@@ -282,6 +319,12 @@ def _linear_gate_moe_forward(self, hidden_states: torch.Tensor):
             current_hidden = self.experts[expert_idx](current_state) * routing_weights[token_idx, slot_idx, None]
             final_hidden.index_add_(0, token_idx, current_hidden.to(final_hidden.dtype))
 
+    if hasattr(self, "shared_expert") and self.shared_expert is not None:
+        shared_out = self.shared_expert(flat)
+        if hasattr(self, "shared_expert_gate") and self.shared_expert_gate is not None:
+            shared_out = F.sigmoid(self.shared_expert_gate(flat)) * shared_out
+        final_hidden = final_hidden + shared_out.to(final_hidden.dtype)
+
     out = final_hidden.reshape(batch_size, sequence_length, hidden_dim)
     if getattr(self, "_returns_router_logits", False):
         return out, router_logits
@@ -298,12 +341,32 @@ def _find_text_layers(model: nn.Module):
     raise ValueError("Cannot locate decoder layers on model")
 
 
-def _find_moe_block(layer: nn.Module):
+def _has_router_proj(module: nn.Module | None) -> bool:
+    if module is None:
+        return False
+    if isinstance(module, WindowPinnedRouter):
+        return True
+    proj = getattr(module, "proj", module)
+    return hasattr(proj, "weight")
+
+
+def _find_moe_router_slot(layer: nn.Module):
     for attr in _MOE_BLOCK_ATTRS:
         block = getattr(layer, attr, None)
-        if block is not None and hasattr(block, "gate") and hasattr(getattr(block, "gate"), "weight"):
-            return block
+        gate = getattr(block, "gate", None) if block is not None else None
+        if _has_router_proj(gate):
+            return block, "gate", gate
+    router = getattr(layer, "router", None)
+    if _has_router_proj(router):
+        return layer, "router", router
     return None
+
+
+def _find_moe_block(layer: nn.Module):
+    slot = _find_moe_router_slot(layer)
+    if slot is None:
+        return None
+    return slot[0]
 
 
 def _text_config(model: nn.Module):
@@ -317,16 +380,21 @@ def _text_config(model: nn.Module):
 
 def _moe_router_spec(model: nn.Module, moe_block: nn.Module, gate: nn.Module) -> dict:
     cfg = _text_config(model)
+    gate_cfg = getattr(gate, "config", None)
     model_type = str(getattr(cfg, "model_type", getattr(getattr(model, "config", None), "model_type", ""))).lower()
     base_bias = getattr(gate, "e_score_correction_bias", getattr(gate, "expert_bias", None))
-    if base_bias is None:
+    if base_bias is None and moe_block is not gate:
         base_bias = getattr(moe_block, "expert_bias", None)
     use_softmax = any(family in model_type for family in _SOFTMAX_FAMILIES) and base_bias is None
-    w_experts, w_hidden = gate.weight.shape
+    proj_mod = getattr(gate, "proj", gate)
+    w_experts, w_hidden = proj_mod.weight.shape
+    top_k = getattr(gate, "top_k", getattr(gate_cfg, "top_k_experts", getattr(moe_block, "top_k", None)))
+    if top_k is None:
+        top_k = getattr(cfg, "num_experts_per_tok", getattr(cfg, "top_k_experts", None))
     return {
-        "top_k": getattr(gate, "top_k", getattr(moe_block, "top_k", getattr(cfg, "num_experts_per_tok", None))),
+        "top_k": top_k,
         "num_experts": getattr(gate, "num_experts", getattr(moe_block, "num_experts", getattr(cfg, "num_experts", w_experts))),
-        "hidden_dim": getattr(gate, "hidden_dim", getattr(cfg, "hidden_size", w_hidden)),
+        "hidden_dim": getattr(gate, "hidden_dim", getattr(gate_cfg, "hidden_size", getattr(cfg, "hidden_size", w_hidden))),
         "base_bias": base_bias,
         "routed_scaling_factor": getattr(
             gate, "routed_scaling_factor",
@@ -338,12 +406,14 @@ def _moe_router_spec(model: nn.Module, moe_block: nn.Module, gate: nn.Module) ->
             getattr(moe_block, "norm_topk_prob", getattr(cfg, "norm_topk_prob", True)),
         ),
         "eps": 1e-6 if "lfm2" in model_type else 1e-20,
+        "return_probs": hasattr(gate, "per_expert_scale") or "gemma4" in model_type,
+        "per_expert_scale": getattr(gate, "per_expert_scale", None),
     }
 
 
 def _attach_layer_lora(layer: nn.Module, lora_targets: tuple[str, ...], *, rank: int, alpha: float):
     containers = [getattr(layer, attr, None) for attr in _OPERATOR_ATTRS]
-    if _find_moe_block(layer) is None:
+    if _find_moe_router_slot(layer) is None:
         containers.append(getattr(layer, "mlp", getattr(layer, "feed_forward", None)))
     for container in containers:
         if container is None:
@@ -372,7 +442,7 @@ def patch_moe_for_window_distill(
     lora_targets: tuple[str, ...] = DEFAULT_LORA_TARGETS,
     require_moe: bool = True,
 ) -> DistillContext:
-    """Freeze base weights and install WindowPinnedRouter + LoRA across Inkling2, Qwen3-MoE, LFM2-MoE, and dense models."""
+    """Freeze base weights and install WindowPinnedRouter + LoRA across Inkling2, Qwen3/3.5-MoE, Gemma4, LFM2-MoE, and dense models."""
     for param in model.parameters():
         param.requires_grad_(False)
 
@@ -382,9 +452,9 @@ def patch_moe_for_window_distill(
     moe_count = 0
     for layer_idx, layer in enumerate(layers):
         if window_size is not None:
-            moe_block = _find_moe_block(layer)
-            if moe_block is not None:
-                orig_gate = moe_block.gate
+            slot = _find_moe_router_slot(layer)
+            if slot is not None:
+                moe_block, attr_name, orig_gate = slot
                 spec = _moe_router_spec(model, moe_block, orig_gate)
                 if spec["top_k"] is None:
                     raise ValueError(f"Cannot infer top_k for MoE layer {layer_idx}")
@@ -400,13 +470,15 @@ def patch_moe_for_window_distill(
                     activation=spec["activation"],
                     normalize=spec["normalize"],
                     eps=spec["eps"],
+                    return_probs=spec["return_probs"],
+                    per_expert_scale=spec["per_expert_scale"],
                     selector_rank=selector_rank,
                     selector_alpha=selector_alpha,
                     token_router_rank=token_router_rank,
                     token_scale=token_scale,
                 )
-                moe_block.gate = pinned_gate
-                if isinstance(orig_gate, nn.Linear) and hasattr(moe_block, "experts"):
+                setattr(moe_block, attr_name, pinned_gate)
+                if isinstance(orig_gate, nn.Linear) and attr_name == "gate" and hasattr(moe_block, "experts"):
                     # Plain nn.Linear gates (e.g., HF 4.57 Qwen3MoeSparseMoeBlock) compute routing in the block.
                     moe_block._returns_router_logits = "Qwen3Moe" in type(moe_block).__name__
                     moe_block.forward = MethodType(_linear_gate_moe_forward, moe_block)
