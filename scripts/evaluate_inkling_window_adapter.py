@@ -32,9 +32,11 @@ RESIDENT_REDUCE_VARIANTS = ("compiled_experts_w16", "fused_reduce_w16")
 REFRESH_WIDTH_VARIANTS = ("reused_routes_w16", "compiled_experts_w16", "compiled_experts_w32", "compiled_experts_w64")
 COMPILED_LAYER_VARIANTS = ("compiled_experts_w16", "compiled_layers_w16")
 FAST_DECODE_VARIANTS = ("compiled_experts_w16", "fused_swiglu_w16", "pipelined_fast_w16")
-WINDOW_BY_WORKER = {"compiled_experts_w32": 32, "compiled_experts_w64": 64}
+GPU_FAST_VARIANTS = ("pipelined_fast_w16", "gpu_fast_nvfp4_w16", "gpu_fast_all_w16", "gpu_fast_all_w32")
+WINDOW_BY_WORKER = {"compiled_experts_w32": 32, "compiled_experts_w64": 64, "gpu_fast_all_w32": 32}
 WORKERS = (*VARIANTS, *PROFILING_VARIANTS, *FUSED_ATTENTION_VARIANTS, "grouped_query_w16", "fused_mask_w16",
-           *BATCHED_EXPERT_VARIANTS, *WINDOW_BY_WORKER, "compiled_layers_w16", "fused_swiglu_w16", "pipelined_fast_w16")
+           *BATCHED_EXPERT_VARIANTS, *WINDOW_BY_WORKER, "compiled_layers_w16", "fused_swiglu_w16",
+           "pipelined_fast_w16", "gpu_fast_nvfp4_w16", "gpu_fast_all_w16")
 
 
 def write_json(path, value):
@@ -137,7 +139,8 @@ def worker(args):
     model = generator.model
     pinned_bytes = model.pin_window_experts() if pinned else 0
     model.fused_nvfp4_decode = pinned and args.worker not in PROFILING_VARIANTS
-    fast_worker = args.worker in {"fused_swiglu_w16", "pipelined_fast_w16"}
+    gpu_fast_worker = args.worker in {"gpu_fast_nvfp4_w16", "gpu_fast_all_w16", "gpu_fast_all_w32"}
+    fast_worker = args.worker in {"fused_swiglu_w16", "pipelined_fast_w16"} or gpu_fast_worker
     reused_routes = (args.worker in BATCHED_EXPERT_VARIANTS or args.worker in WINDOW_BY_WORKER
                      or args.worker == "compiled_layers_w16" or fast_worker)
     model.fused_mask_decode = args.worker == "fused_mask_w16" or reused_routes
@@ -146,10 +149,12 @@ def worker(args):
     model._window_controller.compile_nvfp4_experts = (args.worker in RESIDENT_REDUCE_VARIANTS or args.worker in WINDOW_BY_WORKER
                                                        or args.worker == "compiled_layers_w16" or fast_worker)
     model._window_controller.fuse_nvfp4_swiglu = fast_worker
+    model._window_controller.fast_nvfp4_kernel = gpu_fast_worker
     model._window_controller.batch_mxfp8_experts = fast_worker
     model._window_controller.combine_nvfp4_experts = args.worker == "fused_reduce_w16"
     model.compiled_steady_decode = args.worker == "compiled_layers_w16"
-    model.pipeline_steady_decode = args.worker == "pipelined_fast_w16"
+    model.compiled_steady_helpers = args.worker in {"gpu_fast_all_w16", "gpu_fast_all_w32"}
+    model.pipeline_steady_decode = args.worker == "pipelined_fast_w16" or gpu_fast_worker
     if model.compiled_steady_decode and args.eager_tensor_layer:
         for layer in model.layers:
             layer._compiled_visit = layer._steady_tensor_layer
@@ -211,7 +216,9 @@ def worker(args):
         "compiled_steady_decode": model.compiled_steady_decode,
         "eager_tensor_layer": model.compiled_steady_decode and args.eager_tensor_layer,
         "fuse_nvfp4_swiglu": model._window_controller.fuse_nvfp4_swiglu,
+        "fast_nvfp4_kernel": model._window_controller.fast_nvfp4_kernel,
         "batch_mxfp8_experts": model._window_controller.batch_mxfp8_experts,
+        "compiled_steady_helpers": model.compiled_steady_helpers,
         "pipeline_steady_decode": model.pipeline_steady_decode,
     })
 
@@ -322,6 +329,7 @@ def main():
         ("--compare-refresh-widths", REFRESH_WIDTH_VARIANTS, "Compare W=16, W=32 and W=64 with compiled expert batches"),
         ("--compare-compiled-layer", COMPILED_LAYER_VARIANTS, "Compare the compiled expert block with the tensor-only decode layer"),
         ("--compare-fast-decode", FAST_DECODE_VARIANTS, "Compare compiled experts against fused SwiGLU, MXFP8 batching, and steady pipelining"),
+        ("--compare-gpu-fast", GPU_FAST_VARIANTS, "Compare pipelined fast decode against 16-element uint2 NVFP4 kernels, compiled helpers, and W=32"),
     ):
         mode.add_argument(flag, dest="variants", action="store_const", const=variants, help=help_text)
     parser.set_defaults(variants=VARIANTS)
