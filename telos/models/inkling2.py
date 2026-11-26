@@ -4,6 +4,7 @@ import json
 import math
 from contextlib import nullcontext as _null_visit
 from dataclasses import dataclass
+from functools import lru_cache
 
 from .checkpoint import resolve_checkpoint
 from .ssd_experts import TensorRange, tensor_ranges
@@ -60,6 +61,42 @@ def _gated_activation(fused, gate_softcap, up_softcap):
         gate_softcap * mx.tanh(gate / gate_softcap) * mx.sigmoid(gate)
         * (up_softcap * mx.tanh(up / up_softcap))
     ).astype(dtype)
+
+
+def _mxfp8_resident_project_impl(x, tensors, gate_softcap, up_softcap):
+    import mlx.core as mx
+
+    fused = mx.stack([
+        mx.quantized_matmul(
+            x, expert["gate_up_proj.weight"], expert["gate_up_proj.scales"], None,
+            transpose=True, group_size=32, bits=8, mode="mxfp8",
+        )
+        for expert in tensors
+    ])
+    activated = _gated_activation(fused, gate_softcap, up_softcap)
+    return mx.stack([
+        mx.quantized_matmul(
+            activated[i], expert["down_proj.weight"], expert["down_proj.scales"], None,
+            transpose=True, group_size=32, bits=8, mode="mxfp8",
+        )
+        for i, expert in enumerate(tensors)
+    ])
+
+
+def _mxfp8_resident_project(x, tensors, gate_softcap, up_softcap, *, compiled=False):
+    if compiled:
+        return _compiled_mxfp8_resident_project(gate_softcap, up_softcap)(x, tensors)
+    return _mxfp8_resident_project_impl(x, tensors, gate_softcap, up_softcap)
+
+
+@lru_cache(maxsize=16)
+def _compiled_mxfp8_resident_project(gate_softcap, up_softcap):
+    import mlx.core as mx
+
+    def project(x, tensors):
+        return _mxfp8_resident_project_impl(x, tensors, gate_softcap, up_softcap)
+
+    return mx.compile(project)
 
 
 @dataclass(frozen=True)
@@ -157,7 +194,8 @@ class InklingExpertBank:
             ordered = sorted(routes)
             route_arrays = {expert: (mx.array(rows), mx.array(slots)) for expert, (rows, slots) in routes.items()}
             combine_slots = (mx.array([routes[expert][1][0] for expert in ordered])
-                             if reuse and controller.combine_nvfp4_experts and self.mode == "nvfp4" else None)
+                             if reuse and controller.combine_nvfp4_experts
+                             and (self.mode == "nvfp4" or controller.batch_mxfp8_experts) else None)
             if reuse:
                 controller.host_routes[self.layer] = (selected_rows, ordered, route_arrays, combine_slots)
         else:
@@ -185,7 +223,17 @@ class InklingExpertBank:
                 from .inkling2_nvfp4 import nvfp4_resident_project
 
                 batched = nvfp4_resident_project(
-                    x, packed_group, self.gate_softcap, self.up_softcap, compiled=controller.compile_nvfp4_experts,
+                    x, packed_group, self.gate_softcap, self.up_softcap,
+                    compiled=controller.compile_nvfp4_experts,
+                    fuse_swiglu=controller.fuse_nvfp4_swiglu,
+                )
+                if batched is not None and profile is not None:
+                    profile.batched_expert_visits += 1
+            elif reuse and all_cached and controller.batch_mxfp8_experts and self.mode == "mxfp8":
+                packed_group = [cache.get(self.layer, expert, self.ranges) for expert in ordered]
+                batched = _mxfp8_resident_project(
+                    x, packed_group, self.gate_softcap, self.up_softcap,
+                    compiled=controller.compile_nvfp4_experts,
                 )
                 if batched is not None and profile is not None:
                     profile.batched_expert_visits += 1
