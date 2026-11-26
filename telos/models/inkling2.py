@@ -162,17 +162,18 @@ class InklingExpertBank:
     def project(self, hidden, tensors):
         import mlx.core as mx
 
-        bits, group = (4, 16) if self.mode == "nvfp4" else (8, 32)
-
         def linear(inputs, name):
-            out = mx.quantized_matmul(
-                inputs, tensors[name + ".weight"], tensors[name + ".scales"], None,
-                transpose=True, group_size=group, bits=bits, mode=self.mode,
-            )
             if self.mode == "nvfp4":
-                # MLX nvfp4 dequantizes with a 2688 (6 * 448) global_scale denominator.
-                out = (out.astype(mx.float32) * (tensors[name + ".global_scale"] / 2688.0)).astype(inputs.dtype)
-            return out
+                # Keep the global scale and rounding on the weights before the matmul.
+                weight = mx.dequantize(
+                    tensors[name + ".weight"], tensors[name + ".scales"], mode=self.mode,
+                    global_scale=tensors[name + ".global_scale"], dtype=inputs.dtype,
+                )
+                return inputs @ weight.T
+            return mx.quantized_matmul(
+                inputs, tensors[name + ".weight"], tensors[name + ".scales"], None,
+                transpose=True, group_size=32, bits=8, mode=self.mode,
+            )
 
         fused = linear(hidden, "gate_up_proj").astype(mx.float32)
         gate, up = fused[..., ::2], fused[..., 1::2]

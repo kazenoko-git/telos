@@ -99,6 +99,28 @@ def test_inkling2_fixed_loop_expert_projection_parity(tmp_path, dtype):
     assert cache.resident_bytes <= cache.byte_limit
 
 
+@pytest.mark.parametrize("dtype", ["bfloat16", "float32"])
+def test_nvfp4_projection_matches_dequantized_reference(tmp_path, dtype):
+    import mlx.core as mx
+
+    _write_fixture(tmp_path, mx)
+    bank = InklingTextLayout.from_checkpoint(tmp_path).expert_banks[0]
+    hidden = mx.random.normal((3, 32), key=mx.random.key(42)).astype(getattr(mx, dtype))
+    packed, dense = {}, {}
+    for i, (name, rows, scale) in enumerate((("gate_up_proj", 64, 1300.0), ("down_proj", 32, 2100.0))):
+        weight = mx.random.normal((rows, 32), key=mx.random.key(43 + i))
+        q, s = mx.quantize(weight, mode="nvfp4")
+        global_scale = mx.array(scale, dtype=mx.float32)
+        packed.update({name + ".weight": q, name + ".scales": s, name + ".global_scale": global_scale})
+        dense[name] = mx.dequantize(q, s, mode="nvfp4", global_scale=global_scale, dtype=hidden.dtype)
+
+    gate_up = (hidden @ dense["gate_up_proj"].T).astype(mx.float32)
+    gate, up = gate_up[:, ::2], gate_up[:, 1::2]
+    activation = (4 * mx.tanh(gate / 4) * mx.sigmoid(gate) * (25 * mx.tanh(up / 25))).astype(hidden.dtype)
+    expected = activation @ dense["down_proj"].T
+    assert mx.array_equal(bank.project(hidden, packed), expected).item()
+
+
 def test_inkling2_rejects_invalid_loop_before_opening_weight_shards(tmp_path):
     config = {
         "model_type": "inkling2_loop",
