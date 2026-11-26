@@ -320,3 +320,109 @@ def _save_noop_lfm2_adapter(tmp_path, mx):
         "model.layers.1.self_attn.q_proj.lora_b": mx.zeros((64, 2), dtype=mx.float32),
     })
     return path
+
+
+def test_local_mlx_window_distill_inkling2_resume_and_reload(tmp_path, monkeypatch):
+    import mlx.core as mx
+    from telos.eval.runner import load_model_from_checkpoint
+    from telos.models import inkling2_mlx
+    from telos.posttrain.trainer import posttrain
+
+    class FixtureGuard:
+        budget = 2**30
+
+        def check(self):
+            pass
+
+    monkeypatch.setattr(inkling2_mlx, "AppleMemoryGuard", FixtureGuard)
+    ckpt = _write_inkling_fixture(tmp_path / "inkling", mx)
+    data = tmp_path / "data.jsonl"
+    data.write_text("\n".join(json.dumps({"prompt": p, "response": "t4 t5 t6 t7"}) for p in ("t1 t2", "t3 t4")))
+
+    opts = dict(
+        method="distill", hardware="mlx", finetune="lora", lora_rank=4,
+        max_steps=3, batch_size=2, max_length=12, save_every=1, learning_rate=0.005,
+        window_size=4, selector_rank=4, window_cov_weight=0.25,
+    )
+    final = posttrain(ckpt, data, tmp_path / "win_out", **opts)
+    saved = mx.load(str(final))
+    mx.eval(saved)
+    assert any(k.endswith("selector_b") and float(mx.sum(mx.abs(v)).item()) > 0 for k, v in saved.items())
+    assert any(k.endswith("token_b") and float(mx.sum(mx.abs(v)).item()) > 0 for k, v in saved.items())
+    assert any(k.endswith("lora_b") and float(mx.sum(mx.abs(v)).item()) > 0 for k, v in saved.items())
+
+    resumed = posttrain(
+        ckpt, data, tmp_path / "win_out",
+        resume=tmp_path / "win_out" / "checkpoint_step_1.adapter.resume.npz", **opts,
+    )
+    actual = mx.load(str(resumed))
+    for key, expected in saved.items():
+        assert mx.allclose(expected, actual[key], rtol=1e-5, atol=1e-6).item(), key
+
+    loaded, backend, _ = load_model_from_checkpoint(tmp_path / "win_out")
+    assert backend == "mlx" and loaded._window_controller.window_size == 4
+    gen = TextGenerator.from_checkpoint(tmp_path / "win_out")
+    assert gen.model._window_controller.window_size == 4
+    assert len(gen.generate("t1 t2", max_new_tokens=5, temperature=0.0)) > 0
+
+    with pytest.raises(ValueError, match="distill"):
+        posttrain(ckpt, data, tmp_path / "bad_sft", method="sft", hardware="mlx", finetune="lora", max_steps=1, window_size=4)
+
+
+def test_local_mlx_window_distill_lfm2_moe_ssd_and_cli(tmp_path, monkeypatch):
+    import sys
+    import mlx.core as mx
+    from telos.models import qwen3_moe_mlx as loader
+    from telos.models.ssd_experts import tensor_ranges
+    from telos.posttrain.cli import main as posttrain_cli
+
+    ckpt = _write_lfm2_fixture(tmp_path / "lfm2", mx)
+    data = tmp_path / "data.jsonl"
+    data.write_text("\n".join(json.dumps({"prompt": p, "response": "t4 t5"}) for p in ("t1 t2", "t3")))
+
+    class FixtureGuard:
+        budget = 2**30
+
+        def check(self):
+            pass
+
+    monkeypatch.setattr(loader, "AppleMemoryGuard", FixtureGuard)
+    ranges = tensor_ranges(ckpt / "model.safetensors.index.json")
+    cfg = json.loads((ckpt / "config.json").read_text())
+    low, high = 0, 2**30
+    while low < high:
+        midpoint = (low + high) // 2
+        try:
+            loader.plan_experts(cfg, ranges, midpoint, None, 0)
+        except ValueError:
+            low = midpoint + 1
+        else:
+            high = midpoint
+    FixtureGuard.budget = high + 32768
+
+    out_dir = tmp_path / "lfm2_win"
+    monkeypatch.setattr(sys, "argv", [
+        "telos-posttrain",
+        "--method", "distill",
+        "--checkpoint", str(ckpt),
+        "--data", str(data),
+        "--output", str(out_dir),
+        "--hardware", "mlx",
+        "--finetune", "lora",
+        "--lora-rank", "4",
+        "--max-steps", "2",
+        "--batch-size", "2",
+        "--max-length", "10",
+        "--save-every", "0",
+        "--learning-rate", "0.005",
+        "--window-size", "4",
+        "--selector-rank", "4",
+        "--window-cov-weight", "0.25",
+    ])
+    posttrain_cli()
+    saved = mx.load(str(out_dir / "model.adapter.safetensors"))
+    mx.eval(saved)
+    assert any(k.endswith("selector_b") and float(mx.sum(mx.abs(v)).item()) > 0 for k, v in saved.items())
+    gen = TextGenerator.from_checkpoint(out_dir)
+    assert gen.model.weight_storage == "ssd_experts" and gen.model._window_controller.window_size == 4
+    assert len(gen.generate("t1 t2", max_new_tokens=4, temperature=0.0)) > 0
