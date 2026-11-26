@@ -1284,6 +1284,17 @@ def _posttrain_xla(arguments):
     return Path(arguments["output"]) / "checkpoint_final.pt"
 
 
+_EXTERNAL_TORCH_EXTRA = frozenset({
+    "qwen3_5_moe",
+    "qwen3_5_moe_text",
+    "qwen3_5",
+    "qwen3_5_text",
+    "gemma4",
+    "gemma4_text",
+})
+EXTERNAL_TORCH_ARCHITECTURES = EXTERNAL_MLX_ARCHITECTURES | _EXTERNAL_TORCH_EXTRA
+
+
 def _load_external_hf_torch(checkpoint_dir: Path, source_config: dict, precision: str, device: torch.device):
     import transformers
     from transformers import AutoModelForCausalLM
@@ -1291,14 +1302,17 @@ def _load_external_hf_torch(checkpoint_dir: Path, source_config: dict, precision
     if source_config.get("quantization") or source_config.get("quantization_config", {}).get("mode") == "affine":
         raise ValueError("PyTorch/CUDA post-training requires an unpacked HuggingFace checkpoint; MLX-quantized Safetensors require --hardware mlx")
     dtype = _torch_precision(device, precision) or torch.float32
-    model_type = str(source_config.get("model_type", "")).lower()
     try:
         model = AutoModelForCausalLM.from_pretrained(str(checkpoint_dir), torch_dtype=dtype)
     except (KeyError, ValueError):
-        if "inkling" in model_type and hasattr(transformers, "Inkling2LoopForConditionalGeneration"):
-            model = transformers.Inkling2LoopForConditionalGeneration.from_pretrained(str(checkpoint_dir), torch_dtype=dtype)
-        else:
-            raise
+        for arch in source_config.get("architectures") or ():
+            cls = getattr(transformers, arch, None)
+            if cls is not None:
+                return cls.from_pretrained(str(checkpoint_dir), torch_dtype=dtype).to(device)
+        auto_vl = getattr(transformers, "AutoModelForImageTextToText", None)
+        if auto_vl is not None:
+            return auto_vl.from_pretrained(str(checkpoint_dir), torch_dtype=dtype).to(device)
+        raise
     return model.to(device)
 
 
@@ -1530,9 +1544,10 @@ def _posttrain(
     options["base_sha256"] = _sha256_file(checkpoint_path)
     options["base_checkpoint"] = str(checkpoint_path.resolve())
     source_config = _checkpoint_config(checkpoint_path)
-    is_external_model = source_config.get("model_type") in EXTERNAL_MLX_ARCHITECTURES
-    is_external_mlx = backend_name == "mlx" and is_external_model
-    is_mlx_moe = is_external_mlx and source_config["model_type"] in EXTERNAL_MLX_MOE_ARCHITECTURES
+    model_type = source_config.get("model_type")
+    is_external_mlx = backend_name == "mlx" and model_type in EXTERNAL_MLX_ARCHITECTURES
+    is_external_torch = backend_name in {"cuda", "cpu"} and model_type in EXTERNAL_TORCH_ARCHITECTURES and checkpoint_path.suffix == ".safetensors"
+    is_mlx_moe = is_external_mlx and model_type in EXTERNAL_MLX_MOE_ARCHITECTURES
     if memory_budget_mib is not None and not is_mlx_moe:
         raise ValueError("--memory-budget-mib is supported for native MLX MoE checkpoints.")
     tokenizer_ref = checkpoint_tokenizer_path(checkpoint_path, source_config, tokenizer_path)
@@ -1542,7 +1557,7 @@ def _posttrain(
         raise ValueError("devices must be 'auto' or a positive integer")
     if backend_name not in {"xla", "cuda"} and devices != "auto" and int(devices) != 1:
         raise ValueError(f"{backend_name} post-training is single-device; use devices=1")
-    if backend_name in {"cuda", "cpu"} and is_external_model and checkpoint_path.suffix == ".safetensors":
+    if is_external_torch:
         text_cfg = source_config.get("text_config", source_config)
         max_ctx = int(text_cfg.get("max_position_embeddings", text_cfg.get("model_max_length", 512)))
         return _posttrain_external_torch(
