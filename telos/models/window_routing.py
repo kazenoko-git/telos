@@ -571,8 +571,12 @@ def init_window_adapters(
     attached = []
     for idx, layer in enumerate(model.layers):
         if hasattr(layer, "router_adapter") and hasattr(layer, "router"):
-            base_w, base_b = layer.router
-            num_experts, width = base_w.shape
+            if isinstance(layer.router, tuple):
+                base_w, base_b = layer.router
+                num_experts, width = base_w.shape
+            else:
+                num_experts, width = _linear_shape(layer.router)
+                base_b = getattr(layer, "bias", None)
             target = layer
         else:
             target = next((sub for sub in (getattr(layer, "mlp", None), getattr(layer, "moe", None))
