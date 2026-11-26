@@ -80,9 +80,22 @@ def _load_external_causal_checkpoint(checkpoint, config, *, device, context_leng
             base_source, device=device, context_length=context_length,
             memory_budget_mib=memory_budget_mib, prefix_cache_entries=prefix_cache_entries,
         )
-        from telos.posttrain.mlx_adapters import load_adapter
+        has_window = bool(posttrain_meta.get("window_size"))
+        if not has_window and adapter_path.with_suffix(".json").is_file():
+            has_window = bool(json.loads(adapter_path.with_suffix(".json").read_text(encoding="utf-8")).get("window"))
+        if has_window:
+            from telos.models.window_routing import apply_window_adapter
 
-        load_adapter(model, adapter_path, base_checkpoint=base_source)
+            apply_window_adapter(
+                model,
+                adapter_path,
+                base_checkpoint=base_source,
+                window_size=posttrain_meta.get("window_size"),
+            )
+        else:
+            from telos.posttrain.mlx_adapters import load_adapter
+
+            load_adapter(model, adapter_path, base_checkpoint=base_source)
         return model.eval(), "mlx", model.vocab_size, config
     if family in EXTERNAL_MLX_MOE_ARCHITECTURES:
         from telos.training.core import metal_usable
