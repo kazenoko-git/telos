@@ -80,3 +80,38 @@ Raw generation texts for every prompt and variant are in [eval_phase1/summary.js
   - Phase 2 64-step training (`ap-GqEIxr`): `$0.8997` compute (`345.2s` Inkling + `259.6s` Qwen + `174.4s` Gemma)
   - **Total itemized app compute**: `$2.5843` (`modal billing summary` shows `$2.70`–`$2.83` credits applied in November 2026, `$0.00` billed).
   - **Remaining credit**: Starting from `$30.00` (`$29.30` verified in dashboard at `$0.70` used, expiring Nov 30, 2026), **`~$27.17–$27.30` remains** (`~$2.13` spent across all Phase 1 + Phase 2 work).
+
+## 6. CE-Matching 80-Step Run (`lora_rank=16`, `grad_accum=4`, `lr=3e-4`, `cov_weight=0.5`)
+
+To close the remaining CE/KL gap toward Stock on `disjoint_64`, [modal_router_ce_match.py](../../scripts/modal_router_ce_match.py) increased attention LoRA rank (`8 → 16`), doubled batch accumulation (`2 → 4`, 320 unique disjoint examples), raised peak LR (`1.5e-4 → 3e-4` with 8-step warmup and cosine decay to `3e-5`), and doubled `cov_weight` (`0.25 → 0.5`). All three models passed exact `step_080.safetensors` reload verification (`reload_parameters_exact = True`).
+
+| Model | Stock CE | 64-step CE / KL / Top-1 | 80-step (`step_040`) CE / KL / Top-1 | 80-step (`step_080`) CE / KL / Top-1 | Remaining CE gap vs Stock |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `inkling` | 2.1499 | 2.6092 / 1.0851 / 62.39% | 2.5280 / 1.0484 / 63.08% | **2.4484 / 0.9911 / 63.59%** | +0.2985 |
+| `qwen` | 2.4111 | 2.7523 / 1.0485 / 63.15% | 2.6502 / 1.0304 / 65.16% | **2.6327 / 0.9637 / 65.89%** | +0.2216 |
+| `gemma` | 4.0915 | 3.0728 / 1.2893 / 63.74% | 2.9332 / 1.2645 / 63.16% | **2.8068 / 1.1980 / 64.68%** | -1.2847 |
+
+Artifacts and SHA-256 hashes are recorded in [ce_match_80step/artifacts.json](ce_match_80step/artifacts.json) and [ce_match_80step/summary.json](ce_match_80step/summary.json).
+
+## 7. Out-of-Distribution 96-Token Capability Test Suite
+
+[modal_router_test_suite.py](../../scripts/modal_router_test_suite.py) tested fresh-base reload of `step_080.safetensors` vs Stock across 8 out-of-distribution prompts (`logic_apples`, `python_palindrome`, `json_extract`, `science_photosynthesis`, `history_printing`, `math_train`, `summary_bullet`, `creative_haiku`, `max_new_tokens=96`, `use_cache=False`, 6 consecutive W=16 windows):
+
+| Model | Stock `distinct_4gram` / EOS stops | `step_080` `distinct_4gram` / EOS stops | Elapsed (s) | Est. compute (USD) |
+| --- | ---: | ---: | ---: | ---: |
+| `inkling` | 0.986 / 7 of 8 | 0.694 / 5 of 8 | 230.8 | 0.277 |
+| `qwen` | 0.934 / 0 of 8 | 0.528 / 1 of 8 | 234.6 | 0.281 |
+| `gemma` | 0.996 / 4 of 8 | 0.869 / 5 of 8 | 110.4 | 0.132 |
+
+- **Gemma (`step_080`)**: Solved `logic_apples` (`"9"`), emitted valid Tokyo JSON, wrote accurate photosynthesis/database-index/haiku responses, and showed loops/errors only on `python_palindrome` (code-fence loop), `history_printing` (year `100014`), and `math_train`.
+- **Inkling (`step_080`)**: Answered photosynthesis and printing press accurately before trailing off, hit formatting/logic errors on JSON/palindrome/math/apples, and hit token loops on database bullets and haiku.
+- **Qwen (`step_080`)**: Solved `logic_apples` (`"9"`) and started photosynthesis/math logically, but entered `1. 1. 2. 1...` numbering loops inside `Thinking Process:` on 5 of 8 prompts.
+
+Full prompt-by-prompt generations are in [test_suite_96tok/summary.json](test_suite_96tok/summary.json).
+
+## 8. Updated Modal Credit Reconciliation (`2026-11-27`)
+
+- `ap-QXydNK...` (interrupted Inkling ce_match run during local DNS drop): `$0.3111` compute
+- `ap-r4VEzm...` (`ce_match_80step`, all 3 models completed): `$1.4356` compute
+- `ap-7j3nID...` (`test_suite_96tok`, all 3 models completed): `$0.6722` compute
+- **Cumulative November 2026 summary (`modal billing summary --json`)**: `$5.24` metered (`$0.10` network egress covered by allowance), **`$5.14` credits applied**, `$0.00` billed — leaving **`~$24.86`** of the `$30.00` monthly credit (expiring Nov 30, 2026).
