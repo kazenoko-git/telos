@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Preserve recorded teacher expert routes across the student-pass reset so PyTorch window distillation applies its configured coverage supervision. Tiny looped fixtures assert a positive coverage loss.
 
+### Validation
+- Short native PyTorch H100 full-router pilots completed for Inkling 2 Mini, Qwen 3.5 MoE, and Gemma 4 26B A4B using the published rc2 package. All passed routing gradient and exact export/reload checks, with lower held-out response NLL across eight prompts per model. See [pilot results](reports/full_router_h100_2026-11-27/README.md).
+
 ## [1.9.1rc1] - 2026-11-27
 
 ### Added
