@@ -1,0 +1,917 @@
+{
+  "inkling": {
+    "stock": {
+      "name": "inkling",
+      "mode": "stock",
+      "max_new_tokens": 384,
+      "model": "thinkingmachines/Inkling-2-Mini",
+      "revision": "c9d028302cd0f035fdf8e7e91f089a4ce94d2195",
+      "summary": {
+        "tasks": 12,
+        "passed_count": 12,
+        "eos_stop_count": 12,
+        "mean_distinct_4gram": 0.9823657138038621,
+        "mean_tokens": 54.5
+      },
+      "rows": [
+        {
+          "id": "logic_apples",
+          "category": "reasoning",
+          "generated_tokens": 9,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "nums=['9']",
+          "elapsed_seconds": 2.584326842000003,
+          "text": "The farmer has 9 sheep left."
+        },
+        {
+          "id": "math_train",
+          "category": "math",
+          "generated_tokens": 62,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9152542372881356,
+          "passed": true,
+          "grade_detail": "last_num=210",
+          "elapsed_seconds": 11.104488138,
+          "text": "2 hours 20 minutes = 2 + 20/60 = 2 + 1/3 = 7/3 hours.\n\nDistance = speed \u00d7 time = 90 \u00d7 7/3 = 30 \u00d7 7 = 210 km.\n\nFinal answer: 210 km."
+        },
+        {
+          "id": "gsm8k_bakery",
+          "category": "math",
+          "generated_tokens": 54,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "last_num=36",
+          "elapsed_seconds": 10.907221360000001,
+          "text": "Morning: 48\nAfternoon: 2 \u00d7 48 = 96\nTotal: 48 + 96 = 144\nSold: 75% of 144 = 108\nUnsold: 144 \u2212 108 = 36\n\n36"
+        },
+        {
+          "id": "gsm8k_tickets",
+          "category": "math",
+          "generated_tokens": 48,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "last_num=120",
+          "elapsed_seconds": 9.567180009999994,
+          "text": "4 adult tickets \u00d7 $18 = $72\n5 child tickets \u00d7 $11 = $55\nSubtotal: $72 + $55 = $127\nAfter $7 discount: $127 \u2212 $7 = $120\n\n120"
+        },
+        {
+          "id": "logic_syllogism",
+          "category": "reasoning",
+          "generated_tokens": 3,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "head='Yes.'",
+          "elapsed_seconds": 0.6284830620000008,
+          "text": "Yes."
+        },
+        {
+          "id": "python_palindrome",
+          "category": "coding",
+          "generated_tokens": 48,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "unit_tests",
+          "elapsed_seconds": 8.692934984000004,
+          "text": "def is_palindrome(s: str) -> bool:\n    cleaned = ''.join(c.lower() for c in s if c.isalnum())\n    return cleaned == cleaned[::-1]"
+        },
+        {
+          "id": "python_merge_intervals",
+          "category": "coding",
+          "generated_tokens": 137,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.8731343283582089,
+          "passed": true,
+          "grade_detail": "unit_tests",
+          "elapsed_seconds": 25.535751247999997,
+          "text": "def merge_intervals(intervals: list[list[int]]) -> list[list[int]]:\n    if not intervals:\n        return []\n    intervals.sort(key=lambda x: x[0])\n    merged = [intervals[0]]\n    for start, end in intervals[1:]:\n        if start <= merged[-1][1]:\n            merged[-1][1] = max(merged[-1][1], end)\n        else:\n            merged.append([start, end])\n    return merged"
+        },
+        {
+          "id": "python_two_sum",
+          "category": "coding",
+          "generated_tokens": 89,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "unit_tests",
+          "elapsed_seconds": 16.863148194999994,
+          "text": "def two_sum(nums: list[int], target: int) -> tuple[int, int]:\n    seen = {}\n    for j, x in enumerate(nums):\n        need = target - x\n        if need in seen:\n            return (seen[need], j)\n        seen[x] = j\n    return (-1, -1)"
+        },
+        {
+          "id": "json_extract",
+          "category": "formatting",
+          "generated_tokens": 39,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "parsed={'city': 'Tokyo', 'country': 'Japan', 'currency': 'Japanese Yen', 'iso_code': 'JPY'}",
+          "elapsed_seconds": 7.299758699999998,
+          "text": "{\"city\":\"Tokyo\",\"country\":\"Japan\",\"currency\":\"Japanese Yen\",\"iso_code\":\"JPY\"}"
+        },
+        {
+          "id": "sql_top_depts",
+          "category": "coding",
+          "generated_tokens": 31,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "sql_clauses",
+          "elapsed_seconds": 5.81022244799999,
+          "text": "SELECT department, AVG(salary) AS avg_salary\nFROM employees\nGROUP BY department\nORDER BY avg_salary DESC\nLIMIT 3;"
+        },
+        {
+          "id": "science_photosynthesis",
+          "category": "science",
+          "generated_tokens": 65,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "concepts",
+          "elapsed_seconds": 11.50456084999999,
+          "text": "Chlorophyll is a pigment found in plant cells that absorbs light energy, primarily from the sun. This absorbed energy is used to convert carbon dioxide and water into glucose and oxygen during photosynthesis. In short, it acts as the \"light-catcher\" that powers the chemical process of making food for the plant."
+        },
+        {
+          "id": "history_printing",
+          "category": "factual",
+          "generated_tokens": 69,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "fact_check",
+          "elapsed_seconds": 11.961984537999996,
+          "text": "The movable-type printing press in Europe is generally credited to Johannes Gutenberg, who developed it around the mid-1400s, specifically around 1440. While earlier forms of printing existed in other parts of the world, Gutenberg's version is the one that revolutionized the spread of information in Europe."
+        }
+      ],
+      "elapsed_seconds": 150.187846337,
+      "estimated_compute_usd": 0.18022541658,
+      "peak_allocated_gib": 50.90438365936279
+    },
+    "w8_step320": {
+      "name": "inkling",
+      "mode": "w8_step320",
+      "adapter_relpath": "w8_onpolicy_320/step_320.safetensors",
+      "window_size": 8,
+      "max_new_tokens": 384,
+      "reload_exact": true,
+      "summary": {
+        "tasks": 12,
+        "passed_count": 7,
+        "eos_stop_count": 12,
+        "mean_distinct_4gram": 0.9681847456331459,
+        "mean_tokens": 58.416666666666664
+      },
+      "rows": [
+        {
+          "id": "logic_apples",
+          "category": "reasoning",
+          "generated_tokens": 9,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": false,
+          "grade_detail": "nums=['8']",
+          "elapsed_seconds": 2.043331866999978,
+          "text": "The farmer has 8 sheep left."
+        },
+        {
+          "id": "math_train",
+          "category": "math",
+          "generated_tokens": 84,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9259259259259259,
+          "passed": true,
+          "grade_detail": "last_num=210",
+          "elapsed_seconds": 21.923815961999992,
+          "text": "2 hours 20 minutes = 2 + 20/60 = 2.333... Actually 20/60 = 1/3, so 2 + 1/3 = 7/3 hours.\n\n90 km/h \u00d7 7/3 h = 90 \u00d7 7 / 3 = 30 \u00d7 7 = 210 km.\n\nFinal integer: 210"
+        },
+        {
+          "id": "gsm8k_bakery",
+          "category": "math",
+          "generated_tokens": 128,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.92,
+          "passed": false,
+          "grade_detail": "last_num=48",
+          "elapsed_seconds": 33.385175540000006,
+          "text": "The bakery bakes 48 croissants in the morning. It sells twice as many in the afternoon, so it bakes 48 \u00d7 2 = 96 croissants in the afternoon.\n\nThe total croissants baked by the day is 48 + 96 = 192 croissants.\n\nIt sells 75% of the day's total, so it sells 192 \u00d7 0.75 = 144 croissants.\n\nThe remaining unsold croissants is 192 - 144 = 48 croissants.\n\nAnswer: 48"
+        },
+        {
+          "id": "gsm8k_tickets",
+          "category": "math",
+          "generated_tokens": 50,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "last_num=120",
+          "elapsed_seconds": 13.864888405000016,
+          "text": "4 adults \u00d7 $18 = $72\n5 children \u00d7 $11 = $55\nTotal before discount = $72 + $55 = $127\nAfter discount = $127 - $7 = $120\n\nThe group pay $120."
+        },
+        {
+          "id": "logic_syllogism",
+          "category": "reasoning",
+          "generated_tokens": 2,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "head='Yes'",
+          "elapsed_seconds": 0.47628498699998545,
+          "text": "Yes"
+        },
+        {
+          "id": "python_palindrome",
+          "category": "coding",
+          "generated_tokens": 46,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "unit_tests",
+          "elapsed_seconds": 11.257768438,
+          "text": "def is_palindrome(s: str):\n    cleaned = \"\".join(c.lower() for c in s if c.isalnum())\n    return cleaned == cleaned[::-1]"
+        },
+        {
+          "id": "python_merge_intervals",
+          "category": "coding",
+          "generated_tokens": 103,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9,
+          "passed": false,
+          "grade_detail": "err=IndentationError: expected an indented block after 'for' statement on line 4 (<string>, line 5)",
+          "elapsed_seconds": 25.495499083,
+          "text": "def merge_intervals(intervals: list[list[int]]):\n    intervals = sorted(intervals)\n    merged = []\n    for start, end in intervals:\n    if merged and start <= merged[-1][[int]:\n    merged[-1][[int], end] = merged[-1][:] + [end]\n    else:\n    merged.append([start, end])\n    return merged"
+        },
+        {
+          "id": "python_two_sum",
+          "category": "coding",
+          "generated_tokens": 79,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9605263157894737,
+          "passed": false,
+          "grade_detail": "err=IndentationError: expected an indented block after 'for' statement on line 3 (<string>, line 4)",
+          "elapsed_seconds": 20.437176930999954,
+          "text": "def two_sum(nums: list[int], target: int):\n    seen = set()\n    for i, num in enumerate(nums):\n    seen.add(num)\n    if target - num in seen:\n    return (i, j)\n    if not return (0, 0):\n        raise ValueError"
+        },
+        {
+          "id": "json_extract",
+          "category": "formatting",
+          "generated_tokens": 37,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9117647058823529,
+          "passed": false,
+          "grade_detail": "json_err=Expecting ':' delimiter: line 1 column 9 (char 8)",
+          "elapsed_seconds": 9.096351826999978,
+          "text": "{\"city\" \"Tokyo\", \"country\": \"Japan\", \"currency\": \"JPY\", \"iso_code\": \"JPY\"}"
+        },
+        {
+          "id": "sql_top_depts",
+          "category": "coding",
+          "generated_tokens": 31,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "sql_clauses",
+          "elapsed_seconds": 7.805791795000005,
+          "text": "SELECT department, AVG(salary) AS avg_salary\nFROM employees\nGROUP BY department\nORDER BY avg_salary DESC\nLIMIT 3;"
+        },
+        {
+          "id": "science_photosynthesis",
+          "category": "science",
+          "generated_tokens": 49,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "concepts",
+          "elapsed_seconds": 12.259562301000017,
+          "text": "Chlorophyll captures sunlight to energize electrons, which drives the chemical reactions that convert carbon dioxide and water into glucose. It acts as a pigment in the plant's leaves, absorbing light energy essential for the photosynthesis process."
+        },
+        {
+          "id": "history_printing",
+          "category": "factual",
+          "generated_tokens": 83,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "fact_check",
+          "elapsed_seconds": 20.164981830000045,
+          "text": "Johannes Gutenberg was the most likely inventor of the movable-type printing press in Europe. He developed a system that combining movable type, ink, and paper to mass-scale printing, which was introduced around 145 5 (roughly 1440s). This revolutioned printing as a mass-medium, allowing more books and pamphlets to be produced quickly and widely."
+        }
+      ],
+      "elapsed_seconds": 191.75560112,
+      "estimated_compute_usd": 0.23010672207,
+      "peak_allocated_gib": 50.90438365936279
+    }
+  },
+  "qwen": {
+    "stock": {
+      "name": "qwen",
+      "mode": "stock",
+      "max_new_tokens": 384,
+      "model": "Qwen/Qwen3.5-35B-A3B",
+      "revision": "2508b2437e382c605eb0fc52b83f5545960f6b4a",
+      "summary": {
+        "tasks": 12,
+        "passed_count": 6,
+        "eos_stop_count": 1,
+        "mean_distinct_4gram": 0.8404970020949216,
+        "mean_tokens": 379.5
+      },
+      "rows": [
+        {
+          "id": "logic_apples",
+          "category": "reasoning",
+          "generated_tokens": 330,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.8287461773700305,
+          "passed": true,
+          "grade_detail": "nums=['9']",
+          "elapsed_seconds": 24.559166306999998,
+          "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Input: A riddle/math problem (\"A farmer has 17 sheep. All but 9 run away. How many sheep does the farmer have left?\").\n    *   Constraint: Reply with a single sentence stating the final integer.\n\n2.  **Solve the Problem:**\n    *   Total sheep initially: 17.\n    *   Condition: \"All but 9 run away.\"\n    *   Interpretation: \"All but 9\" means everyone except 9. So, 9 sheep did *not* run away.\n    *   Calculation: 17 - (17 - 9) = 9. Or simply, if all but 9 ran away, 9 remain.\n    *   Result: 9.\n\n3.  **Format the Output:**\n    *   Constraint: Single sentence.\n    *   Content: State the final integer.\n    *   Draft 1: The farmer has 9 sheep left.\n    *   Draft 2: There are 9 sheep left.\n    *   Draft 3 (Strict adherence): The farmer has 9 sheep left.\n\n4.  **Final Review:** Does it meet all criteria?\n    *   Single sentence? Yes.\n    *   States the final integer? Yes.\n    *   Correct answer? Yes.\n\n5.  **Construct Final Response:** The farmer has 9 sheep left.cw\n</think>\n\nThe farmer has 9 sheep left."
+        },
+        {
+          "id": "math_train",
+          "category": "math",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.8031496062992126,
+          "passed": false,
+          "grade_detail": "last_num=1",
+          "elapsed_seconds": 26.14977773000004,
+          "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Speed: 90 km/h\n    *   Time: 2 hours and 20 minutes\n    *   Goal: Calculate distance in kilometers.\n    *   Format: Show brief steps, give the final integer.\n\n2.  **Identify the Formula:**\n    *   Distance = Speed \u00d7 Time\n\n3.  **Convert Time to a Consistent Unit:**\n    *   Speed is in km/h (hours).\n    *   Time is given in hours and minutes.\n    *   Need to convert 20 minutes into hours.\n    *   20 minutes = 20/60 hours = 1/3 hours.\n    *   Total time = 2 + 1/3 = 7/3 hours (or approximately 2.333... hours).\n\n4.  **Calculate Distance:**\n    *   Distance = 90 km/h \u00d7 (7/3) h\n    *   Distance = (90 \u00d7 7) / 3\n    *   Distance = 630 / 3\n    *   Distance = 210 km\n\n    *Alternative calculation:*\n    *   Distance for 2 hours = 90 \u00d7 2 = 180 km\n    *   Distance for 20 minutes = 90 \u00d7 (20/60) = 90 \u00d7 (1/3) = 30 km\n    *   Total Distance = 180 + 30 = 210 km\n\n5.  **Format the Output:**\n    *   Show brief steps.\n    *   Final answer as an integer.\n\n6.  **Draft the Response:**\n    *   Step 1"
+        },
+        {
+          "id": "gsm8k_bakery",
+          "category": "math",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.7532808398950132,
+          "passed": false,
+          "grade_detail": "last_num=48",
+          "elapsed_seconds": 25.630352906999974,
+          "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Morning production: 48 croissants.\n    *   Afternoon production: Twice as many as morning.\n    *   Sales: 75% of the day's total.\n    *   Goal: Find the number of unsold croissants (integer).\n\n2.  **Calculate Afternoon Production:**\n    *   Morning = 48\n    *   Afternoon = 2 * Morning = 2 * 48 = 96\n\n3.  **Calculate Total Production:**\n    *   Total = Morning + Afternoon = 48 + 96 = 144\n\n4.  **Calculate Unsold Percentage:**\n    *   Sold = 75%\n    *   Unsold = 100% - 75% = 25%\n\n5.  **Calculate Number of Unsold Croissants:**\n    *   Method 1: Calculate sold first, then subtract.\n        *   Sold = 0.75 * 144\n        *   0.75 * 144 = (3/4) * 144 = 3 * (144 / 4) = 3 * 36 = 108\n        *   Unsold = Total - Sold = 144 - 108 = 36\n    *   Method 2: Calculate unsold directly.\n        *   Unsold = 0.25 * 144\n        *   0.25 * 144 = (1/4) * 144 = 36\n\n6.  **Verify the Result:**\n    *   Morning: 48\n   "
+        },
+        {
+          "id": "gsm8k_tickets",
+          "category": "math",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.6876640419947506,
+          "passed": false,
+          "grade_detail": "last_num=6",
+          "elapsed_seconds": 27.679807882999967,
+          "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Cost of adult ticket: $18\n    *   Cost of child ticket: $11\n    *   Number of adult tickets: 4\n    *   Number of child tickets: 5\n    *   Discount applied: $7\n    *   Goal: Calculate the total amount paid.\n    *   Output format: Final integer.\n\n2.  **Calculate the cost of adult tickets:**\n    *   $18 \\times 4$\n    *   $10 \\times 4 = 40$\n    *   $8 \\times 4 = 32$\n    *   $40 + 32 = 72$\n    *   Cost for adults = $72\n\n3.  **Calculate the cost of child tickets:**\n    *   $11 \\times 5$\n    *   $10 \\times 5 = 50$\n    *   $1 \\times 5 = 5$\n    *   $50 + 5 = 55$\n    *   Cost for children = $55\n\n4.  **Calculate the total cost before discount:**\n    *   $72 + 55$\n    *   $70 + 50 = 120$\n    *   $2 + 5 = 7$\n    *   $120 + 7 = 127$\n    *   Total before discount = $127\n\n5.  **Apply the discount:**\n    *   Total before discount - Discount amount\n    *   $127 - 7$\n    *   $120$\n\n6.  **Verify the calculation:**"
+        },
+        {
+          "id": "logic_syllogism",
+          "category": "reasoning",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.8057742782152231,
+          "passed": false,
+          "grade_detail": "head='Thinking Process:\\n\\n1.  **Analyze the Req'",
+          "elapsed_seconds": 26.104086542000005,
+          "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Premise 1: All blops are razzies. ($B \\subseteq R$)\n    *   Premise 2: No razzie is a lazz. ($R \\cap L = \\emptyset$)\n    *   Premise 3: Some snazzes are blops. ($S \\cap B \\neq \\emptyset$)\n    *   Question: Are any snazzes definitely not lazzes?\n    *   Constraint: Start the final answer with \"Yes\" or \"No\".\n\n2.  **Translate to Logic/Sets:**\n    *   Let $B$ be the set of blops.\n    *   Let $R$ be the set of razzies.\n    *   Let $L$ be the set of lazzes.\n    *   Let $S$ be the set of snazzes.\n    *   P1: $\\forall x (B(x) \\rightarrow R(x))$\n    *   P2: $\\forall x (R(x) \\rightarrow \\neg L(x))$ (Equivalent to $\\forall x (L(x) \\rightarrow \\neg R(x))$)\n    *   P3: $\\exists x (S(x) \\land B(x))$\n\n3.  **Evaluate the Question:**\n    *   Question: Is it true that $\\exists x (S(x) \\land \\neg L(x))$? (Are there any snazzes that are definitely not lazzes?)\n    *   Alternatively, is it guaranteed that the intersection of Snazzes and Lazzes is empty? Or is it guaranteed that there exists at least one Snazz that is not a Lazz?\n    *   The ph"
+        },
+        {
+          "id": "python_palindrome",
+          "category": "coding",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.8713910761154856,
+          "passed": false,
+          "grade_detail": "err=SyntaxError: unterminated string literal (detected at line 15) (<string>, line 15)",
+          "elapsed_seconds": 25.23222337900006,
+          "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Function name: `is_palindrome`\n    *   Input: `s` (string)\n    *   Output: `bool` (True if palindrome, False otherwise)\n    *   Conditions:\n        *   Ignore spaces.\n        *   Ignore ASCII letter case (case-insensitive).\n        *   Only valid Python code.\n    *   Constraint: Return *only* valid Python code.\n\n2.  **Determine the Logic:**\n    *   To check if a string is a palindrome ignoring spaces and case:\n        1.  Filter out non-alphanumeric characters? The prompt specifically says \"ignoring spaces and ASCII letter case\". It doesn't explicitly say to ignore punctuation, but usually, palindrome checks on sentences imply ignoring non-alphanumeric characters. However, strictly reading the prompt: \"ignoring spaces and ASCII letter case\".\n        *   Interpretation A: Only remove spaces and lowercase everything. Keep punctuation.\n        *   Interpretation B: Standard palindrome definition usually implies keeping only alphanumeric.\n        *   Let's look at the wording again: \"ignoring spaces and ASCII letter case\". It doesn't say \"ignoring punctuation\".\n        *   Example: \"A man, a plan, a canal: Panama\".\n            *   If I only remove spaces and lowercase: \"aman,aplan,acanal:panama\". This is not a palindrome because of commas and colon.\n            *   If I remove non-alphanumeric: \"amanaplanacanalpanama\". This is a palindrome.\n        *   Usually, when people ask for this specific function signature without specifying \"alphanumeric only\", they often mean the standard \"clean string\" approach. However, strict adherence to the prompt \"ignoring spaces and ASCII letter"
+        },
+        {
+          "id": "python_merge_intervals",
+          "category": "coding",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.9422572178477691,
+          "passed": true,
+          "grade_detail": "unit_tests",
+          "elapsed_seconds": 27.427812660000086,
+          "text": "The user wants me to write a Python function that merges overlapping intervals. This is a classic algorithm problem.\n\nHere's my approach:\n1. Sort the intervals by their start time\n2. Iterate through the sorted intervals\n3. For each interval, check if it overlaps with the previous one\n4. If it overlaps, merge them (take the min of starts and max of ends)\n5. If it doesn't overlap, add it as a new interval\n\nLet me write clean, efficient code:\n\n```python\ndef merge_intervals(intervals: list[list[int]]) -> list[list[int]]:\n    if not intervals:\n        return []\n    \n    # Sort intervals by start time\n    intervals.sort(key=lambda x: x[0])\n    \n    merged = [intervals[0]]\n    \n    for current in intervals[1:]:\n        last = merged[-1]\n        \n        # Check if current interval overlaps with the last merged interval\n        if current[0] <= last[1]:\n            # Merge them by updating the end time\n            last[1] = max(last[1], current[1])\n        else:\n            # No overlap, add as new interval\n            merged.append(current)\n    \n    return merged\n```\n\nWait, I need to be careful about modifying the list in place. When I do `last = merged[-1]`, `last` is a reference to the list object, so modifying `last[1]` will modify the actual element in `merged`. This should work correctly.\n\nLet me trace through an example:\n- Input: [[1,3],[2,6],[8,10],[15,18]]\n- After sort: [[1,3],[2,6],[8,10],[15,18]]\n- merged ="
+        },
+        {
+          "id": "python_two_sum",
+          "category": "coding",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.984251968503937,
+          "passed": true,
+          "grade_detail": "unit_tests",
+          "elapsed_seconds": 26.617377711000017,
+          "text": "The user wants me to write a Python function that solves the classic \"Two Sum\" problem. The function should:\n1. Take a list of integers `nums` and a target integer `target`\n2. Return a tuple of two indices `(i, j)` where `i < j` and `nums[i] + nums[j] == target`\n3. Return only valid Python code\n\nThe most efficient approach is to use a hash map (dictionary) to store the numbers we've seen so far and their indices. This gives us O(n) time complexity.\n\nHere's my approach:\n1. Create a dictionary to store number -> index mappings\n2. Iterate through the list with index\n3. For each number, calculate the complement (target - current number)\n4. Check if the complement exists in our dictionary\n5. If yes, return the indices (dictionary index, current index)\n6. If no, add the current number and its index to the dictionary\n\nLet me write clean, efficient code:\n\n```python\ndef two_sum(nums: list[int], target: int) -> tuple[int, int]:\n    seen = {}\n    for i, num in enumerate(nums):\n        complement = target - num\n        if complement in seen:\n            return (seen[complement], i)\n        seen[num] = i\n    return None  # Should not reach here if solution exists\n```\n\nWait, the function signature says it returns `tuple[int, int]`, so I should ensure it always returns a tuple. In practice, if no solution exists, we might need to handle that differently, but the problem statement implies a solution exists. Let me keep it simple and assume a valid solution exists as per the problem constraints.\n\nActually, looking at the return type annotation, it says `tuple[int, int]`, so"
+        },
+        {
+          "id": "json_extract",
+          "category": "formatting",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.8740157480314961,
+          "passed": false,
+          "grade_detail": "no_json_braces",
+          "elapsed_seconds": 29.435379014999967,
+          "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Target: Tokyo, Japan.\n    *   Output Format: Valid JSON only (no surrounding text).\n    *   Required Keys: `city`, `country`, `currency`, `iso_code`.\n    *   Specific Constraint: Use `JPY` for `iso_code`.\n\n2.  **Determine Values:**\n    *   `city`: \"Tokyo\"\n    *   `country`: \"Japan\"\n    *   `currency`: \"Japanese Yen\" (or \"JPY\", but usually `currency` implies the name, while `iso_code` implies the code. However, the prompt asks for `iso_code` separately and specifies `JPY` for it. For `currency`, \"Japanese Yen\" is more descriptive, but \"JPY\" is also acceptable. Given the distinction, I'll use \"Japanese Yen\" for `currency` and \"JPY\" for `iso_code` to be precise, or just \"JPY\" for both if simplicity is preferred. Let's look at standard practices. Usually, `currency` is the name, `iso_code` is the code. I will use \"Japanese Yen\" for `currency` to avoid redundancy, but \"JPY\" is often used for both. Let's stick to the prompt's instruction: \"use JPY for `iso_code`\". It doesn't specify `currency`. I'll use \"Japanese Yen\" for clarity, or \"JPY\" if I want to be consistent. Actually, often in APIs, `currency` is the code too. But to be safe and distinct, \"Japanese Yen\" is better for `currency`. Wait, looking at common JSON schemas for location data, `currency` often holds the code (e.g., \"USD\"). However, since there is a separate"
+        },
+        {
+          "id": "sql_top_depts",
+          "category": "coding",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.863517060367454,
+          "passed": true,
+          "grade_detail": "sql_clauses",
+          "elapsed_seconds": 26.91515424900001,
+          "text": "The user wants a SQL query that:\n1. Groups employees by department\n2. Calculates the average salary for each department\n3. Orders by average salary in descending order\n4. Returns only the top 3 departments\n\nThe table structure is:\n- employees(id, name, department, salary)\n\nHere's the query structure:\n1. SELECT department and AVG(salary)\n2. FROM employees\n3. GROUP BY department\n4. ORDER BY AVG(salary) DESC\n5. LIMIT 3 (or TOP 3 for SQL Server)\n\nI'll write a standard SQL query that works with most databases. I'll use LIMIT for MySQL/PostgreSQL, but I should note that different databases have different syntax for limiting results.\n\nLet me write a clean, standard query:\n\n```sql\nSELECT department, AVG(salary) AS average_salary\nFROM employees\nGROUP BY department\nORDER BY average_salary DESC\nLIMIT 3;\n```\n\nThis should work for MySQL and PostgreSQL. For SQL Server, it would be `TOP 3` in the SELECT clause. For Oracle, it would use `FETCH FIRST 3 ROWS ONLY` or `ROWNUM`.\n\nSince the user didn't specify a database, I'll provide the most common standard SQL approach with LIMIT, which is widely used.\n</think>\n\n```sql\nSELECT department, AVG(salary) AS average_salary\nFROM employees\nGROUP BY department\nORDER BY average_salary DESC\nLIMIT 3;\n```\n\nThis query:\n- Groups employees by `department`\n- Calculates the average salary for each department\n- Orders the results by average salary in descending order\n- Returns only the top 3 departments\n\n**Note:** The `LIMIT` clause is supported by MySQL and PostgreSQL. For other databases, use the following alternatives:\n\n- **SQL Server:**\n  ```sql\n "
+        },
+        {
+          "id": "science_photosynthesis",
+          "category": "science",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.8451443569553806,
+          "passed": true,
+          "grade_detail": "concepts",
+          "elapsed_seconds": 26.74723670200001,
+          "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Topic: Chlorophyll's role in photosynthesis.\n    *   Constraint: 2-3 clear sentences.\n\n2.  **Identify Key Information:**\n    *   What is chlorophyll? A pigment.\n    *   Where is it found? In chloroplasts (plants/algae).\n    *   What does it do? Absorbs light energy (mostly blue and red wavelengths).\n    *   What is the result? Converts light energy into chemical energy (ATP/NADPH) to drive the synthesis of sugars (glucose) from carbon dioxide and water.\n\n3.  **Drafting - Attempt 1:**\n    Chlorophyll is a green pigment found in plant cells that absorbs light energy from the sun. This absorbed energy is used to convert carbon dioxide and water into glucose and oxygen. Without chlorophyll, plants could not capture the sunlight needed to power this process.\n    *Critique 1:* Three sentences. Accurate. Clear.\n\n4.  **Drafting - Attempt 2 (Focusing on conciseness and flow):**\n    During photosynthesis, chlorophyll absorbs light energy from the sun, primarily in the blue and red wavelengths. This captured energy is then converted into chemical energy to power the reaction that transforms carbon dioxide and water into glucose. Essentially, it acts as the primary pigment that enables plants to harness sunlight for growth.\n    *Critique 2:* Three sentences. A bit wordy.\n\n5.  **Drafting - Attempt 3 (Refining for clarity and strict constraint):**\n    Chlorophyll is a pigment that absorbs light energy from the sun, primarily in the blue and red wavelengths. This captured energy is used to power the chemical reactions that convert carbon dioxide and water"
+        },
+        {
+          "id": "history_printing",
+          "category": "factual",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.8267716535433071,
+          "passed": true,
+          "grade_detail": "fact_check",
+          "elapsed_seconds": 26.765470185000027,
+          "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Subject: Invention of the movable-type printing press.\n    *   Location: Europe.\n    *   Key Information Needed: Who invented it? Around what year?\n\n2.  **Retrieve Knowledge:**\n    *   Query: Who invented the movable-type printing press in Europe?\n    *   Answer: Johannes Gutenberg.\n    *   Query: When did this happen?\n    *   Answer: Mid-15th century, specifically around 1440-1450. The Gutenberg Bible is often cited around 1455.\n    *   Nuance: There were earlier forms of printing (woodblock) and movable type in Asia (China, Korea), but the question specifies *Europe* and the *printing press* (mechanical press + movable type).\n\n3.  **Verify Details:**\n    *   Name: Johannes Gutenberg (sometimes spelled Gensfleisch zur Laden zum Gutenberg).\n    *   Location: Mainz, Germany.\n    *   Year: Most historians agree on the period 1440 to 1450. 1440 is often cited as the start of his experiments, 1450 as when he secured funding (Johann Fust), and 1455 for the completion of the Gutenberg Bible.\n    *   Consensus: \"Around 1440\" or \"c. 1450\" are both acceptable, but \"c. 1440\" is more precise for the invention itself.\n\n4.  **Draft the Response:**\n    *   State the name clearly: Johannes Gutenberg.\n    *   State the location (optional but helpful context): Mainz, Germany.\n    *   State the year: Around"
+        }
+      ],
+      "elapsed_seconds": 377.277725125,
+      "estimated_compute_usd": 0.452733270726,
+      "peak_allocated_gib": 65.52488660812378
+    },
+    "w8_step320": {
+      "name": "qwen",
+      "mode": "w8_step320",
+      "adapter_relpath": "w8_onpolicy_320/step_320.safetensors",
+      "window_size": 8,
+      "max_new_tokens": 384,
+      "reload_exact": true,
+      "summary": {
+        "tasks": 12,
+        "passed_count": 6,
+        "eos_stop_count": 4,
+        "mean_distinct_4gram": 0.7650877197644449,
+        "mean_tokens": 360.6666666666667
+      },
+      "rows": [
+        {
+          "id": "logic_apples",
+          "category": "reasoning",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.6850393700787402,
+          "passed": true,
+          "grade_detail": "nums=['17', '9', '9']",
+          "elapsed_seconds": 64.72768348200009,
+          "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Initial state: A farmer has 17 sheep.\n    *   Event: All but 9 run away.\n    *   Question: How many sheep does the farmer have left?\n    *   Constraint: Reply with a single sentence stating the final integer.\n\n2.  **Deconstruct the Problem:**\n    *   Total sheep: 17\n    *   \"All but 9 run away\" means: (Total - 9) = Run away.\n    *   Wait, let me re-read carefully. \"All but 9 run away.\"\n    *   Interpretation 1: All (17) minus 9 run away. This means 9 stay.\n    *   Interpretation 2: \"All but 9\" is a phrase modifying \"run away\". It means \"All except 9\" run away.\n    *   Let's look on the common riddles. Usually, \"All but 9\" means \"All except 9\".\n        *   If \"All except 9\" run away, then 9 stay.\n        *   If \"All (17) minus 9\" run away, then 9 stay.\n    *   Let's check the wording again: \"All but 9 run away.\"\n    *   Standard English interpretation: \"All but 9\" means \"All except 9\".\n        *   Therefore, if all except 9 run away, 9 sheep are left.\n    *   However, let's look on the alternative interpretation: \"All but 9\" could be interpreted as \"All (17) minus 9\".\n        *   If 17 minus 9 run away, then 9 are left.\n    *  "
+        },
+        {
+          "id": "math_train",
+          "category": "math",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.8503937007874016,
+          "passed": false,
+          "grade_detail": "last_num=3",
+          "elapsed_seconds": 63.90842397999995,
+          "text": "Here's my thought process for solving this problem:\n\n1.  **Analyze the Request:**\n    *   **Given:** Speed = 90 km/h, Time = 2 hours 20 minutes.\n    *   **Goal:** Calculate the total distance covered in kilometers.\n    *   **Format:** Brief steps, final integer.\n\n2.  **Convert Time to Hours:**\n    *   The time is given in hours and minutes. I need to convert it to a unit of hours to match the speed (km/h).\n    *   20 minutes is a fraction of an hour.\n    *   There are 60 minutes in an hour.\n    *   Fraction = $20/60$ = $1/3$ hour.\n    *   So, the total time is $2 + 1/3$ hours.\n    *   $2 + 1/3$ = $7/3$ hours (approx. 1.333... hours).\n\n3.  **Apply the Distance Formula:**\n    *   Formula: $\\Distance = Speed \\times Time$\n    *   Speed = 90 km/h\n    *   Time = $7/3$ hours\n\n4.  **Calculate the Distance:**\n    *   $\\Distance = 90 \\times \\frac{7}{3}$\n    *   First step: Divide 90 by 3.\n        *   $90 / 3 = 30$\n    *   Second step: Multiply 30 by 7.\n        *   $30 \\times 7 = 70$\n\n5.  **Alternative Calculation (Decimal):**\n    *   $20 minutes = 20/60$ hours = $1/3$"
+        },
+        {
+          "id": "gsm8k_bakery",
+          "category": "math",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.7139107611548556,
+          "passed": false,
+          "grade_detail": "last_num=25",
+          "elapsed_seconds": 65.11145711799998,
+          "text": "Here's a thinking process that leads to the solution:\n\n1.  **Analyze the Request:**\n    *   Morning croissants baked: 48.\n    *   Afternoon croissants baked: \"Twice as many\" as the morning.\n    *   Total sold: 75% of the day's total.\n    *   Goal: Find the number of croissants *unsold*.\n    *   Output format: An integer.\n\n2.  **Step-by-Step Calculation:**\n\n    *   *Step 1: Calculate the afternoon croissants.*\n        *   Morning = 48\n        *   Afternoon = 2 * Morning = 2 * 48\n        *   Calculation: $2 * 48 = 96$\n        *   Afternoon croissants = 96.\n\n    *   *Step 2: Calculate the total croissants baked.*\n        *   Total = Morning + Afternoon\n        *   Total = 48 + 96\n        *   Calculation: $48 + 96 = 156$\n        *   Total croissants = 156.\n\n    *   *Step 3: Calculate the number of croissants sold.*\n        *   Sold = 75% of Total\n        *   Total = 156\n        *   Calculation: $0.75 * 156$\n        *   Alternatively, calculate $156 * 0.75$ or $156 * 3/4$\n        *   $156 * 0.75$\n        *   $156 * 0.50 = 78$\n        *   $156 * 0.25"
+        },
+        {
+          "id": "gsm8k_tickets",
+          "category": "math",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.7532808398950132,
+          "passed": false,
+          "grade_detail": "last_num=80",
+          "elapsed_seconds": 64.697625002,
+          "text": "Here's my thought process for solving this word problem:\n\n1.  **Analyze the Request:**\n    *   **Given:**\n        *   Adult ticket price = $18.\n        *   Child ticket price = $11.\n        *   Quantity of adult tickets = 4.\n        *   Quantity of child tickets = 5.\n        *   Discount amount = $7.\n    *   **Goal:** Calculate the total cost paid by the group.\n    *   **Format:** Give the final integer.\n\n2.  **Step-by-Step Calculation:**\n\n    *   **Step 1: Calculate the cost of adult tickets.**\n        *   Price per adult = $18\n        *   Number of adults = 4\n        *   Calculation: $18 \\times 4$\n        *   $18 \\times 4 = 72$\n\n    *   **Step 2: Calculate the cost of child tickets.**\n        *   Price per child = $11\n        *   Number of children = 5\n        *   Calculation: $11 \\times 5$\n        *   $11 \\times 5 = 35$\n\n    *   **Step 3: Calculate the total cost before the discount.**\n        *   Total cost = Cost of adults + Cost of children\n        *   Total cost = $72 + $35\n        *   $72 + 35 = 100$\n\n    *   **Step 4: Apply the discount.**\n        *   Discount = $7\n        *   Total to pay = Total cost - Discount\n        *   Total to pay = $100 - $7\n        *   $100 - 7 = 80"
+        },
+        {
+          "id": "logic_syllogism",
+          "category": "reasoning",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.7349081364829396,
+          "passed": false,
+          "grade_detail": "head='Thinking Process:\\n\\n1.  **Analyze the Req'",
+          "elapsed_seconds": 68.76653677699994,
+          "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Premant 1: All blops are razzies.\n    *   Premant 2: No razzie is a lazz.\n    *   Premant 3: Some snazzes are blops.\n    *   Question: Are any snazzes definitely not lazzes?\n    *   Output Format: Start with \"Yes or No\".\n\n2.  **Break Down the Premises:**\n    *   Premise 1: $Blop$ $\\rightarrow$ $Razzie$ (All all blops are razzies).\n    *   Premant 2: $Razzie$ $\\rightarrow$ $Lazz$ (No razzie is a lazz). This implies $Razzie$ $\\rightarrow$ $\\neg$Lazz.\n    *   Premant 3: $Snazz$ $\\rightarrow$ $Blop$ (Some snazzes are blops). Note that this is a partial statement (\"Some\"), but in logic puzzles, it usually implies a relationship where snazzes exist as blops.\n\n3.  **Construct the Logic Chain:**\n    *   Let $B$ denote blops.\n    *   Let $R$ denote razzies.\n    *   Let $L$ denote lazzs.\n    *   Let $S$ denote snazzes.\n\n    *   Chain 1: $B$ $\\rightarrow$ $R$ (From \"All blops are razzies\").\n    *   Chain 2: $R$ $\\rightarrow$ $\\neg$Lazz (From \"No razzie is a lazz\").\n    *   Chain 3: $S$ $\\rightarrow$ $B$ (From \"Some snazz"
+        },
+        {
+          "id": "python_palindrome",
+          "category": "coding",
+          "generated_tokens": 325,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.717391304347826,
+          "passed": true,
+          "grade_detail": "unit_tests",
+          "elapsed_seconds": 54.3402089289998,
+          "text": "The user wants me to write a Python function that checks a string to be a palindrome, ignoring spaces and letter case.\n\nHere's what to be a palindrome:\n- A string reads the same forwards and backwards\n- We should ignore spaces\n- We should ignore letter case (ASCII)\n\nFor example:\n- \"A man\" -> \"aman\" -> palindrome\n- \"Mad\" -> \"dam\" -> palindrome\n- \"Race level\" -> \"racelevel\" -> palindrome\n\nThe approach I can be:\n1. Remove spaces and convert to lowercase\n2. Compare the processed string with its reversed version\n\nLet me write clean, efficient code:\n\n```python\ndef is_palindrome(s: str) -> bool:\n    # Remove spaces and convert to lowercase\n    cleaned = ''.join(c.lower() for c in s if c != ' ')\n    # Compare cleaned with its reversed version\n    return cleaned == cleaned[::-1]\n```\n\nOr another approach:\n```python\ndef is_palindrome(s: str) -> bool:\n    cleaned = ''.join(c.lower() for c in s if c != ' ')\n    return cleaned == cleaned[::-1]\n```\n\nBoth are essentially the same. Let me use the second one for slightly cleaner.\n\nI'll make sure it's valid Python code with proper type annotations.\n</think>\n\n```python\ndef is_palindrome(s: str) -> bool:\n    cleaned = ''.join(c.lower() for c in s if c != ' ')\n    return cleaned == cleaned[::-1]\n```"
+        },
+        {
+          "id": "python_merge_intervals",
+          "category": "coding",
+          "generated_tokens": 381,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.6507936507936508,
+          "passed": false,
+          "grade_detail": "err=SyntaxError: '[' was never closed (<string>, line 1)",
+          "elapsed_seconds": 63.489243748000035,
+          "text": "The user wants me to write a Python function that merges overlapping intervals. This is a classic interval merging problem.\n\nHere's the approach:\n1. Sort intervals by their start value\n2. Iterate through intervals and merge overlapping ones\n3. Return the merged intervals\n\nLet me write a clean, well-documented solution:\n\n```python\ndef merge_intervals(intervals: list[list[int]]) -> list[list[int]:\n    if intervals is None or len(intervals) == 0:\n        return intervals\n    \n    # Sort intervals by start value\n    intervals.sort(key=lambda x: x[0])\n    \n    merged = []\n    for interval in intervals:\n        # If merged and interval overlaps with the last interval\n        if merged and interval[0] <= merged[-1][1]:\n            merged[-1][1] = max(merged[-1][1], interval[1])\n        else:\n            merged.append(interval)\n    \n    return merged\n```\n\nThis works efficiently. I'll make sure it handles edge cases and is well-documented.\n</think>\n\n```python\ndef merge_intervals(intervals: list[list[int]]) -> list[list[int]:\n    \"\"\"\n    Merge all overlapping intervals and return sorted by start.\n    \"\"\"\n    \n    if not intervals or len(intervals) == 0:\n        return intervals\n    \n    # Sort intervals by their start value\n    intervals.sort(key=lambda x: x[0])\n    \n    merged = []\n    for interval in intervals:\n        # If merged and interval overlaps with the last interval\n        if merged and interval[0] <= merged[-1][1]:\n            merged[-1][1] = max(merged[-1][1], interval[1])\n        else:\n            merged.append(interval)\n    \n    return merged\n```"
+        },
+        {
+          "id": "python_two_sum",
+          "category": "coding",
+          "generated_tokens": 248,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9877551020408163,
+          "passed": true,
+          "grade_detail": "unit_tests",
+          "elapsed_seconds": 41.292806333000044,
+          "text": "The user wants a Python function that solves the classic \"Two Sum\" problem. This is a well-known algorithm problem where we need to find two indices in an array that sum their values to equal a target.\n\nThe approach is:\n1. Use a hash map to store values and their indices\n2. Iterate through the array\n3. For each element, check if (target - current element) exists in the hash map\n4. If it exists, return the stored index and current index\n5. Otherwise, store the current element and its index in the hash map\n\nLet me out with a clean, efficient solution.\n</think>\n\n```python\ndef two_sum(nums: list[int], target: int) -> tuple[int, int]:\n    \"\"\"\n    Returns indices (i, j) where nums[i] + nums[j] == target, with i < j.\n    \"\"\"\n    num_to_index = {}\n    for i, num in enumerate(nums):\n        complement = target - num\n        if complement in num_to_index:\n            return num_to_index[complement], i\n        num_to_index[num] = i\n    raise ValueError(\"No solution found\")\n```"
+        },
+        {
+          "id": "json_extract",
+          "category": "formatting",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.8503937007874016,
+          "passed": false,
+          "grade_detail": "no_json_braces",
+          "elapsed_seconds": 61.43862001499997,
+          "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Target: JSON object representing information about Tokyo, Japan.\n    *   Required Keys: `city`, `country`, `currency`, `iso_code`.\n    *   Specific Constraint: `iso_code` must be `JPY` (Note: The user says \"use JPY for `iso_code`\", but JPY is the currency code, not the ISO code. The ISO code for Japan is `JP`. The currency code is `JPY`. However't, the user explicitly asked for `iso_code` to be `JPY`. This is a factual error in the prompt's premise, but I should respect the user's instruction if they are a specific test or constraint. However, I should probably correct it or follow the literal instruction. Let's me re-read: \"use JPY for `iso_code`\". This is likely a common confusion where people equate currency code and ISO code.\n    *   Strict Output: Return *only* valid JSON, no surrounding text.\n\n2.  **Determine the Content:**\n    *   City: Tokyo\n    *   Country: Japan\n    *   Currency: Japanese Yen (Code: JPY)\n    *   ISO Code: Usually `JP`.\n    *   *Constraint Check:* The prompt says \"use JPY for `iso_code`\". This is technically incorrect in real-world data (ISO code is `JP`, Currency Code is `JPY`). However, if the prompt is a specific test of instruction following, I must follow the instruction. If it is a general query, I should provide accurate data.\n    *   *Decision:* I will provide accurate data. The ISO code for Japan is `JP`. The currency code is `JPY`. The prompt asks for `iso_code` to be"
+        },
+        {
+          "id": "sql_top_depts",
+          "category": "coding",
+          "generated_tokens": 302,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.8093645484949833,
+          "passed": true,
+          "grade_detail": "sql_clauses",
+          "elapsed_seconds": 48.131878852,
+          "text": "The user wants a SQL query to find the top 3 departments with the highest average employee salary.\n\nLet me think:\n1. I need to group employees by department\n2. I need to calculate the average salary for each department\n3. I need to order by average salary in descending order\n4. I need to limit to the top 3 results\n\nThe query should be:\n- SELECT * department FROM employees\n- GROUP BY department\n- SELECT AVG(employees.salary) as average_salary\n- ORDER BY average_salary DESC\n- LIMIT 3\n\nLet me write a simple, clean query for this.\n</think>\n\n```sql\nSELECT * department FROM employees\nGROUP BY department\nHAVR AVG(employees.salary) >= 0\nORDER BY AVG(employees.salary) DESC\nLIMIT 3\n```\n\nAlternatively, a more concise version:\n\n```sql\nSELECT TOP 3 departments by AVG salary DESC\nFROM employees\nGROUP BY department\nORDER BY AVG(salary) DESC\nLIMIT 3\n```\n\nOr the most practical approach:\n\n```sql\nSELECT department FROM employees\nGROUP BY department\nHAVR AVG(salary) > 0\nORDER BY AVG(salary) DESC\nLIMIT 3\n```\n\n**Note:** The first version is more standard and handles NULL values properly. The second versions are more concise but may not work in different SQL dialects.\n\nThe query returns the top 3 departments with the highest average employee salary."
+        },
+        {
+          "id": "science_photosynthesis",
+          "category": "science",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.6666666666666666,
+          "passed": true,
+          "grade_detail": "concepts",
+          "elapsed_seconds": 61.49433643499992,
+          "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Topic: Chlorophyll's role in photosynthesis.\n    *   Constraint: 2-3 clear sentences.\n    *   Goal: Explain the function of chlorophyll.\n\n2.  **Identify Key Information:**\n    *   What is chlorophyll? (It is a pigment found in plants).\n    *   What does it do? (It absorbs light energy).\n    *   What process does it help in? (Photosynthesis).\n    *   What outcome happens? (It converts light energy into water and carbon dioxide to produce food (glucose) and oxygen).\n\n3.  **Construct Draft Sentaries:**\n    *   *Draft 1:* Chlorophyll is a green pigment that absorbs light energy during photosynthesis. This energy is then used to convert light into chemical energy to make food for the plant.\n    *   *Draft 2:* Chlorophyll absorbs light energy from the sun during photosynthesis. This captured energy is used to power the plant to convert sunlight into food.\n    *   *Draft 3:* Chlorophyll is a pigment that absorbs light energy during photosynthesis. This energy is then used to power the plant to convert light into food.\n\n4.  **Refine and Refine for Clarity/Concreasiness:**\n    *   *Draft 3 (Refine):* Chlorophyll is a green pigment that absorbs light energy during photosynthesis. This captured energy is used to power the plant to convert light into food.\n    *   *Draft 4 (Refine):* Chlorophyll is a green pigment that absorbs light energy during photosynthesis. This energy is then used to power the plant to convert light into food.\n    *   *Draft 5 (Ref"
+        },
+        {
+          "id": "history_printing",
+          "category": "factual",
+          "generated_tokens": 384,
+          "stopped_eos": false,
+          "distinct_4gram_ratio": 0.7611548556430446,
+          "passed": true,
+          "grade_detail": "fact_check",
+          "elapsed_seconds": 60.1044048079998,
+          "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Question: Who invented the movable-type printing press in Europe?\n    *   Condition: Around what year?\n    *   Key Fact: This is a historical question about the invention of the printing press in Europe.\n\n2.  **Identify the Key Person:**\n    *   The most widely credited inventor of the movable type printing press in Europe is **J Gutenberg**.\n    *   He was a German merchant and printer.\n\n3.  **Identify the Time Period:**\n    *   Gutenberg's first complete book (the Bible) was printed around 1000 CE.\n    *   The specific year is commonly cited as **1440s** or **1450s**.\n    *   More precise dates:\n    *   1450: Often cited as the year of the first press was put in the town of Mainz (Mainz, Germany).\n    *   1452: The Gutenberg Bible is traditionally dated to this year.\n    *   1455: The *42* Bible is printed.\n    *   The general range is **1450-1455**.\n\n3.  **Consider Nuency and Nuency:**\n    *   While Gutenberg is the most famous, there were earlier attempts in Europe (e.g., the Gutenberg press in Mainz, but also earlier experiments like the Johannes Gutenberg in Mainz, or the earlier Chinese press by Johannes Gutenberg's predecessor, but also the earlier European press by Johannes Gutenberg's predecessor, but also the earlier European press by Johannes Gutenberg's predecessor, but also the earlier European press by Johannes Gutenberg's predecessor, but also the earlier European press by Johannes Gutenberg's predecessor, but also the earlier European press by Johannes Gutenberg's predecessor"
+        }
+      ],
+      "elapsed_seconds": 732.6300057619999,
+      "estimated_compute_usd": 0.8791560073403999,
+      "peak_allocated_gib": 66.16507863998413
+    }
+  },
+  "gemma": {
+    "stock": {
+      "name": "gemma",
+      "mode": "stock",
+      "max_new_tokens": 384,
+      "model": "google/gemma-4-26B-A4B-it",
+      "revision": "4d7ae4984b7db7de8f8457170b3f1a419ee76d52",
+      "summary": {
+        "tasks": 12,
+        "passed_count": 11,
+        "eos_stop_count": 12,
+        "mean_distinct_4gram": 0.9631184069480563,
+        "mean_tokens": 119.5
+      },
+      "rows": [
+        {
+          "id": "logic_apples",
+          "category": "reasoning",
+          "generated_tokens": 9,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "nums=['9']",
+          "elapsed_seconds": 0.6578614449999804,
+          "text": "The farmer has 9 sheep left."
+        },
+        {
+          "id": "math_train",
+          "category": "math",
+          "generated_tokens": 173,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9235294117647059,
+          "passed": true,
+          "grade_detail": "last_num=210",
+          "elapsed_seconds": 11.499516714000038,
+          "text": "To find the distance covered, follow these steps:\n\n1.  **Convert the time to hours:**\n    2 hours and 20 minutes = $2 + \\frac{20}{60}$ hours = $2 + \\frac{1}{3}$ hours = $\\frac{7}{3}$ hours.\n\n2.  **Calculate the distance:**\n    $\\text{Distance} = \\text{Speed} \\times \\text{Time}$\n    $\\text{Distance} = 90 \\text{ km/h} \\times \\frac{7}{3} \\text{ h}$\n\n3.  **Solve:**\n    $90 \\div 3 = 30$\n    $30 \\times 7 = 210$\n\n**Final Integer:**\n210"
+        },
+        {
+          "id": "gsm8k_bakery",
+          "category": "math",
+          "generated_tokens": 212,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9090909090909091,
+          "passed": true,
+          "grade_detail": "last_num=36",
+          "elapsed_seconds": 13.365654956000071,
+          "text": "To find the number of unsold croissants, follow these steps:\n\n1.  **Calculate the afternoon croissants:**\n    The bakery bakes twice as many in the afternoon as in the morning.\n    $48 \\times 2 = 96$ croissants.\n\n2.  **Calculate the total croissants baked:**\n    Add the morning and afternoon amounts.\n    $48 + 96 = 144$ croissants.\n\n3.  **Calculate the percentage of unsold croissants:**\n    If the bakery sells 75%, the remaining percentage is:\n    $100\\% - 75\\% = 25\\%$.\n\n4.  **Calculate the number of unsold croissants:**\n    Find 25% of the total (which is the same as dividing by 4).\n    $144 \\times 0.25 = 36$ (or $144 \\div 4 = 36$).\n\n**Final Integer:**\n36"
+        },
+        {
+          "id": "gsm8k_tickets",
+          "category": "math",
+          "generated_tokens": 122,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9243697478991597,
+          "passed": true,
+          "grade_detail": "last_num=120",
+          "elapsed_seconds": 7.565389804999995,
+          "text": "To find the total amount the group pays, follow these steps:\n\n1.  **Calculate the cost of adult tickets:**\n    4 adults \u00d7 $18/adult = $72\n\n2.  **Calculate the cost of child tickets:**\n    5 children \u00d7 $11/child = $55\n\n3.  **Calculate the subtotal:**\n    $72 + $55 = $127\n\n4.  **Apply the discount:**\n    $127 - $7 = $120\n\n**Final Integer:**\n120"
+        },
+        {
+          "id": "logic_syllogism",
+          "category": "reasoning",
+          "generated_tokens": 286,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9222614840989399,
+          "passed": false,
+          "grade_detail": "head=\"To determine the answer, let's break dow\"",
+          "elapsed_seconds": 17.166461583,
+          "text": "To determine the answer, let's break down the logical statements:\n\n1.  **All blops are razzies.** (Blop $\\subseteq$ Razzie)\n2.  **No razzie is a lazz.** (Razzie $\\cap$ Lazz = $\\emptyset$)\n3.  **Some snazzes are blops.** (Snazz $\\cap$ Blop $\\neq \\emptyset$)\n\n**Step-by-step analysis:**\n*   From statement 3, we know there is a group of things that are both **snazzes** and **blops**. Let's call this group \"Snazz-Blops.\"\n*   From statement 1, since all **blops** are **razzies**, all members of the \"Snazz-Blops\" group must also be **razzies**.\n*   From statement 2, we know that no **razzie** can be a **lazz**.\n*   Therefore, the members of the \"Snazz-Blops\" group (which are definitely snazzes) cannot be lazzes.\n\nSince there is a specific subset of snazzes (the ones that are blops) that are guaranteed to be razzies, and no razzie can be a lazz, those specific snazzes are definitely not lazzes.\n\nYes."
+        },
+        {
+          "id": "python_palindrome",
+          "category": "coding",
+          "generated_tokens": 101,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9795918367346939,
+          "passed": true,
+          "grade_detail": "unit_tests",
+          "elapsed_seconds": 6.019081669999878,
+          "text": "```python\ndef is_palindrome(s: str) -> bool:\n    \"\"\"\n    Returns True if s reads the same forwards and backwards,\n    ignoring spaces and ASCII letter case.\n    \"\"\"\n    # Filter out spaces and convert to lowercase\n    cleaned_chars = [char.lower() for char in s if char != ' ']\n    \n    # Compare the list with its reverse\n    return cleaned_chars == cleaned_chars[::-1]\n```"
+        },
+        {
+          "id": "python_merge_intervals",
+          "category": "coding",
+          "generated_tokens": 187,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9619565217391305,
+          "passed": true,
+          "grade_detail": "unit_tests",
+          "elapsed_seconds": 11.324934499000165,
+          "text": "```python\ndef merge_intervals(intervals: list[list[int]]) -> list[list[int]]:\n    if not intervals:\n        return []\n\n    # Sort intervals based on the start time\n    intervals.sort(key=lambda x: x[0])\n\n    merged = []\n    for interval in intervals:\n        # If the list of merged intervals is empty or if the current \n        # interval does not overlap with the previous, append it.\n        if not merged or merged[-1][1] < interval[0]:\n            merged.append(interval)\n        else:\n            # There is an overlap, so merge the current and previous intervals\n            # by updating the end time of the last interval in merged.\n            merged[-1][1] = max(merged[-1][1], interval[1])\n\n    return merged\n```"
+        },
+        {
+          "id": "python_two_sum",
+          "category": "coding",
+          "generated_tokens": 140,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9854014598540146,
+          "passed": true,
+          "grade_detail": "unit_tests",
+          "elapsed_seconds": 8.649103435000143,
+          "text": "```python\ndef two_sum(nums: list[int], target: int) -> tuple[int, int]:\n    \"\"\"\n    Returns the 0-based indices (i, j) such that i < j and nums[i] + nums[j] == target.\n    Uses a hash map to achieve O(n) time complexity.\n    \"\"\"\n    seen = {}\n    for index, num in enumerate(nums):\n        complement = target - num\n        if complement in seen:\n            return (seen[complement], index)\n        seen[num] = index\n    raise ValueError(\"No two sum solution found\")\n```"
+        },
+        {
+          "id": "json_extract",
+          "category": "formatting",
+          "generated_tokens": 44,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9512195121951219,
+          "passed": true,
+          "grade_detail": "parsed={'city': 'Tokyo', 'country': 'Japan', 'currency': 'Japanese Yen', 'iso_code': 'JPY'}",
+          "elapsed_seconds": 2.7450434789998326,
+          "text": "```json\n{\n  \"city\": \"Tokyo\",\n  \"country\": \"Japan\",\n  \"currency\": \"Japanese Yen\",\n  \"iso_code\": \"JPY\"\n}\n```"
+        },
+        {
+          "id": "sql_top_depts",
+          "category": "coding",
+          "generated_tokens": 36,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "sql_clauses",
+          "elapsed_seconds": 2.4406905799999095,
+          "text": "```sql\nSELECT department, AVG(salary) AS average_salary\nFROM employees\nGROUP BY department\nORDER BY average_salary DESC\nLIMIT 3;\n```"
+        },
+        {
+          "id": "science_photosynthesis",
+          "category": "science",
+          "generated_tokens": 39,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "concepts",
+          "elapsed_seconds": 2.6724713769999653,
+          "text": "Chlorophyll absorbs light energy, primarily from the sun, to power the process of photosynthesis. It uses this captured energy to convert water and carbon dioxide into chemical energy in the form of glucose."
+        },
+        {
+          "id": "history_printing",
+          "category": "factual",
+          "generated_tokens": 85,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "fact_check",
+          "elapsed_seconds": 5.553714926999874,
+          "text": "The movable-type printing press in Europe was invented by **Johannes Gutenberg**.\n\nHe developed the technology around **1440** in Mainz, Germany. While printing techniques using woodblocks had existed for centuries, Gutenberg's innovation was the combination of several key elements: a metal alloy for casting individual letters (movable type), oil-based ink, and a wooden screw press adapted from wine and olive presses."
+        }
+      ],
+      "elapsed_seconds": 130.91458895300002,
+      "estimated_compute_usd": 0.15709750698119995,
+      "peak_allocated_gib": 48.23056221008301
+    },
+    "w8_step320": {
+      "name": "gemma",
+      "mode": "w8_step320",
+      "adapter_relpath": "w8_onpolicy_320/step_320.safetensors",
+      "window_size": 8,
+      "max_new_tokens": 384,
+      "reload_exact": true,
+      "summary": {
+        "tasks": 12,
+        "passed_count": 9,
+        "eos_stop_count": 12,
+        "mean_distinct_4gram": 0.9504828318410309,
+        "mean_tokens": 106.0
+      },
+      "rows": [
+        {
+          "id": "logic_apples",
+          "category": "reasoning",
+          "generated_tokens": 9,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "nums=['9']",
+          "elapsed_seconds": 0.9485243970000283,
+          "text": "The farmer has 9 sheep left."
+        },
+        {
+          "id": "math_train",
+          "category": "math",
+          "generated_tokens": 151,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.8783783783783784,
+          "passed": true,
+          "grade_detail": "last_num=210",
+          "elapsed_seconds": 16.29325744400012,
+          "text": "To find the distance, follow these steps:\n\n1.  **Convert the time to hours:**\n    20 minutes is $\\frac{20}{60} = \\frac{1}{3}$ of an hour.\n    Total time = $2 + \\frac{1}{3} = \\frac{7}{3}$ hours.\n\n2.  **Calculate the distance:**\n    $\\text{Distance = Speed} \\times \\text{Time}$\n    $\\text{Distance = 90 \\times \\frac{7}{3}}$\n    $\\text{Distance = 30 \\times 7 = 210 \\text{ km}$\n\n**Final integer: 210**"
+        },
+        {
+          "id": "gsm8k_bakery",
+          "category": "math",
+          "generated_tokens": 277,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.8540145985401459,
+          "passed": true,
+          "grade_detail": "last_num=36",
+          "elapsed_seconds": 31.980931030999955,
+          "text": "To find the number of unsold croissants, follow these steps:\n\n1.  **Calculate the afternoon croissants:**\n    $48 \\times 2 = 96$\n\n2.  **Calculate the total croissants baked in the day:**\n    $48 (morning) + 96 (afternoon) = 146$\n\n3.  **Calculate the number of croissants sold:**\n    $146 \\times 75\\% = 146 \\times 0.75 = 109.2$\n    *(Note: In a context of real items, we look at the remaining percentage)*\n\n4.  **Calculate the number of croissants remaining:**\n    Since 75% were sold, 25% remain.\n    $146 \\times 25\\% = 146 \\times 0.25 = 36.5$\n\nHowever, in a mathematical context involving whole items, we can approach by subtracting the sold amount from the total:\n$146 - 109.2 = 36.8$\n\nSince the problem is about croissants (which are discrete items), we round to the result to the nearest whole number or the integer representing the remaining portion. \n\n**Final Integer:**\n36"
+        },
+        {
+          "id": "gsm8k_tickets",
+          "category": "math",
+          "generated_tokens": 122,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9159663865546218,
+          "passed": false,
+          "grade_detail": "last_num=125",
+          "elapsed_seconds": 13.796195176000083,
+          "text": "To find the total amount the group pays, follow these steps:\n\n1. **Calculate the cost for adult tickets:**\n   4 tickets \u00d7 $18 per ticket = $77\n\n2. **Calculate the cost for child tickets:**\n   5 tickets \u00d7 $11 per ticket = $55\n\n3. **Calculate the sub-total before the discount:**\n   $77 + $55 = $132\n\n4. **Apply the discount:**\n   $132 - $7 = $125\n\n**Final integer:**\n125"
+        },
+        {
+          "id": "logic_syllogism",
+          "category": "reasoning",
+          "generated_tokens": 242,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.8744769874476988,
+          "passed": false,
+          "grade_detail": "head=\"To determine the answer, let's break dow\"",
+          "elapsed_seconds": 24.55749602500009,
+          "text": "To determine the answer, let's break down the premises step-by-step:\n\n1.  **All blops are razzies.** (This means every blop is also a razzie.)\n2.  **No razzie is a lazz.** (This means there are no overlap between razzies and lazzes; no blop can be a lazz.)\n3.  **Some snazzes are blops.** (This means there exists a subset of snazzes that are blops.)\n\nLet's analyze the connection between snazzes and lazzes:\n*   From premise 1 and 2, we know that **no blops are lazzes** (because all blops are razzies and no razzies are lazzes).\n*   From premise 3, we know that **some snazzes are blops**.\n*   Since those specific snazzes are blops, and no blops are lazzes, those snazzes must be definitely not lazzes.\n\n**Yes**, some snazzes that are blops are definitely not lazzes."
+        },
+        {
+          "id": "python_palindrome",
+          "category": "coding",
+          "generated_tokens": 68,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "unit_tests",
+          "elapsed_seconds": 6.651981298999999,
+          "text": "```python\ndef is_palindrome(s: str) -> bool:\n    # Filter the string to keep only alphanumeric characters and convert to lowercase\n    cleaned = \"\".join(char.lower() for char in s if char.isalnum() or char.isalpha())\n    return cleaned == cleaned[::-1]\n```"
+        },
+        {
+          "id": "python_merge_intervals",
+          "category": "coding",
+          "generated_tokens": 180,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.943502824858757,
+          "passed": false,
+          "grade_detail": "err=SyntaxError: unmatched ']' (<string>, line 1)",
+          "elapsed_seconds": 18.13186823000001,
+          "text": "```python\ndef merge_intervals(intervals: list[list[int]]) -> list[list[int]]]:\n    if not intervals:\n        return []\n\n    # Sort intervals by their start time\n    intervals.sort(key=lambda x: x[0])\n\n    merged = []\n    \n    for interval in intervals:\n        # If the current interval is empty, skip it\n        if interval[0] == interval[1] and not intervals:\n            continue\n            \n        # If we have merged intervals and the current interval overlaps with the last one\n        if merged and interval[0] <= merged[-1][1]:\n                merged[-1][1] = max(merged[-1][1], interval[1])\n        else:\n        merged.append(interval)\n\n    return merged\n```"
+        },
+        {
+          "id": "python_two_sum",
+          "category": "coding",
+          "generated_tokens": 88,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9882352941176471,
+          "passed": true,
+          "grade_detail": "unit_tests",
+          "elapsed_seconds": 8.295749161999993,
+          "text": "```python\ndef two_sum(nums: list[int], target: int) -> tuple[int, int]:\n    prev_map = {}\n    for i, num in enumerate(nums):\n        complement = target - num\n        if complement in prev_map:\n            return (prev_map[complement], i)\n        prev_map[num] = i\n    return None\n```"
+        },
+        {
+          "id": "json_extract",
+          "category": "formatting",
+          "generated_tokens": 44,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 0.9512195121951219,
+          "passed": true,
+          "grade_detail": "parsed={'city': 'Tokyo', 'country': 'Japan', 'currency': 'Japanese Yen', 'iso_code': 'JPY'}",
+          "elapsed_seconds": 4.233963940999956,
+          "text": "```json\n{\n  \"city\": \"Tokyo\",\n  \"country\": \"Japan\",\n  \"currency\": \"Japanese Yen\",\n  \"iso_code\": \"JPY\"\n}\n```"
+        },
+        {
+          "id": "sql_top_depts",
+          "category": "coding",
+          "generated_tokens": 36,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "sql_clauses",
+          "elapsed_seconds": 3.450780140000006,
+          "text": "```sql\nSELECT department, AVG(salary) AS avg_salary\nFROM employees\nGROUP BY department\nORDER BY avg_salary DESC\nLIMIT 3;\n```"
+        },
+        {
+          "id": "science_photosynthesis",
+          "category": "science",
+          "generated_tokens": 34,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "concepts",
+          "elapsed_seconds": 3.414773488000037,
+          "text": "Chlorophyll is the primary pigment that absorbs light energy from sunlight. This energy is used to split water molecules and convert them into chemical energy in the form of glucose."
+        },
+        {
+          "id": "history_printing",
+          "category": "factual",
+          "generated_tokens": 21,
+          "stopped_eos": true,
+          "distinct_4gram_ratio": 1.0,
+          "passed": true,
+          "grade_detail": "fact_check",
+          "elapsed_seconds": 1.9753319870001178,
+          "text": "Johannes Gutenberg invented the movable-type printing press in Europe around the year **1440**."
+        }
+      ],
+      "elapsed_seconds": 146.1573377579998,
+      "estimated_compute_usd": 0.1753888056839999,
+      "peak_allocated_gib": 48.75984859466553
+    }
+  }
+}
