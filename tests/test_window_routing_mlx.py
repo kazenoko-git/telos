@@ -325,7 +325,8 @@ def _save_noop_lfm2_adapter(tmp_path, mx):
     return path
 
 
-def test_local_mlx_window_distill_inkling2_resume_and_reload(tmp_path, monkeypatch):
+@pytest.mark.parametrize("router_training", ["adapter", "full"])
+def test_local_mlx_window_distill_inkling2_resume_and_reload(tmp_path, monkeypatch, router_training):
     import mlx.core as mx
     from telos.eval.runner import load_model_from_checkpoint
     from telos.models import inkling2_mlx
@@ -345,13 +346,13 @@ def test_local_mlx_window_distill_inkling2_resume_and_reload(tmp_path, monkeypat
     opts = dict(
         method="distill", hardware="mlx", finetune="lora", lora_rank=4,
         max_steps=3, batch_size=2, max_length=12, save_every=1, learning_rate=0.005,
-        window_size=4, selector_rank=4, window_cov_weight=0.25,
+        window_size=4, selector_rank=4, window_cov_weight=0.25, router_training=router_training,
     )
     final = posttrain(ckpt, data, tmp_path / "win_out", **opts)
     saved = mx.load(str(final))
     mx.eval(saved)
-    assert any(k.endswith("selector_b") and float(mx.sum(mx.abs(v)).item()) > 0 for k, v in saved.items())
-    assert any(k.endswith("token_b") and float(mx.sum(mx.abs(v)).item()) > 0 for k, v in saved.items())
+    assert any(k.endswith("selector_weight" if router_training == "full" else "selector_b") and float(mx.sum(mx.abs(v)).item()) > 0 for k, v in saved.items())
+    assert any(k.endswith("token_weight" if router_training == "full" else "token_b") and float(mx.sum(mx.abs(v)).item()) > 0 for k, v in saved.items())
     assert any(k.endswith("lora_b") and float(mx.sum(mx.abs(v)).item()) > 0 for k, v in saved.items())
 
     resumed = posttrain(

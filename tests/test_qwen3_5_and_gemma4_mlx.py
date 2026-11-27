@@ -262,7 +262,8 @@ def _find_ssd_budget(ckpt: Path) -> int:
     return high
 
 
-def test_qwen3_5_moe_resident_ssd_and_window_distill(tmp_path, monkeypatch):
+@pytest.mark.parametrize("router_training", ["adapter", "full"])
+def test_qwen3_5_moe_resident_ssd_and_window_distill(tmp_path, monkeypatch, router_training):
     import mlx.core as mx
 
     ckpt = _write_qwen3_5_moe_fixture(tmp_path / "q35", mx)
@@ -288,15 +289,26 @@ def test_qwen3_5_moe_resident_ssd_and_window_distill(tmp_path, monkeypatch):
     posttrain(
         ckpt, data, out_dir,
         method="distill", hardware="mlx", finetune="lora",
-        lora_rank=4, lora_alpha=8.0, window_size=4, selector_rank=4,
+        lora_rank=4, lora_alpha=8.0, window_size=4, selector_rank=4, router_training=router_training,
         max_steps=2, batch_size=1, grad_accum=2, max_length=16,
     )
     _patch_budget(monkeypatch, 2**30)
     loaded, backend, _ = load_model_from_checkpoint(out_dir)
     assert backend == "mlx" and loaded._window_controller.window_size == 4
+    if router_training == "full":
+        from mlx.utils import tree_flatten
+        saved = mx.load(str(out_dir / "model.adapter.safetensors"))
+        weights = {k: v for k, v in saved.items() if k.endswith(("selector_weight", "token_weight"))}
+        assert weights
+        assert any(mx.any(v != 0).item() for k, v in weights.items() if k.endswith("selector_weight"))
+        assert any(mx.any(v != 0).item() for k, v in weights.items() if k.endswith("token_weight"))
+        reloaded = dict(tree_flatten(loaded.parameters()))
+        for key, value in weights.items():
+            assert mx.array_equal(value, reloaded[key]).item()
 
 
-def test_gemma4_moe_and_dense_ssd_and_window_distill(tmp_path, monkeypatch):
+@pytest.mark.parametrize("router_training", ["adapter", "full"])
+def test_gemma4_moe_and_dense_ssd_and_window_distill(tmp_path, monkeypatch, router_training):
     import mlx.core as mx
 
     # 1. Dense Gemma 4 (enable_moe_block=False)
@@ -330,12 +342,22 @@ def test_gemma4_moe_and_dense_ssd_and_window_distill(tmp_path, monkeypatch):
     posttrain(
         ckpt, data, out_dir,
         method="distill", hardware="mlx", finetune="lora",
-        lora_rank=4, lora_alpha=8.0, window_size=4, selector_rank=4,
+        lora_rank=4, lora_alpha=8.0, window_size=4, selector_rank=4, router_training=router_training,
         max_steps=2, batch_size=1, grad_accum=2, max_length=16,
     )
     _patch_budget(monkeypatch, 2**30)
     loaded, backend, _ = load_model_from_checkpoint(out_dir)
     assert backend == "mlx" and loaded._window_controller.window_size == 4
+    if router_training == "full":
+        from mlx.utils import tree_flatten
+        saved = mx.load(str(out_dir / "model.adapter.safetensors"))
+        weights = {k: v for k, v in saved.items() if k.endswith(("selector_weight", "token_weight"))}
+        assert weights
+        assert any(mx.any(v != 0).item() for k, v in weights.items() if k.endswith("selector_weight"))
+        assert any(mx.any(v != 0).item() for k, v in weights.items() if k.endswith("token_weight"))
+        reloaded = dict(tree_flatten(loaded.parameters()))
+        for key, value in weights.items():
+            assert mx.array_equal(value, reloaded[key]).item()
 
 
 def test_real_cached_qwen3_5_and_gemma4_expert_indices():

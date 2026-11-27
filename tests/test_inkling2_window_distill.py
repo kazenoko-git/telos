@@ -101,16 +101,17 @@ class _ToyInklingModel(nn.Module):
         return SimpleNamespace(logits=self.head(h))
 
 
-def test_window_pinned_distill_gradients_checkpointing_and_export(tmp_path):
+@pytest.mark.parametrize("router_training", ["adapter", "full"])
+def test_window_pinned_distill_gradients_checkpointing_and_export(tmp_path, router_training):
     torch.manual_seed(7)
     model = _ToyInklingModel()
-    ctx = patch_inkling_for_window_distill(model, window_size=4, lora_rank=4, selector_rank=4, token_router_rank=4)
+    ctx = patch_inkling_for_window_distill(model, window_size=4, lora_rank=4, selector_rank=4, token_router_rank=4, router_training=router_training)
 
     trainable = [n for n, p in model.named_parameters() if p.requires_grad]
     frozen_experts = [p for n, p in model.named_parameters() if "gate_up" in n or "down" in n]
     assert trainable
     assert all(not p.requires_grad for p in frozen_experts)
-    assert any("selector.selector_b" in n for n in trainable)
+    assert any(("selector.selector_weight" if router_training == "full" else "selector.selector_b") in n for n in trainable)
     assert any("self_attn.o_proj.lora_b" in n for n in trainable)
 
     input_ids = torch.randint(0, 32, (2, 12))
@@ -126,13 +127,19 @@ def test_window_pinned_distill_gradients_checkpointing_and_export(tmp_path):
         loss.backward()
         if step == 0:
             # Verify gradients flow to both WindowSelector and LoRA adapters across loop passes.
-            assert model.layers[1].mlp.gate.selector.selector_b.grad is not None
-            assert model.layers[1].mlp.gate.selector.selector_b.grad.abs().sum() > 0
+            assert getattr(model.layers[1].mlp.gate.selector, "selector_weight" if router_training == "full" else "selector_b").grad is not None
+            assert getattr(model.layers[1].mlp.gate.selector, "selector_weight" if router_training == "full" else "selector_b").grad.abs().sum() > 0
             assert model.layers[1].self_attn.o_proj.lora_b.grad is not None
             assert model.layers[1].self_attn.o_proj.lora_b.grad.abs().sum() > 0
         optimizer.step()
 
     assert metrics["loss"] < initial_loss
+    if router_training == "full":
+        for router in (m for m in model.modules() if isinstance(m, WindowPinnedRouter)):
+            assert router.token_weight.grad is not None
+            assert torch.isfinite(router.token_weight.grad).all()
+            assert router.token_weight.grad.abs().sum() > 0
+            assert all(not p.requires_grad and p.grad is None for p in router.base_gate.parameters())
 
     # Verify gradient checkpointing across looped layers works cleanly.
     orig_forward = model.forward
@@ -142,7 +149,7 @@ def test_window_pinned_distill_gradients_checkpointing_and_export(tmp_path):
     optimizer.zero_grad()
     ckpt_loss, _ = distill_step(model, ctx, input_ids, prompt_lengths)
     ckpt_loss.backward()
-    assert model.layers[1].mlp.gate.selector.selector_b.grad.abs().sum() > 0
+    assert getattr(model.layers[1].mlp.gate.selector, "selector_weight" if router_training == "full" else "selector_b").grad.abs().sum() > 0
     assert model.layers[1].self_attn.o_proj.lora_b.grad.abs().sum() > 0
     model.forward = orig_forward
 
@@ -152,7 +159,7 @@ def test_window_pinned_distill_gradients_checkpointing_and_export(tmp_path):
     assert len(keys) == len(trainable)
 
     fresh = _ToyInklingModel()
-    patch_inkling_for_window_distill(fresh, window_size=4, lora_rank=4, selector_rank=4, token_router_rank=4)
+    patch_inkling_for_window_distill(fresh, window_size=4, lora_rank=4, selector_rank=4, token_router_rank=4, router_training=router_training)
     loaded_count, _ = load_adapter(fresh, str(adapter_path))
     assert loaded_count == len(keys)
     for n, p in model.named_parameters():
@@ -322,7 +329,8 @@ class _ToyQwen35SparseBlock(nn.Module):
         raise AssertionError("Should be replaced by _linear_gate_moe_forward")
 
 
-def test_qwen3_5_moe_linear_attn_and_shared_expert_window_distill():
+@pytest.mark.parametrize("router_training", ["adapter", "full"])
+def test_qwen3_5_moe_linear_attn_and_shared_expert_window_distill(tmp_path, router_training):
     torch.manual_seed(17)
     model = nn.Module()
     model.config = SimpleNamespace(
@@ -356,20 +364,44 @@ def test_qwen3_5_moe_linear_attn_and_shared_expert_window_distill():
     model.head = nn.Linear(16, 32, bias=False)
     model.forward = _run_model
 
-    ctx = patch_moe_for_window_distill(model, window_size=4, lora_rank=4, selector_rank=4, token_router_rank=4)
+    ctx = patch_moe_for_window_distill(model, window_size=4, lora_rank=4, selector_rank=4, token_router_rank=4, router_training=router_training)
     trainable = [n for n, p in model.named_parameters() if p.requires_grad]
     assert any("layers.0.linear_attn.in_proj_qkv.lora_b" in n for n in trainable)
     assert any("layers.1.self_attn.o_proj.lora_b" in n for n in trainable)
-    assert any("layers.0.mlp.gate.selector.selector_b" in n for n in trainable)
+    assert any(("selector.selector_weight" if router_training == "full" else "selector.selector_b") in n for n in trainable)
     assert not lin_layer.mlp.shared_expert.weight.requires_grad
 
     input_ids = torch.randint(0, 32, (2, 10))
     prompt_lengths = torch.tensor([3, 4])
     loss, _ = distill_step(model, ctx, input_ids, prompt_lengths)
     loss.backward()
-    assert lin_layer.mlp.gate.selector.selector_b.grad.abs().sum() > 0
+    assert getattr(lin_layer.mlp.gate.selector, "selector_weight" if router_training == "full" else "selector_b").grad.abs().sum() > 0
     assert lin_layer.linear_attn.in_proj_qkv.lora_b.grad.abs().sum() > 0
 
+
+
+    if router_training == "full":
+        routers = [m for m in model.modules() if isinstance(m, WindowPinnedRouter)]
+        for router in routers:
+            assert router.token_weight.grad is not None
+            assert torch.isfinite(router.token_weight.grad).all()
+            assert router.token_weight.grad.abs().sum() > 0
+            assert all(not p.requires_grad and p.grad is None for p in router.base_gate.parameters())
+        optimizer = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=1e-3)
+        optimizer.step()
+        path = tmp_path / "full.safetensors"
+        keys = export_adapter(model, str(path))
+        assert any(k.endswith("selector_weight") for k in keys)
+        assert any(k.endswith("token_weight") for k in keys)
+        expected = {n: p.detach().clone() for n, p in model.named_parameters() if p.requires_grad}
+        with torch.no_grad():
+            for n, p in model.named_parameters():
+                if n in expected:
+                    p.zero_()
+        load_adapter(model, str(path))
+        for n, p in model.named_parameters():
+            if n in expected:
+                assert torch.equal(p, expected[n])
 
 class _ToyGemma4Router(nn.Module):
     def __init__(self, hidden_dim=16, num_experts=6, top_k=2):
@@ -390,7 +422,8 @@ class _ToyGemma4Router(nn.Module):
         return probs, weights, indices
 
 
-def test_gemma4_moe_router_and_exact_unpinned_equivalence():
+@pytest.mark.parametrize("router_training", ["adapter", "full"])
+def test_gemma4_moe_router_and_exact_unpinned_equivalence(tmp_path, router_training):
     torch.manual_seed(19)
     model = nn.Module()
     model.config = SimpleNamespace(
@@ -429,7 +462,7 @@ def test_gemma4_moe_router_and_exact_unpinned_equivalence():
     )
 
     # At window_size=1 before any updates, student matches Gemma4TextRouter identically (KL == 0).
-    ctx = patch_moe_for_window_distill(model, window_size=1, lora_rank=4, selector_rank=4, token_router_rank=4)
+    ctx = patch_moe_for_window_distill(model, window_size=1, lora_rank=4, selector_rank=4, token_router_rank=4, router_training=router_training)
     input_ids = torch.randint(0, 32, (2, 8))
     prompt_lengths = torch.tensor([3, 4])
     loss0, metrics0 = distill_step(model, ctx, input_ids, prompt_lengths)
@@ -440,7 +473,36 @@ def test_gemma4_moe_router_and_exact_unpinned_equivalence():
     ctx.window_size = 4
     loss, _ = distill_step(model, ctx, input_ids, prompt_lengths)
     loss.backward()
-    assert layer.router.selector.selector_b.grad.abs().sum() > 0
-    assert layer.router.token_b.grad.abs().sum() > 0
+    assert getattr(layer.router.selector, "selector_weight" if router_training == "full" else "selector_b").grad.abs().sum() > 0
+    assert getattr(layer.router, "token_weight" if router_training == "full" else "token_b").grad.abs().sum() > 0
     assert layer.self_attn.q_proj.lora_b.grad.abs().sum() > 0
     assert not layer.mlp.gate_proj.weight.requires_grad
+
+
+    if router_training == "full":
+        routers = [m for m in model.modules() if isinstance(m, WindowPinnedRouter)]
+        for router in routers:
+            assert router.token_weight.grad is not None
+            assert torch.isfinite(router.token_weight.grad).all()
+            assert router.token_weight.grad.abs().sum() > 0
+            assert all(not p.requires_grad and p.grad is None for p in router.base_gate.parameters())
+        optimizer = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=1e-3)
+        optimizer.step()
+        path = tmp_path / "full.safetensors"
+        keys = export_adapter(model, str(path))
+        assert any(k.endswith("selector_weight") for k in keys)
+        assert any(k.endswith("token_weight") for k in keys)
+        expected = {n: p.detach().clone() for n, p in model.named_parameters() if p.requires_grad}
+        with torch.no_grad():
+            for n, p in model.named_parameters():
+                if n in expected:
+                    p.zero_()
+        load_adapter(model, str(path))
+        for n, p in model.named_parameters():
+            if n in expected:
+                assert torch.equal(p, expected[n])
+
+
+def test_full_router_rejects_missing_window():
+    with pytest.raises(ValueError, match="window_size"):
+        patch_moe_for_window_distill(_ToyInklingModel(), window_size=None, router_training="full")
