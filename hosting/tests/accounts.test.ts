@@ -347,10 +347,12 @@ it("binds OAuth to browser, provider and expiry and consumes it once", async () 
 
 it("requires explicit fresh authenticated linking and preserves existing API keys", async () => {
   const owner = await signup(); const key = await createKey(owner.token);
+  await env.DB.prepare("UPDATE accounts SET email_verified_at=NULL WHERE id=?").bind(owner.id).run();
   githubMock("owner@example.com");
   expect((await callbackOAuth("github", await startOAuth("github"))).headers.get("location")).toContain("sign_in_to_link");
   expect((await call("/api/auth/github/start", "POST", { intent: "link" })).status).toBe(401);
   expect((await callbackOAuth("github", await startOAuth("github", owner.token, "link"))).headers.get("location")).toContain("auth_success=linked");
+  expect((await env.DB.prepare("SELECT email_verified_at FROM accounts WHERE id=?").bind(owner.id).first<{email_verified_at:number}>())!.email_verified_at).toBeGreaterThan(0);
   const signedIn = await callbackOAuth("github", await startOAuth("github"));
   expect((await (await call("/api/me", "GET", undefined, sessionFrom(signedIn))).json<{id: string}>()).id).toBe(owner.id);
   expect((await call("/v1/models", "GET", undefined, key.key, "https://tls.wingit.tech")).status).toBe(200);
@@ -364,7 +366,8 @@ it("rejects linking to another owner and invalidates pending links on password r
   await callbackOAuth("github", await startOAuth("github", first.token, "link"));
   expect((await callbackOAuth("github", await startOAuth("github", second.token, "link"))).headers.get("location")).toContain("already_linked");
   const flow = await startOAuth("github", second.token, "link");
-  await env.DB.prepare("DELETE FROM sessions WHERE account_id=?").bind(second.id).run();
+  await call("/api/password/request", "POST", { email: "second@example.com" });
+  expect((await call("/api/password/reset", "POST", { token: mailedToken(), password: "replacement-password-123" })).status).toBe(200);
   expect((await callbackOAuth("github", flow)).headers.get("location")).toContain("reauthenticate");
 });
 
@@ -419,6 +422,14 @@ it("validates signed Google identity and skips email only for authoritative addr
   const owner = await (await call("/api/me","GET",undefined,sessionFrom(response))).json<{email_verified_at:number}>();
   expect(owner.email_verified_at).toBeGreaterThan(0);
   expect(env.EMAIL.send).not.toHaveBeenCalled();
+  const key = await createKey(sessionFrom(response));
+  const returning = await startOAuth("google");
+  await googleMock(returning, { email: "changed@gmail.com" });
+  const returningResponse = await callbackOAuth("google", returning);
+  expect(returningResponse.headers.get("location")).toContain("auth_success=signed_in");
+  expect((await call("/v1/models", "GET", undefined, key.key, "https://tls.wingit.tech")).status).toBe(200);
+  const returningKeys = await call("/api/keys", "GET", undefined, sessionFrom(returningResponse));
+  expect((await returningKeys.json<{id:string}[]>()).map(row => row.id)).toContain(key.id);
   vi.restoreAllMocks();
   vi.spyOn(env.EMAIL,"send").mockResolvedValue({messageId:"fixture-email"});
   const external = await startOAuth("google");
@@ -442,4 +453,26 @@ it("does not expose unconfigured providers or start them",async () => {
   const available = await app.fetch(new Request(origin+"/api/auth/providers"),configured);
   expect(await available.json()).toEqual({google:false,github:false});
   expect((await app.fetch(new Request(origin+"/api/auth/google/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({intent:"login"})}),configured)).status).toBe(503);
+});
+
+it("completes Resend verification and password fallback while keeping API keys valid", async () => {
+  const configured = { ...env, EMAIL_PROVIDER: "resend", RESEND_API_KEY: "fixture-resend-key" };
+  const delivered: string[] = [];
+  vi.spyOn(globalThis,"fetch").mockImplementation(async (input,options) => {
+    expect(String(input)).toBe("https://api.resend.com/emails");
+    delivered.push(JSON.parse(String(options?.body)).text);
+    return Response.json({ id: "fixture-email" });
+  });
+  const post = (path:string,data:unknown) => app.fetch(new Request(origin+path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)}),configured);
+  const signupResponse = await post("/api/signup",{email:"fallback@example.invalid",password:"fixture-password-12345"});
+  const owner = await signupResponse.json<{token:string}>();
+  const verification = delivered[0].match(/tls_action_[a-f0-9]{64}/)![0];
+  expect((await post("/api/verification/confirm",{token:verification})).status).toBe(200);
+  const key = await createKey(owner.token);
+  expect((await post("/api/password/request",{email:"fallback@example.invalid"})).status).toBe(200);
+  expect(delivered[1]).toContain("/account#reset=");
+  const reset = delivered[1].match(/tls_action_[a-f0-9]{64}/)![0];
+  expect((await post("/api/password/reset",{token:reset,password:"replacement-password-123"})).status).toBe(200);
+  expect((await call("/api/me","GET",undefined,owner.token)).status).toBe(401);
+  expect((await call("/v1/models","GET",undefined,key.key,"https://tls.wingit.tech")).status).toBe(200);
 });

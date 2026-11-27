@@ -126,6 +126,10 @@ oauth.get("/:provider/callback", async c => {
           .bind(kind, identity.subject, flow.account_id, now(), flow.session_hash, flow.account_id, now(), flow.credential_salt).run();
         if (!inserted.meta.changes) return c.redirect("/account#auth_error=reauthenticate");
       }
+      if (identity.verified) {
+        await c.env.DB.prepare("UPDATE accounts SET email_verified_at=COALESCE(email_verified_at,?) WHERE id=? AND email=? AND EXISTS(SELECT 1 FROM sessions WHERE hash=? AND account_id=? AND expires_at>?)")
+          .bind(now(), flow.account_id, identity.email, flow.session_hash, flow.account_id, now()).run();
+      }
       // Linking establishes a second sign-in method; it never changes the account's email or API keys.
       await issueSession(c, flow.account_id);
       return c.redirect("/account#auth_success=linked");
