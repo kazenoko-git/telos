@@ -150,3 +150,37 @@ Raw outputs are recorded in [test_suite_step500/summary.json](test_suite_step500
 - `ap-KX0pTU...` (Stage-2 `step 80 → 500` across all 11 H100 chunks): `$5.7893` compute
 - `ap-HZJD3z...` (`test_suite_step500`, all 3 models): `$0.8624` compute
 - **Cumulative November 2026 (`modal billing summary --json`)**: `$12.61` metered (`$0.44` free storage allowance, `$0.10` egress allowance), **`$12.07` credits applied**, `$0.00` billed — leaving **`~$17.93`** of the `$30.00` monthly credit (expiring Nov 30, 2026).
+
+## 12. Window-8 + Resident-MLP LoRA Diagnostic (`w8_diag`)
+
+Commit `5292de96` added `adapt_resident_mlp=True` to `patch_moe_for_window_distill` (wrapping Qwen3.5 `shared_expert` and Gemma4 dense parallel `mlp` `gate_proj`/`up_proj`/`down_proj` with LoRA while keeping routed experts frozen) and `mlp.shared_expert` resolution in `window_routing.py`. [modal_router_w8_and_rollouts.py](../../scripts/modal_router_w8_and_rollouts.py) tested `W=8` + `adapt_resident_mlp=True` over 80 mixed-domain steps and generated initial stock on-policy rollouts:
+
+| Model | Untrained `W=8` CE / KL / Top-1 | `W=8` `step_080` CE / KL / Top-1 | `W=8` `step_080` 96-tok `d4` / EOS | `W=16` `step_500` `d4` / EOS |
+| --- | ---: | ---: | ---: | ---: |
+| `inkling` | 3.0533 / 1.4378 / 57.25% | 2.4082 / 0.9041 / 65.83% | **0.947** / 7 of 8 | 0.926 / 7 of 8 |
+| `qwen` | 3.5298 / 1.3254 / 58.24% | 2.5732 / **0.8400 / 68.10%** | **0.868** / 1 of 8 | 0.730 / 0 of 8 |
+| `gemma` | 4.8257 / 1.7881 / 61.51% | 2.7612 / 1.0123 / 67.95% | **0.962** / 5 of 8 | 0.883 / 5 of 8 |
+
+In 80 steps, `W=8` + `adapt_resident_mlp=True` outperformed 500 steps of `W=16` on free-generation coherence across all three models and beat `W=16` step-500 KL/top-1 on Qwen (`0.8400`, `68.10%`).
+
+## 13. W=8 On-Policy + Mixed Distillation (`step 80 → step 320`)
+
+[modal_router_w8_onpolicy.py](../../scripts/modal_router_w8_onpolicy.py) topped up stock on-policy rollouts (`34` Inkling, `85` Qwen, `97` Gemma) and resumed `W=8` + `adapt_resident_mlp=True` from `w8_80step/step_080` through **step 320** (50% on-policy rollouts with `ce_weight=0.0`, 50% mixed domain prompts with `ce_weight=0.05`, `kl_weight=1.0`, `cov_weight=0.5`, `lr=3e-5 → 2e-4 → 2e-5`):
+
+| Model | Stock CE / `d4` | `step_200` CE / KL / Top-1 | `step_320` CE / KL / Top-1 | `step_320` 96-tok `d4` / EOS |
+| --- | ---: | ---: | ---: | ---: |
+| `inkling` | 2.1499 / 0.986 | 2.4267 / 0.8193 / 68.02% | **2.4167 / 0.8084 / 68.09%** | **0.946** / 7 of 8 |
+| `qwen` | 2.4111 / 0.934 | 2.5746 / 0.8002 / 68.08% | **2.5570 / 0.7642 / 70.29%** | **0.933** / 0 of 8 |
+| `gemma` | 4.0915 / 0.996 | — | **2.8909 / 0.9097 / 70.18%** | **0.992** / 5 of 8 |
+
+- **Gemma (`step_320`)**: Zero loops across all 8 out-of-distribution probes (`distinct_4gram = 0.992` vs `0.996` Stock), solving `logic_apples=9`, `is_palindrome`, Tokyo JSON, photosynthesis, `1440` printing press, `20/60 = 0.333` hour math, DB bullets, and haiku cleanly.
+- **Qwen (`step_320`)**: Zero `1. 1. 1...` numbering loops across all 8 probes (`distinct_4gram = 0.933` vs `0.934` Stock), matching Stock's `Thinking Process:` structure across every prompt.
+- **Inkling (`step_320`)**: Zero repetition loops (`distinct_4gram = 0.946`, `7/8` EOS), with minor arithmetic/syntax errors (`8 sheep`, `630 km`, `.lowercase`) remaining where Inkling lacks a resident dense/shared MLP.
+
+All `step_320.safetensors` adapters passed exact reload verification (`reload_parameters_exact = True`) and are indexed in [w8_onpolicy_320/artifacts.json](w8_onpolicy_320/artifacts.json).
+
+## 14. Cumulative Modal Credit Reconciliation (`2026-11-27`)
+
+- `ap-7nbJRk...` (`w8_diag` + initial rollouts): `$2.5720` compute
+- `ap-D0fmia...` (`w8_onpolicy_320` + rollout top-up + final 96-token test suite): `$4.2792` compute
+- **Cumulative November 2026 (`modal billing summary --json`)**: `$19.34` metered (`$0.44` free storage allowance, `$0.10` egress allowance), **`$18.80` credits applied**, `$0.00` billed — leaving **`~$11.20`** of the `$30.00` monthly credit (expiring Nov 30, 2026).
