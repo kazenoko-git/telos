@@ -422,3 +422,52 @@ def test_xla_spmd_fsdp_checkpoint_save_reload_reshards_and_resumes(monkeypatch, 
     trainer2.train(resume_step=2)
     assert trainer2.global_step == 3
     assert trainer2._next_row == 24  # 3 steps * global batch 8
+
+
+def test_bitmoe_bf16_autocast_multi_step_stability():
+    """Regression test for Canary 1 step-3 NaN under BF16 autocast in GatedDeltaNet."""
+    torch.manual_seed(42)
+    cfg = TelosConfig(
+        vocab_size=512,
+        d_model=128,
+        n_layers=4,
+        n_heads=4,
+        n_kv_heads=2,
+        max_seq_len=128,
+        is_causal=True,
+        use_bitlinear=True,
+        use_subln=True,
+        hybrid_swa_every=4,
+        sliding_window=32,
+        gdn_n_heads=4,
+        gdn_head_dim=32,
+        gdn_chunk_size=64,
+        ffn_type="moe_relu2",
+        moe_num_experts=8,
+        moe_top_k=2,
+        moe_d_ff=256,
+        moe_shared_d_ff=256,
+        mtp_num_heads=2,
+        mtp_d_ff=256,
+        mtp_loss_weight=0.3,
+    )
+    model = TelosTransformer(cfg)
+    opt = torch.optim.AdamW(model.parameters(), lr=2e-3, betas=(0.9, 0.95), weight_decay=0.01)
+    for step in range(1, 5):
+        x = torch.randint(4, 512, (2, 128))
+        opt.zero_grad()
+        with torch.amp.autocast("cpu", dtype=torch.bfloat16):
+            tl, mtp = model(
+                x, mask_override=True, next_token_only=True,
+                loss_targets=x[:, 1:], vocab_chunk_size=64, vocab_chunk_axis="token",
+                return_mtp_loss=True,
+            )
+            aux = model.collect_aux_loss()
+            loss = tl.mean() + mtp + aux
+        assert torch.isfinite(loss), f"Non-finite loss at BF16 step {step}"
+        loss.backward()
+        for name, p in model.named_parameters():
+            if p.grad is not None:
+                assert torch.isfinite(p.grad).all(), f"Non-finite grad in {name} at BF16 step {step}"
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        opt.step()

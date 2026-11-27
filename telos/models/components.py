@@ -26,9 +26,10 @@ class RMSNorm(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if hasattr(F, "rms_norm"):
-            return F.rms_norm(x, (x.shape[-1],), self.weight, self.eps)
+            w = self.weight if self.weight.dtype == x.dtype else self.weight.to(x.dtype)
+            return F.rms_norm(x, (x.shape[-1],), w, self.eps)
         rms = torch.sqrt(torch.mean(x.float() ** 2, dim=-1, keepdim=True) + self.eps)
-        return (x / rms.to(x.dtype)) * self.weight
+        return (x / rms.to(x.dtype)) * self.weight.to(x.dtype)
 
 
 class RotaryEmbedding(nn.Module):

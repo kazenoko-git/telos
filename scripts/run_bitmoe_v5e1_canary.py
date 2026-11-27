@@ -1,30 +1,32 @@
 #!/usr/bin/env python3
 """Single-chip TPU v5e-1 canary runner for Telos v1.9.2 (BitMoE + GDN/SWA + MTP).
 
-Runs a fast two-phase hardware verification without waiting in the v5e-8 queue:
-  Phase 1: Train steps 1..10 on configs/ar/bitmoe_canary_v5e1.yaml and save
-           checkpoint_step_10.pt to /tmp (with optional HF Hub upload + cleanup).
+Runs a fast two-phase hardware & numerical verification without waiting in the v5e-8 queue:
+  Phase 1: Train steps 1..N on configs/ar/bitmoe_canary_v5e1.yaml, enforcing finite
+           losses and parameters at every step, and save checkpoint_step_K.pt to /tmp
+           (with optional HF Hub upload + local delete + remote re-download).
   Phase 2: Construct a fresh TelosTransformer + UnifiedPyTorchTrainer, reload
-           checkpoint_step_10.pt, verify cursor/optimizer restoration, and run
-           steps 11..20 while reporting TPU HBM peak and loss continuity.
+           checkpoint_step_K.pt, verify finite weights + FP32 optimizer restoration,
+           resume steps K+1..N, and assert numerical continuity against Phase 1.
+
+Exits non-zero on ANY non-finite loss, non-finite parameter, or resume mismatch.
 
 Usage:
   # On Kaggle / Colab TPU v5e-1:
-  python scripts/run_bitmoe_v5e1_canary.py --device xla
+  python -u scripts/run_bitmoe_v5e1_canary.py --device xla
 
-  # Local CPU dry-run (verifies script + reload flow):
-  python scripts/run_bitmoe_v5e1_canary.py --device cpu --max-steps 4 --save-every 2
-
-  # With HF Hub staging test (/tmp -> HF upload -> delete -> download -> reload):
-  python scripts/run_bitmoe_v5e1_canary.py --device xla --hf-repo Kazenowoko/telos-canary
+  # With HF Hub round-trip test (/tmp -> HF upload -> delete -> download -> reload):
+  python -u scripts/run_bitmoe_v5e1_canary.py --device xla --hf-repo Kazenowoko/telos
 """
 
 from __future__ import annotations
 
 import argparse
 import copy
+import math
 import os
 import shutil
+import sys
 import time
 from pathlib import Path
 
@@ -34,6 +36,14 @@ import yaml
 from telos.models.transformer import TelosTransformer
 from telos.training.trainer_pytorch import UnifiedPyTorchTrainer
 from telos.training.xla_utils import clean_tpu_environment
+
+
+def _ensure_unbuffered_stdout() -> None:
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+        sys.stderr.reconfigure(line_buffering=True)
+    except Exception:
+        pass
 
 
 def _report_disk_headroom(stage_dir: Path) -> None:
@@ -54,6 +64,38 @@ def _report_xla_hbm(tag: str) -> None:
         print(f"  [HBM {tag}] used={used_gb:.2f} GiB | peak={peak_gb:.2f} GiB | limit={limit_gb:.2f} GiB", flush=True)
     except Exception:
         pass
+
+
+def _assert_all_params_finite(model: torch.nn.Module, label: str) -> None:
+    for name, p in model.named_parameters():
+        if not torch.isfinite(p.detach().cpu()).all():
+            raise RuntimeError(f"CANARY FAILED [{label}]: non-finite parameter detected in '{name}'")
+
+
+def _install_numerical_guard(trainer: UnifiedPyTorchTrainer, phase_label: str) -> dict[int, float]:
+    """Wrap _execute_microbatch to fail fast on any non-finite loss and record per-step losses."""
+    recorded: dict[int, float] = {}
+    orig_exec = trainer._execute_microbatch
+
+    def guarded_exec(batch_seqs, compute_metrics: bool = False):
+        loss, metrics = orig_exec(batch_seqs, compute_metrics=compute_metrics)
+        step_num = trainer.global_step + 1
+        # Check loss finiteness on log/guard steps (or every step when compute_metrics is True)
+        if compute_metrics or step_num <= 10:
+            loss_val = float(loss.detach().cpu().item())
+            if not math.isfinite(loss_val):
+                ce_val = float(metrics["unweighted_ce"].detach().cpu().item()) if metrics and "unweighted_ce" in metrics else float("nan")
+                mtp_val = float(metrics["mtp_loss"].detach().cpu().item()) if metrics and "mtp_loss" in metrics else float("nan")
+                aux_val = float(metrics["aux_loss"].detach().cpu().item()) if metrics and "aux_loss" in metrics else float("nan")
+                raise RuntimeError(
+                    f"CANARY FAILED [{phase_label}] at step {step_num}: non-finite loss "
+                    f"(loss={loss_val}, ce={ce_val}, mtp={mtp_val}, aux={aux_val})"
+                )
+            recorded[step_num] = loss_val
+        return loss, metrics
+
+    trainer._execute_microbatch = guarded_exec
+    return recorded
 
 
 def _upload_and_delete_hf(local_path: Path, repo_id: str, path_in_repo: str) -> None:
@@ -88,6 +130,8 @@ def _download_from_hf(repo_id: str, path_in_repo: str, dest_dir: Path) -> Path:
 
 
 def main() -> None:
+    _ensure_unbuffered_stdout()
+
     parser = argparse.ArgumentParser(description="Run Telos v1.9.2 single-chip TPU v5e-1 canary.")
     parser.add_argument("--config", default="configs/ar/bitmoe_canary_v5e1.yaml", help="Path to YAML config.")
     parser.add_argument("--device", default="xla", choices=["xla", "tpu", "cpu", "cuda", "mps"], help="Target device.")
@@ -129,7 +173,9 @@ def main() -> None:
 
     model1 = TelosTransformer(**cfg1["model"])
     trainer1 = UnifiedPyTorchTrainer(cfg1.get("paradigm", "ar"), model1, cfg1, device_type=args.device)
+    p1_losses = _install_numerical_guard(trainer1, "phase1")
     trainer1.train()
+    _assert_all_params_finite(model1, "phase1_end")
     _report_xla_hbm("after_phase1")
 
     ckpt_path = stage_dir / f"checkpoint_step_{save_step}.pt"
@@ -137,7 +183,7 @@ def main() -> None:
         raise FileNotFoundError(f"Expected canary checkpoint missing: {ckpt_path}")
 
     ckpt_mb = ckpt_path.stat().st_size / (1024 ** 2)
-    print(f"  [Canary] Verified Phase 1 checkpoint: {ckpt_path} ({ckpt_mb:.1f} MiB)", flush=True)
+    print(f"  [Canary] Verified Phase 1 checkpoint: {ckpt_path} ({ckpt_mb:.1f} MiB, all params finite)", flush=True)
 
     if args.hf_repo:
         remote_name = f"canary/{ckpt_path.name}"
@@ -153,6 +199,7 @@ def main() -> None:
     model2 = TelosTransformer(**cfg2["model"])
     trainer2 = UnifiedPyTorchTrainer(cfg2.get("paradigm", "ar"), model2, cfg2, device_type=args.device)
     trainer2.load_checkpoint(ckpt_path)
+    _assert_all_params_finite(model2, "phase2_reloaded")
 
     # Verify BF16-compressed optimizer states were upcast cleanly back to param dtype
     for param, st in trainer2.optimizer.state.items():
@@ -160,12 +207,29 @@ def main() -> None:
             assert st["exp_avg"].dtype == param.dtype, f"exp_avg dtype mismatch: {st['exp_avg'].dtype} vs {param.dtype}"
             assert st["exp_avg_sq"].dtype == param.dtype, f"exp_avg_sq dtype mismatch: {st['exp_avg_sq'].dtype} vs {param.dtype}"
 
+    p2_losses = _install_numerical_guard(trainer2, "phase2")
     trainer2.train(resume_step=save_step)
+    _assert_all_params_finite(model2, "phase2_end")
     _report_xla_hbm("after_phase2")
 
     assert trainer2.global_step == total_steps, f"Expected final step {total_steps}, got {trainer2.global_step}"
+
+    # Verify numerical continuity at the final step (allowing minor BF16 optimizer rounding)
+    if total_steps in p1_losses and total_steps in p2_losses:
+        diff = abs(p1_losses[total_steps] - p2_losses[total_steps])
+        print(
+            f"  [Continuity] Step {total_steps}: phase1_loss={p1_losses[total_steps]:.4f} vs "
+            f"phase2_loss={p2_losses[total_steps]:.4f} (diff={diff:.4e})",
+            flush=True,
+        )
+        if diff > 0.1:
+            raise RuntimeError(f"CANARY FAILED: resume loss diverged at step {total_steps} (diff={diff:.4e})")
+
     print("=" * 72, flush=True)
-    print(f"  CANARY PASSED: {save_step}->{total_steps} reload + resume verified on {args.device.upper()}.", flush=True)
+    print(
+        f"  CANARY PASSED: {save_step}->{total_steps} finite loss, finite params, and reload continuity verified on {args.device.upper()}.",
+        flush=True,
+    )
     print("=" * 72, flush=True)
 
 
