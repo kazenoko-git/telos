@@ -1,0 +1,56 @@
+# Tiny local smoke-test config for BitMoE + Hybrid GDN/SWA + BitLinear + MTP
+# Runs quickly on CPU / MPS / M5 Pro to verify STE grads, routing balance, and MTP loss.
+
+paradigm: ar
+
+model:
+  vocab_size: 8192
+  d_model: 256
+  n_layers: 4
+  n_heads: 8
+  n_kv_heads: 2
+  max_seq_len: 256
+  dropout: 0.0
+  tied_embeddings: true
+  is_causal: true
+  use_grad_checkpoint: false
+
+  use_bitlinear: true
+  use_subln: true
+  hybrid_swa_every: 4
+  sliding_window: 64
+  gdn_n_heads: 4
+  gdn_head_dim: 64
+  gdn_conv_kernel: 4
+  gdn_chunk_size: 32
+
+  ffn_type: moe_relu2
+  moe_num_experts: 8
+  moe_top_k: 2
+  moe_d_ff: 512
+  moe_shared_d_ff: 512
+  moe_capacity_factor: 1.25
+  moe_z_loss_coef: 0.001
+  moe_bias_update_rate: 0.001
+
+  mtp_num_heads: 2
+  mtp_d_ff: 512
+  mtp_loss_weight: 0.3
+
+training:
+  precision: bf16
+  fused_vocab_loss: true
+  fused_vocab_chunk_axis: token
+  fused_vocab_chunk_size: 128
+  batch_size: 4
+  gradient_accumulation: 1
+  max_steps: 50
+  warmup_steps: 10
+  max_lr: 2.0e-3
+  min_lr: 2.0e-4
+  weight_decay: 0.01
+  grad_clip: 1.0
+  seed: 42
+
+data:
+  synthetic: true

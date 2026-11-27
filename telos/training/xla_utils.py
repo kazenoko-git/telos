@@ -123,7 +123,6 @@ def get_xla_device():
     return _CACHED_XLA_DEVICE
 
 
-
 def get_xla_spmd_mesh():
     """Returns the active SPMD Mesh singleton across addressable TPU chips, or None."""
     global _CACHED_SPMD_MESH
@@ -141,6 +140,76 @@ def get_xla_spmd_mesh():
     except Exception:
         pass
     return None
+
+
+def compute_fsdp_param_spec(tensor, world_size: int, min_num_params: int = 16384):
+    """Return the GSPMD FSDP partition spec tuple for a 2D+ tensor, or None if unsharded.
+
+    For 3D MoE expert tensors [E, out, in], prefers dim 0 (expert axis) when divisible
+    by world_size; otherwise selects the first divisible dimension.
+    """
+    if world_size <= 1 or tensor.ndim < 2 or tensor.numel() < min_num_params:
+        return None
+    for dim in range(tensor.ndim):
+        if tensor.shape[dim] % world_size == 0:
+            return tuple("data" if i == dim else None for i in range(tensor.ndim))
+    return None
+
+
+def shard_model_fsdp_spmd(model, mesh, min_num_params: int = 16384) -> int:
+    """Shard 2D+ model parameters across the SPMD 'data' axis (GSPMD FSDP).
+
+    Returns the number of parameters sharded.
+    """
+    if mesh is None:
+        return 0
+    import torch_xla.distributed.spmd as xs
+
+    n_dev = int(mesh.size())
+    if n_dev <= 1:
+        return 0
+
+    sharded = 0
+    seen = set()
+    for _, param in model.named_parameters():
+        pid = id(param)
+        if pid in seen:
+            continue
+        seen.add(pid)
+        spec = compute_fsdp_param_spec(param, n_dev, min_num_params=min_num_params)
+        if spec is None:
+            continue
+        xs.mark_sharding(param, mesh, spec)
+        sharded += 1
+    return sharded
+
+
+def shard_optimizer_state_fsdp_spmd(optimizer, mesh, min_num_params: int = 16384) -> int:
+    """Re-apply GSPMD FSDP sharding to AdamW/XLAAdamW state tensors (e.g. after checkpoint load).
+
+    Returns the number of optimizer state tensors sharded.
+    """
+    if mesh is None or optimizer is None:
+        return 0
+    import torch
+    import torch_xla.distributed.spmd as xs
+
+    n_dev = int(mesh.size())
+    if n_dev <= 1:
+        return 0
+
+    sharded = 0
+    for param, state in optimizer.state.items():
+        if not isinstance(state, dict):
+            continue
+        spec = compute_fsdp_param_spec(param, n_dev, min_num_params=min_num_params)
+        if spec is None:
+            continue
+        for value in state.values():
+            if isinstance(value, torch.Tensor) and value.shape == param.shape:
+                xs.mark_sharding(value, mesh, spec)
+                sharded += 1
+    return sharded
 
 
 def get_xla_world_size() -> int:
@@ -228,5 +297,3 @@ def is_xla_master() -> bool:
 
     _CACHED_IS_MASTER = True
     return _CACHED_IS_MASTER
-
-

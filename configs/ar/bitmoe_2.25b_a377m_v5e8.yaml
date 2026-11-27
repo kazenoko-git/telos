@@ -1,0 +1,68 @@
+# Telos v1.9.2 — BitMoE-2.25B-A377M (Hybrid GDN/SWA + BitLinear W1.58A8 + MTP)
+# Sized for Kaggle TPU v5e-8 (8 x 16 GiB HBM, SPMD FSDP + grad checkpointing + tiled CE)
+# and targeting 1,000+ tok/s sustained decode on Apple M5 Pro.
+
+paradigm: ar
+
+model:
+  vocab_size: 32768
+  d_model: 1024
+  n_layers: 20
+  n_heads: 16
+  n_kv_heads: 4
+  max_seq_len: 2048
+  dropout: 0.0
+  tied_embeddings: true
+  is_causal: true
+  use_grad_checkpoint: true
+
+  # BitNet b1.58 W1.58A8 QAT + SubLN
+  use_bitlinear: true
+  use_subln: true
+
+  # Hybrid 3:1 Gated DeltaNet (15 layers) + Sliding-Window GQA (5 layers)
+  hybrid_swa_every: 4
+  sliding_window: 512
+  gdn_n_heads: 8
+  gdn_head_dim: 128
+  gdn_conv_kernel: 4
+  gdn_chunk_size: 64
+
+  # XLA-safe Fixed-Capacity MoE (1 shared + 24 routed, top-2, ReLU^2)
+  ffn_type: moe_relu2
+  moe_num_experts: 24
+  moe_top_k: 2
+  moe_d_ff: 2048
+  moe_shared_d_ff: 2048
+  moe_capacity_factor: 1.25
+  moe_z_loss_coef: 0.001
+  moe_bias_update_rate: 0.001
+
+  # DeepSeek-V3 style Multi-Token Prediction (3 extra heads: t+2, t+3, t+4)
+  mtp_num_heads: 3
+  mtp_d_ff: 2048
+  mtp_loss_weight: 0.3
+
+training:
+  precision: bf16
+  xla_fsdp: true
+  xla_dynamic_optimizer: true
+  gradient_checkpointing: true
+  fused_vocab_loss: true
+  fused_vocab_chunk_axis: token
+  fused_vocab_chunk_size: 512
+  # Global batch across 8 v5e chips in SPMD: 32 seqs (4/chip) x grad_accum 8 = 256 seqs (524,288 tok/step)
+  batch_size: 32
+  gradient_accumulation: 8
+  max_steps: 9000
+  warmup_steps: 300
+  max_lr: 2.0e-3
+  min_lr: 2.0e-4
+  weight_decay: 0.01
+  grad_clip: 1.0
+  seed: 42
+
+checkpoint:
+  checkpoint_dir: checkpoints/ar/bitmoe_2.25b_a377m
+  save_every_steps: 500
+  optimizer_state_dtype: bf16

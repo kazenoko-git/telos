@@ -5,7 +5,7 @@ Includes:
 - RMSNorm: root mean square normalization
 - RoPE (Rotary Position Embeddings): relative positional encodings applied to Q/K
 - SwiGLU: Feed-forward network
-- Attention: Multi-head attention with configurable causal masking
+- Attention: Multi-head / GQA / Sliding-Window attention with optional BitLinear QAT
 """
 
 import torch
@@ -100,30 +100,54 @@ class SwiGLU(nn.Module):
 
 
 class Attention(nn.Module):
-    """Multi-Head Attention with configurable causal masking (Bidirectional or Causal).
-    
+    """Multi-Head Attention with configurable causal masking, GQA, SWA, and BitLinear QAT.
+
     Supports:
     - Multi-Head Attention (MHA): n_kv_heads == n_heads
     - Grouped-Query Attention (GQA): n_kv_heads < n_heads
     - Multi-Query Attention (MQA): n_kv_heads == 1
+    - Sliding-Window Attention (SWA): sliding_window > 0
+    - BitNet W1.58A8 QAT + SubLN when use_bitlinear=True
     """
-    def __init__(self, d_model: int, n_heads: int, n_kv_heads: int | None = None, dropout: float = 0.0, is_causal: bool = False):
+    def __init__(
+        self,
+        d_model: int,
+        n_heads: int,
+        n_kv_heads: int | None = None,
+        dropout: float = 0.0,
+        is_causal: bool = False,
+        *,
+        sliding_window: int | None = None,
+        use_bitlinear: bool = False,
+        use_subln: bool = False,
+    ):
         super().__init__()
         assert d_model % n_heads == 0, f"d_model ({d_model}) must be divisible by n_heads ({n_heads})"
         self.d_model = d_model
         self.n_heads = n_heads
         self.n_kv_heads = n_heads if n_kv_heads is None else n_kv_heads
         self.is_causal = is_causal
+        self.sliding_window = sliding_window
+        self.use_bitlinear = use_bitlinear
+        self.use_subln = use_subln
         assert n_heads % self.n_kv_heads == 0, f"n_heads ({n_heads}) must be divisible by n_kv_heads ({self.n_kv_heads})"
-        
+
         self.num_queries_per_kv = n_heads // self.n_kv_heads
         self.head_dim = d_model // n_heads
         self.dropout = dropout
 
-        self.q_proj = nn.Linear(d_model, n_heads * self.head_dim, bias=False)
-        self.k_proj = nn.Linear(d_model, self.n_kv_heads * self.head_dim, bias=False)
-        self.v_proj = nn.Linear(d_model, self.n_kv_heads * self.head_dim, bias=False)
-        self.out_proj = nn.Linear(d_model, d_model, bias=False)
+        if use_bitlinear:
+            from .bitlinear import BitLinear
+            self.q_proj = BitLinear(d_model, n_heads * self.head_dim, bias=False, use_subln=False)
+            self.k_proj = BitLinear(d_model, self.n_kv_heads * self.head_dim, bias=False, use_subln=False)
+            self.v_proj = BitLinear(d_model, self.n_kv_heads * self.head_dim, bias=False, use_subln=False)
+            self.out_proj = BitLinear(d_model, d_model, bias=False, use_subln=use_subln)
+        else:
+            self.q_proj = nn.Linear(d_model, n_heads * self.head_dim, bias=False)
+            self.k_proj = nn.Linear(d_model, self.n_kv_heads * self.head_dim, bias=False)
+            self.v_proj = nn.Linear(d_model, self.n_kv_heads * self.head_dim, bias=False)
+            self.out_subln = RMSNorm(d_model) if use_subln else None
+            self.out_proj = nn.Linear(d_model, d_model, bias=False)
 
     def forward(
         self,
@@ -158,6 +182,12 @@ class Attention(nn.Module):
             k = torch.cat((past_k, k), dim=2)
             v = torch.cat((past_v, v), dim=2)
 
+        # Enforce bounded sliding-window KV cache during incremental decoding
+        if self.sliding_window is not None and self.sliding_window > 0 and cache_position is None:
+            if kv_cache is not None and k.shape[2] > self.sliding_window:
+                k = k[:, :, -self.sliding_window:]
+                v = v[:, :, -self.sliding_window:]
+
         kv_len = k.shape[2]
         native_gqa = self.num_queries_per_kv > 1 and x.device.type == "cuda"
         if self.num_queries_per_kv > 1 and not native_gqa:
@@ -172,7 +202,17 @@ class Attention(nn.Module):
 
         causal_flag = is_causal_override if is_causal_override is not None else self.is_causal
         attn_mask = None
-        if kv_cache is not None and causal_flag:
+        if self.sliding_window is not None and self.sliding_window > 0 and causal_flag:
+            if kv_cache is not None and seq_len == 1:
+                # Single-token decode with already-windowed KV cache attends to all cached keys
+                causal_flag = False
+            else:
+                past_len = kv_len - seq_len
+                q_pos = torch.arange(past_len, kv_len, device=q.device)[:, None]
+                k_pos = torch.arange(kv_len, device=q.device)[None, :]
+                attn_mask = (k_pos <= q_pos) & ((q_pos - k_pos) < self.sliding_window)
+                causal_flag = False
+        elif kv_cache is not None and causal_flag:
             if seq_len == 1:
                 # Incremental single-token decode attends to all cached keys plus self.
                 causal_flag = False
@@ -194,7 +234,13 @@ class Attention(nn.Module):
         )
 
         out = out.permute(0, 2, 1, 3).contiguous().view(batch, seq_len, self.d_model)
+        if not self.use_bitlinear and getattr(self, "out_subln", None) is not None:
+            out = self.out_subln(out)
         proj = self.out_proj(out)
         if return_kv:
-            return proj, kv_cache if cache_position is not None else (k, v)
+            present_k, present_v = k, v
+            if self.sliding_window is not None and self.sliding_window > 0 and cache_position is None and present_k.shape[2] > self.sliding_window:
+                present_k = present_k[:, :, -self.sliding_window:]
+                present_v = present_v[:, :, -self.sliding_window:]
+            return proj, kv_cache if cache_position is not None else (present_k, present_v)
         return proj

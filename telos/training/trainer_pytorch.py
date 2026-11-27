@@ -94,7 +94,7 @@ class UnifiedPyTorchTrainer:
             self.m_cfg["use_reliability_head"] = getattr(self.model, "use_reliability_head", self.paradigm == "corosred")
 
         self.vocab_size = self.m_cfg.get("vocab_size", 8192)
-        self.seq_len = self.m_cfg.get("seq_len", 512)
+        self.seq_len = self.m_cfg.get("seq_len", self.m_cfg.get("max_seq_len", 512))
         self.precision = str(self.t_cfg.get("precision", "bf16")).lower()
         self.precision = {"bfloat16": "bf16", "float16": "fp16"}.get(self.precision, self.precision)
 
@@ -206,6 +206,23 @@ class UnifiedPyTorchTrainer:
         elif hasattr(getattr(self.model, "module", None), "tie_weights"):
             self.model.module.tie_weights()
 
+        # Optional GSPMD FSDP parameter sharding across TPU chips (required for >700M models on 16 GiB v5e)
+        if self.is_tpu and self.t_cfg.get("xla_fsdp", False):
+            if not self.is_spmd or self.spmd_mesh is None:
+                raise RuntimeError(
+                    "xla_fsdp=True requires PyTorch/XLA SPMD mode (call torch_xla.runtime.use_spmd() before initializing "
+                    "the trainer) so model weights are not silently replicated across TPU chips."
+                )
+            bs_cfg = int(self.t_cfg.get("batch_size", 16))
+            if bs_cfg % self.world_size != 0:
+                raise RuntimeError(
+                    f"SPMD batch_size ({bs_cfg}) must be divisible by TPU world_size ({self.world_size})."
+                )
+            from .xla_utils import shard_model_fsdp_spmd
+            sharded_count = shard_model_fsdp_spmd(self.model, self.spmd_mesh)
+            if self.is_master:
+                print(f"  [Sharding] PyTorch-XLA GSPMD FSDP sharded {sharded_count} parameter tensors across {self.world_size} chips.")
+
         # Multi-GPU wrapping: Prefer DDP over deprecated DataParallel
         if getattr(self, "is_ddp", False):
             # Allow unused parameters in DDP only when reliability head is frozen
@@ -237,8 +254,12 @@ class UnifiedPyTorchTrainer:
             if (cuda_gb > 0 and cuda_gb <= 16.0) or (self.m_cfg.get("d_model", 512) >= 1024):
                 cuda_needs_chkpt = True
 
-        # Enable checkpointing on TPU only for large models (d_model >= 1536)
-        tpu_needs_chkpt = self.is_tpu and (self.m_cfg.get("d_model", 512) >= 1536 or self.t_cfg.get("batch_size", 32) > 128)
+        # Enable checkpointing on TPU for large models, MoE models, or large batches
+        tpu_needs_chkpt = self.is_tpu and (
+            self.m_cfg.get("d_model", 512) >= 1024
+            or self.m_cfg.get("moe_num_experts", 0) > 0
+            or self.t_cfg.get("batch_size", 32) > 128
+        )
         checkpoint_policy = self.t_cfg.get("gradient_checkpointing", "auto")
         if checkpoint_policy not in (True, False, "auto"):
             raise ValueError("gradient_checkpointing must be true, false or auto")
@@ -356,6 +377,9 @@ class UnifiedPyTorchTrainer:
         elif self.is_tpu and self.t_cfg.get("xla_dynamic_optimizer", False):
             from .xla_optimizer import XLAAdamW
             optimizer_class = XLAAdamW
+            if self.is_spmd and self.t_cfg.get("xla_fsdp", False):
+                opt_kwargs["spmd_mesh"] = self.spmd_mesh
+                opt_kwargs["fsdp_sharded"] = True
         self.optimizer = optimizer_class(
             [
                 {"params": decay_params, "weight_decay": self.weight_decay},
@@ -441,6 +465,8 @@ class UnifiedPyTorchTrainer:
             xm.mark_step()
         raw_model = getattr(self.model, "_orig_mod", self.model)
         raw_model = getattr(raw_model, "module", raw_model)
+        opt_state_dict = self.optimizer.state_dict()
+        opt_save_dtype = str(self.c_cfg.get("optimizer_state_dtype", "fp32")).lower()
         state = {
             "resume_format": FORMAT_VERSION,
             "backend": f"pytorch:{self.device.type}",
@@ -449,7 +475,8 @@ class UnifiedPyTorchTrainer:
             "precision": self.precision,
             "global_step": self.global_step,
             "model_state_dict": raw_model.state_dict(),
-            "optimizer_state_dict": self.optimizer.state_dict(),
+            "optimizer_state_dict": opt_state_dict,
+            "optimizer_state_dtype": opt_save_dtype,
             "scheduler_state_dict": self.scheduler.state_dict(),
             "master_params": [mp for _, mp in self.param_to_master] if self.use_master_weights else None,
             "scaler": self.scaler.state_dict() if self.scaler is not None else None,
@@ -474,6 +501,12 @@ class UnifiedPyTorchTrainer:
         state["rank"] = self.rank
         state["step_rng"] = self.is_tpu
         state = cpu_copy(state)
+        if opt_save_dtype in ("bf16", "bfloat16"):
+            for p_state in state["optimizer_state_dict"].get("state", {}).values():
+                if isinstance(p_state, dict):
+                    for k, v in p_state.items():
+                        if k != "step" and isinstance(v, torch.Tensor) and v.is_floating_point():
+                            p_state[k] = v.to(dtype=torch.bfloat16)
         # Checkpoint errors propagate to the caller; atomic replacement preserves
         # the last good checkpoint even if serialization or disk writes fail.
         from telos.posttrain.resume import rank_path
@@ -496,6 +529,17 @@ class UnifiedPyTorchTrainer:
         raw_model = getattr(raw_model, "module", raw_model)
         raw_model.load_state_dict(checkpoint["model_state_dict"], strict=True)
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        # Upcast any bf16-compressed optimizer states back to their parameter dtype
+        for param, p_state in self.optimizer.state.items():
+            if isinstance(p_state, dict):
+                for k, v in p_state.items():
+                    if k != "step" and isinstance(v, torch.Tensor) and v.is_floating_point() and v.dtype != param.dtype:
+                        p_state[k] = v.to(dtype=param.dtype)
+        # Re-apply GSPMD FSDP sharding after load_state_dict (loading CPU tensors clears sharding specs)
+        if self.is_tpu and self.is_spmd and self.t_cfg.get("xla_fsdp", False):
+            from .xla_utils import shard_model_fsdp_spmd, shard_optimizer_state_fsdp_spmd
+            shard_model_fsdp_spmd(raw_model, self.spmd_mesh)
+            shard_optimizer_state_fsdp_spmd(self.optimizer, self.spmd_mesh)
         self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
         if self.scaler is not None:
             self.scaler.load_state_dict(checkpoint["scaler"])
@@ -525,17 +569,47 @@ class UnifiedPyTorchTrainer:
         metrics = None
 
         if self.paradigm == "ar":
+            raw_model = getattr(self.model, "_orig_mod", self.model)
+            raw_model = getattr(raw_model, "module", raw_model)
+            has_mtp = getattr(raw_model, "mtp", None) is not None
             if self.t_cfg.get("fused_vocab_loss", False):
                 chunk_axis = str(self.t_cfg.get("fused_vocab_chunk_axis", "vocab"))
                 chunk_size = int(self.t_cfg.get("fused_vocab_chunk_size", 512 if chunk_axis == "token" else 256))
-                token_losses = self.model(batch_seqs, mask_override=True, next_token_only=True,
-                                          loss_targets=batch_seqs[:, 1:],
-                                          vocab_chunk_size=chunk_size,
-                                          vocab_chunk_axis=chunk_axis)
-                loss = token_losses.mean()
-                return loss, {"loss": loss, "unweighted_ce": loss}
-            logits = self.model(batch_seqs, mask_override=True, next_token_only=True)
+                out = self.model(batch_seqs, mask_override=True, next_token_only=True,
+                                 loss_targets=batch_seqs[:, 1:],
+                                 vocab_chunk_size=chunk_size,
+                                 vocab_chunk_axis=chunk_axis,
+                                 return_mtp_loss=has_mtp)
+                if has_mtp:
+                    token_losses, mtp_loss = out
+                else:
+                    token_losses, mtp_loss = out, None
+                ce_loss = token_losses.mean()
+                loss = ce_loss
+                metrics = {"loss": loss, "unweighted_ce": ce_loss}
+                if mtp_loss is not None:
+                    loss = loss + mtp_loss
+                    metrics["mtp_loss"] = mtp_loss
+                aux_loss = raw_model.collect_aux_loss() if hasattr(raw_model, "collect_aux_loss") else None
+                if aux_loss is not None:
+                    loss = loss + aux_loss
+                    metrics["aux_loss"] = aux_loss
+                metrics["loss"] = loss
+                return loss, metrics
+            out = self.model(batch_seqs, mask_override=True, next_token_only=True, return_mtp_loss=has_mtp)
+            if has_mtp:
+                logits, mtp_loss = out
+            else:
+                logits, mtp_loss = out, None
             loss, metrics = ar_loss_fn_pytorch(logits, batch_seqs, special_token_lut=self.special_lut)
+            if mtp_loss is not None:
+                loss = loss + mtp_loss
+                metrics["mtp_loss"] = mtp_loss
+            aux_loss = raw_model.collect_aux_loss() if hasattr(raw_model, "collect_aux_loss") else None
+            if aux_loss is not None:
+                loss = loss + aux_loss
+                metrics["aux_loss"] = aux_loss
+            metrics["loss"] = loss
 
         elif self.paradigm == "mdlm":
             bs = batch_seqs.shape[0]

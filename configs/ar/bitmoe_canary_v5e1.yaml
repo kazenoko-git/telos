@@ -1,0 +1,66 @@
+# Telos v1.9.2 — Single-Chip TPU v5e-1 Canary Config (~120M total / ~45M active)
+# Exercises every v1.9.2 op on real v5e silicon (BitLinear W1.58A8, pure-matmul
+# chunkwise Gated DeltaNet, SWA-GQA, fixed-capacity MoE, 2x MTP heads, tiled CE,
+# XLAAdamW, and save/reload resume) without waiting in the v5e-8 queue.
+
+paradigm: ar
+
+model:
+  vocab_size: 8192
+  d_model: 512
+  n_layers: 8
+  n_heads: 8
+  n_kv_heads: 2
+  max_seq_len: 1024
+  dropout: 0.0
+  tied_embeddings: true
+  is_causal: true
+  use_grad_checkpoint: true
+
+  use_bitlinear: true
+  use_subln: true
+  hybrid_swa_every: 4
+  sliding_window: 256
+  gdn_n_heads: 4
+  gdn_head_dim: 128
+  gdn_conv_kernel: 4
+  gdn_chunk_size: 64
+
+  ffn_type: moe_relu2
+  moe_num_experts: 8
+  moe_top_k: 2
+  moe_d_ff: 1024
+  moe_shared_d_ff: 1024
+  moe_capacity_factor: 1.25
+  moe_z_loss_coef: 0.001
+  moe_bias_update_rate: 0.001
+
+  mtp_num_heads: 2
+  mtp_d_ff: 1024
+  mtp_loss_weight: 0.3
+
+training:
+  precision: bf16
+  xla_fsdp: false
+  xla_dynamic_optimizer: true
+  gradient_checkpointing: true
+  fused_vocab_loss: true
+  fused_vocab_chunk_axis: token
+  fused_vocab_chunk_size: 256
+  batch_size: 4
+  gradient_accumulation: 2
+  max_steps: 20
+  warmup_steps: 4
+  max_lr: 2.0e-3
+  min_lr: 2.0e-4
+  weight_decay: 0.01
+  grad_clip: 1.0
+  seed: 42
+
+checkpoint:
+  checkpoint_dir: checkpoints/ar/bitmoe_canary_v5e1
+  save_every_steps: 10
+  optimizer_state_dtype: bf16
+
+data:
+  synthetic: true

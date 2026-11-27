@@ -13,7 +13,24 @@ class XLAAdamW(torch.optim.AdamW):
 
     The update has the same mathematics as native AdamW. Moving scalar
     multiplication out of addcdiv can change floating-point rounding.
+    When `fsdp_sharded=True` and `spmd_mesh` is provided, lazily initialized
+    `exp_avg` / `exp_avg_sq` tensors are explicitly annotated with the same
+    GSPMD FSDP sharding spec as their parameter.
     """
+
+    def __init__(self, params, *args, spmd_mesh=None, fsdp_sharded: bool = False, **kwargs):
+        super().__init__(params, *args, **kwargs)
+        self._spmd_mesh = spmd_mesh
+        self._fsdp_sharded = bool(fsdp_sharded)
+
+    def _maybe_shard_state(self, param: torch.Tensor, tensor: torch.Tensor) -> None:
+        if not self._fsdp_sharded or self._spmd_mesh is None:
+            return
+        from .xla_utils import compute_fsdp_param_spec
+        spec = compute_fsdp_param_spec(param, int(self._spmd_mesh.size()))
+        if spec is not None:
+            import torch_xla.distributed.spmd as xs
+            xs.mark_sharding(tensor, self._spmd_mesh, spec)
 
     @torch.no_grad()
     def step(self, closure=None):
@@ -43,8 +60,11 @@ class XLAAdamW(torch.optim.AdamW):
                     state['step'] = torch.tensor(0., device='cpu')
                     state['exp_avg'] = torch.zeros_like(param)
                     state['exp_avg_sq'] = torch.zeros_like(param)
+                    self._maybe_shard_state(param, state['exp_avg'])
+                    self._maybe_shard_state(param, state['exp_avg_sq'])
                     if group['amsgrad']:
                         state['max_exp_avg_sq'] = torch.zeros_like(param)
+                        self._maybe_shard_state(param, state['max_exp_avg_sq'])
                 # AdamW keeps non-capturable step counters on the host, including
                 # when restoring its standard state dict.
                 if state['step'].device.type != 'cpu':
