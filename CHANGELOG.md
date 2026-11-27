@@ -12,15 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OpenAI-compatible HTTP/SSE serving endpoint via `telos serve` and `telos.inference.create_app` (optional `telos-ml[serve]` extra with `fastapi`, `uvicorn`, and `jinja2`), exposing `/health`, `/v1/models`, `/v1/completions`, and `/v1/chat/completions`, sandboxed Jinja2 chat template rendering with role-prefix fallback, Bearer API key auth, and timing/cache headers.
 - Native MLX causal inference for full-attention `qwen3` (including Ternary Bonsai 4B 2-bit), `qwen2`, `llama` (including Llama 3 smooth RoPE scaling), `mistral`, and `phi3` checkpoints with dense and packed affine-quantized projections, YaRN, and sharded Safetensors loading.
 - Native MLX resident and SSD-streamed MoE inference (`LFMSSDExpertCache`, `AppleMemoryGuard`) for `qwen3_moe`, `lfm2_moe` (LFM2.5), `inkling2_loop` / `inkling2_text` (Inkling 2 Mini NVFP4/MXFP8), `qwen3_5_moe` / `qwen3_5_moe_text`, and `gemma4` / `gemma4_text` (dense and MoE).
-- Window-pinned routing (`WindowPinController`, `window_size`) and knowledge distillation post-training (`posttrain(..., method="distill")`) across MLX (segmented SSD VJP) and PyTorch CUDA/XLA/CPU (with gradient accumulation, HF/Modal H100 runner, and LoRA adapter export/reload).
+- Window-pinned routing (`WindowPinController`, `window_size`) with trainable low-rank selector/token-routing adapters and knowledge distillation post-training (`posttrain(..., method="distill")`) across MLX (segmented SSD VJP) and PyTorch CUDA/XLA/CPU (with gradient accumulation, HF/Modal H100 runner, and LoRA adapter export/reload).
 - Bounded LRU exact-prefix KV cache (`PrefixKVCache`, `--prefix-cache-entries`) and multi-token cached suffix prefill on PyTorch and MLX.
 - Reproducible `telos serve` vs LM Studio HTTP/SSE benchmark harness (`scripts/benchmark_serve_vs_lmstudio.py`) and wire-format parity tests (`tests/test_lmstudio_endpoint_parity.py`).
 - Post-training exports include the tokenizer actually used by the run.
+- Routing distillation freezes the base router and trains routing adapters plus selected LoRA projections. Full-router training for Inkling 2 Mini, Qwen 3.5 MoE, and Gemma 4 26B A4B has not been implemented.
 
 ### Performance
 - Native inference uses incremental KV decoding, last-position final-layer prefill on MLX external architectures, reserved/indexed KV storage, and 1-step device-resident pipelining for both greedy and sampled cached MLX decode.
 - Shared-prefix KV reuse measured **3.85× lower TTFT** (`21.79 ms → 5.67 ms`) on PyTorch CPU with exact output parity (`240/256` cached prefix tokens).
-- Matched M5 Pro Bonsai 4B 2-bit in-process comparison measured **145.19 tok/s** vs LM Studio **124.33 tok/s** (+16.8%) and **113.5 ms** vs **197.7 ms** TTFT with exact 813-character parity. Live HTTP/SSE `telos serve` vs LM Studio and physical Metal tests for the newly added architectures remain pending a physical M5 Pro run. See [inference validation](docs/releases/v1.9.0-inference-validation.md).
+- Matched M5 Pro Bonsai 4B 2-bit in-process comparison measured **145.19 tok/s** vs LM Studio **124.33 tok/s** (+16.8%) and **113.5 ms** vs **197.7 ms** TTFT with exact 813-character parity. A separate saved HTTP/SSE run completed four trials per workload, with different greedy outputs between runtimes. Native Qwen 3.5 MoE and Gemma 4 tests cover tiny fixtures and optional checkpoint-index checks. Real-model generation and distillation validation for those two architectures remains unverified. Inkling and LFM2 have guarded real-model Mac measurements. See [inference validation](docs/releases/v1.9.0-inference-validation.md).
 
 ## [1.8.9] - 2026-11-23
 
