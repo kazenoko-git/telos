@@ -30,3 +30,11 @@ This release implements password-based signup/login, reservations, key lifecycle
 Eight Workers fixture tests cover account/key ownership, rotation races, reservations, sharing, streaming, connection leases, provisioning recovery, path routing and redirect rejection. Thirteen Python tests cover the client, connector lifecycle and serving compatibility.
 
 A live CPU-only tiny checkpoint (two layers, width 64, context 32) was served through Cloudflare over verified HTTPS. Both streaming and non-streaming four-token generations matched direct local generation exactly. Owner access, private isolation, explicit sharing, consumer output parity, rotation and revocation passed. The reserved path returned HTTP 200 and exact output. This validates the hosting transport, not real-model quality or production load capacity.
+
+To repeat the full fresh-account CLI smoke test explicitly:
+
+```sh
+.venv/bin/python scripts/check_hosting_flow.py --output reports/hosting_flow.json
+```
+
+This creates a disposable live account, key and reserved name, starts and restarts a tiny CPU server, and checks the same public URL and key after restart. It checks streaming parity, rotates the key, verifies the old key is rejected, checks generation with the replacement, and verifies revocation. It then stops its server, revokes its test keys and logs out. The report contains boolean results only; credentials and temporary checkpoints are not retained. The disposable account and offline reservation remain in the hosting database.
