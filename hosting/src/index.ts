@@ -147,20 +147,27 @@ app.post("/api/hosts/:slug/connect", async c => {
 
 app.post("/api/hosts/:slug/heartbeat", async c => {
   const host = await ownedHost(c, c.req.param("slug"));
-  if (!host.tunnel_id) throw new HTTPException(409, { message: "Connect the endpoint first." });
+  const data = await body(c);
+  if (!host.tunnel_id || data.connection_id !== host.connection_id) {
+    throw new HTTPException(409, { message: "This endpoint connection has expired or been replaced." });
+  }
   const health = await fetch("https://" + originHost(c.env, host) + "/health", {
     headers: { Authorization: "Bearer " + host.origin_key },
     signal: AbortSignal.timeout(5000), redirect: "error",
   });
   await health.body?.cancel();
   if (!health.ok) throw new HTTPException(503, { message: "Waiting for the model tunnel to become reachable." });
-  await c.env.DB.prepare("UPDATE hosts SET last_seen=? WHERE slug=?").bind(now(), host.slug).run();
+  await c.env.DB.prepare("UPDATE hosts SET last_seen=?,connection_expires=? WHERE slug=? AND connection_id=?")
+    .bind(now(), now()+90, host.slug, data.connection_id).run();
   return c.json({ ok: true });
 });
 
 app.post("/api/hosts/:slug/disconnect", async c => {
   const host = await ownedHost(c, c.req.param("slug"));
-  await c.env.DB.prepare("UPDATE hosts SET last_seen=0 WHERE slug=?").bind(host.slug).run();
+  const data = await body(c);
+  if (typeof data.connection_id !== "string") throw new HTTPException(400, { message: "A connection ID is required." });
+  await c.env.DB.prepare("UPDATE hosts SET last_seen=0,connection_id=NULL,connection_expires=0 WHERE slug=? AND connection_id=?")
+    .bind(host.slug, data.connection_id).run();
   return c.json({ ok: true });
 });
 

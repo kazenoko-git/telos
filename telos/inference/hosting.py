@@ -142,12 +142,12 @@ class TunnelRuntime(AbstractContextManager):
                 if self.process.poll() is not None:
                     raise HostingError("cloudflared exited. The public endpoint has gone offline.")
                 try:
-                    self.client.request("POST", f"/api/hosts/{self.slug}/heartbeat", {})
+                    self.client.request("POST", f"/api/hosts/{self.slug}/heartbeat", {"connection_id": self.connection["connection_id"]})
                     if not announced:
                         print(f"Public API: {self.connection['public_url']}", flush=True)
                         announced = True
                 except HostingError as exc:
-                    if exc.status in {401, 403, 404}:
+                    if exc.status in {401, 403, 404, 409}:
                         raise
                 self.stop.wait(15)
         except Exception as exc:
@@ -166,7 +166,7 @@ class TunnelRuntime(AbstractContextManager):
                 self.process.kill()
                 self.process.wait()
         try:
-            self.client.request("POST", f"/api/hosts/{self.slug}/disconnect", {})
+            self.client.request("POST", f"/api/hosts/{self.slug}/disconnect", {"connection_id": self.connection["connection_id"]})
         except HostingError:
             pass
         if self.directory:

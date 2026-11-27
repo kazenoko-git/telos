@@ -5,6 +5,7 @@ import { now, type AppEnv } from "./auth";
 export type Host = {
   slug: string; id: string; account_id: string; model: string; shared: number;
   origin_key: string; tunnel_id: string | null; port: number | null; last_seen: number;
+  connection_id: string | null; connection_expires: number;
 };
 
 export async function ownedHost(c: Context<AppEnv>, slug: string): Promise<Host> {
@@ -36,10 +37,11 @@ export function originHost(env: Env, host: Host): string {
 }
 
 export async function connect(c: Context<AppEnv>, host: Host, port: number) {
+  const connectionId = crypto.randomUUID();
   const locked = await c.env.DB.prepare(
-    "UPDATE hosts SET lease_until=? WHERE slug=? AND lease_until<?",
-  ).bind(now() + 180, host.slug, now()).run();
-  if (!locked.meta.changes) throw new HTTPException(409, { message: "Endpoint provisioning is already in progress. Retry shortly." });
+    "UPDATE hosts SET lease_until=?,connection_id=?,connection_expires=? WHERE slug=? AND lease_until<? AND connection_expires<?",
+  ).bind(now() + 180, connectionId, now()+180, host.slug, now(), now()).run();
+  if (!locked.meta.changes) throw new HTTPException(409, { message: "This endpoint already has an active server or is connecting. Stop it or wait for its connection lease to expire." });
   try {
     const accountPath = `/accounts/${c.env.CF_ACCOUNT_ID}/cfd_tunnel`;
     let tunnelId = host.tunnel_id;
@@ -64,7 +66,11 @@ export async function connect(c: Context<AppEnv>, host: Host, port: number) {
     });
     const token = await cf<string>(c.env, accountPath + "/" + tunnelId + "/token");
     await c.env.DB.prepare("UPDATE hosts SET port=?,last_seen=0 WHERE slug=?").bind(port, host.slug).run();
-    return { token, origin_key: host.origin_key, public_url: `https://${host.slug}.${c.env.MODEL_DOMAIN}/v1` };
+    return { token, connection_id: connectionId, origin_key: host.origin_key, public_url: `https://${host.slug}.${c.env.MODEL_DOMAIN}/v1` };
+  } catch (error) {
+    await c.env.DB.prepare("UPDATE hosts SET connection_id=NULL,connection_expires=0 WHERE slug=? AND connection_id=?")
+      .bind(host.slug, connectionId).run();
+    throw error;
   } finally {
     await c.env.DB.prepare("UPDATE hosts SET lease_until=0 WHERE slug=?").bind(host.slug).run();
   }
