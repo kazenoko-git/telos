@@ -45,6 +45,9 @@ def main():
         print("  generate   Generate text with a native causal Telos checkpoint")
         print("  download   Download a Hugging Face Safetensors checkpoint")
         print("  serve      Serve a native causal checkpoint over an OpenAI-compatible HTTP/SSE API")
+        print("  account    Sign up or sign in to Telos hosting")
+        print("  keys       Create, rotate, or revoke persistent inference API keys")
+        print("  tunnel     Reserve endpoints and manage shared hosting")
         print("  eval       High-end evaluation suite (100 contextual probes, code sampling, perplexity)")
         print("  eval documents  Export/replay the packaged 512-task document suite")
         print("  eval report  Turn saved evaluation JSON into a portable cream report (--output report.html)")
@@ -70,6 +73,9 @@ def main():
     elif cmd == "download":
         from telos.models.download import main as download_main
         download_main()
+    elif cmd in {"account", "keys", "tunnel"}:
+        from telos.inference.hosting import main as hosting_main
+        hosting_main(cmd)
     elif cmd == "serve":
         from telos.inference.serve_cli import main as serve_main
         serve_main()

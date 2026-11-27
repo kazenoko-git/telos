@@ -32,6 +32,8 @@ def main():
                         help="Number of exact prompt KV prefixes to retain across requests (0 disables)")
     parser.add_argument("--chat-template", help="Override Jinja2 chat template string or path to a template file")
     parser.add_argument("--api-key", help="Require Authorization: Bearer <key> on /v1/* endpoints")
+    parser.add_argument("--tunnel", help="Publish a reserved Telos subdomain")
+    parser.add_argument("--account-url", default="https://telos.wingit.tech", help="Telos account service origin")
     parser.add_argument("--warmup", action="store_true", help="Run a short 4-token warmup before accepting traffic")
     parser.add_argument("--log-level", default="info", choices=("critical", "error", "warning", "info", "debug"))
     args = parser.parse_args()
@@ -80,6 +82,23 @@ def main():
             default_cache=args.cache,
             api_key=args.api_key,
         )
-        uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
+        if args.tunnel:
+            from .hosting import HostingClient, TunnelRuntime
+            if args.host != "127.0.0.1":
+                raise ValueError("Managed tunnels require --host 127.0.0.1")
+            if args.api_key:
+                raise ValueError("Managed tunnels use account API keys. Omit --api-key.")
+            server = uvicorn.Server(uvicorn.Config(app, host=args.host, port=args.port, log_level=args.log_level))
+            with TunnelRuntime(
+                HostingClient.saved(args.account_url), args.tunnel, model_id, args.port,
+                on_failure=lambda: setattr(server, "should_exit", True),
+            ) as tunnel:
+                # The edge authenticates account keys, then uses this private origin credential.
+                app = create_app(generator, model_id=model_id, chat_renderer=renderer,
+                                 default_cache=args.cache, api_key=tunnel.origin_key)
+                server.config.app = app
+                server.run()
+        else:
+            uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
     except (OSError, ValueError, RuntimeError, ImportError) as exc:
         parser.exit(2, f"telos serve: {exc}\n")
