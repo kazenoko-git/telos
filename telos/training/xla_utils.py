@@ -11,6 +11,7 @@ _CACHED_XLA_DEVICE = None
 _CACHED_XLA_WORLD_SIZE = None
 _CACHED_IS_MASTER = None
 _CACHED_SPMD_MESH = None
+_CACHED_XLA_CACHE_PATH = None
 
 
 def is_tpu_environment() -> bool:
@@ -87,15 +88,23 @@ def clean_tpu_environment():
 
 
 def configure_xla_persistent_cache(cache_dir: str | os.PathLike | None = None) -> str | None:
-    """Initializes the PyTorch/XLA persistent compilation cache when configured."""
+    """Initializes the PyTorch/XLA persistent compilation cache once per process."""
+    global _CACHED_XLA_CACHE_PATH
     target = cache_dir or os.environ.get("XLA_PERSISTENT_CACHE_PATH")
     if not target:
         return None
     cache_path = str(Path(target).expanduser())
+    if _CACHED_XLA_CACHE_PATH == cache_path:
+        return _CACHED_XLA_CACHE_PATH
     Path(cache_path).mkdir(parents=True, exist_ok=True)
     import torch_xla.runtime as xr
     if hasattr(xr, "initialize_cache"):
-        xr.initialize_cache(cache_path, readonly=False)
+        try:
+            xr.initialize_cache(cache_path, readonly=False)
+        except AssertionError as exc:
+            if "already been initialized" not in str(exc):
+                raise
+    _CACHED_XLA_CACHE_PATH = cache_path
     return cache_path
 
 
