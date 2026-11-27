@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { getCookie } from "hono/cookie";
+import { getCookie, setCookie } from "hono/cookie";
 
 export type Account = { id: string; email: string; email_verified_at: number | null };
 export type AppEnv = { Bindings: Env; Variables: { account: Account } };
@@ -99,4 +99,12 @@ export async function inferenceAccount(c: Context<AppEnv>): Promise<string> {
 
 export function requireVerified(c: Context<AppEnv>): void {
   if (!c.get("account").email_verified_at) throw new HTTPException(403, { message: "Verify your email before creating keys or reserving endpoints." });
+}
+
+export async function issueSession(c: Context<AppEnv>, accountId: string): Promise<string> {
+  const token = secret("tls_session_");
+  await c.env.DB.prepare("INSERT INTO sessions(hash,account_id,expires_at,authenticated_at) VALUES(?,?,?,?)")
+    .bind(await hash(token), accountId, now()+30*86400, now()).run();
+  setCookie(c, "__Host-telos_session", token, { httpOnly: true, secure: true, sameSite: "Strict", path: "/", maxAge: 30*86400 });
+  return token;
 }

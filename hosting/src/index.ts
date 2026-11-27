@@ -1,9 +1,10 @@
 import { Hono, type Handler } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { account, body, hash, inferenceAccount, limitAuth, now, passwordHash, sameOrigin, secret, text, requireVerified, type AppEnv } from "./auth";
+import { deleteCookie, getCookie } from "hono/cookie";
+import { account, body, hash, inferenceAccount, limitAuth, now, passwordHash, sameOrigin, secret, text, requireVerified, issueSession, type AppEnv } from "./auth";
 import { connect, originHost, ownedHost, type Host } from "./tunnels";
 
+import { oauth } from "./oauth";
 import { recovery, sendAction } from "./recovery";
 
 const app = new Hono<AppEnv>();
@@ -54,10 +55,7 @@ for (const action of ["signup", "login"]) {
       const b = new TextEncoder().encode(owner?.password_hash || "0".repeat(64));
       if (!crypto.subtle.timingSafeEqual(a, b) || !owner) throw new HTTPException(401, { message: "Invalid email or password." });
     }
-    const token = secret("tls_session_");
-    await c.env.DB.prepare("INSERT INTO sessions(hash,account_id,expires_at) VALUES(?,?,?)")
-      .bind(await hash(token), owner.id, now() + 30 * 86400).run();
-    setCookie(c, "__Host-telos_session", token, { httpOnly: true, secure: true, sameSite: "Strict", path: "/", maxAge: 30 * 86400 });
+    const token = await issueSession(c, owner.id);
     // CLI callers receive the same session credential and store it in an owner-only file.
     const verification_sent = action === "signup" ? await sendAction(c.env, { id: owner.id, email, salt: owner.salt }, "verify") : undefined;
     return c.json({ id: owner.id, email, token, verification_sent });
@@ -65,11 +63,14 @@ for (const action of ["signup", "login"]) {
 }
 
 app.route("/api", recovery);
+app.route("/api/auth", oauth);
 
 app.use("/api/*", async (c, next) => {
   c.set("account", await account(c));
   await next();
 });
+
+app.get("/api/identities", async c => c.json((await c.env.DB.prepare("SELECT provider,created_at FROM oauth_identities WHERE account_id=?").bind(c.get("account").id).all()).results));
 
 app.get("/api/me", c => c.json(c.get("account")));
 app.post("/api/logout", async c => {
