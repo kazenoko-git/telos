@@ -115,3 +115,38 @@ Full prompt-by-prompt generations are in [test_suite_96tok/summary.json](test_su
 - `ap-r4VEzm...` (`ce_match_80step`, all 3 models completed): `$1.4356` compute
 - `ap-7j3nID...` (`test_suite_96tok`, all 3 models completed): `$0.6722` compute
 - **Cumulative November 2026 summary (`modal billing summary --json`)**: `$5.24` metered (`$0.10` network egress covered by allowance), **`$5.14` credits applied**, `$0.00` billed — leaving **`~$24.86`** of the `$30.00` monthly credit (expiring Nov 30, 2026).
+
+## 9. Stage-2 Mixed-Domain Training (`step 80 → step 500`)
+
+[modal_router_stage2.py](../../scripts/modal_router_stage2.py) resumed from `ce_match_80step/step_080.safetensors` with AdamW optimizer-state persistence (`optimizer_XXX.pt`) across bounded chunks (`timeout=1200`, `cpu=1, memory=8192`) on `/vol/stage2_mixed.json` (3,000 non-overlapping rows: 1,400 unseen Dolly + 600 Python code + 600 GSM8K math + 600 No Robots; `grad_accum=4`, `lora_rank=16`, `lr=3e-5 → 2e-4` over 12 warmup steps then cosine decay to `2e-5`).
+
+| Model | Stock CE | Step `80` CE / KL / Top-1 | Intermediate (`step 248` / `220` / `360`) | **Step `500` CE / KL / Top-1** | Remaining CE gap vs Stock |
+| --- | ---: | ---: | --- | ---: | ---: |
+| `inkling` | 2.1499 | 2.4484 / 0.9911 / 63.59% | `step 248`: 2.3784 / 0.8958 / 66.35% · `step 416`: 2.3422 / 0.8372 / 67.67% | **2.3178 / 0.8359 / 68.24%** | +0.1679 |
+| `qwen` | 2.4111 | 2.6327 / 0.9637 / 65.89% | `step 220`: 2.5712 / 0.9313 / 65.81% · `step 360`: 2.5704 / 0.8857 / 67.65% | **2.5400 / 0.8608 / 67.85%** | +0.1289 |
+| `gemma` | 4.0915 | 2.8068 / 1.1980 / 64.68% | `step 220`: 2.7228 / 1.0657 / 67.03% · `step 360`: 2.7028 / 0.9969 / 67.25% | **2.6818 / 0.9857 / 67.76%** | -1.4097 |
+
+All three models passed exact `step_500.safetensors` parameter reload verification (`reload_parameters_exact = True`). Local `step_500.safetensors` SHA-256 hashes and Modal checkpoint paths are in [stage2_500step/artifacts.json](stage2_500step/artifacts.json) and [stage2_500step/summary.json](stage2_500step/summary.json).
+
+## 10. Step-500 Out-of-Distribution 96-Token Test Suite
+
+Re-running [modal_router_test_suite.py](../../scripts/modal_router_test_suite.py) on fresh base models with `step_500.safetensors`:
+
+| Model | Stock `distinct_4gram` / EOS | `step_080` `distinct_4gram` / EOS | **`step_500` `distinct_4gram` / EOS** | Elapsed (s) / Est. USD |
+| --- | ---: | ---: | ---: | ---: |
+| `inkling` | 0.986 / 7 of 8 | 0.694 / 5 of 8 | **0.926 / 7 of 8** | 302.5s / \$0.363 |
+| `qwen` | 0.934 / 0 of 8 | 0.528 / 1 of 8 | **0.730 / 0 of 8** | 311.8s / \$0.374 |
+| `gemma` | 0.996 / 4 of 8 | 0.869 / 5 of 8 | **0.883 / 5 of 8** | 131.4s / \$0.158 |
+
+- **Inkling (`step_500`)**: Solved `math_train` (`210 km`, stopped cleanly on EOS), `history_printing` (`1450`), `science_photosynthesis`, `summary_bullet`, and `creative_haiku` without loops; minor errors remained on `logic_apples` (`8`), `python_palindrome`, and `json_extract` (`""city"`, `"Japanese"`).
+- **Qwen (`step_500`)**: Eliminated loops on 6 of 8 prompts (solving `logic_apples`=`9`, `history_printing`=`1450`, `science_photosynthesis`, `python_palindrome` setup, `math_train` fraction setup with `230 km` arithmetic slip), while `json_extract` and `summary_bullet` still hit `1. 1. 1...` numbering loops inside `Thinking Process:`.
+- **Gemma (`step_500`)**: Exact `9` on `logic_apples`, valid Tokyo JSON, clean photosynthesis, DB bullets, haiku, and `2 + 1/3` hour fraction conversion; still hit a `-one-one` loop on `python_palindrome` and `1000`/`1040` on `history_printing`.
+
+Raw outputs are recorded in [test_suite_step500/summary.json](test_suite_step500/summary.json).
+
+## 11. Final Reconciled Modal Billing (`2026-11-27`)
+
+- `ap-qVuRS4...` (Stage-2 mixed dataset CPU prep): `$0.0003`
+- `ap-KX0pTU...` (Stage-2 `step 80 → 500` across all 11 H100 chunks): `$5.7893` compute
+- `ap-HZJD3z...` (`test_suite_step500`, all 3 models): `$0.8624` compute
+- **Cumulative November 2026 (`modal billing summary --json`)**: `$12.61` metered (`$0.44` free storage allowance, `$0.10` egress allowance), **`$12.07` credits applied**, `$0.00` billed — leaving **`~$17.93`** of the `$30.00` monthly credit (expiring Nov 30, 2026).

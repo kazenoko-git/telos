@@ -1,0 +1,575 @@
+{
+  "inkling": {
+    "name": "inkling",
+    "model": "thinkingmachines/Inkling-2-Mini",
+    "revision": "c9d028302cd0f035fdf8e7e91f089a4ce94d2195",
+    "adapter_path": "/vol/results/inkling/stage2_500step/step_500.safetensors",
+    "lora_rank": 16,
+    "lora_alpha": 32.0,
+    "reload_exact": true,
+    "summary": {
+      "stock": {
+        "mean_distinct_4gram": 0.9863737486095662,
+        "eos_stop_count": 7,
+        "mean_tokens": 60.375
+      },
+      "adapted": {
+        "mean_distinct_4gram": 0.9255067348732331,
+        "eos_stop_count": 7,
+        "mean_tokens": 50.25
+      }
+    },
+    "stock": [
+      {
+        "id": "logic_apples",
+        "category": "reasoning",
+        "prompt": "A farmer has 17 sheep. All but 9 run away. How many sheep does the farmer have left? Answer concisely.",
+        "generated_tokens": 90,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 0.9770114942528736,
+        "elapsed_seconds": 26.504617735,
+        "text": "8 sheep.\n\nThe phrase \"all but 9\" means all of the sheep except 9 of them run away. So 17 total minus 9 remaining = 8 sheep run away, leaving 9 sheep. Wait\u2014let me re-read: \"All but 9 run away\" means 9 stay behind and the rest run away. So the farmer has 9 sheep left.\n\nCorrect answer: 9 sheep."
+      },
+      {
+        "id": "python_palindrome",
+        "category": "coding",
+        "prompt": "Write a short Python function `is_palindrome(s: str) -> bool` that ignores spaces and case.",
+        "generated_tokens": 48,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 14.467448305000005,
+        "text": "def is_palindrome(s: str) -> bool:\n    cleaned = ''.join(c.lower() for c in s if not c.isspace())\n    return cleaned == cleaned[::-1]"
+      },
+      {
+        "id": "json_extract",
+        "category": "formatting",
+        "prompt": "Return only valid JSON with keys `city`, `country`, and `currency` for Tokyo, Japan.",
+        "generated_tokens": 27,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 7.653935375999993,
+        "text": "{\"city\":\"Tokyo\",\"country\":\"Japan\",\"currency\":\"JPY\"}"
+      },
+      {
+        "id": "science_photosynthesis",
+        "category": "science",
+        "prompt": "Explain in 2-3 clear sentences what chlorophyll does during photosynthesis.",
+        "generated_tokens": 65,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 18.586934622,
+        "text": "Chlorophyll is a pigment found in plant cells that absorbs light energy, primarily from the sun. This absorbed energy is used to convert carbon dioxide and water into glucose and oxygen during photosynthesis. In short, it acts as the \"light-catcher\" that powers the chemical process of making food for the plant."
+      },
+      {
+        "id": "history_printing",
+        "category": "factual",
+        "prompt": "Who invented the movable-type printing press in Europe, and around what year?",
+        "generated_tokens": 62,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 17.703120323999997,
+        "text": "The movable-type printing press in Europe is generally credited to Johannes Gutenberg, who developed it around 1440. While earlier printing methods existed, Gutenberg's version used individual, reusable metal type, which allowed for much faster and more efficient mass production of books."
+      },
+      {
+        "id": "math_train",
+        "category": "math",
+        "prompt": "A train travels at 90 km/h for 2 hours and 20 minutes. How many kilometers does it cover?",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.9139784946236559,
+        "elapsed_seconds": 27.416936747999998,
+        "text": "The train travels at 90 km/h for 2 hours and 20 minutes.\n\nFirst, convert 2 hours and 20 minutes into hours:\n2 hours + 20/60 hours = 2 + 1/3 = 7/3 hours\n\nDistance = speed \u00d7 time = 90 \u00d7 7/3 = 90/3 \u00d7 7 = 30 \u00d7 7 = 210 km\n\nThe train covers 210 kilometers."
+      },
+      {
+        "id": "summary_bullet",
+        "category": "summarization",
+        "prompt": "Summarize in three bullet points why indexes speed up relational database queries.",
+        "generated_tokens": 70,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 19.515107975999996,
+        "text": "- Indexes create a sorted data structure that allows the database to locate rows quickly without scanning every record in a table.\n- They reduce the amount of data the engine must read by pointing directly to the specific locations of matching values.\n- By organizing data for fast lookup, indexes lower the time and computational cost required to execute queries."
+      },
+      {
+        "id": "creative_haiku",
+        "category": "instruction",
+        "prompt": "Write a haiku (5-7-5 syllables) about an autumn rainstorm.",
+        "generated_tokens": 25,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 6.898738605999995,
+        "text": "Autumn rain falls soft,\nLeaves swirl in puddles deep,\nGrey sky, quiet hush."
+      }
+    ],
+    "adapted": [
+      {
+        "id": "logic_apples",
+        "category": "reasoning",
+        "prompt": "A farmer has 17 sheep. All but 9 run away. How many sheep does the farmer have left? Answer concisely.",
+        "generated_tokens": 2,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 0.6888700739999933,
+        "text": "8"
+      },
+      {
+        "id": "python_palindrome",
+        "category": "coding",
+        "prompt": "Write a short Python function `is_palindrome(s: str) -> bool` that ignores spaces and case.",
+        "generated_tokens": 86,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 0.6144578313253012,
+        "elapsed_seconds": 30.298781622000007,
+        "text": "def is_palindrome(s: str) -> bool:\n    return s.lower().replace(\" \") == s.lower().replace(\" \")\n\nprint(is_palindrome(\"hello\"))  # True\nprint(is_palindrome(\"hello\"))  # False\nprint(is_palindrome(\"hello\"))  # True"
+      },
+      {
+        "id": "json_extract",
+        "category": "formatting",
+        "prompt": "Return only valid JSON with keys `city`, `country`, and `currency` for Tokyo, Japan.",
+        "generated_tokens": 27,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 9.853824930000002,
+        "text": "{\"\"city\":\"Tokyo\",\"country\":\"Japan\",\"currency\":\"Japanese\"}"
+      },
+      {
+        "id": "science_photosynthesis",
+        "category": "science",
+        "prompt": "Explain in 2-3 clear sentences what chlorophyll does during photosynthesis.",
+        "generated_tokens": 66,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 24.14712175400001,
+        "text": "Chlorophyll is a pigment that capture and absorb light energy, which is necessary for the light reactions of photosynthesis. It converts this energy into chemical changes that drive the process of converting carbon dioxide and water into glucose and oxygen. This process is essential for life on Earth, providing the energy that plants and animals can use."
+      },
+      {
+        "id": "history_printing",
+        "category": "factual",
+        "prompt": "Who invented the movable-type printing press in Europe, and around what year?",
+        "generated_tokens": 21,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 7.960078809999999,
+        "text": "Johannes Gutenberg invented the movable-type printing press in Europe around 1450."
+      },
+      {
+        "id": "math_train",
+        "category": "math",
+        "prompt": "A train travels at 90 km/h for 2 hours and 20 minutes. How many kilometers does it cover?",
+        "generated_tokens": 77,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 0.8648648648648649,
+        "elapsed_seconds": 28.258602209999964,
+        "text": "The train travels at 90 km/h for 2 hours and 20 minutes.\n\n2 hours and 20 minutes = 2 + 20/60 = 2 + 1/3 = 7/3 hours.\n\nDistance = 90 km/h \u00d7 7/3 hours = 210 km.\n\nThe train covers 210 km."
+      },
+      {
+        "id": "summary_bullet",
+        "category": "summarization",
+        "prompt": "Summarize in three bullet points why indexes speed up relational database queries.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.9247311827956989,
+        "elapsed_seconds": 34.50417992800004,
+        "text": "- **Efficiently, they reduce the search space**: Indexes are a data structure that allows the database engine to locate specific records quickly, instead of scanning the entire table.\n- **Fast, they are sorted**: Indexes are typically sorted by the key values, which allows the database to perform binary searches or binary searches to find the record in O(log) time.\n- **Efficiently, they are also used as a data structure"
+      },
+      {
+        "id": "creative_haiku",
+        "category": "instruction",
+        "prompt": "Write a haiku (5-7-5 syllables) about an autumn rainstorm.",
+        "generated_tokens": 27,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 9.758267795999984,
+        "text": "Soft autumn rain\nFalls on the roofs,\nThe leaves are swept away.\nThe wind is cold."
+      }
+    ],
+    "elapsed_seconds": 302.517958807,
+    "estimated_compute_usd": 0.36302156556840004,
+    "peak_allocated_gib": 50.90438365936279,
+    "peak_reserved_gib": 52.291015625,
+    "rusage_maxrss_gib": 25.848434448242188,
+    "status": "completed"
+  },
+  "qwen": {
+    "name": "qwen",
+    "model": "Qwen/Qwen3.5-35B-A3B",
+    "revision": "2508b2437e382c605eb0fc52b83f5545960f6b4a",
+    "adapter_path": "/vol/results/qwen/stage2_500step/step_500.safetensors",
+    "lora_rank": 16,
+    "lora_alpha": 32.0,
+    "reload_exact": true,
+    "summary": {
+      "stock": {
+        "mean_distinct_4gram": 0.9341397849462365,
+        "eos_stop_count": 0,
+        "mean_tokens": 96.0
+      },
+      "adapted": {
+        "mean_distinct_4gram": 0.7298387096774194,
+        "eos_stop_count": 0,
+        "mean_tokens": 96.0
+      }
+    },
+    "stock": [
+      {
+        "id": "logic_apples",
+        "category": "reasoning",
+        "prompt": "A farmer has 17 sheep. All but 9 run away. How many sheep does the farmer have left? Answer concisely.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.9032258064516129,
+        "elapsed_seconds": 14.688222286000041,
+        "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Input: A riddle/math problem (\"A farmer has 17 sheep. All but 9 run away. How many sheep does the farmer have left?\").\n    *   Constraint: Answer concisely.\n\n2.  **Analyze the Problem:**\n    *   Total sheep initially: 17.\n    *   Condition: \"All but 9 run away"
+      },
+      {
+        "id": "python_palindrome",
+        "category": "coding",
+        "prompt": "Write a short Python function `is_palindrome(s: str) -> bool` that ignores spaces and case.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.989247311827957,
+        "elapsed_seconds": 13.382073273999993,
+        "text": "The user wants a Python function that checks if a string is a palindrome, ignoring spaces and case.\n\nA palindrome reads the same forwards and backwards. For example:\n- \"racecar\" is a palindrome\n- \"A man a plan a canal Panama\" should be a palindrome when ignoring spaces and case\n\nThe function should:\n1. Remove all spaces from the string\n2. Convert to lowercase (or uppercase)\n3. Check if the resulting string equals its"
+      },
+      {
+        "id": "json_extract",
+        "category": "formatting",
+        "prompt": "Return only valid JSON with keys `city`, `country`, and `currency` for Tokyo, Japan.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.9247311827956989,
+        "elapsed_seconds": 13.674047763000033,
+        "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Target: Tokyo, Japan.\n    *   Output Format: Valid JSON.\n    *   Required Keys: `city`, `country`, `currency`.\n    *   Constraint: Return *only* valid JSON (no markdown, no explanations, no extra text).\n\n2.  **Determine Values:**\n    *   `city`: \"Tokyo\"\n    *  "
+      },
+      {
+        "id": "science_photosynthesis",
+        "category": "science",
+        "prompt": "Explain in 2-3 clear sentences what chlorophyll does during photosynthesis.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.9247311827956989,
+        "elapsed_seconds": 14.429871128000002,
+        "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Topic: Chlorophyll's role in photosynthesis.\n    *   Constraint: 2-3 clear sentences.\n\n2.  **Identify Key Information:**\n    *   What is chlorophyll? A pigment.\n    *   Where is it found? In chloroplasts (plants/algae).\n    *   What does it do? Absorbs light"
+      },
+      {
+        "id": "history_printing",
+        "category": "factual",
+        "prompt": "Who invented the movable-type printing press in Europe, and around what year?",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.946236559139785,
+        "elapsed_seconds": 13.386383964999993,
+        "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Question: Who invented the movable-type printing press in Europe, and around what year?\n    *   Key entities: Inventor, Location (Europe), Technology (movable-type printing press), Timeframe (year).\n\n2.  **Retrieve Knowledge:**\n    *   Inventor: Johannes Gutenberg.\n    *   Location: Mainz, Germany (Europe).\n    *   Technology"
+      },
+      {
+        "id": "math_train",
+        "category": "math",
+        "prompt": "A train travels at 90 km/h for 2 hours and 20 minutes. How many kilometers does it cover?",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.9354838709677419,
+        "elapsed_seconds": 13.863435499000047,
+        "text": "Here's my thought process for solving this problem:\n\n1.  **Analyze the Request:**\n    *   **Given:**\n        *   Speed ($v$) = 90 km/h\n        *   Time ($t$) = 2 hours and 20 minutes\n    *   **Goal:** Calculate the distance ($d$) covered in kilometers.\n\n2.  **Recall the Formula:**\n    *   The fundamental relationship between"
+      },
+      {
+        "id": "summary_bullet",
+        "category": "summarization",
+        "prompt": "Summarize in three bullet points why indexes speed up relational database queries.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.9247311827956989,
+        "elapsed_seconds": 14.44005617299996,
+        "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Topic: Why indexes speed up relational database queries.\n    *   Format: Three bullet points.\n    *   Goal: Summarize the core reasons.\n\n2.  **Identify Key Concepts:**\n    *   What is an index? It's a data structure (usually B-Tree, Hash, etc.) that improves data retrieval speed.\n    *   How does"
+      },
+      {
+        "id": "creative_haiku",
+        "category": "instruction",
+        "prompt": "Write a haiku (5-7-5 syllables) about an autumn rainstorm.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.9247311827956989,
+        "elapsed_seconds": 14.33329050399999,
+        "text": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Topic: Autumn rainstorm.\n    *   Form: Haiku.\n    *   Structure: 5-7-5 syllables.\n\n2.  **Brainstorming Imagery & Words:**\n    *   Autumn: leaves, gold, red, crisp, chill, harvest, falling, wind.\n    *   Rain: drops, pour, storm, gray,"
+      }
+    ],
+    "adapted": [
+      {
+        "id": "logic_apples",
+        "category": "reasoning",
+        "prompt": "A farmer has 17 sheep. All but 9 run away. How many sheep does the farmer have left? Answer concisely.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.946236559139785,
+        "elapsed_seconds": 21.187859077999974,
+        "text": "Thinking Process:\n\n1. The user wants to know how many sheep are left after some run away.\n2. The initial number of sheep is 17.\n3. The phrase \"All but 9 run away\" means that 9 sheep are NOT run away.\n4. Therefore, the number of sheep left is 9.\n\n5. The answer is 9.\n\n6. The user wants to answer concisely.\n\n7. The"
+      },
+      {
+        "id": "python_palindrome",
+        "category": "coding",
+        "prompt": "Write a short Python function `is_palindrome(s: str) -> bool` that ignores spaces and case.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.9354838709677419,
+        "elapsed_seconds": 18.986707197000044,
+        "text": "The user wants to write a Python function `is_palindrome(s: str) -> bool` that checks a string is palindrome, and it should:\n1. Ignore spaces\n2. Ignore case\n\nLet me think:\n- I need to remove spaces from the string\n- I need to convert the string to lowercase\n- I need to check the string is equal to its reversed string\n\nLet me write this:\n\n```python\ndef is_palindrome(s: str"
+      },
+      {
+        "id": "json_extract",
+        "category": "formatting",
+        "prompt": "Return only valid JSON with keys `city`, `country`, and `currency` for Tokyo, Japan.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.07526881720430108,
+        "elapsed_seconds": 18.61553981000003,
+        "text": "Thinking Process:\n\n1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1."
+      },
+      {
+        "id": "science_photosynthesis",
+        "category": "science",
+        "prompt": "Explain in 2-3 clear sentences what chlorophyll does during photosynthesis.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.989247311827957,
+        "elapsed_seconds": 18.99789217299997,
+        "text": "Thinking Process:\n\n1. 1. Chlorophyll is a pigment that absorbs light energy from the sun.\n2. 2. During photosynthesis, chlorophyll captures this light energy and converts it into chemical compounds that drive the process of photosynthesis.\n3. 3. This process of photosynthesis allows plants to produce food and oxygen.\n\nThe user wants to explain chlorophyll's role in photosynthesis in 2-3 clear sentences.\n\n"
+      },
+      {
+        "id": "history_printing",
+        "category": "factual",
+        "prompt": "Who invented the movable-type printing press in Europe, and around what year?",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.956989247311828,
+        "elapsed_seconds": 19.68670268400001,
+        "text": "Thinking Process:\n\n1.  The user wants to know who invented the movable-type printing press in Europe and the year.\n2.  The answer is clearly Johannes Gutenberg.\n3.  The year is generally accepted as 1500, but some variations are 1450.\n4.  I need to provide the most accurate answer.\n5.  The most common and accurate answer is 1450.\n6. "
+      },
+      {
+        "id": "math_train",
+        "category": "math",
+        "prompt": "A train travels at 90 km/h for 2 hours and 20 minutes. How many kilometers does it cover?",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.9139784946236559,
+        "elapsed_seconds": 22.14694857400002,
+        "text": "Here's a thinking step to calculate the distance:\n\n1. Convert the time to hours.\n2 hours 20 minutes = 2 + 20/60 hours = 2 + 1/3 hours = 2.333... hours.\n2. Calculate the distance using the speed and time.\nDistance = Speed * Time = 90 km/h * 2.333... h = 230 km."
+      },
+      {
+        "id": "summary_bullet",
+        "category": "summarization",
+        "prompt": "Summarize in three bullet points why indexes speed up relational database queries.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.07526881720430108,
+        "elapsed_seconds": 19.573496571999954,
+        "text": "Thinking Process:\n1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1."
+      },
+      {
+        "id": "creative_haiku",
+        "category": "instruction",
+        "prompt": "Write a haiku (5-7-5 syllables) about an autumn rainstorm.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.946236559139785,
+        "elapsed_seconds": 19.337117691000003,
+        "text": "Thinking about the prompt: \"Write a haiku (5-7-5 syllables) about an autumn rainstorm.\"\n\nThe user wants to create a haiku with the specific syllabary structure (5, 7, 5) and the theme of autumn rainstorm.\n\nFirst line: 5 syllables.\nSecond line: 7 syllables.\nThird line: 5 syllables.\n\nI need to find the appropriate words and phrases that"
+      }
+    ],
+    "elapsed_seconds": 311.81911082899995,
+    "estimated_compute_usd": 0.3741829340988,
+    "peak_allocated_gib": 65.84530210494995,
+    "peak_reserved_gib": 65.904296875,
+    "rusage_maxrss_gib": 72.13666534423828,
+    "status": "completed"
+  },
+  "gemma": {
+    "name": "gemma",
+    "model": "google/gemma-4-26B-A4B-it",
+    "revision": "4d7ae4984b7db7de8f8457170b3f1a419ee76d52",
+    "adapter_path": "/vol/results/gemma/stage2_500step/step_500.safetensors",
+    "lora_rank": 16,
+    "lora_alpha": 32.0,
+    "reload_exact": true,
+    "summary": {
+      "stock": {
+        "mean_distinct_4gram": 0.9958333333333333,
+        "eos_stop_count": 4,
+        "mean_tokens": 59.75
+      },
+      "adapted": {
+        "mean_distinct_4gram": 0.8829301075268817,
+        "eos_stop_count": 5,
+        "mean_tokens": 53.0
+      }
+    },
+    "stock": [
+      {
+        "id": "logic_apples",
+        "category": "reasoning",
+        "prompt": "A farmer has 17 sheep. All but 9 run away. How many sheep does the farmer have left? Answer concisely.",
+        "generated_tokens": 2,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 0.21710130100007063,
+        "text": "9"
+      },
+      {
+        "id": "python_palindrome",
+        "category": "coding",
+        "prompt": "Write a short Python function `is_palindrome(s: str) -> bool` that ignores spaces and case.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 9.263362603000019,
+        "text": "Here is a concise way to implement this using Python's string methods:\n\n```python\ndef is_palindrome(s: str) -> bool:\n    # Remove spaces and convert to lowercase\n    clean_s = s.replace(\" \", \"\").lower()\n    # Check if the string is equal to its reverse\n    return clean_s == clean_s[::-1]\n\n# Test cases\nprint(is_palindrome(\"Racecar\"))       # True"
+      },
+      {
+        "id": "json_extract",
+        "category": "formatting",
+        "prompt": "Return only valid JSON with keys `city`, `country`, and `currency` for Tokyo, Japan.",
+        "generated_tokens": 33,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 0.9666666666666667,
+        "elapsed_seconds": 3.280916820000016,
+        "text": "```json\n{\n  \"city\": \"Tokyo\",\n  \"country\": \"Japan\",\n  \"currency\": \"JPY\"\n}\n```"
+      },
+      {
+        "id": "science_photosynthesis",
+        "category": "science",
+        "prompt": "Explain in 2-3 clear sentences what chlorophyll does during photosynthesis.",
+        "generated_tokens": 39,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 3.6674460190000673,
+        "text": "Chlorophyll absorbs light energy, primarily from the sun, to power the process of photosynthesis. It uses this captured energy to convert water and carbon dioxide into chemical energy in the form of glucose."
+      },
+      {
+        "id": "history_printing",
+        "category": "factual",
+        "prompt": "Who invented the movable-type printing press in Europe, and around what year?",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 8.744645286000036,
+        "text": "The movable-type printing press in Europe was invented by **Johannes Gutenberg**.\n\nHe developed the technology around the year **1440** in Mainz, Germany. \n\nWhile movable type had been invented much earlier in East Asia (notably in China and Korea), Gutenberg's innovation was significant because he created a complete system that included a metal alloy for casting type, oil-based ink, and a wooden screw press adapted from wine and olive presses. This combination allowed"
+      },
+      {
+        "id": "math_train",
+        "category": "math",
+        "prompt": "A train travels at 90 km/h for 2 hours and 20 minutes. How many kilometers does it cover?",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 8.742297453999981,
+        "text": "To find the total distance covered, you can use the formula:\n**Distance = Speed \u00d7 Time**\n\n### 1. Convert the time into hours\nThe time given is 2 hours and 20 minutes. Since the speed is in km/h, we need the time to be expressed entirely in hours.\n\n*   There are 60 minutes in an hour.\n*   20 minutes = $\\frac{20}{60}$ hours ="
+      },
+      {
+        "id": "summary_bullet",
+        "category": "summarization",
+        "prompt": "Summarize in three bullet points why indexes speed up relational database queries.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 9.12139399199998,
+        "text": "Here is a summary of why indexes speed up relational database queries:\n\n*   **Reduced Data Scanning:** Instead of performing a \"full table scan\" (reading every single row in a table), an index allows the database to jump directly to the specific location of the required data, drastically reducing the amount of I/O required.\n*   **Efficient Data Organization:** Indexes use optimized data structures, such as **B-Trees**, which keep data sorted and allow the database to"
+      },
+      {
+        "id": "creative_haiku",
+        "category": "instruction",
+        "prompt": "Write a haiku (5-7-5 syllables) about an autumn rainstorm.",
+        "generated_tokens": 20,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 1.84785551199991,
+        "text": "Gray clouds fill the sky,\nRain falls on the golden leaves,\nAutumn whispers low."
+      }
+    ],
+    "adapted": [
+      {
+        "id": "logic_apples",
+        "category": "reasoning",
+        "prompt": "A farmer has 17 sheep. All but 9 run away. How many sheep does the farmer have left? Answer concisely.",
+        "generated_tokens": 2,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 0.25603540700001304,
+        "text": "9"
+      },
+      {
+        "id": "python_palindrome",
+        "category": "coding",
+        "prompt": "Write a short Python function `is_palindrome(s: str) -> bool` that ignores spaces and case.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.15053763440860216,
+        "elapsed_seconds": 13.003333580000003,
+        "text": "Here is a clean-and-efficient implementation using a single-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one-one"
+      },
+      {
+        "id": "json_extract",
+        "category": "formatting",
+        "prompt": "Return only valid JSON with keys `city`, `country`, and `currency` for Tokyo, Japan.",
+        "generated_tokens": 33,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 0.9666666666666667,
+        "elapsed_seconds": 4.599376596999946,
+        "text": "```json\n{\n  \"city\": \"Tokyo\",\n  \"country\": \"Japan\",\n  \"currency\": \"JPY\"\n}\n```"
+      },
+      {
+        "id": "science_photosynthesis",
+        "category": "science",
+        "prompt": "Explain in 2-3 clear sentences what chlorophyll does during photosynthesis.",
+        "generated_tokens": 47,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 6.881053646999931,
+        "text": "Chlorophyll is the primary pigment in plants that absorbs light energy from solar rays to convert it into chemical energy. This process is used to capture and transform water and carbon dioxide into glucose, which serves as the fuel for the plant."
+      },
+      {
+        "id": "history_printing",
+        "category": "factual",
+        "prompt": "Who invented the movable-type printing press in Europe, and around what year?",
+        "generated_tokens": 33,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 4.25696182899992,
+        "text": "The movable-type printing press was invented by **Johannes Gutenberg** around the year **1000** (specifically around **1040**)."
+      },
+      {
+        "id": "math_train",
+        "category": "math",
+        "prompt": "A train travels at 90 km/h for 2 hours and 20 minutes. How many kilometers does it cover?",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.967741935483871,
+        "elapsed_seconds": 13.46644306600001,
+        "text": "To find the total distance, use the formula: **Distance = Speed \u00d7 Time**\n\n### Step 1: Convert the time to decimal or fraction\nThe time is 2 hours and 20 minutes.\nSince 60 minutes = 1 hour, 20 minutes is $\\frac_{20}{60}$ or $\\frac{1}{3}$ of an hour.\nSo, the time is **$2 + \\frac{1}{3"
+      },
+      {
+        "id": "summary_bullet",
+        "category": "summarization",
+        "prompt": "Summarize in three bullet points why indexes speed up relational database queries.",
+        "generated_tokens": 96,
+        "stopped_eos": false,
+        "distinct_4gram_ratio": 0.978494623655914,
+        "elapsed_seconds": 13.11136908800006,
+        "text": "Here are the three reasons why indexes speed up relational database queries:\n\n*   **Red Reduction of Search:** Without an index, the database must perform a \"full table scan\" to check every row in the table. With an index, the database can jump directly to the relevant data using a specialized search algorithm (like B-Tree or Hash), which is much faster than a linear scan.\n*   **Reduced Disk I/O Operations:** Indexes are used to organize the"
+      },
+      {
+        "id": "creative_haiku",
+        "category": "instruction",
+        "prompt": "Write a haiku (5-7-5 syllables) about an autumn rainstorm.",
+        "generated_tokens": 21,
+        "stopped_eos": true,
+        "distinct_4gram_ratio": 1.0,
+        "elapsed_seconds": 2.650684231000014,
+        "text": "Grey clouds fill the sky,\nRaindrops fall on golden leaves,\nWind begins to blow."
+      }
+    ],
+    "elapsed_seconds": 131.398140473,
+    "estimated_compute_usd": 0.15767776961159988,
+    "peak_allocated_gib": 48.43188953399658,
+    "peak_reserved_gib": 65.904296875,
+    "rusage_maxrss_gib": 72.13666534423828,
+    "status": "completed"
+  }
+}
