@@ -44,6 +44,8 @@ class RouterAdapter(nn.Module):
         token_a: mx.array | None = None,
         token_b: mx.array | None = None,
         token_scale: float = 2.0,
+        selector_weight: mx.array | None = None,
+        token_weight: mx.array | None = None,
     ):
         super().__init__()
         self.selector_a = selector_a
@@ -53,9 +55,13 @@ class RouterAdapter(nn.Module):
         self.token_a = token_a
         self.token_b = token_b
         self.token_scale = float(token_scale)
+        self.selector_weight = selector_weight
+        self.token_weight = token_weight
         self.adapter_disabled = False
 
     def add_selector_delta(self, base_logits: mx.array, x: mx.array) -> mx.array:
+        if not self.adapter_disabled and self.selector_weight is not None:
+            return base_logits + x.astype(mx.float32) @ self.selector_weight.T
         if self.adapter_disabled or self.selector_a is None or self.selector_b is None:
             return base_logits
         xf = x.astype(mx.float32)
@@ -63,6 +69,8 @@ class RouterAdapter(nn.Module):
         return base_logits + delta * self.selector_scale
 
     def add_token_delta(self, base_logits: mx.array, x: mx.array) -> mx.array:
+        if not self.adapter_disabled and self.token_weight is not None:
+            return base_logits + x.astype(mx.float32) @ self.token_weight.T
         if self.adapter_disabled or self.token_a is None or self.token_b is None:
             return base_logits
         xf = x.astype(mx.float32)
@@ -562,12 +570,15 @@ def init_window_adapters(
     selector_alpha: float = 32.0,
     token_router_rank: int = 16,
     token_scale: float = 2.0,
+    router_training: str = "adapter",
 ) -> list[str]:
     """Attach trainable RouterAdapter modules onto all MoE layers of an MLX model."""
     from telos.posttrain.mlx_adapters import _linear_shape
 
     if selector_rank < 1 or token_router_rank < 1 or selector_alpha <= 0:
         raise ValueError("Window adapter ranks and alpha must be positive")
+    if router_training not in {"adapter", "full"}:
+        raise ValueError("router_training must be adapter or full")
     attached = []
     for idx, layer in enumerate(model.layers):
         if hasattr(layer, "router_adapter") and hasattr(layer, "router"):
@@ -598,6 +609,11 @@ def init_window_adapters(
             token_b=mx.zeros((num_experts, token_router_rank), dtype=mx.float32),
             token_scale=token_scale,
         )
+        if router_training == "full":
+            adapter.selector_a = adapter.selector_b = None
+            adapter.token_a = adapter.token_b = None
+            adapter.selector_weight = mx.zeros((num_experts, width), dtype=mx.float32)
+            adapter.token_weight = mx.zeros((num_experts, width), dtype=mx.float32)
         adapter.unfreeze()
         target.router_adapter = adapter
         attached.append(f"layers.{idx}.router_adapter")
@@ -632,6 +648,8 @@ def _attach_router_adapter(model, layer_idx: int, tensors: dict[str, mx.array], 
         token_a=tensors.get("token_a"),
         token_b=tensors.get("token_b"),
         token_scale=token_scale,
+        selector_weight=tensors.get("selector_weight"),
+        token_weight=tensors.get("token_weight"),
     )
     layer = model.layers[layer_idx]
     for target in (layer, getattr(layer, "mlp", None), getattr(layer, "moe", None)):
@@ -687,7 +705,7 @@ def apply_window_adapter(
             continue
         layer_idx = int(parts[li + 1])
         tail = parts[li + 2 :]
-        if tail[-1] in ("selector_a", "selector_b", "selector_bias", "bias", "token_a", "token_b"):
+        if tail[-1] in ("selector_a", "selector_b", "selector_bias", "bias", "token_a", "token_b", "selector_weight", "token_weight"):
             router_by_layer.setdefault(layer_idx, {})[tail[-1]] = tensor
         elif tail[-1] in ("lora_a", "lora_b"):
             # Supports Telos nested paths (`attention.q.lora_a`) and HF paths (`self_attn.gate_proj.gate_proj.lora_a`).

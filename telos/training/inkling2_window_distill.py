@@ -72,9 +72,9 @@ def _disabled_lora(model: nn.Module):
 
 
 class WindowSelector(nn.Module):
-    """Selects top-k experts per window using base router + low-rank delta and learned bias."""
+    """Select window experts with a low-rank or full-size weight update and learned bias."""
 
-    def __init__(self, base_weight: torch.Tensor, base_bias: torch.Tensor, rank: int = 32, alpha: float = 32.0):
+    def __init__(self, base_weight: torch.Tensor, base_bias: torch.Tensor, rank: int = 32, alpha: float = 32.0, router_training: str = "adapter"):
         super().__init__()
         num_experts, hidden_dim = base_weight.shape
         device = base_weight.device
@@ -82,12 +82,18 @@ class WindowSelector(nn.Module):
         self.selector_a = nn.Parameter(torch.empty(rank, hidden_dim, dtype=torch.float32, device=device))
         self.selector_b = nn.Parameter(torch.zeros(num_experts, rank, dtype=torch.float32, device=device))
         nn.init.kaiming_uniform_(self.selector_a, a=math.sqrt(5))
+        self.selector_weight = None
+        if router_training == "full":
+            self.selector_a = None
+            self.selector_b = None
+            self.selector_weight = nn.Parameter(torch.zeros_like(self.base_weight))
         self.scale = alpha / rank
         self.bias = nn.Parameter(base_bias.detach().float().clone())
 
     def logits(self, hidden: torch.Tensor) -> torch.Tensor:
         base = F.linear(hidden.float(), self.base_weight)
-        delta = F.linear(F.linear(hidden.float(), self.selector_a), self.selector_b) * self.scale
+        delta = (F.linear(hidden.float(), self.selector_weight) if self.selector_weight is not None
+                 else F.linear(F.linear(hidden.float(), self.selector_a), self.selector_b) * self.scale)
         return base + delta
 
 
@@ -136,6 +142,7 @@ class WindowPinnedRouter(nn.Module):
         selector_alpha: float = 32.0,
         token_router_rank: int = 16,
         token_scale: float = 2.0,
+        router_training: str = "adapter",
     ):
         super().__init__()
         self.base_gate = base_gate
@@ -176,7 +183,7 @@ class WindowPinnedRouter(nn.Module):
             init_bias = torch.zeros(self.num_experts, dtype=torch.float32, device=proj_mod.weight.device)
 
         self.selector = WindowSelector(
-            proj_mod.weight, init_bias, rank=selector_rank, alpha=selector_alpha,
+            proj_mod.weight, init_bias, rank=selector_rank, alpha=selector_alpha, router_training=router_training,
         )
         context.selectors[layer_idx] = self.selector
         self.token_a = nn.Parameter(torch.empty(token_router_rank, self.hidden_dim, dtype=torch.float32,
@@ -185,6 +192,12 @@ class WindowPinnedRouter(nn.Module):
                                                 device=proj_mod.weight.device))
         nn.init.kaiming_uniform_(self.token_a, a=math.sqrt(5))
         self.token_scale = float(token_scale)
+        self.token_weight = None
+        if router_training == "full":
+            self.token_a = None
+            self.token_b = None
+            self.token_weight = nn.Parameter(torch.zeros(self.num_experts, self.hidden_dim,
+                                                        device=proj_mod.weight.device, dtype=torch.float32))
 
     def _prepare_input(self, flat: torch.Tensor) -> torch.Tensor:
         if not self._has_base_preprocess:
@@ -241,7 +254,8 @@ class WindowPinnedRouter(nn.Module):
         # Base + adapted token logits across the sequence.
         tok_logits = (
             F.linear(h_seq, self._proj_weight.float())
-            + F.linear(F.linear(h_seq, self.token_a), self.token_b) * self.token_scale
+            + (F.linear(h_seq, self.token_weight) if self.token_weight is not None
+               else F.linear(F.linear(h_seq, self.token_a), self.token_b) * self.token_scale)
         )
         tok_probs = self._activate(tok_logits)
 
@@ -441,8 +455,13 @@ def patch_moe_for_window_distill(
     token_scale: float = 2.0,
     lora_targets: tuple[str, ...] = DEFAULT_LORA_TARGETS,
     require_moe: bool = True,
+    router_training: str = "adapter",
 ) -> DistillContext:
     """Freeze base weights and install WindowPinnedRouter + LoRA across Inkling2, Qwen3/3.5-MoE, Gemma4, LFM2-MoE, and dense models."""
+    if router_training not in {"adapter", "full"}:
+        raise ValueError("router_training must be adapter or full")
+    if router_training == "full" and window_size is None:
+        raise ValueError("Full-router distillation requires window_size")
     for param in model.parameters():
         param.requires_grad_(False)
 
@@ -476,6 +495,7 @@ def patch_moe_for_window_distill(
                     selector_alpha=selector_alpha,
                     token_router_rank=token_router_rank,
                     token_scale=token_scale,
+                    router_training=router_training,
                 )
                 setattr(moe_block, attr_name, pinned_gate)
                 if isinstance(orig_gate, nn.Linear) and attr_name == "gate" and hasattr(moe_block, "experts"):
@@ -498,6 +518,7 @@ def patch_inkling_for_window_distill(
     selector_rank: int = 32,
     token_router_rank: int = 16,
     lora_targets: tuple[str, ...] = DEFAULT_LORA_TARGETS,
+    router_training: str = "adapter",
 ) -> DistillContext:
     """Backward-compatible entry point for patching MoE models for window distillation."""
     return patch_moe_for_window_distill(
@@ -509,6 +530,7 @@ def patch_inkling_for_window_distill(
         token_router_rank=token_router_rank,
         lora_targets=lora_targets,
         require_moe=True,
+        router_training=router_training,
     )
 
 

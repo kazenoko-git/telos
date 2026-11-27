@@ -129,7 +129,7 @@ def merged_weights(model):
 
 
 def adapter_weights(model):
-    suffixes = ("lora_a", "lora_b", "selector_a", "selector_b", "selector_bias", "token_a", "token_b")
+    suffixes = ("lora_a", "lora_b", "selector_a", "selector_b", "selector_bias", "token_a", "token_b", "selector_weight", "token_weight")
     return [(name, value) for name, value in tree_flatten(model.trainable_parameters())
             if name.endswith(suffixes)]
 
