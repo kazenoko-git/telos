@@ -43,7 +43,9 @@ async function refresh() {
   $("#email").textContent = owner.email;
   $("#verification").hidden = Boolean(owner.email_verified_at);
   for (const field of document.querySelectorAll("#new-key input, #new-key button, #new-host input, #new-host button")) field.disabled = !owner.email_verified_at;
-  const [keys, hosts] = await Promise.all([api("keys"), api("hosts")]);
+  const [keys, hosts, identities, providers] = await Promise.all([api("keys"), api("hosts"), api("identities"), api("auth/providers")]);
+  $("#identity-list").replaceChildren(...identities.map(identity => node("p", identity.provider === "google" ? "Google linked" : "GitHub linked")));
+  for (const provider of ["google", "github"]) $("#link-" + provider).hidden = !providers[provider] || identities.some(identity => identity.provider === provider);
   $("#keys").replaceChildren();
   for (const key of keys) {
     const row = node("div", undefined, "item");
@@ -146,6 +148,30 @@ $("#forgot").addEventListener("click", () => act(async () => {
 }));
 // Strip the secret fragment before any follow-up navigation. Never put tokens in query strings.
 const emailLink = new URLSearchParams(location.hash.slice(1));
+const authErrors = {
+  invalid_state: "The sign-in attempt expired or belongs to another browser. Try again.",
+  cancelled: "Provider sign-in was cancelled.",
+  reauthenticate: "Sign in again before linking this provider.",
+  already_linked: "This provider identity is already linked to another account.",
+  sign_in_to_link: "An account already uses this email. Sign in with its existing method, then link the provider from your dashboard.",
+  provider_failed: "Provider sign-in could not be completed. Try again or use email and password.",
+};
+if (emailLink.has("auth_error") || emailLink.has("auth_success")) {
+  history.replaceState(null, "", location.pathname);
+  notice(emailLink.has("auth_error") ? (authErrors[emailLink.get("auth_error")] || authErrors.provider_failed) : "Provider sign-in completed.");
+}
+for (const provider of ["google", "github"]) {
+  for (const [id, intent] of [[provider + "-signin", "login"], ["link-" + provider, "link"]]) {
+    $("#" + id).addEventListener("click", () => act(async () => {
+      const result = await api("auth/" + provider + "/start", "POST", { intent });
+      location.assign(result.url);
+    }));
+  }
+}
+api("auth/providers").then(providers => {
+  for (const provider of ["google", "github"]) $("#" + provider + "-signin").hidden = !providers[provider];
+  $("#social-unavailable").hidden = providers.google || providers.github;
+}).catch(() => { $("#social-unavailable").hidden = false; });
 const actionToken = emailLink.get("reset") || emailLink.get("verify");
 const resetAction = emailLink.has("reset");
 if (actionToken) {

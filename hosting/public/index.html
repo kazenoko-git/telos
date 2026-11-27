@@ -12,6 +12,8 @@
 <section id="auth">
 <h1>Connect to your models.</h1>
 <p>Manage API keys and reserve a model endpoint under tls.wingit.tech.</p>
+<div class="actions" id="social-login"><button id="google-signin" type="button" hidden>Continue with Google</button><button id="github-signin" type="button" hidden>Continue with GitHub</button></div>
+<p id="social-unavailable" hidden>Provider sign-in is being configured. You can use email and password below.</p>
 <form id="login">
 <label>Email<input name="email" type="email" autocomplete="username" required></label>
 <label>Password<input name="password" type="password" autocomplete="current-password" minlength="12" maxlength="512" required></label>
@@ -28,6 +30,7 @@
 </section>
 <div id="dashboard" hidden>
 <div class="intro"><h1>Your hosting</h1><p id="email"></p></div>
+<section id="linked-providers"><h2>Sign-in methods</h2><p>Link a provider while signed in to keep your existing API keys and endpoints. Sign in again first if your session is over 10 minutes old.</p><div id="identity-list"></div><div class="actions"><button id="link-google" type="button" hidden>Link Google</button><button id="link-github" type="button" hidden>Link GitHub</button></div></section>
 <section id="verification" hidden><h2>Verify your email</h2><p>Check your inbox before creating keys or reserving new endpoints. Existing keys keep working.</p><button id="resend-verification" type="button">Send verification email</button></section>
 <section>
 <h2>API keys</h2><p>Keys work across your endpoints and the shared pool. Revocation and rotation apply to new requests immediately.</p>
