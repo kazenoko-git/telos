@@ -12,7 +12,7 @@ export async function sendAction(env: Env, recipient: Recipient, purpose: "verif
   const lifetime = purpose === "verify" ? 86400 : 1800;
   await env.DB.prepare("INSERT INTO account_actions(hash,account_id,purpose,credential_salt,expires_at) VALUES(?,?,?,?,?)")
     .bind(digest, recipient.id, purpose, recipient.salt, now() + lifetime).run();
-  const url = `${env.ACCOUNT_ORIGIN}/#${purpose}=${token}`;
+  const url = `${env.ACCOUNT_ORIGIN}/account#${purpose}=${token}`;
   const title = purpose === "verify" ? "Verify your Telos email" : "Reset your Telos password";
   try {
     await env.EMAIL.send({

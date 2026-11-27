@@ -230,9 +230,14 @@ app.all("/:slug/v1/*", inference);
 app.get("*", c => {
   const hostname = new URL(c.req.url).hostname;
   if (hostname === c.env.MODEL_DOMAIN || hostname.endsWith("." + c.env.MODEL_DOMAIN)) {
-    return c.json({ service: "Telos shared model hosting", base_url: `https://${c.env.MODEL_DOMAIN}/v1`, accounts: c.env.ACCOUNT_ORIGIN });
+    return c.json({ service: "Telos shared model hosting", base_url: `https://${c.env.MODEL_DOMAIN}/v1`, accounts: c.env.ACCOUNT_ORIGIN + "/account" });
   }
-  return c.env.ASSETS.fetch(c.req.raw);
+  const asset = new URL(c.req.url);
+  if (asset.origin !== c.env.ACCOUNT_ORIGIN) throw new HTTPException(404, { message: "Unknown page." });
+  if (asset.pathname === "/account" || asset.pathname === "/account/") asset.pathname = "/";
+  else if (["/hosting-assets/app.js", "/hosting-assets/style.css"].includes(asset.pathname)) asset.pathname = asset.pathname.slice("/hosting-assets".length);
+  else throw new HTTPException(404, { message: "Account page not found." });
+  return c.env.ASSETS.fetch(new Request(asset, c.req.raw));
 });
 
 export default app;

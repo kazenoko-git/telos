@@ -264,3 +264,16 @@ it("keeps legacy API keys usable before email verification and after it", async 
   expect((await call("/api/verification/confirm", "POST", { token: mailedToken() })).status).toBe(200);
   expect((await requestModels()).status).toBe(200);
 });
+
+it("serves the portal only at /account with isolated assets", async () => {
+  const assets = vi.spyOn(env.ASSETS, "fetch").mockImplementation(async input => {
+    const request = input instanceof Request ? input : new Request(String(input));
+    return new Response(new URL(request.url).pathname);
+  });
+  expect(await (await call("/account")).text()).toBe("/");
+  expect(await (await call("/hosting-assets/app.js")).text()).toBe("/app.js");
+  assets.mockClear();
+  expect((await call("/")).status).toBe(404);
+  expect((await call("/research-paper" )).status).toBe(404);
+  expect(assets).not.toHaveBeenCalled();
+});
