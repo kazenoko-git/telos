@@ -91,7 +91,7 @@ class HostingClient:
         value = self.request("POST", "/api/signup" if signup else "/api/login", {"email": email, "password": password})
         self.token = value["token"]
         self.save()
-        return {"id": value["id"], "email": value["email"]}
+        return {key: value[key] for key in ("id", "email", "verification_sent") if key in value}
 
 
 class TunnelRuntime(AbstractContextManager):

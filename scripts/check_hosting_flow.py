@@ -16,6 +16,7 @@ from urllib.request import Request, urlopen
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--email', required=True, help='Disposable inbox you control; verify the signup email when prompted.')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     repo = Path(__file__).resolve().parents[1]
@@ -25,7 +26,7 @@ def main():
         environment = {**os.environ, 'TELOS_HOSTING_CREDENTIALS': str(root / 'session.json')}
         slug = 'flow-' + secrets.token_hex(5)
         password = secrets.token_urlsafe(24)
-        email = slug + '@example.invalid'
+        email = args.email
         process = None
         keys = []
 
@@ -61,6 +62,13 @@ def main():
         try:
             account = cli('account', 'signup', '--email', email, stdin=password + '\n')
             report['signup'] = account['email'] == email
+            print('Check your disposable inbox and verify the signup email (waiting up to 5 minutes).', flush=True)
+            deadline = time.monotonic() + 300
+            while not cli('account', 'whoami').get('email_verified_at'):
+                if time.monotonic() > deadline:
+                    raise TimeoutError('Signup email was not verified.')
+                time.sleep(3)
+            report['email_verified'] = True
             key = cli('keys', 'create', 'disposable flow test')
             keys.append(key['id'])
             report['key_created'] = bool(key['key'])
