@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "telos-hosting",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-27",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "observability": {"enabled": true},
+  "assets": {"directory": "./public", "binding": "ASSETS", "run_worker_first": true},
+  "vars": {
+    "ACCOUNT_ORIGIN": "https://telos.wingit.tech",
+    "MODEL_DOMAIN": "tls.wingit.tech",
+    "ORIGIN_ZONE": "wingit.tech",
+    "CF_ACCOUNT_ID": "a005ae9db864d4dae31fcd17bc48d859",
+    "CF_ZONE_ID": "40b3320eef7a7baea02075f7cfc29b4c",
+    "TEST_ORIGIN": ""
+  },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "telos-hosting",
+    "database_id": "local",
+    "migrations_dir": "migrations"
+  }],
+  "limits": {"cpu_ms": 100}
+}
