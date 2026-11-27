@@ -194,8 +194,7 @@ app.all("/v1/*", async c => {
   if (!host || requested !== (pool ? host.slug + "/" + host.model : host.model)) {
     throw new HTTPException(404, { message: "Model is unavailable or private." });
   }
-  // TEST_ORIGIN is only used by local fixtures and must be empty in production.
-  const origin = c.env.TEST_ORIGIN || "https://" + originHost(c.env, host);
+  const origin = "https://" + originHost(c.env, host);
   const response = await fetch(origin + c.req.path, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + host.origin_key },
