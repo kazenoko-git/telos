@@ -717,6 +717,7 @@ def _posttrain_mlx(source_model, source_backend, checkpoint_path, source_config,
             selector_alpha=window_cfg["selector_alpha"],
             token_router_rank=window_cfg["token_router_rank"],
             token_scale=window_cfg["token_router_scale"],
+            router_training=window_cfg.get("router_training", "adapter"),
         )
     # Rollouts and policy scoring share the same dropout-free distribution.
     model.train(method != "grpo")
@@ -1361,6 +1362,7 @@ def _posttrain_external_torch(
         token_router_rank=window_cfg["token_router_rank"] if window_cfg else 16,
         lora_targets=targets,
         require_moe=bool(window_cfg),
+        router_training=window_cfg.get("router_training", "adapter") if window_cfg else "adapter",
     )
 
     out_dir = Path(output)
@@ -1464,6 +1466,7 @@ def _posttrain(
     window_size: int | None = None,
     selector_rank: int = 32,
     window_cov_weight: float = 0.25,
+    router_training: str = "adapter",
     memory_budget_mib: int | None = None,
     _resources: ExitStack,
 ) -> Path:
@@ -1507,6 +1510,10 @@ def _posttrain(
                 "temperature": distill_temperature,
             }
     backend_name = _resolve_backend(hardware)
+    if router_training not in {"adapter", "full"}:
+        raise ValueError("router_training must be adapter or full")
+    if router_training == "full" and window_size is None:
+        raise ValueError("Full-router training requires window_size")
     if window_size is not None:
         if type(window_size) is not int or window_size < 1:
             raise ValueError("window_size must be a positive integer")
@@ -1521,6 +1528,7 @@ def _posttrain(
             "token_router_rank": 16,
             "token_router_scale": 2.0,
             "cov_weight": window_cov_weight,
+            "router_training": router_training,
         }
     if method == "grpo":
         distributed_cuda = (

@@ -98,6 +98,7 @@ def distill_inkling_w16(
     lora_rank: int = 16,
     lora_alpha: float = 32.0,
     selector_rank: int = 32,
+    router_training: str = "adapter",
     dataset_name: str = "databricks/databricks-dolly-15k",
     output_name: str = "inkling2_w16_adapter.safetensors",
 ):
@@ -130,6 +131,7 @@ def distill_inkling_w16(
         lora_rank=lora_rank,
         lora_alpha=lora_alpha,
         selector_rank=selector_rank,
+        router_training=router_training,
         require_moe=(window_size is not None),
     )
     trainable = [p for p in model.parameters() if p.requires_grad]
@@ -193,7 +195,7 @@ def distill_inkling_w16(
         "source_model": model_id,
         "lora_alpha": lora_alpha,
         "window": (
-            {"window_size": window_size, "selector_alpha": 32.0, "token_router_scale": 2.0}
+            {"window_size": window_size, "selector_alpha": 32.0, "token_router_scale": 2.0, "router_training": router_training}
             if window_size is not None else None
         ),
     }
@@ -211,6 +213,7 @@ def main(
     batch_size: int = 2,
     grad_accum: int = 4,
     window_size: int = 16,
+    router_training: str = "adapter",
     output_name: str = "inkling2_w16_adapter.safetensors",
 ):
     result = distill_inkling_w16.remote(
@@ -219,6 +222,7 @@ def main(
         batch_size=batch_size,
         grad_accum=grad_accum,
         window_size=window_size,
+        router_training=router_training,
         output_name=output_name,
     )
     print("Modal run finished:", result)
