@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { getCookie } from "hono/cookie";
 
-export type Account = { id: string; email: string };
+export type Account = { id: string; email: string; email_verified_at: number | null };
 export type AppEnv = { Bindings: Env; Variables: { account: Account } };
 export const now = () => Math.floor(Date.now() / 1000);
 
@@ -82,7 +82,7 @@ export async function account(c: Context<AppEnv>): Promise<Account> {
   const token = bearer || getCookie(c, "__Host-telos_session");
   if (!token) throw new HTTPException(401, { message: "Sign in to your Telos account." });
   const found = await c.env.DB.prepare(
-    "SELECT accounts.id,accounts.email FROM sessions JOIN accounts ON accounts.id=sessions.account_id WHERE sessions.hash=? AND sessions.expires_at>?",
+    "SELECT accounts.id,accounts.email,accounts.email_verified_at FROM sessions JOIN accounts ON accounts.id=sessions.account_id WHERE sessions.hash=? AND sessions.expires_at>?",
   ).bind(await hash(token), now()).first<Account>();
   if (!found) throw new HTTPException(401, { message: "Session expired or revoked." });
   return found;
@@ -95,4 +95,8 @@ export async function inferenceAccount(c: Context<AppEnv>): Promise<string> {
   ).bind(await hash(token)).first<{ account_id: string }>();
   if (!found) throw new HTTPException(401, { message: "Invalid or revoked API key." });
   return found.account_id;
+}
+
+export function requireVerified(c: Context<AppEnv>): void {
+  if (!c.get("account").email_verified_at) throw new HTTPException(403, { message: "Verify your email before creating keys or reserving endpoints." });
 }

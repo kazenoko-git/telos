@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, beforeEach, afterEach, expect, it, vi } from "vitest";
 import app from "../src/index";
+import recoverySchema from "../migrations/0003_account_recovery.sql?raw";
 import schema from "../migrations/0001_accounts.sql?raw";
 import { hash, now } from "../src/auth";
 
@@ -17,16 +18,19 @@ function call(path: string, method = "GET", data?: unknown, token?: string, host
 async function signup(email = "owner@example.com") {
   const response = await call("/api/signup", "POST", { email, password: "fixture-password-12345" });
   expect(response.status).toBe(200);
-  return response.json<{ token: string; id: string }>();
+  const owner = await response.json<{ token: string; id: string }>();
+  await env.DB.prepare("UPDATE accounts SET email_verified_at=? WHERE id=?").bind(now(), owner.id).run();
+  return owner;
 }
 async function createKey(token: string) {
   const response = await call("/api/keys", "POST", { name: "fixture" }, token);
   expect(response.status).toBe(201);
   return response.json<{ id: string; key: string }>();
 }
-beforeAll(async () => { await env.DB.exec(schema.replace(/\n/g, " ")); });
+beforeAll(async () => { await env.DB.exec((schema + recoverySchema).replace(/\n/g, " ")); });
 beforeEach(async () => {
-  await env.DB.batch(["sessions", "api_keys", "hosts", "accounts", "auth_limits"].map(table => env.DB.prepare("DELETE FROM " + table)));
+  vi.spyOn(env.EMAIL, "send").mockResolvedValue({ messageId: "fixture-email" });
+  await env.DB.batch(["account_actions", "sessions", "api_keys", "hosts", "accounts", "auth_limits"].map(table => env.DB.prepare("DELETE FROM " + table)));
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -183,4 +187,68 @@ it("routes reserved paths with native model IDs and rejects origin redirects", a
   expect(upstream).toHaveBeenCalledTimes(1);
   expect((await call("/other/v1/models", "GET", undefined, key.key, root)).status).toBe(200);
   expect((await call("/tiny/v1/models", "GET", undefined, undefined, root)).status).toBe(401);
+});
+
+function mailedToken() {
+  const message = vi.mocked(env.EMAIL.send).mock.calls.at(-1)![0];
+  if (!("text" in message)) throw new Error("Expected text email");
+  return String(message.text).match(/tls_action_[a-f0-9]{64}/)![0];
+}
+
+it("verifies disposable email once, gates new resources and preserves existing API keys", async () => {
+  const response = await call("/api/signup", "POST", { email: "verify@example.invalid", password: "fixture-password-12345" });
+  const owner = await response.json<{ token: string; id: string; verification_sent: boolean }>();
+  expect(owner.verification_sent).toBe(true);
+  const token = mailedToken();
+  expect((await call("/api/keys", "POST", { name: "blocked" }, owner.token)).status).toBe(403);
+  expect((await call("/api/hosts", "POST", { slug: "blocked", model: "tiny" }, owner.token)).status).toBe(403);
+  const row = await env.DB.prepare("SELECT hash FROM account_actions WHERE account_id=?").bind(owner.id).first<{hash: string}>();
+  expect(row!.hash).toBe(await hash(token));
+  expect(row!.hash).not.toContain(token);
+  expect((await call("/api/verification/confirm", "POST", { token })).status).toBe(200);
+  const key = await createKey(owner.token);
+  expect((await call("/api/verification/confirm", "POST", { token })).status).toBe(400);
+  expect((await call("/v1/models", "GET", undefined, key.key, "https://tls.wingit.tech")).status).toBe(200);
+});
+
+it("resets once, revokes sessions and outstanding links, and leaves existing keys working", async () => {
+  const owner = await signup();
+  const key = await createKey(owner.token);
+  await call("/api/password/request", "POST", { email: "owner@example.com" });
+  const oldLink = mailedToken();
+  await call("/api/password/request", "POST", { email: "owner@example.com" });
+  const token = mailedToken();
+  const results = await Promise.all([1,2].map(() => call("/api/password/reset", "POST", { token, password: "replacement-password-123" })));
+  expect(results.map(row => row.status).sort()).toEqual([200,400]);
+  expect((await call("/api/me", "GET", undefined, owner.token)).status).toBe(401);
+  expect((await call("/api/login", "POST", { email: "owner@example.com", password: "fixture-password-12345" })).status).toBe(401);
+  expect((await call("/api/login", "POST", { email: "owner@example.com", password: "replacement-password-123" })).status).toBe(200);
+  expect((await call("/api/password/reset", "POST", { token: oldLink, password: "another-password-123" })).status).toBe(400);
+  expect((await call("/v1/models", "GET", undefined, key.key, "https://tls.wingit.tech")).status).toBe(200);
+});
+
+it("rejects expired, wrong-purpose and malformed links without consuming valid reset links", async () => {
+  const owner = await signup();
+  const verification = mailedToken();
+  expect((await call("/api/password/reset", "POST", { token: verification, password: "replacement-password-123" })).status).toBe(400);
+  await call("/api/password/request", "POST", { email: "owner@example.com" });
+  const reset = mailedToken();
+  expect((await call("/api/verification/confirm", "POST", { token: reset })).status).toBe(400);
+  expect((await call("/api/password/reset", "POST", { token: reset, password: "short" })).status).toBe(400);
+  await env.DB.prepare("UPDATE account_actions SET expires_at=? WHERE account_id=?").bind(now()-1, owner.id).run();
+  expect((await call("/api/password/reset", "POST", { token: reset, password: "replacement-password-123" })).status).toBe(400);
+  expect((await call("/api/verification/confirm", "POST", { token: verification })).status).toBe(400);
+  expect((await call("/api/password/reset", "POST", { token: "garbage", password: "replacement-password-123" })).status).toBe(400);
+});
+
+it("hides account existence, limits email requests, and removes undeliverable tokens", async () => {
+  await signup();
+  vi.mocked(env.EMAIL.send).mockRejectedValue(new Error("provider unavailable"));
+  const known = await call("/api/password/request", "POST", { email: "owner@example.com" });
+  const unknown = await call("/api/password/request", "POST", { email: "missing@example.invalid" });
+  expect(await known.json()).toEqual(await unknown.json());
+  const tokens = await env.DB.prepare("SELECT COUNT(*) AS count FROM account_actions WHERE purpose='reset'").first<{count: number}>();
+  expect(tokens!.count).toBe(0);
+  for (let i=0; i<2; i++) await call("/api/password/request", "POST", { email: "owner@example.com" });
+  expect((await call("/api/password/request", "POST", { email: "owner@example.com" })).status).toBe(429);
 });

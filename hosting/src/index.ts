@@ -1,8 +1,10 @@
 import { Hono, type Handler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { account, body, hash, inferenceAccount, limitAuth, now, passwordHash, sameOrigin, secret, text, type AppEnv } from "./auth";
+import { account, body, hash, inferenceAccount, limitAuth, now, passwordHash, sameOrigin, secret, text, requireVerified, type AppEnv } from "./auth";
 import { connect, originHost, ownedHost, type Host } from "./tunnels";
+
+import { recovery, sendAction } from "./recovery";
 
 const app = new Hono<AppEnv>();
 app.onError((error, c) => {
@@ -57,9 +59,12 @@ for (const action of ["signup", "login"]) {
       .bind(await hash(token), owner.id, now() + 30 * 86400).run();
     setCookie(c, "__Host-telos_session", token, { httpOnly: true, secure: true, sameSite: "Strict", path: "/", maxAge: 30 * 86400 });
     // CLI callers receive the same session credential and store it in an owner-only file.
-    return c.json({ id: owner.id, email, token });
+    const verification_sent = action === "signup" ? await sendAction(c.env, { id: owner.id, email, salt: owner.salt }, "verify") : undefined;
+    return c.json({ id: owner.id, email, token, verification_sent });
   });
 }
+
+app.route("/api", recovery);
 
 app.use("/api/*", async (c, next) => {
   c.set("account", await account(c));
@@ -84,6 +89,7 @@ async function keyValues(c: Parameters<typeof body>[0], name: string) {
 }
 
 app.post("/api/keys", async c => {
+  requireVerified(c);
   const data = await body(c);
   const key = await keyValues(c, text(data.name, "key name", 80));
   await c.env.DB.prepare("INSERT INTO api_keys(id,account_id,name,hash,prefix,created_at) VALUES(?,?,?,?,?,?)")
@@ -118,17 +124,18 @@ app.get("/api/hosts", async c => c.json((await c.env.DB.prepare(
 ).bind(c.get("account").id).all()).results));
 
 app.post("/api/hosts", async c => {
+  requireVerified(c);
   const data = await body(c);
-  const slug = text(data.slug, "subdomain", 40).toLowerCase();
+  const slug = text(data.slug, "endpoint name", 40).toLowerCase();
   if (!/^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/.test(slug) ||
       ["www", "api", "admin", "login", "signup", "account", "origin", "status"].includes(slug)) {
-    throw new HTTPException(400, { message: "Choose a subdomain using letters, digits, and internal hyphens." });
+    throw new HTTPException(400, { message: "Choose an endpoint name using letters, digits, and internal hyphens." });
   }
   const model = text(data.model, "model ID");
   const result = await c.env.DB.prepare(
     "INSERT INTO hosts(slug,id,account_id,model,origin_key,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(slug) DO NOTHING",
   ).bind(slug, crypto.randomUUID(), c.get("account").id, model, secret("tls_origin_"), now()).run();
-  if (!result.meta.changes) throw new HTTPException(409, { message: "That subdomain is already reserved." });
+  if (!result.meta.changes) throw new HTTPException(409, { message: "That endpoint name is already reserved." });
   return c.json({ slug, model, public_url: `https://${c.env.MODEL_DOMAIN}/${slug}/v1` }, 201);
 });
 
