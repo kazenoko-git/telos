@@ -90,6 +90,7 @@ it("streams without buffering, rewrites the pool model, strips client keys, and 
   let cancelled = false;
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, options) => {
     expect(String(input)).toContain("/v1/chat/completions");
+    expect(options?.redirect).toBe("manual");
     expect(options?.headers).toMatchObject({ Authorization: "Bearer " + host!.origin_key });
     expect(options?.headers).not.toMatchObject({ Authorization: "Bearer " + key.key });
     expect(JSON.parse(String(options?.body)).model).toBe("fixture");
@@ -162,4 +163,24 @@ it("recovers partial provisioning without creating another named tunnel", async 
   fail = false;
   expect((await call("/api/hosts/tiny/connect", "POST", { model: "fixture", port: 8000 }, owner.token)).status).toBe(200);
   expect(createCount).toBe(1);
+});
+
+it("routes reserved paths with native model IDs and rejects origin redirects", async () => {
+  const owner = await signup();
+  const key = await createKey(owner.token);
+  await call("/api/hosts", "POST", { slug: "tiny", model: "fixture" }, owner.token);
+  await env.DB.prepare("UPDATE hosts SET last_seen=? WHERE slug='tiny'").bind(now()).run();
+  const root = "https://tls.wingit.tech";
+  const listed = await call("/tiny/v1/models", "GET", undefined, key.key, root);
+  expect((await listed.json<{ data: {id: string}[] }>()).data.map(row => row.id)).toEqual(["fixture"]);
+  const upstream = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, options) => {
+    expect(String(input)).toMatch(/\/v1\/completions$/);
+    expect(String(input)).not.toContain("/tiny/");
+    expect(options?.redirect).toBe("manual");
+    return new Response(null, { status: 302, headers: { Location: "https://untrusted.invalid" } });
+  });
+  expect((await call("/tiny/v1/completions", "POST", { model: "fixture", prompt: "Hi" }, key.key, root)).status).toBe(502);
+  expect(upstream).toHaveBeenCalledTimes(1);
+  expect((await call("/other/v1/models", "GET", undefined, key.key, root)).status).toBe(200);
+  expect((await call("/tiny/v1/models", "GET", undefined, undefined, root)).status).toBe(401);
 });

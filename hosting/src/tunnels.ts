@@ -66,7 +66,7 @@ export async function connect(c: Context<AppEnv>, host: Host, port: number) {
     });
     const token = await cf<string>(c.env, accountPath + "/" + tunnelId + "/token");
     await c.env.DB.prepare("UPDATE hosts SET port=?,last_seen=0 WHERE slug=?").bind(port, host.slug).run();
-    return { token, connection_id: connectionId, origin_key: host.origin_key, public_url: `https://${host.slug}.${c.env.MODEL_DOMAIN}/v1` };
+    return { token, connection_id: connectionId, origin_key: host.origin_key, public_url: `https://${c.env.MODEL_DOMAIN}/${host.slug}/v1` };
   } catch (error) {
     await c.env.DB.prepare("UPDATE hosts SET connection_id=NULL,connection_expires=0 WHERE slug=? AND connection_id=?")
       .bind(host.slug, connectionId).run();

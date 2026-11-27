@@ -1,13 +1,18 @@
-import { Hono } from "hono";
+import { Hono, type Handler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { account, body, hash, inferenceAccount, limitAuth, now, passwordHash, sameOrigin, secret, text, type AppEnv } from "./auth";
 import { connect, originHost, ownedHost, type Host } from "./tunnels";
 
 const app = new Hono<AppEnv>();
-app.onError((error, c) => c.json({
-  error: { message: error instanceof HTTPException ? error.message : "The hosting service could not complete this request.", type: "request_error" },
-}, error instanceof HTTPException ? error.status : 500));
+app.onError((error, c) => {
+  if (!(error instanceof HTTPException)) {
+    console.error(JSON.stringify({ event: "hosting_request_failed", path: c.req.path, message: error.message }));
+  }
+  return c.json({
+    error: { message: error instanceof HTTPException ? error.message : "The hosting service could not complete this request.", type: "request_error" },
+  }, error instanceof HTTPException ? error.status : 500);
+});
 
 app.use("*", async (c, next) => {
   if (c.req.path.startsWith("/api/") && new URL(c.req.url).origin !== c.env.ACCOUNT_ORIGIN) {
@@ -124,7 +129,7 @@ app.post("/api/hosts", async c => {
     "INSERT INTO hosts(slug,id,account_id,model,origin_key,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(slug) DO NOTHING",
   ).bind(slug, crypto.randomUUID(), c.get("account").id, model, secret("tls_origin_"), now()).run();
   if (!result.meta.changes) throw new HTTPException(409, { message: "That subdomain is already reserved." });
-  return c.json({ slug, model, public_url: `https://${slug}.${c.env.MODEL_DOMAIN}/v1` }, 201);
+  return c.json({ slug, model, public_url: `https://${c.env.MODEL_DOMAIN}/${slug}/v1` }, 201);
 });
 
 app.patch("/api/hosts/:slug", async c => {
@@ -153,7 +158,7 @@ app.post("/api/hosts/:slug/heartbeat", async c => {
   }
   const health = await fetch("https://" + originHost(c.env, host) + "/health", {
     headers: { Authorization: "Bearer " + host.origin_key },
-    signal: AbortSignal.timeout(5000), redirect: "error",
+    signal: AbortSignal.timeout(5000), redirect: "manual",
   });
   await health.body?.cancel();
   if (!health.ok) throw new HTTPException(503, { message: "Waiting for the model tunnel to become reachable." });
@@ -171,19 +176,20 @@ app.post("/api/hosts/:slug/disconnect", async c => {
   return c.json({ ok: true });
 });
 
-app.all("/v1/*", async c => {
+const inference: Handler<AppEnv> = async c => {
   const owner = await inferenceAccount(c);
   const hostname = new URL(c.req.url).hostname;
-  const pool = hostname === c.env.MODEL_DOMAIN || hostname === "localhost";
-  const slug = hostname.endsWith("." + c.env.MODEL_DOMAIN) ? hostname.slice(0, -c.env.MODEL_DOMAIN.length - 1) : null;
-  if (!pool && (!slug || slug.includes("."))) throw new HTTPException(404, { message: "Unknown model endpoint." });
-  if (c.req.path === "/v1/models" && c.req.method === "GET") {
+  if (hostname !== c.env.MODEL_DOMAIN && hostname !== "localhost") throw new HTTPException(404, { message: "Unknown model endpoint." });
+  const slug = c.req.param("slug") || null;
+  const pool = slug === null;
+  const inferencePath = pool ? c.req.path : c.req.path.slice(slug.length + 1);
+  if (inferencePath === "/v1/models" && c.req.method === "GET") {
     const hosts = pool
       ? (await c.env.DB.prepare("SELECT * FROM hosts WHERE (account_id=? OR shared=1) AND last_seen>?").bind(owner, now()-90).all<Host>()).results
       : [await c.env.DB.prepare("SELECT * FROM hosts WHERE slug=? AND (account_id=? OR shared=1) AND last_seen>?").bind(slug, owner, now()-90).first<Host>()].filter((h): h is Host => h !== null);
     return c.json({ object: "list", data: hosts.map(h => ({ id: pool ? h.slug + "/" + h.model : h.model, object: "model", owned_by: h.slug })) });
   }
-  if (!["/v1/chat/completions", "/v1/completions"].includes(c.req.path) || c.req.method !== "POST") {
+  if (!["/v1/chat/completions", "/v1/completions"].includes(inferencePath) || c.req.method !== "POST") {
     throw new HTTPException(404, { message: "Inference endpoint not found." });
   }
   const data = await body(c);
@@ -195,21 +201,28 @@ app.all("/v1/*", async c => {
     throw new HTTPException(404, { message: "Model is unavailable or private." });
   }
   const origin = "https://" + originHost(c.env, host);
-  const response = await fetch(origin + c.req.path, {
+  const response = await fetch(origin + inferencePath, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + host.origin_key },
     body: JSON.stringify({ ...data, model: host.model }),
     signal: c.req.raw.signal,
-    redirect: "error",
+    redirect: "manual",
   });
+  if (response.status >= 300 && response.status < 400) {
+    await response.body?.cancel();
+    throw new HTTPException(502, { message: "Model origin redirects are not allowed." });
+  }
   const headers = new Headers(response.headers);
   headers.delete("set-cookie");
   headers.set("Cache-Control", "no-store");
   return new Response(response.body, { status: response.status, headers });
-});
+};
+app.all("/v1/*", inference);
+app.all("/:slug/v1/*", inference);
 
 app.get("*", c => {
-  if (new URL(c.req.url).hostname === c.env.MODEL_DOMAIN) {
+  const hostname = new URL(c.req.url).hostname;
+  if (hostname === c.env.MODEL_DOMAIN || hostname.endsWith("." + c.env.MODEL_DOMAIN)) {
     return c.json({ service: "Telos shared model hosting", base_url: `https://${c.env.MODEL_DOMAIN}/v1`, accounts: c.env.ACCOUNT_ORIGIN });
   }
   return c.env.ASSETS.fetch(c.req.raw);

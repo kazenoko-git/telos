@@ -70,7 +70,7 @@ async function refresh() {
   $("#hosts").replaceChildren();
   for (const host of hosts) {
     const row = node("div", undefined, "item");
-    row.append(node("h3", host.model), node("code", "https://" + host.slug + ".tls.wingit.tech/v1"));
+    row.append(node("h3", host.model), node("code", "https://tls.wingit.tech/" + host.slug + "/v1"));
     row.append(node("p", host.last_seen > Date.now()/1000 - 90 ? "Online" : "Offline", "muted"));
     const command = 'telos serve --checkpoint "<path>" --model-name "' + host.model + '" --tunnel ' + host.slug;
     row.append(node("code", command));
