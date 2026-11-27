@@ -41,3 +41,5 @@ The initial rc1 app was stopped during Qwen's CPU preparation. The second app wa
 - [Bounded pilot runner](../../scripts/modal_router_pilots.py).
 
 Local routing/distillation tests passed 40 tests after the coverage fix. GitHub CI and both prerelease publication workflows passed. The artifacts and raw metrics support a handover for a larger held-out evaluation before choosing longer training settings. Future runs retain the user's two-vCPU/eight-GiB host limits.
+
+See [Follow-up evaluation and 64-step training report](FOLLOWUP_EVAL_AND_LONG_RUN.md) for fresh-base reload checks, 64-prompt disjoint comparisons against matched low-rank baselines, host RSS profiling, and the 64-step full-router runs.
