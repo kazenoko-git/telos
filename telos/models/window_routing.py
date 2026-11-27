@@ -622,11 +622,18 @@ def init_window_adapters(
     return attached
 
 
-def _resolve_layer_module(modules: dict, layer_idx: int, proj_name: str) -> tuple[str, nn.Module] | None:
+def _resolve_layer_module(
+    modules: dict,
+    layer_idx: int,
+    proj_name: str,
+    parent_prefix: str = "",
+) -> tuple[str, nn.Module] | None:
     """Resolve HF or Telos projection names on layers.{layer_idx}."""
     candidates = _HF_TO_MLX_ATTR.get(proj_name, (proj_name,))
     prefix = f"layers.{layer_idx}."
-    for sub in ("attention", "operator", "self_attn", "linear_attn", "conv", "mlp", ""):
+    sub_candidates = [parent_prefix] if parent_prefix else []
+    sub_candidates.extend(("attention", "operator", "self_attn", "linear_attn", "conv", "mlp.shared_expert", "mlp", ""))
+    for sub in sub_candidates:
         for attr in candidates:
             full = f"{prefix}{sub}.{attr}" if sub else f"{prefix}{attr}"
             if full in modules:
@@ -729,8 +736,13 @@ def apply_window_adapter(
             mod_path, base = exact_path, modules[exact_path]
         else:
             parts = mod_prefix.split(".")
-            proj_name = parts[-2] if len(parts) >= 2 and parts[-1] == parts[-2] else parts[-1]
-            resolved = _resolve_layer_module(modules, layer_idx, proj_name)
+            if len(parts) >= 2 and parts[-1] == parts[-2]:
+                proj_name = parts[-2]
+                parent_prefix = ".".join(parts[:-2])
+            else:
+                proj_name = parts[-1]
+                parent_prefix = ".".join(parts[:-1])
+            resolved = _resolve_layer_module(modules, layer_idx, proj_name, parent_prefix=parent_prefix)
             if resolved is None:
                 raise ValueError(f"Cannot map adapter projection {exact_path} onto {type(model).__name__}")
             mod_path, base = resolved

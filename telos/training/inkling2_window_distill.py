@@ -29,6 +29,7 @@ DEFAULT_LORA_TARGETS = (
 )
 _MOE_BLOCK_ATTRS = ("mlp", "feed_forward", "moe")
 _OPERATOR_ATTRS = ("self_attn", "linear_attn", "conv", "attention", "operator")
+_MLP_LORA_PROJS = ("gate_proj", "up_proj", "down_proj")
 _SOFTMAX_FAMILIES = ("qwen", "mixtral", "gemma4")
 
 
@@ -425,22 +426,43 @@ def _moe_router_spec(model: nn.Module, moe_block: nn.Module, gate: nn.Module) ->
     }
 
 
-def _attach_layer_lora(layer: nn.Module, lora_targets: tuple[str, ...], *, rank: int, alpha: float):
+def _wrap_container_lora(container: nn.Module | None, targets: tuple[str, ...], *, rank: int, alpha: float):
+    if container is None:
+        return
+    for proj_name in targets:
+        module = getattr(container, proj_name, None)
+        if isinstance(module, nn.Linear):
+            setattr(container, proj_name, LoRALinear(module, rank=rank, alpha=alpha))
+        elif module is not None:
+            for sub_name in ("linear", "gate_proj"):
+                sub = getattr(module, sub_name, None)
+                if isinstance(sub, nn.Linear):
+                    setattr(module, sub_name, LoRALinear(sub, rank=rank, alpha=alpha))
+
+
+def _attach_layer_lora(
+    layer: nn.Module,
+    lora_targets: tuple[str, ...],
+    *,
+    rank: int,
+    alpha: float,
+    adapt_resident_mlp: bool = False,
+):
     containers = [getattr(layer, attr, None) for attr in _OPERATOR_ATTRS]
-    if _find_moe_router_slot(layer) is None:
+    slot = _find_moe_router_slot(layer)
+    if slot is None:
         containers.append(getattr(layer, "mlp", getattr(layer, "feed_forward", None)))
     for container in containers:
-        if container is None:
-            continue
-        for proj_name in lora_targets:
-            module = getattr(container, proj_name, None)
-            if isinstance(module, nn.Linear):
-                setattr(container, proj_name, LoRALinear(module, rank=rank, alpha=alpha))
-            elif module is not None:
-                for sub_name in ("linear", "gate_proj"):
-                    sub = getattr(module, sub_name, None)
-                    if isinstance(sub, nn.Linear):
-                        setattr(module, sub_name, LoRALinear(sub, rank=rank, alpha=alpha))
+        _wrap_container_lora(container, lora_targets, rank=rank, alpha=alpha)
+    if adapt_resident_mlp and slot is not None:
+        moe_block = slot[0]
+        if moe_block is layer:
+            # Gemma4-style blocks keep a dense parallel MLP alongside layer.router.
+            _wrap_container_lora(getattr(layer, "mlp", None), _MLP_LORA_PROJS, rank=rank, alpha=alpha)
+        for shared_attr in ("shared_expert", "shared_experts"):
+            shared = getattr(moe_block, shared_attr, None)
+            if shared is not None:
+                _wrap_container_lora(shared, _MLP_LORA_PROJS, rank=rank, alpha=alpha)
 
 
 def patch_moe_for_window_distill(
@@ -456,6 +478,7 @@ def patch_moe_for_window_distill(
     lora_targets: tuple[str, ...] = DEFAULT_LORA_TARGETS,
     require_moe: bool = True,
     router_training: str = "adapter",
+    adapt_resident_mlp: bool = False,
 ) -> DistillContext:
     """Freeze base weights and install WindowPinnedRouter + LoRA across Inkling2, Qwen3/3.5-MoE, Gemma4, LFM2-MoE, and dense models."""
     if router_training not in {"adapter", "full"}:
@@ -503,7 +526,10 @@ def patch_moe_for_window_distill(
                     moe_block._returns_router_logits = "Qwen3Moe" in type(moe_block).__name__
                     moe_block.forward = MethodType(_linear_gate_moe_forward, moe_block)
                 moe_count += 1
-        _attach_layer_lora(layer, lora_targets, rank=lora_rank, alpha=effective_alpha)
+        _attach_layer_lora(
+            layer, lora_targets, rank=lora_rank, alpha=effective_alpha,
+            adapt_resident_mlp=adapt_resident_mlp,
+        )
     if window_size is not None and require_moe and moe_count == 0:
         raise ValueError("Window-pinned distillation requires a model with MoE router layers")
     return context

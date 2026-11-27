@@ -507,3 +507,83 @@ def test_gemma4_moe_router_and_exact_unpinned_equivalence(tmp_path, router_train
 def test_full_router_rejects_missing_window():
     with pytest.raises(ValueError, match="window_size"):
         patch_moe_for_window_distill(_ToyInklingModel(), window_size=None, router_training="full")
+
+
+def test_adapt_resident_mlp_wraps_shared_expert_and_dense_mlp(tmp_path):
+    torch.manual_seed(23)
+    # 1. Qwen3.5-style shared_expert block.
+    q_model = nn.Module()
+    q_model.config = SimpleNamespace(
+        model_type="qwen3_5_moe",
+        text_config=SimpleNamespace(model_type="qwen3_5_moe_text", hidden_size=16, num_experts=4, num_experts_per_tok=2),
+    )
+    q_model.embed = nn.Embedding(32, 16)
+    q_layer = nn.Module()
+    q_layer.self_attn = nn.Module()
+    q_layer.self_attn.q_proj = nn.Linear(16, 16, bias=False)
+    q_layer.mlp = _ToyQwen35SparseBlock(16, num_experts=4, top_k=2)
+    q_layer.mlp.shared_expert = nn.Module()
+    for p in ("gate_proj", "up_proj", "down_proj"):
+        setattr(q_layer.mlp.shared_expert, p, nn.Linear(16, 16, bias=False))
+    q_layer.mlp.shared_expert.forward = lambda h: q_layer.mlp.shared_expert.down_proj(
+        F.silu(q_layer.mlp.shared_expert.gate_proj(h)) * q_layer.mlp.shared_expert.up_proj(h)
+    )
+    q_model.model = SimpleNamespace(language_model=SimpleNamespace(layers=nn.ModuleList([q_layer])))
+    q_model.layers = q_model.model.language_model.layers
+    q_model.head = nn.Linear(16, 32, bias=False)
+    q_model.forward = lambda input_ids, attention_mask=None, use_cache=False: SimpleNamespace(
+        logits=q_model.head(q_layer.mlp(q_layer.self_attn.q_proj(q_model.embed(input_ids))))
+    )
+    ctx_q = patch_moe_for_window_distill(
+        q_model, window_size=8, lora_rank=4, router_training="full", adapt_resident_mlp=True,
+    )
+    q_trainable = {n for n, p in q_model.named_parameters() if p.requires_grad}
+    assert any("mlp.shared_expert.up_proj.lora_b" in n for n in q_trainable)
+    assert any("mlp.shared_expert.down_proj.lora_b" in n for n in q_trainable)
+    loss_q, _ = distill_step(q_model, ctx_q, torch.randint(0, 32, (2, 10)), torch.tensor([3, 4]))
+    loss_q.backward()
+    assert q_layer.mlp.shared_expert.down_proj.lora_b.grad.abs().sum() > 0
+
+    # 2. Gemma4-style dense parallel MLP block alongside layer.router.
+    g_model = nn.Module()
+    g_model.config = SimpleNamespace(
+        model_type="gemma4",
+        text_config=SimpleNamespace(model_type="gemma4_text", hidden_size=16, num_experts=6, top_k_experts=2, enable_moe_block=True),
+    )
+    g_model.embed = nn.Embedding(32, 16)
+    g_layer = nn.Module()
+    g_layer.self_attn = nn.Module()
+    g_layer.self_attn.q_proj = nn.Linear(16, 16, bias=False)
+    g_layer.mlp = nn.Module()
+    for p in ("gate_proj", "up_proj", "down_proj"):
+        setattr(g_layer.mlp, p, nn.Linear(16, 16, bias=False))
+    g_layer.router = _ToyGemma4Router(16, num_experts=6, top_k=2)
+    g_layer.experts = nn.ModuleList([nn.Linear(16, 16, bias=False) for _ in range(6)])
+
+    def _g_forward(input_ids, attention_mask=None, use_cache=False):
+        h = g_model.embed(input_ids) + g_layer.self_attn.q_proj(g_model.embed(input_ids))
+        dense = g_layer.mlp.down_proj(F.gelu(g_layer.mlp.gate_proj(h)) * g_layer.mlp.up_proj(h))
+        _, w, idx = g_layer.router(h.reshape(-1, 16))
+        moe = torch.zeros_like(h.reshape(-1, 16))
+        flat = h.reshape(-1, 16)
+        for k in range(idx.shape[-1]):
+            for e in range(6):
+                m = idx[:, k] == e
+                if m.any():
+                    moe[m] = moe[m] + g_layer.experts[e](flat[m]) * w[m, k : k + 1]
+        return SimpleNamespace(logits=g_model.head(h + dense + moe.reshape_as(h)))
+
+    g_model.model = SimpleNamespace(language_model=SimpleNamespace(layers=nn.ModuleList([g_layer])))
+    g_model.layers = g_model.model.language_model.layers
+    g_model.head = nn.Linear(16, 32, bias=False)
+    g_model.forward = _g_forward
+    ctx_g = patch_moe_for_window_distill(
+        g_model, window_size=8, lora_rank=4, router_training="full", adapt_resident_mlp=True,
+    )
+    g_trainable = {n for n, p in g_model.named_parameters() if p.requires_grad}
+    assert any("layers.0.mlp.up_proj.lora_b" in n for n in g_trainable)
+    assert any("layers.0.mlp.down_proj.lora_b" in n for n in g_trainable)
+    assert not g_layer.mlp.up_proj.base.weight.requires_grad
+    loss_g, _ = distill_step(g_model, ctx_g, torch.randint(0, 32, (2, 10)), torch.tensor([3, 4]))
+    loss_g.backward()
+    assert g_layer.mlp.down_proj.lora_b.grad.abs().sum() > 0
