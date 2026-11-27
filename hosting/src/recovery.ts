@@ -3,6 +3,8 @@ import { HTTPException } from "hono/http-exception";
 import { deleteCookie } from "hono/cookie";
 import { account, body, hash, limitAuth, now, passwordHash, sameOrigin, secret, text, type AppEnv } from "./auth";
 
+import { sendAccountMail } from "./email";
+
 type Recipient = { id: string; email: string; salt: string };
 
 // Only a hash is stored. The URL fragment stays out of HTTP requests and access logs.
@@ -15,11 +17,11 @@ export async function sendAction(env: Env, recipient: Recipient, purpose: "verif
   const url = `${env.ACCOUNT_ORIGIN}/account#${purpose}=${token}`;
   const title = purpose === "verify" ? "Verify your Telos email" : "Reset your Telos password";
   try {
-    await env.EMAIL.send({
-      from: { email: env.EMAIL_FROM, name: "Telos" }, to: recipient.email, subject: title,
+    await sendAccountMail(env, {
+      to: recipient.email, subject: title,
       text: `${title}\n\n${url}\n\nThis single-use link expires in ${purpose === "verify" ? "24 hours" : "30 minutes"}. If you did not request this, ignore this email.`,
       html: `<p>${title}</p><p><a href="${url}">Continue to Telos</a></p><p>This single-use link expires in ${purpose === "verify" ? "24 hours" : "30 minutes"}. If you did not request this, ignore this email.</p>`,
-    });
+    }, "account-" + digest);
     return true;
   } catch {
     await env.DB.prepare("DELETE FROM account_actions WHERE hash=?").bind(digest).run();
