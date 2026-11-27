@@ -62,53 +62,40 @@ def _gdn_step_reference(
 
 
 def _invert_unit_lower_triangular_blocks(l_mat: torch.Tensor) -> torch.Tensor:
-    """Exact pure-matmul block Schur-complement inverse of a unit lower-triangular matrix.
+    """Exact pure-matmul vectorized block Schur-complement inverse of a unit lower-triangular matrix.
 
     For L = [[L11, 0], [L21, L22]], L^{-1} = [[L11^{-1}, 0], [-L22^{-1} L21 L11^{-1}, L22^{-1}]].
-    Unlike Neumann/block-doubling powers A^{2^k} (which overflow when keys align and ||A|| > 1),
-    every intermediate block here is the exact inverse of a contractive GDN sub-chunk (O(1) norm).
-    Requires last two dims to be a power of 2; executes in log2(C) - 1 pure matmul levels.
+    Zero DynamicUpdateSlice / per-block Python loops: every level uses pure view + diagonal +
+    batched matmul + cat so XLA HLO stays compact and compiles quickly.
+    Requires last two dims to be a power of 2.
     """
     c = l_mat.shape[-1]
-    inv = torch.eye(c, device=l_mat.device, dtype=l_mat.dtype).expand_as(l_mat).clone()
+    batch_shape = l_mat.shape[:-2]
     if c <= 1:
-        return inv
+        return torch.ones_like(l_mat)
 
-    # Level 0 (size 1 -> 2): for each 2x2 block [[1, 0], [a, 1]], inverse is [[1, 0], [-a, 1]]
-    idx_even = torch.arange(0, c, 2, device=l_mat.device)
-    idx_odd = idx_even + 1
-    inv[..., idx_odd, idx_even] = -l_mat[..., idx_odd, idx_even]
-
-    # Bottom-up block merging: block size b = 2, 4, 8, ..., c // 2
-    b_size = 2
+    inv_blocks = torch.ones((*batch_shape, c, 1, 1), device=l_mat.device, dtype=l_mat.dtype)
+    b_size = 1
     while b_size < c:
         next_b = 2 * b_size
         n_groups = c // next_b
-        l_21_list = []
-        inv_11_list = []
-        inv_22_list = []
-        for g_idx in range(n_groups):
-            s0 = g_idx * next_b
-            s1 = s0 + b_size
-            s2 = s0 + next_b
-            l_21_list.append(l_mat[..., s1:s2, s0:s1])
-            inv_11_list.append(inv[..., s0:s1, s0:s1])
-            inv_22_list.append(inv[..., s1:s2, s1:s2])
-        # Stack all groups along a new axis and run ONE batched matmul per level
-        l_21 = torch.stack(l_21_list, dim=-3)      # (..., n_groups, b_size, b_size)
-        inv_11 = torch.stack(inv_11_list, dim=-3)  # (..., n_groups, b_size, b_size)
-        inv_22 = torch.stack(inv_22_list, dim=-3)  # (..., n_groups, b_size, b_size)
-        inv_21 = -torch.matmul(torch.matmul(inv_22, l_21), inv_11)
 
-        new_inv = inv.clone()
-        for g_idx in range(n_groups):
-            s0 = g_idx * next_b
-            s1 = s0 + b_size
-            s2 = s0 + next_b
-            new_inv[..., s1:s2, s0:s1] = inv_21[..., g_idx, :, :]
-        inv = new_inv
+        inv_11 = inv_blocks[..., 0::2, :, :]  # (..., n_groups, b_size, b_size)
+        inv_22 = inv_blocks[..., 1::2, :, :]  # (..., n_groups, b_size, b_size)
+
+        # Extract the n_groups off-diagonal lower-left blocks L21 in one vectorized op
+        l_grid = l_mat.view(*batch_shape, n_groups, 2, b_size, n_groups, 2, b_size)
+        l_diag = l_grid.diagonal(dim1=-6, dim2=-3).movedim(-1, -5)  # (..., n_groups, 2, b_size, 2, b_size)
+        l_21 = l_diag[..., 1, :, 0, :]  # (..., n_groups, b_size, b_size)
+
+        inv_21 = -torch.matmul(torch.matmul(inv_22, l_21), inv_11)
+        zeros = torch.zeros_like(inv_11)
+        top = torch.cat((inv_11, zeros), dim=-1)
+        bot = torch.cat((inv_21, inv_22), dim=-1)
+        inv_blocks = torch.cat((top, bot), dim=-2)  # (..., n_groups, next_b, next_b)
         b_size = next_b
-    return inv
+
+    return inv_blocks.squeeze(-3)
 
 
 def _gdn_chunkwise(

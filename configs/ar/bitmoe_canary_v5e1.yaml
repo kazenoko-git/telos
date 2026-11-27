@@ -43,10 +43,13 @@ training:
   precision: bf16
   xla_fsdp: false
   xla_dynamic_optimizer: true
+  xla_mark_step_per_microbatch: true
+  xla_cache_dir: /tmp/xla_cache
+  fail_on_nonfinite_loss: true
   gradient_checkpointing: true
   fused_vocab_loss: true
   fused_vocab_chunk_axis: token
-  fused_vocab_chunk_size: 256
+  fused_vocab_chunk_size: 1024
   batch_size: 4
   gradient_accumulation: 2
   max_steps: 20

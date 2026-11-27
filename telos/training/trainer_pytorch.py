@@ -1089,6 +1089,9 @@ class UnifiedPyTorchTrainer:
 
                     l_val = float(last_metrics['loss'].detach().cpu().item()) if last_metrics and 'loss' in last_metrics else 0.0
                     ce_val = float(last_metrics['unweighted_ce'].detach().cpu().item()) if last_metrics and 'unweighted_ce' in last_metrics else 0.0
+                    self.last_logged_loss = l_val
+                    if self.t_cfg.get("fail_on_nonfinite_loss", False) and (not math.isfinite(l_val) or not math.isfinite(ce_val)):
+                        raise RuntimeError(f"Training aborted at step {step}: non-finite loss (loss={l_val}, ce={ce_val})")
 
                     if getattr(self, "is_unified", False) and last_metrics and "causal_ce" in last_metrics:
                         c_ce = float(last_metrics["causal_ce"].detach().cpu().item())
