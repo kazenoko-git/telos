@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Télos · Model hosting</title><link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<header><a href="/" class="brand">Télos</a><span>Model hosting</span><button id="logout" hidden>Sign out</button></header>
+<main>
+<div id="notice" role="status" aria-live="polite"></div>
+<section id="auth">
+<h1>Connect to your models.</h1>
+<p>Manage API keys and reserve a model endpoint under tls.wingit.tech.</p>
+<form id="login">
+<label>Email<input name="email" type="email" autocomplete="username" required></label>
+<label>Password<input name="password" type="password" autocomplete="current-password" minlength="12" maxlength="512" required></label>
+<div class="actions"><button type="submit">Sign in</button><button id="signup" type="button" class="secondary">Create account</button></div>
+</form>
+</section>
+<div id="dashboard" hidden>
+<div class="intro"><h1>Your hosting</h1><p id="email"></p></div>
+<section>
+<h2>API keys</h2><p>Keys work across your endpoints and the shared pool. Revocation and rotation apply to new requests immediately.</p>
+<form id="new-key" class="inline"><label>Key name<input name="name" placeholder="Laptop" required maxlength="80"></label><button>Create key</button></form>
+<div id="keys"></div>
+</section>
+<section>
+<h2>Model endpoints</h2>
+<form id="new-host" class="inline"><label>Subdomain<input name="slug" placeholder="my-model" pattern="[a-z0-9][a-z0-9-]{0,39}" maxlength="40" required></label><label>Model ID<input name="model" placeholder="my-model" maxlength="200" required></label><button>Reserve endpoint</button></form>
+<p>Shared models can receive prompts from any Telos account. API clients connect to <code>https://tls.wingit.tech/v1</code> and select a model from <code>/v1/models</code>.</p>
+<div id="hosts"></div>
+</section>
+</div>
+</main>
+<dialog id="secret"><h2>Save your API key</h2><p>This is the only time its full value is displayed.</p><textarea id="secret-value" readonly aria-label="New API key"></textarea><div class="actions"><button id="copy-secret">Copy key</button><button id="close-secret" class="secondary">Done</button></div></dialog>
+</body></html>
