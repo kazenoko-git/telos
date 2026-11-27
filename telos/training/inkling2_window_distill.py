@@ -615,8 +615,11 @@ def distill_step(
             teacher_out = model(input_ids=input_ids, attention_mask=attention_mask, use_cache=False)
             teacher_logits = teacher_out.logits[:, :-1, :].float()
 
+    # Retain this teacher pass across reset_forward, which clears per-forward state.
+    teacher_routes = dict(context.teacher_routes) if teacher_logits is not None else {}
     # 2. Student pass (W-token window-pinned when router is active).
     context.reset_forward("student", prompt_lengths, record_teacher=False)
+    context.teacher_routes.update(teacher_routes)
     student_out = model(input_ids=input_ids, attention_mask=attention_mask, use_cache=False)
     student_logits = student_out.logits[:, :-1, :].float()
 

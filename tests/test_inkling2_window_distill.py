@@ -124,6 +124,7 @@ def test_window_pinned_distill_gradients_checkpointing_and_export(tmp_path, rout
         loss, metrics = distill_step(model, ctx, input_ids, prompt_lengths)
         if initial_loss is None:
             initial_loss = metrics["loss"]
+        assert metrics["cov"] > 0
         loss.backward()
         if step == 0:
             # Verify gradients flow to both WindowSelector and LoRA adapters across loop passes.
