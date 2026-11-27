@@ -5,7 +5,7 @@ import time
 
 import modal
 
-VERSION = "1.9.1rc1"
+VERSION = "1.9.1rc2"
 TRANSFORMERS_REVISION = "8e094f8970a60ca83052e2c199783b247b8fc13e"
 MODELS = {
     "inkling": ("thinkingmachines/Inkling-2-Mini", "c9d028302cd0f035fdf8e7e91f089a4ce94d2195"),
@@ -54,7 +54,6 @@ def prepare(name: str):
               retries=0, scaledown_window=2, max_containers=1,
               volumes={"/vol": volume}, env={"HF_HOME": "/vol/hf", "HF_HUB_OFFLINE": "1"})
 def pilot(name: str):
-    import math
     import torch
     import transformers
     import telos
