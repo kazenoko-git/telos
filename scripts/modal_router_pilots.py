@@ -51,7 +51,7 @@ def prepare(name: str):
 
 
 @app.function(image=image, gpu="H100", cpu=4, memory=131072, timeout=GPU_TIMEOUT,
-              retries=0, scaledown_window=0, max_containers=1,
+              retries=0, scaledown_window=2, max_containers=1,
               volumes={"/vol": volume}, env={"HF_HOME": "/vol/hf", "HF_HUB_OFFLINE": "1"})
 def pilot(name: str):
     import math
