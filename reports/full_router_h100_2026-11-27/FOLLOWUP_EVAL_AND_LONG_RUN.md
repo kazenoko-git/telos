@@ -184,3 +184,39 @@ All `step_320.safetensors` adapters passed exact reload verification (`reload_pa
 - `ap-7nbJRk...` (`w8_diag` + initial rollouts): `$2.5720` compute
 - `ap-D0fmia...` (`w8_onpolicy_320` + rollout top-up + final 96-token test suite): `$4.2792` compute
 - **Cumulative November 2026 (`modal billing summary --json`)**: `$19.34` metered (`$0.44` free storage allowance, `$0.10` egress allowance), **`$18.80` credits applied**, `$0.00` billed — leaving **`~$11.20`** of the `$30.00` monthly credit (expiring Nov 30, 2026).
+
+## 15. Option 1: 12-Task Verifiable Capability Benchmark (`max_new_tokens=384`)
+
+To test end-to-end task preservation (exact integers, GSM8K-style word problems, syllogism deduction, sandbox-executed Python functions `is_palindrome` / `merge_intervals` / `two_sum`, strict JSON schema, SQL, science, and history), all three models were evaluated at `max_new_tokens=384` against fresh Stock baselines (`use_cache=True` for Stock, exact sequential `use_cache=False` for `W=8` adapters; apples-to-apples conclusion grading applied to `logic_syllogism`):
+
+| Model & Checkpoint | Passed | EOS Stops | Mean `distinct_4gram` | Mean Tokens |
+| --- | ---: | ---: | ---: | ---: |
+| `inkling` Stock | **12/12** | 12/12 | 0.982 | 54.5 |
+| `inkling` `W=8 step_320` | 7/12 | 12/12 | 0.968 | 58.4 |
+| `inkling` `W=8 step_600` | 7/12 | 12/12 | **0.973** | 45.6 |
+| `gemma` Stock | **12/12** | 12/12 | 0.963 | 119.5 |
+| `gemma` **`W=8 step_320`** | **10/12** | 12/12 | 0.950 | 106.0 |
+| `gemma` `W=8 step_500` | 7/12 | 12/12 | 0.945 | 106.8 |
+| `qwen` Stock (default thinking) | 6/12 | 1/12 | 0.840 | 379.5 |
+| `qwen` `W=8 step_320` (default thinking) | 6/12 | 4/12 | 0.765 | 360.7 |
+| `qwen` `W=8 step_500` (default thinking) | 6/12 | 2/12 | 0.798 | 372.3 |
+| `qwen` Stock (`enable_thinking=False`) | **11/12** | 12/12 | 0.957 | 112.5 |
+| `qwen` `W=8 step_500` (`enable_thinking=False`) | 6/12 | 12/12 | **0.970** | 88.7 |
+
+Raw prompt-by-prompt outputs and grading details are in [option12/bench12_baseline.json](option12/bench12_baseline.json) and [option12/bench12_final.json](option12/bench12_final.json).
+
+## 16. Option 2: Stage-3 Push (`Inkling → step_600`, `Qwen/Gemma → step_500`)
+
+Resuming from `step_320.safetensors` with expanded Inkling stock on-policy rollouts (`34 → 54`, `$0.466`), strictly unseen mixed-domain rows (`1480:2400`), and cosine LR (`2e-5 → 1.4e-4 → 1.5e-5`, `W=8`, `adapt_resident_mlp=True`), all three models improved held-out `disjoint_64` NLL/KL/Top-1 beyond `step_320` and passed exact reload verification (`reload_parameters_exact = True`):
+
+| Model & Stage | Stock CE | `step_320` CE / KL / Top-1 | Stage-3 (`step_600` / `step_500`) CE / KL / Top-1 | Stage-3 Artifact & SHA-256 |
+| --- | ---: | ---: | ---: | --- |
+| `inkling` (`step_600`) | 2.1499 | 2.4167 / 0.8084 / 68.09% | **2.3227 / 0.7326 / 70.18%** | `50ea939a2869dcd382d48093ec1ae2d3ba0b4fdbc5af5b33cfbd36ef65dab94c` |
+| `qwen` (`step_500`) | 2.4111 | 2.5570 / 0.7642 / 70.29% | **2.5017 / 0.7346 / 71.00%** | `b87d3bc624d47acac6b17be4818bd02889106809b745ea655bd99a7ba1303bf4` |
+| `gemma` (`step_500`) | 4.0915 | 2.8909 / 0.9097 / 70.18% | **2.8266 / 0.8895 / 70.49%** | `9fd746180354557875a16e518d21897b15f528c0d9f49eba006cfa61994bed65` |
+
+**Key takeaway**: While coherence loops are completely resolved across all three models (`distinct_4gram` `0.945–0.973`, `12/12` EOS on Inkling/Gemma/Qwen-nothink) and Stage 3 improved held-out Dolly Top-1 above `70%` on every model, **`step_500` regressed Gemma on exact `bench12` (`10/12 → 7/12`)** and did not lift Inkling past `7/12`. At `~0.73–0.89` per-token KL (`~70–71%` Top-1), multi-step coding/math precision remains vulnerable to isolated token typos (e.g., `.isalalpha()`, `GROUPBy`, arithmetic slips), making **`gemma w8_step320` (`10/12`)** stronger than `gemma step_500` on end-to-end tasks. Artifacts are indexed in [option12/artifacts.json](option12/artifacts.json) and saved under `models/full_router_w8_stage3_h100_2026-11-27/`.
+
+## 17. Final Modal Billing Reconciliation (`2026-11-27`)
+
+- Cumulative November 2026 (`modal billing summary`): **`$27.55` metered** (`$0.44` free storage, `$0.10` network egress allowance, **`$27.01` credits applied**, **`$0.00` billed**), leaving **`~$2.99`** of the `$30.00` monthly credit (expiring Nov 30, 2026). All ephemeral apps stopped.
