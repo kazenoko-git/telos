@@ -13,7 +13,7 @@ MODELS = {
     "gemma": ("google/gemma-4-26B-A4B-it", "4d7ae4984b7db7de8f8457170b3f1a419ee76d52"),
 }
 # Upper bound per H100 call, including requested CPU and RAM, rounded up.
-DOLLARS_PER_SECOND = 0.0016
+DOLLARS_PER_SECOND = 0.0012
 GPU_TIMEOUT = 1200
 app = modal.App("telos-full-router-pilots")
 volume = modal.Volume.from_name("telos-router-pilots", create_if_missing=True)
@@ -27,7 +27,7 @@ image = (
 )
 
 
-@app.function(image=image, timeout=1200, cpu=2, memory=8192,
+@app.function(image=image, timeout=1200, cpu=1, memory=8192,
               volumes={"/vol": volume}, env={"HF_HOME": "/vol/hf"}, retries=0)
 def prepare(name: str):
     from huggingface_hub import snapshot_download
@@ -50,9 +50,10 @@ def prepare(name: str):
     return {"model": repo, "revision": revision, "path": path}
 
 
-@app.function(image=image, gpu="H100", cpu=4, memory=131072, timeout=GPU_TIMEOUT,
+@app.function(image=image, gpu="H100", cpu=1, memory=8192, timeout=GPU_TIMEOUT,
               retries=0, scaledown_window=2, max_containers=1,
-              volumes={"/vol": volume}, env={"HF_HOME": "/vol/hf", "HF_HUB_OFFLINE": "1"})
+              volumes={"/vol": volume}, env={"HF_HOME": "/vol/hf", "HF_HUB_OFFLINE": "1", "HF_ENABLE_PARALLEL_LOADING": "false",
+                                           "OMP_NUM_THREADS": "2", "MKL_NUM_THREADS": "2"})
 def pilot(name: str):
     import torch
     import transformers
@@ -69,7 +70,7 @@ def pilot(name: str):
               "model": MODELS[name][0], "revision": MODELS[name][1],
               "steps": 8, "batch_size": 1, "grad_accum": 2, "window": 16,
               "max_length": 128, "gpu": torch.cuda.get_device_name(),
-              "gpu_timeout_seconds": GPU_TIMEOUT,
+              "gpu_timeout_seconds": GPU_TIMEOUT, "host_vcpu": 2, "host_ram_gib": 8,
               "cost_upper_bound_usd": GPU_TIMEOUT * DOLLARS_PER_SECOND}
     out = Path("/vol/results") / name
     out.mkdir(parents=True, exist_ok=True)
@@ -84,6 +85,7 @@ def pilot(name: str):
 
     try:
         assert telos.__version__ == VERSION
+        torch.set_num_threads(2)
         torch.manual_seed(73)
         repo, revision = MODELS[name]
         tokenizer = AutoTokenizer.from_pretrained(repo, revision=revision, local_files_only=True)
@@ -214,13 +216,17 @@ def pilot(name: str):
 
 
 @app.local_entrypoint()
-def main(output: str = "reports/full_router_h100_2026-11-27"):
-    # Three bounded calls cost at most $5.76 at the conservative rate above.
+def main(output: str = "reports/full_router_h100_2026-11-27", model: str = "all"):
+    # Three bounded calls cost at most $4.32 at the conservative rate above.
     # Preparation and image builds use CPU. No automatic retries or longer runs.
     folder = Path(output)
     folder.mkdir(parents=True, exist_ok=True)
-    summary = {}
-    for name in MODELS:
+    if model != "all" and model not in MODELS:
+        raise ValueError(f"Unknown pilot model: {model}")
+    summary_path = folder / "summary.json"
+    summary = json.loads(summary_path.read_text()) if summary_path.exists() else {}
+    names = MODELS if model == "all" else [model]
+    for name in names:
         try:
             prep = prepare.remote(name)
             (folder / f"{name}-preparation.json").write_text(json.dumps(prep, indent=2))
