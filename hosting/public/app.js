@@ -41,6 +41,8 @@ async function refresh() {
   $("#dashboard").hidden = false;
   $("#logout").hidden = false;
   $("#email").textContent = owner.email;
+  $("#verification").hidden = Boolean(owner.email_verified_at);
+  for (const field of document.querySelectorAll("#new-key input, #new-key button, #new-host input, #new-host button")) field.disabled = !owner.email_verified_at;
   const [keys, hosts] = await Promise.all([api("keys"), api("hosts")]);
   $("#keys").replaceChildren();
   for (const key of keys) {
@@ -88,16 +90,17 @@ async function refresh() {
     row.append(share);
     $("#hosts").append(row);
   }
-  if (!hosts.length) $("#hosts").append(node("p", "Reserve a subdomain, then connect your model with telos serve."));
+  if (!hosts.length) $("#hosts").append(node("p", "Reserve a username, then connect your model with telos serve."));
 }
 
 async function authenticate(action) {
   const form = $("#login");
   if (!form.reportValidity()) return;
   const data = Object.fromEntries(new FormData(form));
-  await api(action, "POST", data);
+  const result = await api(action, "POST", data);
   form.reset();
   await refresh();
+  if (action === "signup") notice(result.verification_sent ? "Check your inbox to verify your email." : "Account created, but email delivery is unavailable. Try Send verification email shortly.");
 }
 $("#login").addEventListener("submit", event => { event.preventDefault(); act(() => authenticate("login")); });
 $("#signup").addEventListener("click", () => act(() => authenticate("signup")));
@@ -131,7 +134,48 @@ $("#secret").addEventListener("close", () => {
   $("#secret-value").value = "";
   $("#copy-secret").textContent = "Copy key";
 });
-refresh().catch(() => {
-  $("#auth").hidden = false;
-  $("#dashboard").hidden = true;
-});
+$("#resend-verification").addEventListener("click", () => act(async () => {
+  await api("verification/request", "POST", {});
+  notice("Verification email sent. Check your inbox.");
+}));
+$("#forgot").addEventListener("click", () => act(async () => {
+  const email = $("#login input[name=email]");
+  if (!email.reportValidity()) return;
+  const result = await api("password/request", "POST", { email: email.value });
+  notice(result.message);
+}));
+// Strip the secret fragment before any follow-up navigation. Never put tokens in query strings.
+const emailLink = new URLSearchParams(location.hash.slice(1));
+const actionToken = emailLink.get("reset") || emailLink.get("verify");
+const resetAction = emailLink.has("reset");
+if (actionToken) {
+  history.replaceState(null, "", location.pathname);
+  $("#auth").hidden = true;
+  $("#email-action").hidden = false;
+  $("#action-title").textContent = resetAction ? "Choose a new password" : "Verify your email";
+  $("#reset-password-label").hidden = !resetAction;
+  $("#reset-password").required = resetAction;
+  $("#confirm-action").textContent = resetAction ? "Reset password" : "Verify email";
+  $("#action-form").addEventListener("submit", event => {
+    event.preventDefault();
+    act(async () => {
+      await api(resetAction ? "password/reset" : "verification/confirm", "POST", {
+        token: actionToken, ...(resetAction ? { password: $("#reset-password").value } : {}),
+      });
+      $("#reset-password").value = "";
+      $("#email-action").hidden = true;
+      if (resetAction) {
+        $("#auth").hidden = false;
+        notice("Password reset. Sign in with your new password. Your API keys still work.");
+      } else {
+        await refresh().catch(() => { $("#auth").hidden = false; });
+        notice("Email verified. You can now create keys and reserve endpoints.");
+      }
+    });
+  });
+} else {
+  refresh().catch(() => {
+    $("#auth").hidden = false;
+    $("#dashboard").hidden = true;
+  });
+}

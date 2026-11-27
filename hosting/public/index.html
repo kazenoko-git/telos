@@ -17,9 +17,18 @@
 <label>Password<input name="password" type="password" autocomplete="current-password" minlength="12" maxlength="512" required></label>
 <div class="actions"><button type="submit">Sign in</button><button id="signup" type="button" class="secondary">Create account</button></div>
 </form>
+<button id="forgot" type="button" class="secondary">Forgot password?</button>
+</section>
+<section id="email-action" hidden>
+<h1 id="action-title">Email link</h1>
+<form id="action-form">
+<label id="reset-password-label" hidden>New password<input id="reset-password" type="password" autocomplete="new-password" minlength="12" maxlength="512"></label>
+<button id="confirm-action" type="submit">Continue</button>
+</form>
 </section>
 <div id="dashboard" hidden>
 <div class="intro"><h1>Your hosting</h1><p id="email"></p></div>
+<section id="verification" hidden><h2>Verify your email</h2><p>Check your inbox before creating keys or reserving new endpoints. Existing keys keep working.</p><button id="resend-verification" type="button">Send verification email</button></section>
 <section>
 <h2>API keys</h2><p>Keys work across your endpoints and the shared pool. Revocation and rotation apply to new requests immediately.</p>
 <form id="new-key" class="inline"><label>Key name<input name="name" placeholder="Laptop" required maxlength="80"></label><button>Create key</button></form>
@@ -27,7 +36,7 @@
 </section>
 <section>
 <h2>Model endpoints</h2>
-<form id="new-host" class="inline"><label>Subdomain<input name="slug" placeholder="my-model" pattern="[a-z0-9][a-z0-9-]{0,39}" maxlength="40" required></label><label>Model ID<input name="model" placeholder="my-model" maxlength="200" required></label><button>Reserve endpoint</button></form>
+<form id="new-host" class="inline"><label>Username<input name="slug" placeholder="my-model" pattern="[a-z0-9][a-z0-9-]{0,39}" maxlength="40" required></label><label>Model ID<input name="model" placeholder="my-model" maxlength="200" required></label><button>Reserve endpoint</button></form>
 <p>Shared models can receive prompts from any Telos account. API clients connect to <code>https://tls.wingit.tech/v1</code> and select a model from <code>/v1/models</code>.</p>
 <div id="hosts"></div>
 </section>
