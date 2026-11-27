@@ -13,6 +13,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
+from telos import __version__
+
 DEFAULT_ACCOUNT_URL = "https://telos.wingit.tech"
 
 
@@ -58,7 +60,7 @@ class HostingClient:
 
     def request(self, method, path, data=None):
         payload = None if data is None else json.dumps(data).encode()
-        headers = {"Content-Type": "application/json"}
+        headers = {"Content-Type": "application/json", "User-Agent": "telos-ml/" + __version__}
         if self.token:
             headers["Authorization"] = "Bearer " + self.token
         try:
@@ -96,7 +98,7 @@ class TunnelRuntime(AbstractContextManager):
     """Keep a reserved endpoint online for the lifetime of the local server."""
     def __init__(self, client, slug, model, port, on_failure, executable=None):
         if not slug or any(ch not in "abcdefghijklmnopqrstuvwxyz0123456789-" for ch in slug):
-            raise ValueError("Use the reserved lowercase tunnel subdomain.")
+            raise ValueError("Use the reserved lowercase endpoint name.")
         self.executable = executable or shutil.which("cloudflared")
         if not self.executable:
             raise HostingError("Install cloudflared to publish a Telos endpoint.")
