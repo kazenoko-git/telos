@@ -1,6 +1,7 @@
 """Command-line interface for serving native Télos checkpoints over HTTP."""
 
 import argparse
+from contextlib import ExitStack
 from pathlib import Path
 
 from .chat import ChatTemplateRenderer
@@ -58,6 +59,26 @@ def main():
             if not isinstance(config, dict):
                 raise ValueError("--config must contain a mapping.")
 
+        model_id = args.model_name or _default_model_id(args.checkpoint)
+        server = None
+
+        def stop_server():
+            if server is not None:
+                server.should_exit = True
+
+        tunnel = None
+        if args.tunnel:
+            from .hosting import HostingClient, HostingError, TunnelRuntime
+            if args.host != "127.0.0.1":
+                raise ValueError("Managed tunnels require --host 127.0.0.1")
+            if args.api_key:
+                raise ValueError("Managed tunnels use account API keys. Omit --api-key.")
+            client = HostingClient.saved(args.account_url)
+            tunnel = TunnelRuntime(client, args.tunnel, model_id, args.port, on_failure=stop_server)
+            hosts = client.request("GET", "/api/hosts")
+            if not any(host["slug"] == args.tunnel and host["model"] == model_id for host in hosts):
+                raise HostingError("Reserve this subdomain and model ID with 'telos tunnel reserve' first.")
+
         generator = TextGenerator.from_checkpoint(
             args.checkpoint,
             tokenizer=args.tokenizer,
@@ -75,30 +96,20 @@ def main():
             generator.checkpoint_dir,
             override=args.chat_template,
         )
-        app = create_app(
-            generator,
-            model_id=model_id,
-            chat_renderer=renderer,
-            default_cache=args.cache,
-            api_key=args.api_key,
-        )
-        if args.tunnel:
-            from .hosting import HostingClient, TunnelRuntime
-            if args.host != "127.0.0.1":
-                raise ValueError("Managed tunnels require --host 127.0.0.1")
-            if args.api_key:
-                raise ValueError("Managed tunnels use account API keys. Omit --api-key.")
-            server = uvicorn.Server(uvicorn.Config(app, host=args.host, port=args.port, log_level=args.log_level))
-            with TunnelRuntime(
-                HostingClient.saved(args.account_url), args.tunnel, model_id, args.port,
-                on_failure=lambda: setattr(server, "should_exit", True),
-            ) as tunnel:
-                # The edge authenticates account keys, then uses this private origin credential.
-                app = create_app(generator, model_id=model_id, chat_renderer=renderer,
-                                 default_cache=args.cache, api_key=tunnel.origin_key)
-                server.config.app = app
+        with ExitStack() as stack:
+            if tunnel:
+                stack.enter_context(tunnel)
+            app = create_app(
+                generator,
+                model_id=model_id,
+                chat_renderer=renderer,
+                default_cache=args.cache,
+                api_key=tunnel.origin_key if tunnel else args.api_key,
+            )
+            if tunnel:
+                server = uvicorn.Server(uvicorn.Config(app, host=args.host, port=args.port, log_level=args.log_level))
                 server.run()
-        else:
-            uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
+            else:
+                uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
     except (OSError, ValueError, RuntimeError, ImportError) as exc:
         parser.exit(2, f"telos serve: {exc}\n")

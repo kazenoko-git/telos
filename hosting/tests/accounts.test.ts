@@ -115,3 +115,51 @@ it("rejects expired sessions, invalid credentials and cross-origin management", 
   expect((await call("/api/me", "GET", undefined, owner.token)).status).toBe(401);
   expect((await call("/api/me", "GET", undefined, owner.token, "https://tiny.tls.wingit.tech")).status).toBe(404);
 });
+
+it("leases a provisioned connection and rejects stale disconnects", async () => {
+  const owner = await signup();
+  await call("/api/hosts", "POST", { slug: "tiny", model: "fixture" }, owner.token);
+  const requests: string[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, options) => {
+    const url = String(input);
+    requests.push((options?.method || "GET") + " " + url);
+    let result: unknown = {};
+    if (url.includes("cfd_tunnel?")) result = [];
+    else if (url.endsWith("/cfd_tunnel")) result = { id: "fixture-tunnel" };
+    else if (url.endsWith("/token")) result = "fixture-connector-token";
+    else if (url.includes("/dns_records?")) result = [];
+    return Response.json({ success: true, result });
+  });
+  const connected = await call("/api/hosts/tiny/connect", "POST", { model: "fixture", port: 8000 }, owner.token);
+  expect(connected.status).toBe(200);
+  const config = await connected.json<{ connection_id: string; token: string }>();
+  expect(config.token).toBe("fixture-connector-token");
+  expect((await call("/api/hosts/tiny/connect", "POST", { model: "fixture", port: 8000 }, owner.token)).status).toBe(409);
+  await call("/api/hosts/tiny/disconnect", "POST", { connection_id: "stale" }, owner.token);
+  const retained = await env.DB.prepare("SELECT connection_id FROM hosts WHERE slug='tiny'").first<{ connection_id: string }>();
+  expect(retained?.connection_id).toBe(config.connection_id);
+  await call("/api/hosts/tiny/disconnect", "POST", { connection_id: config.connection_id }, owner.token);
+  expect((await call("/api/hosts/tiny/connect", "POST", { model: "fixture", port: 8001 }, owner.token)).status).toBe(200);
+  expect(requests.filter(r => r.startsWith("POST") && r.endsWith("/cfd_tunnel"))).toHaveLength(1);
+});
+
+it("recovers partial provisioning without creating another named tunnel", async () => {
+  const owner = await signup();
+  await call("/api/hosts", "POST", { slug: "tiny", model: "fixture" }, owner.token);
+  let createCount = 0;
+  let fail = true;
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, options) => {
+    const url = String(input);
+    if (url.endsWith("/configurations") && fail) return new Response("fixture failure", { status: 502 });
+    let result: unknown = {};
+    if (url.includes("cfd_tunnel?")) result = [];
+    else if (url.endsWith("/cfd_tunnel") && options?.method === "POST") { createCount++; result = { id: "fixture-tunnel" }; }
+    else if (url.endsWith("/token")) result = "fixture-token";
+    else if (url.includes("/dns_records?")) result = [];
+    return Response.json({ success: true, result });
+  });
+  expect((await call("/api/hosts/tiny/connect", "POST", { model: "fixture", port: 8000 }, owner.token)).status).toBe(502);
+  fail = false;
+  expect((await call("/api/hosts/tiny/connect", "POST", { model: "fixture", port: 8000 }, owner.token)).status).toBe(200);
+  expect(createCount).toBe(1);
+});

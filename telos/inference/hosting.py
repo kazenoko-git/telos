@@ -11,7 +11,7 @@ import threading
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 DEFAULT_ACCOUNT_URL = "https://telos.wingit.tech"
 
@@ -36,6 +36,11 @@ def _credentials_path():
     return Path(os.environ.get("TELOS_HOSTING_CREDENTIALS", Path.home() / ".config/telos/hosting.json"))
 
 
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 class HostingClient:
     def __init__(self, url=DEFAULT_ACCOUNT_URL, token=None):
         self.url = _account_url(url)
@@ -57,7 +62,7 @@ class HostingClient:
         if self.token:
             headers["Authorization"] = "Bearer " + self.token
         try:
-            with urlopen(Request(self.url + path, data=payload, headers=headers, method=method), timeout=25) as response:
+            with build_opener(_NoRedirect).open(Request(self.url + path, data=payload, headers=headers, method=method), timeout=25) as response:
                 return json.load(response)
         except HTTPError as exc:
             try:
