@@ -1,0 +1,791 @@
+{
+  "inkling": {
+    "name": "inkling",
+    "telos": "1.9.1rc2",
+    "transformers": "5.25.0.dev0",
+    "model": "thinkingmachines/Inkling-2-Mini",
+    "revision": "c9d028302cd0f035fdf8e7e91f089a4ce94d2195",
+    "steps": 8,
+    "batch_size": 1,
+    "grad_accum": 2,
+    "window": 16,
+    "max_length": 128,
+    "gpu": "NVIDIA H100 80GB HBM3",
+    "gpu_timeout_seconds": 1200,
+    "cost_upper_bound_usd": 1.9200000000000002,
+    "router_count": 24,
+    "trainable_parameters": 18980352,
+    "load_seconds": 14.63402147,
+    "split": {
+      "train_prompts": [
+        "Why can camels survive for long without water?",
+        "Alice's parents have three daughters: Amy, Jessy, and what\u2019s the name of the third daughter?",
+        "Who gave the UN the land in NY to build their HQ",
+        "Why mobile is bad for human",
+        "What is a polygon?",
+        "How do I start running?",
+        "Which episodes of season four of Game of Thrones did Michelle MacLaren direct?",
+        "What are some unique curtain tie backs that you can make yourself?",
+        "Identify which instrument is string or percussion: Cantaro, Gudok",
+        "Give me the top 5 golf equipment company names.",
+        "What individual has won the most Olympic gold medals in the history of the games?",
+        "What happens when the sun goes down?",
+        "What is a verb?",
+        "Which of the following is useful for transportation: a glass of wine, a lamp, a train, an iced cube tray, a plane, a bicycle, an apple and a scooter.",
+        "Identify which instrument is string or woodwind: Panduri, Zurna",
+        "What is the average lifespan of a Golden Retriever?\n\nGolden Retrievers are a generally healthy breed; they have an average lifespan of 12 to 13 years. Irresponsible breeding to meet high demand has led to the prevalence of inherited health problems in some breed lines, including allergic skin conditions, eye problems and sometimes snappiness. These problems are rarely encountered in dogs bred from responsible breeders."
+      ],
+      "heldout_prompts": [
+        "Who became king of Holland in 1806?",
+        "What is best Playstation or Xbox",
+        "Who played Billy the Kid in The Left Handed Gun",
+        "why did Syd Barrett left the Pink Floyd?",
+        "what is REST API",
+        "What is underwriting?",
+        "Give me a list of some characteristics of a good coffee shop?",
+        "How can I contribute to Spark?"
+      ]
+    },
+    "before": {
+      "loss": 3.1075183004140854,
+      "kl": 1.553702276200056,
+      "ce": 3.88400536775589,
+      "cov": 4.661661803722382,
+      "top1_match": 0.496381551027298
+    },
+    "first_step_router_gradients": {
+      "model.language_model.layers.0.mlp.gate": {
+        "selector": 0.456520676612854,
+        "token": 2.1998519897460938
+      },
+      "model.language_model.layers.1.mlp.gate": {
+        "selector": 1.1346590518951416,
+        "token": 2.530675172805786
+      },
+      "model.language_model.layers.2.mlp.gate": {
+        "selector": 0.33751049637794495,
+        "token": 1.7363214492797852
+      },
+      "model.language_model.layers.3.mlp.gate": {
+        "selector": 0.4737943112850189,
+        "token": 2.6095077991485596
+      },
+      "model.language_model.layers.4.mlp.gate": {
+        "selector": 0.29070401191711426,
+        "token": 2.9717657566070557
+      },
+      "model.language_model.layers.5.mlp.gate": {
+        "selector": 0.6877418160438538,
+        "token": 1.8050916194915771
+      },
+      "model.language_model.layers.6.mlp.gate": {
+        "selector": 0.23271122574806213,
+        "token": 0.7608782052993774
+      },
+      "model.language_model.layers.7.mlp.gate": {
+        "selector": 0.4410335123538971,
+        "token": 0.9454904794692993
+      },
+      "model.language_model.layers.8.mlp.gate": {
+        "selector": 0.21029169857501984,
+        "token": 0.6508376002311707
+      },
+      "model.language_model.layers.9.mlp.gate": {
+        "selector": 1.0277444124221802,
+        "token": 1.6986277103424072
+      },
+      "model.language_model.layers.10.mlp.gate": {
+        "selector": 0.7372483611106873,
+        "token": 2.1736583709716797
+      },
+      "model.language_model.layers.11.mlp.gate": {
+        "selector": 0.4785993993282318,
+        "token": 0.9602172374725342
+      },
+      "model.language_model.layers.12.mlp.gate": {
+        "selector": 0.322651207447052,
+        "token": 1.1029468774795532
+      },
+      "model.language_model.layers.13.mlp.gate": {
+        "selector": 0.279387891292572,
+        "token": 1.2065849304199219
+      },
+      "model.language_model.layers.14.mlp.gate": {
+        "selector": 0.5095514059066772,
+        "token": 1.0518240928649902
+      },
+      "model.language_model.layers.15.mlp.gate": {
+        "selector": 0.8980952501296997,
+        "token": 1.594195008277893
+      },
+      "model.language_model.layers.16.mlp.gate": {
+        "selector": 0.9537308216094971,
+        "token": 1.9785020351409912
+      },
+      "model.language_model.layers.17.mlp.gate": {
+        "selector": 0.4944784939289093,
+        "token": 2.4953255653381348
+      },
+      "model.language_model.layers.18.mlp.gate": {
+        "selector": 0.3022804856300354,
+        "token": 0.43538975715637207
+      },
+      "model.language_model.layers.19.mlp.gate": {
+        "selector": 0.3624180257320404,
+        "token": 0.5558284521102905
+      },
+      "model.language_model.layers.20.mlp.gate": {
+        "selector": 0.07092782109975815,
+        "token": 0.26998332142829895
+      },
+      "model.language_model.layers.21.mlp.gate": {
+        "selector": 0.1523139774799347,
+        "token": 0.5292260050773621
+      },
+      "model.language_model.layers.22.mlp.gate": {
+        "selector": 0.10938797891139984,
+        "token": 0.3385713994503021
+      },
+      "model.language_model.layers.23.mlp.gate": {
+        "selector": 0.44889897108078003,
+        "token": 0.5120641589164734
+      }
+    },
+    "history": [
+      {
+        "step": 1,
+        "loss": 2.3812292218208313,
+        "kl": 0.9694876931607723,
+        "ce": 2.541277289390564,
+        "cov": 4.630455255508423,
+        "top1_match": 0.6800000071525574
+      },
+      {
+        "step": 2,
+        "loss": 2.511775016784668,
+        "kl": 0.7884102761745453,
+        "ce": 6.060096025466919,
+        "cov": 4.469420433044434,
+        "top1_match": 0.5416666716337204
+      },
+      {
+        "step": 3,
+        "loss": 2.94425630569458,
+        "kl": 1.478646695613861,
+        "ce": 3.3433715105056763,
+        "cov": 4.525089740753174,
+        "top1_match": 0.4978054463863373
+      },
+      {
+        "step": 4,
+        "loss": 3.4197314977645874,
+        "kl": 1.834693193435669,
+        "ce": 3.959517002105713,
+        "cov": 4.756346225738525,
+        "top1_match": 0.5607298314571381
+      },
+      {
+        "step": 5,
+        "loss": 3.4509953260421753,
+        "kl": 1.9096579253673553,
+        "ce": 2.9911293983459473,
+        "cov": 4.968897581100464,
+        "top1_match": 0.5846153944730759
+      },
+      {
+        "step": 6,
+        "loss": 2.6661736965179443,
+        "kl": 1.206574022769928,
+        "ce": 2.775474786758423,
+        "cov": 4.728208780288696,
+        "top1_match": 0.5880952328443527
+      },
+      {
+        "step": 7,
+        "loss": 2.6089000701904297,
+        "kl": 1.134958565235138,
+        "ce": 2.7659260034561157,
+        "cov": 4.789395809173584,
+        "top1_match": 0.6347619146108627
+      },
+      {
+        "step": 8,
+        "loss": 1.8295207619667053,
+        "kl": 0.5333760976791382,
+        "ce": 0.9635094553232193,
+        "cov": 4.799174785614014,
+        "top1_match": 0.8486842215061188
+      }
+    ],
+    "elapsed_seconds": 74.971092526,
+    "estimated_compute_usd": 0.11995374804160001,
+    "peak_allocated_gib": 50.90438365936279,
+    "peak_reserved_gib": 52.33984375,
+    "after": {
+      "loss": 2.993178278207779,
+      "kl": 1.4836783409118652,
+      "ce": 3.5011027604341507,
+      "cov": 4.637558698654175,
+      "top1_match": 0.505838118493557
+    },
+    "reload_parameters_exact": true,
+    "reload_logits_exact": true,
+    "status": "completed"
+  },
+  "qwen": {
+    "name": "qwen",
+    "telos": "1.9.1rc2",
+    "transformers": "5.25.0.dev0",
+    "model": "Qwen/Qwen3.5-35B-A3B",
+    "revision": "2508b2437e382c605eb0fc52b83f5545960f6b4a",
+    "steps": 8,
+    "batch_size": 1,
+    "grad_accum": 2,
+    "window": 16,
+    "max_length": 128,
+    "gpu": "NVIDIA H100 80GB HBM3",
+    "gpu_timeout_seconds": 1200,
+    "cost_upper_bound_usd": 1.9200000000000002,
+    "router_count": 40,
+    "trainable_parameters": 50078720,
+    "load_seconds": 73.403039207,
+    "split": {
+      "train_prompts": [
+        "Why can camels survive for long without water?",
+        "Alice's parents have three daughters: Amy, Jessy, and what\u2019s the name of the third daughter?",
+        "Who gave the UN the land in NY to build their HQ",
+        "Why mobile is bad for human",
+        "What is a polygon?",
+        "How do I start running?",
+        "Which episodes of season four of Game of Thrones did Michelle MacLaren direct?",
+        "What are some unique curtain tie backs that you can make yourself?",
+        "Identify which instrument is string or percussion: Cantaro, Gudok",
+        "Give me the top 5 golf equipment company names.",
+        "What individual has won the most Olympic gold medals in the history of the games?",
+        "What happens when the sun goes down?",
+        "What is a verb?",
+        "Which of the following is useful for transportation: a glass of wine, a lamp, a train, an iced cube tray, a plane, a bicycle, an apple and a scooter.",
+        "Identify which instrument is string or woodwind: Panduri, Zurna",
+        "What is the average lifespan of a Golden Retriever?\n\nGolden Retrievers are a generally healthy breed; they have an average lifespan of 12 to 13 years. Irresponsible breeding to meet high demand has led to the prevalence of inherited health problems in some breed lines, including allergic skin conditions, eye problems and sometimes snappiness. These problems are rarely encountered in dogs bred from responsible breeders."
+      ],
+      "heldout_prompts": [
+        "Who became king of Holland in 1806?",
+        "What is best Playstation or Xbox",
+        "why did Syd Barrett left the Pink Floyd?",
+        "what is REST API",
+        "What is underwriting?",
+        "Give me a list of some characteristics of a good coffee shop?",
+        "Who saved Andromeda from the sea monster",
+        "How can I contribute to Spark?"
+      ]
+    },
+    "before": {
+      "loss": 3.3292733281850815,
+      "kl": 1.6175573654472828,
+      "ce": 4.244467943906784,
+      "cov": 5.1490766406059265,
+      "top1_match": 0.5104900524020195
+    },
+    "first_step_router_gradients": {
+      "model.language_model.layers.0.mlp.gate": {
+        "selector": 0.03132685273885727,
+        "token": 0.7968677282333374
+      },
+      "model.language_model.layers.1.mlp.gate": {
+        "selector": 0.1190466433763504,
+        "token": 1.4839961528778076
+      },
+      "model.language_model.layers.2.mlp.gate": {
+        "selector": 0.07432585209608078,
+        "token": 1.1104742288589478
+      },
+      "model.language_model.layers.3.mlp.gate": {
+        "selector": 0.036893580108881,
+        "token": 1.0647404193878174
+      },
+      "model.language_model.layers.4.mlp.gate": {
+        "selector": 0.0421040840446949,
+        "token": 2.3624181747436523
+      },
+      "model.language_model.layers.5.mlp.gate": {
+        "selector": 0.15364721417427063,
+        "token": 1.91622793674469
+      },
+      "model.language_model.layers.6.mlp.gate": {
+        "selector": 0.1172388419508934,
+        "token": 1.946932077407837
+      },
+      "model.language_model.layers.7.mlp.gate": {
+        "selector": 0.11879464238882065,
+        "token": 2.88248348236084
+      },
+      "model.language_model.layers.8.mlp.gate": {
+        "selector": 0.06940703839063644,
+        "token": 2.42549467086792
+      },
+      "model.language_model.layers.9.mlp.gate": {
+        "selector": 0.062761090695858,
+        "token": 2.4710121154785156
+      },
+      "model.language_model.layers.10.mlp.gate": {
+        "selector": 0.5447127223014832,
+        "token": 4.353220462799072
+      },
+      "model.language_model.layers.11.mlp.gate": {
+        "selector": 0.2934969365596771,
+        "token": 2.6559906005859375
+      },
+      "model.language_model.layers.12.mlp.gate": {
+        "selector": 0.26908496022224426,
+        "token": 2.1047849655151367
+      },
+      "model.language_model.layers.13.mlp.gate": {
+        "selector": 0.31888484954833984,
+        "token": 3.6477317810058594
+      },
+      "model.language_model.layers.14.mlp.gate": {
+        "selector": 0.19346725940704346,
+        "token": 3.3670215606689453
+      },
+      "model.language_model.layers.15.mlp.gate": {
+        "selector": 0.10628300905227661,
+        "token": 2.6171278953552246
+      },
+      "model.language_model.layers.16.mlp.gate": {
+        "selector": 0.2209547609090805,
+        "token": 3.0627496242523193
+      },
+      "model.language_model.layers.17.mlp.gate": {
+        "selector": 0.06404630839824677,
+        "token": 2.5071234703063965
+      },
+      "model.language_model.layers.18.mlp.gate": {
+        "selector": 0.2379910945892334,
+        "token": 3.7304890155792236
+      },
+      "model.language_model.layers.19.mlp.gate": {
+        "selector": 0.17131617665290833,
+        "token": 2.9189932346343994
+      },
+      "model.language_model.layers.20.mlp.gate": {
+        "selector": 0.07777848839759827,
+        "token": 2.513723373413086
+      },
+      "model.language_model.layers.21.mlp.gate": {
+        "selector": 0.05511818453669548,
+        "token": 1.6937085390090942
+      },
+      "model.language_model.layers.22.mlp.gate": {
+        "selector": 0.17153635621070862,
+        "token": 2.0464422702789307
+      },
+      "model.language_model.layers.23.mlp.gate": {
+        "selector": 0.198677659034729,
+        "token": 2.8977274894714355
+      },
+      "model.language_model.layers.24.mlp.gate": {
+        "selector": 0.0728493481874466,
+        "token": 1.4480806589126587
+      },
+      "model.language_model.layers.25.mlp.gate": {
+        "selector": 0.07039585709571838,
+        "token": 1.4331398010253906
+      },
+      "model.language_model.layers.26.mlp.gate": {
+        "selector": 0.10266167670488358,
+        "token": 1.5363155603408813
+      },
+      "model.language_model.layers.27.mlp.gate": {
+        "selector": 0.07451608031988144,
+        "token": 1.6840063333511353
+      },
+      "model.language_model.layers.28.mlp.gate": {
+        "selector": 0.06973549723625183,
+        "token": 1.5307848453521729
+      },
+      "model.language_model.layers.29.mlp.gate": {
+        "selector": 0.048605553805828094,
+        "token": 1.074013113975525
+      },
+      "model.language_model.layers.30.mlp.gate": {
+        "selector": 0.06625741720199585,
+        "token": 1.728379487991333
+      },
+      "model.language_model.layers.31.mlp.gate": {
+        "selector": 0.08720645308494568,
+        "token": 1.7839034795761108
+      },
+      "model.language_model.layers.32.mlp.gate": {
+        "selector": 0.06550820916891098,
+        "token": 2.1000239849090576
+      },
+      "model.language_model.layers.33.mlp.gate": {
+        "selector": 0.10165032744407654,
+        "token": 2.492255449295044
+      },
+      "model.language_model.layers.34.mlp.gate": {
+        "selector": 0.08617369830608368,
+        "token": 2.780363082885742
+      },
+      "model.language_model.layers.35.mlp.gate": {
+        "selector": 0.09473277628421783,
+        "token": 1.996826171875
+      },
+      "model.language_model.layers.36.mlp.gate": {
+        "selector": 0.08821074664592743,
+        "token": 4.747761249542236
+      },
+      "model.language_model.layers.37.mlp.gate": {
+        "selector": 0.08413441479206085,
+        "token": 2.4532132148742676
+      },
+      "model.language_model.layers.38.mlp.gate": {
+        "selector": 0.08197148144245148,
+        "token": 2.3547351360321045
+      },
+      "model.language_model.layers.39.mlp.gate": {
+        "selector": 0.040835924446582794,
+        "token": 0.9777001142501831
+      }
+    },
+    "history": [
+      {
+        "step": 1,
+        "loss": 3.2570762038230896,
+        "kl": 1.436852052807808,
+        "ce": 4.065967440605164,
+        "cov": 5.654509544372559,
+        "top1_match": 0.611111119389534
+      },
+      {
+        "step": 2,
+        "loss": 3.033559203147888,
+        "kl": 1.1209136247634888,
+        "ce": 6.135901689529419,
+        "cov": 5.196221590042114,
+        "top1_match": 0.4642857164144516
+      },
+      {
+        "step": 3,
+        "loss": 3.2380127906799316,
+        "kl": 1.55177903175354,
+        "ce": 3.6125447750091553,
+        "cov": 5.299917221069336,
+        "top1_match": 0.4969931095838547
+      },
+      {
+        "step": 4,
+        "loss": 3.7169599533081055,
+        "kl": 1.9551805257797241,
+        "ce": 4.629358291625977,
+        "cov": 5.1953747272491455,
+        "top1_match": 0.4615384638309479
+      },
+      {
+        "step": 5,
+        "loss": 4.388058185577393,
+        "kl": 2.4776062220335007,
+        "ce": 5.2572855949401855,
+        "cov": 5.538893222808838,
+        "top1_match": 0.5833333283662796
+      },
+      {
+        "step": 6,
+        "loss": 3.60294771194458,
+        "kl": 1.775846779346466,
+        "ce": 4.481118083000183,
+        "cov": 5.515956163406372,
+        "top1_match": 0.4394736886024475
+      },
+      {
+        "step": 7,
+        "loss": 3.070124387741089,
+        "kl": 1.28533536195755,
+        "ce": 3.74943745136261,
+        "cov": 5.639380931854248,
+        "top1_match": 0.6181411147117615
+      },
+      {
+        "step": 8,
+        "loss": 1.979594349861145,
+        "kl": 0.41326508671045303,
+        "ce": 1.921997606754303,
+        "cov": 5.496517896652222,
+        "top1_match": 0.949999988079071
+      }
+    ],
+    "elapsed_seconds": 113.54960394800001,
+    "estimated_compute_usd": 0.18167936631680004,
+    "peak_allocated_gib": 67.22029829025269,
+    "peak_reserved_gib": 67.345703125,
+    "after": {
+      "loss": 3.116867169737816,
+      "kl": 1.4708073623478413,
+      "ce": 3.7253967225551605,
+      "cov": 5.094080626964569,
+      "top1_match": 0.5219659507274628
+    },
+    "reload_parameters_exact": true,
+    "reload_logits_exact": true,
+    "status": "completed"
+  },
+  "gemma": {
+    "name": "gemma",
+    "telos": "1.9.1rc2",
+    "transformers": "5.25.0.dev0",
+    "model": "google/gemma-4-26B-A4B-it",
+    "revision": "4d7ae4984b7db7de8f8457170b3f1a419ee76d52",
+    "steps": 8,
+    "batch_size": 1,
+    "grad_accum": 2,
+    "window": 16,
+    "max_length": 128,
+    "gpu": "NVIDIA H100 80GB HBM3",
+    "gpu_timeout_seconds": 1200,
+    "host_vcpu": 2,
+    "host_ram_gib": 8,
+    "cost_upper_bound_usd": 1.44,
+    "router_count": 30,
+    "trainable_parameters": 27375360,
+    "load_seconds": 25.804732968999996,
+    "split": {
+      "train_prompts": [
+        "Why can camels survive for long without water?",
+        "Alice's parents have three daughters: Amy, Jessy, and what\u2019s the name of the third daughter?",
+        "Who gave the UN the land in NY to build their HQ",
+        "Why mobile is bad for human",
+        "What is a polygon?",
+        "How do I start running?",
+        "Which episodes of season four of Game of Thrones did Michelle MacLaren direct?",
+        "What are some unique curtain tie backs that you can make yourself?",
+        "Identify which instrument is string or percussion: Cantaro, Gudok",
+        "Give me the top 5 golf equipment company names.",
+        "What individual has won the most Olympic gold medals in the history of the games?",
+        "Which Dutch artist painted \u201cGirl with a Pearl Earring\u201d?",
+        "What happens when the sun goes down?",
+        "What is a verb?",
+        "Which of the following is useful for transportation: a glass of wine, a lamp, a train, an iced cube tray, a plane, a bicycle, an apple and a scooter.",
+        "Identify which instrument is string or woodwind: Panduri, Zurna"
+      ],
+      "heldout_prompts": [
+        "What is the average lifespan of a Golden Retriever?\n\nGolden Retrievers are a generally healthy breed; they have an average lifespan of 12 to 13 years. Irresponsible breeding to meet high demand has led to the prevalence of inherited health problems in some breed lines, including allergic skin conditions, eye problems and sometimes snappiness. These problems are rarely encountered in dogs bred from responsible breeders.",
+        "Who became king of Holland in 1806?",
+        "What is best Playstation or Xbox",
+        "why did Syd Barrett left the Pink Floyd?",
+        "what is REST API",
+        "What is underwriting?",
+        "Give me a list of some characteristics of a good coffee shop?",
+        "Who saved Andromeda from the sea monster"
+      ]
+    },
+    "before": {
+      "loss": 3.2509738355875015,
+      "kl": 1.6752149922540411,
+      "ce": 5.2202896773815155,
+      "cov": 4.2149196565151215,
+      "top1_match": 0.611203134059906
+    },
+    "first_step_router_gradients": {
+      "model.language_model.layers.0.router": {
+        "selector": 0.16543446481227875,
+        "token": 5.943081855773926
+      },
+      "model.language_model.layers.1.router": {
+        "selector": 0.3318893313407898,
+        "token": 7.775641918182373
+      },
+      "model.language_model.layers.2.router": {
+        "selector": 0.15403762459754944,
+        "token": 6.320013046264648
+      },
+      "model.language_model.layers.3.router": {
+        "selector": 0.12852045893669128,
+        "token": 4.828322410583496
+      },
+      "model.language_model.layers.4.router": {
+        "selector": 0.19092416763305664,
+        "token": 6.274868011474609
+      },
+      "model.language_model.layers.5.router": {
+        "selector": 0.1769178956747055,
+        "token": 5.83264684677124
+      },
+      "model.language_model.layers.6.router": {
+        "selector": 0.35429301857948303,
+        "token": 7.630988121032715
+      },
+      "model.language_model.layers.7.router": {
+        "selector": 0.20206168293952942,
+        "token": 6.260075092315674
+      },
+      "model.language_model.layers.8.router": {
+        "selector": 0.08764729648828506,
+        "token": 3.671415328979492
+      },
+      "model.language_model.layers.9.router": {
+        "selector": 0.14792416989803314,
+        "token": 5.9086012840271
+      },
+      "model.language_model.layers.10.router": {
+        "selector": 0.114527128636837,
+        "token": 4.309159755706787
+      },
+      "model.language_model.layers.11.router": {
+        "selector": 0.37644702196121216,
+        "token": 7.989563941955566
+      },
+      "model.language_model.layers.12.router": {
+        "selector": 0.29122981429100037,
+        "token": 8.50743293762207
+      },
+      "model.language_model.layers.13.router": {
+        "selector": 0.09662744402885437,
+        "token": 6.614429473876953
+      },
+      "model.language_model.layers.14.router": {
+        "selector": 0.2029011845588684,
+        "token": 6.190080165863037
+      },
+      "model.language_model.layers.15.router": {
+        "selector": 0.3145621418952942,
+        "token": 11.270215034484863
+      },
+      "model.language_model.layers.16.router": {
+        "selector": 0.2275238335132599,
+        "token": 10.250523567199707
+      },
+      "model.language_model.layers.17.router": {
+        "selector": 0.3363085985183716,
+        "token": 13.017457008361816
+      },
+      "model.language_model.layers.18.router": {
+        "selector": 0.20248593389987946,
+        "token": 8.616823196411133
+      },
+      "model.language_model.layers.19.router": {
+        "selector": 0.2484051138162613,
+        "token": 5.124037742614746
+      },
+      "model.language_model.layers.20.router": {
+        "selector": 0.11720366030931473,
+        "token": 3.180717945098877
+      },
+      "model.language_model.layers.21.router": {
+        "selector": 0.2972961366176605,
+        "token": 5.8096466064453125
+      },
+      "model.language_model.layers.22.router": {
+        "selector": 0.274588018655777,
+        "token": 5.525466442108154
+      },
+      "model.language_model.layers.23.router": {
+        "selector": 0.3394714593887329,
+        "token": 5.439719200134277
+      },
+      "model.language_model.layers.24.router": {
+        "selector": 0.2221440225839615,
+        "token": 5.873349666595459
+      },
+      "model.language_model.layers.25.router": {
+        "selector": 0.3465007543563843,
+        "token": 4.550118923187256
+      },
+      "model.language_model.layers.26.router": {
+        "selector": 0.17057521641254425,
+        "token": 3.850771427154541
+      },
+      "model.language_model.layers.27.router": {
+        "selector": 0.43014827370643616,
+        "token": 4.609266757965088
+      },
+      "model.language_model.layers.28.router": {
+        "selector": 0.2480044662952423,
+        "token": 3.6776225566864014
+      },
+      "model.language_model.layers.29.router": {
+        "selector": 0.16717778146266937,
+        "token": 3.891533613204956
+      }
+    },
+    "history": [
+      {
+        "step": 1,
+        "loss": 4.7797136306762695,
+        "kl": 3.0016265851736534,
+        "ce": 6.931433200836182,
+        "cov": 4.3397743701934814,
+        "top1_match": 0.6666666716337204
+      },
+      {
+        "step": 2,
+        "loss": 8.251471519470215,
+        "kl": 5.979348540306091,
+        "ce": 12.32272720336914,
+        "cov": 4.159399747848511,
+        "top1_match": 0.3511904776096344
+      },
+      {
+        "step": 3,
+        "loss": 3.603822350502014,
+        "kl": 2.0292919874191284,
+        "ce": 4.747855186462402,
+        "cov": 4.398979902267456,
+        "top1_match": 0.4851725995540619
+      },
+      {
+        "step": 4,
+        "loss": 4.379956245422363,
+        "kl": 2.699609637260437,
+        "ce": 6.038690090179443,
+        "cov": 4.305909633636475,
+        "top1_match": 0.5457142889499664
+      },
+      {
+        "step": 5,
+        "loss": 4.022576987743378,
+        "kl": 2.3754464983940125,
+        "ce": 5.725083589553833,
+        "cov": 4.298488140106201,
+        "top1_match": 0.6499999910593033
+      },
+      {
+        "step": 6,
+        "loss": 4.11265242099762,
+        "kl": 2.1663199067115784,
+        "ce": 9.208026885986328,
+        "cov": 4.10211968421936,
+        "top1_match": 0.6527777910232544
+      },
+      {
+        "step": 7,
+        "loss": 5.2574450969696045,
+        "kl": 3.5298593640327454,
+        "ce": 6.280385971069336,
+        "cov": 4.398189067840576,
+        "top1_match": 0.3543010801076889
+      },
+      {
+        "step": 8,
+        "loss": 2.833106279373169,
+        "kl": 1.206665962934494,
+        "ce": 5.287303328514099,
+        "cov": 4.39084005355835,
+        "top1_match": 0.8114035129547119
+      }
+    ],
+    "elapsed_seconds": 55.10327665,
+    "estimated_compute_usd": 0.06612393198,
+    "peak_allocated_gib": 49.57443571090698,
+    "peak_reserved_gib": 49.732421875,
+    "after": {
+      "loss": 3.081738382577896,
+      "kl": 1.534474910935387,
+      "ce": 4.973501205444336,
+      "cov": 4.199653327465057,
+      "top1_match": 0.6241504214704037
+    },
+    "reload_parameters_exact": true,
+    "reload_logits_exact": true,
+    "status": "completed"
+  }
+}
