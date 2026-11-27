@@ -23,7 +23,7 @@ except ImportError:
     TORCH_AVAILABLE = False
 
 from .lr_schedule import WarmupCosineLR
-from .dataloader import get_global_targets_contiguous_pytorch
+from .dataloader import ShardedMemmapDataset, get_global_targets_contiguous_pytorch
 
 from telos.diffusion.ar import ar_loss_fn_pytorch
 from telos.diffusion.mdlm import mdlm_loss_from_model_pytorch, mdlm_loss_pytorch, apply_masking_pytorch, sample_beta_timesteps
@@ -484,6 +484,7 @@ class UnifiedPyTorchTrainer:
             "dataset": getattr(self, "_dataset_signature", None),
             "tokenizer": tokenizer_signature(self.cfg),
             "next_row": getattr(self, "_next_row", None),
+            "shard_cursor": getattr(self, "_shard_cursor", None),
             "host_rng": host_rng_state(),
             "torch_rng": torch.get_rng_state(),
             "cuda_rng": torch.cuda.get_rng_state_all() if self.device.type == "cuda" else None,
@@ -755,41 +756,63 @@ class UnifiedPyTorchTrainer:
             json.dump(bench_payload, f, indent=2)
         print(f"  Saved benchmark metrics to {report_file}\n")
 
-    def train(self, resume_step: int = 0, benchmark: bool = False, benchmark_duration: float = 300.0):
+    def train(
+        self,
+        resume_step: int = 0,
+        benchmark: bool = False,
+        benchmark_duration: float = 300.0,
+        save_every_seconds: float | None = None,
+        max_wall_seconds: float | None = None,
+        on_checkpoint_saved=None,
+    ):
         self.model.train()
+        self.exited_early_for_wall_limit = False
         d_cfg = self.cfg.get("data", {})
         train_path = d_cfg.get("train_path", d_cfg.get("dataset_path", d_cfg.get("path", None)))
         use_synthetic = d_cfg.get("synthetic", False)
 
         if train_path is not None and not Path(train_path).exists():
-            raise FileNotFoundError(f"Specified training data binary not found: {train_path}")
+            raise FileNotFoundError(f"Specified training data path not found: {train_path}")
 
         train_bin = Path(train_path) if train_path else Path("data/python_corpus.bin")
         if not train_bin.exists() and train_path is None:
             train_bin = Path("data/python_corpus_2.5b.bin")
 
+        sharded_dataset = None
+        dataset_matrix = None
+        dtype = np.uint16
         if train_bin.exists() and not use_synthetic:
-            if self.is_master:
-                print(f"  Loading pre-tokenized dataset from {train_bin}...")
-            # Detect dtype from metadata sidecar if available
-            dtype = None
-            for meta_cand in [Path(str(train_bin) + ".json"), train_bin.with_suffix(".json")]:
-                if meta_cand.exists():
-                    try:
-                        with open(meta_cand, "r", encoding="utf-8") as mf:
-                            m_info = json.load(mf)
-                            dt_str = m_info.get("dtype", "uint16")
-                            dtype = np.int32 if dt_str == "int32" else np.uint16
-                            break
-                    except Exception:
-                        pass
-            if dtype is None:
-                dtype = np.int32 if "mac" in str(train_bin) or self.vocab_size > 65536 else np.uint16
+            if train_bin.is_dir():
+                sharded_dataset = ShardedMemmapDataset(train_bin, seq_len=self.seq_len, vocab_size=self.vocab_size)
+                dtype = sharded_dataset.shard_dtypes[0]
+                d_cfg["train_path"] = str(train_bin.resolve())
+                if self.is_master:
+                    print(
+                        f"  Loading multi-shard dataset from {train_bin} "
+                        f"({sharded_dataset.num_shards} shards, {sharded_dataset.total_rows:,} sequences)..."
+                    )
+            else:
+                if self.is_master:
+                    print(f"  Loading pre-tokenized dataset from {train_bin}...")
+                # Detect dtype from metadata sidecar if available
+                dtype = None
+                for meta_cand in [Path(str(train_bin) + ".json"), train_bin.with_suffix(".json")]:
+                    if meta_cand.exists():
+                        try:
+                            with open(meta_cand, "r", encoding="utf-8") as mf:
+                                m_info = json.load(mf)
+                                dt_str = m_info.get("dtype", "uint16")
+                                dtype = np.int32 if dt_str == "int32" else np.uint16
+                                break
+                        except Exception:
+                            pass
+                if dtype is None:
+                    dtype = np.int32 if "mac" in str(train_bin) or self.vocab_size > 65536 else np.uint16
 
-            d_cfg["train_path"] = str(train_bin.resolve())
-            raw_data = np.memmap(train_bin, dtype=dtype, mode="r")
-            n_seqs = len(raw_data) // self.seq_len
-            dataset_matrix = raw_data[:n_seqs * self.seq_len].reshape(n_seqs, self.seq_len)
+                d_cfg["train_path"] = str(train_bin.resolve())
+                raw_data = np.memmap(train_bin, dtype=dtype, mode="r")
+                n_seqs = len(raw_data) // self.seq_len
+                dataset_matrix = raw_data[:n_seqs * self.seq_len].reshape(n_seqs, self.seq_len)
         elif use_synthetic:
             if self.is_master:
                 print("  Notice: Using synthetic dataset stream...")
@@ -816,7 +839,7 @@ class UnifiedPyTorchTrainer:
                 except Exception as e:
                     if self.is_master:
                         print(f"  Notice: Failed to initialize DualMetricMonitor ({e}).")
-            if getattr(self, "dual_monitor", None) is None and len(dataset_matrix) > 200:
+            if getattr(self, "dual_monitor", None) is None and dataset_matrix is not None and len(dataset_matrix) > 200:
                 self.dual_monitor = DualMetricMonitor(dataset_matrix[-200:], self.vocab_size, self.seq_len, self.device)
                 if self.is_master:
                     print("  [Dual Monitor] Initialized on tail 200 sequences of training corpus.")
@@ -832,7 +855,10 @@ class UnifiedPyTorchTrainer:
         max_bench_duration = min(float(benchmark_duration), 300.0)
 
         from .checkpoint import dataset_signature, validate_resume, restore_host_rng
-        self._dataset_signature = {"train": dataset_signature(dataset_matrix)}
+        if sharded_dataset is not None:
+            self._dataset_signature = {"train": sharded_dataset.signature()}
+        else:
+            self._dataset_signature = {"train": dataset_signature(dataset_matrix)}
         if getattr(self, "dual_monitor", None) is not None:
             self._dataset_signature["validation"] = dataset_signature(
                 self.dual_monitor.probe_tensor.cpu().numpy())
@@ -853,15 +879,30 @@ class UnifiedPyTorchTrainer:
                 xm.set_rng_state(saved["xla_rng"], self.device)
             if saved["monitor_history"] is not None and self.dual_monitor is not None:
                 self.dual_monitor.history = saved["monitor_history"]
-        n_rows = len(dataset_matrix)
+        n_rows = len(sharded_dataset) if sharded_dataset is not None else len(dataset_matrix)
         self.global_step = resume_step
+        shard_idx = 0
+        row_idx = 0
         if saved is not None:
             idx_ptr = saved["next_row"]
-            if idx_ptr is None:
+            saved_cursor = saved.get("shard_cursor")
+            if sharded_dataset is not None:
+                if isinstance(saved_cursor, dict) and "shard_idx" in saved_cursor and "row_idx" in saved_cursor:
+                    shard_idx = int(saved_cursor["shard_idx"])
+                    row_idx = int(saved_cursor["row_idx"])
+                    idx_ptr = sharded_dataset.global_row_from_cursor(shard_idx, row_idx)
+                elif idx_ptr is not None:
+                    shard_idx, row_idx = sharded_dataset.cursor_from_global_row(idx_ptr)
+                else:
+                    raise ValueError("Checkpoint has no training data cursor")
+            elif idx_ptr is None:
                 raise ValueError("Checkpoint has no training data cursor")
         else:
             idx_ptr = (rank * local_step_seqs) % n_rows
+            if sharded_dataset is not None:
+                shard_idx, row_idx = sharded_dataset.cursor_from_global_row(idx_ptr)
         self._next_row = idx_ptr
+        self._shard_cursor = {"shard_idx": shard_idx, "row_idx": row_idx} if sharded_dataset is not None else None
 
         ckpt_dir_name = f"checkpoints/{self.paradigm}"
         if self.paradigm == "corosred":
@@ -877,15 +918,16 @@ class UnifiedPyTorchTrainer:
             print(f"  [Benchmark Mode] Starting throughput benchmark (Maximum limit: {max_bench_duration:.0f}s)...")
 
         start_time = time.time()
+        last_save_wall = start_time
         from .benchmark_timing import pytorch_benchmark_timer
         benchmark_timer = pytorch_benchmark_timer(self) if benchmark else None
         self.optimizer.zero_grad()
         if self.use_master_weights:
             self.model.zero_grad()
 
-        # Dedicated copy stream with bounded reusable pinned host staging.
+        # Dedicated copy stream with bounded reusable pinned host staging (single-file CUDA).
         prefetcher = None
-        if self.device.type == "cuda" and self.t_cfg.get("prefetch", True):
+        if sharded_dataset is None and self.device.type == "cuda" and self.t_cfg.get("prefetch", True):
             from .prefetch import CUDAPrefetcher
             prefetcher = CUDAPrefetcher(dataset_matrix, idx_ptr, local_step_seqs, self.seq_len,
                                        cluster_step_seqs, self.device, self.max_steps - resume_step)
@@ -899,14 +941,23 @@ class UnifiedPyTorchTrainer:
                 if benchmark_timer is not None:
                     benchmark_timer.begin()
 
-                if prefetcher is not None:
+                if sharded_dataset is not None:
+                    global_targets, _, _ = sharded_dataset.get_batch_pytorch(
+                        shard_idx, row_idx, local_step_seqs, self.seq_len, self.device, non_blocking=False
+                    )
+                    shard_idx, row_idx = sharded_dataset.advance_cursor(shard_idx, row_idx, cluster_step_seqs)
+                    idx_ptr = sharded_dataset.global_row_from_cursor(shard_idx, row_idx)
+                    self._next_row = idx_ptr
+                    self._shard_cursor = {"shard_idx": shard_idx, "row_idx": row_idx}
+                elif prefetcher is not None:
                     global_targets = prefetcher.get()
+                    self._next_row = (self._next_row + cluster_step_seqs) % n_rows
                 else:
                     global_targets, _ = get_global_targets_contiguous_pytorch(
                         dataset_matrix, idx_ptr, local_step_seqs, self.seq_len, self.device, non_blocking=False
                     )
                     idx_ptr = (idx_ptr + cluster_step_seqs) % n_rows
-                self._next_row = (self._next_row + cluster_step_seqs) % n_rows
+                    self._next_row = (self._next_row + cluster_step_seqs) % n_rows
                 # Periodically replenish routing cache only once confidence-routed masking is active (after hold phase)
                 has_routing = getattr(self, "is_unified", False) and hasattr(self, "routing_cache")
                 if has_routing and self.routing_cache.should_refresh(step):
@@ -1120,10 +1171,25 @@ class UnifiedPyTorchTrainer:
                     print(log_msg, flush=True)
 
                 save_interval = self.c_cfg.get("save_every_steps", 1000)
-                if not benchmark and save_interval > 0 and step % save_interval == 0:
+                now_wall = time.time()
+                step_save_due = (not benchmark and save_interval > 0 and step % save_interval == 0)
+                time_save_due = (
+                    not benchmark
+                    and save_every_seconds is not None
+                    and save_every_seconds > 0
+                    and (now_wall - last_save_wall) >= save_every_seconds
+                )
+                wall_exit_due = (
+                    not benchmark
+                    and max_wall_seconds is not None
+                    and max_wall_seconds > 0
+                    and (now_wall - start_time) >= max_wall_seconds
+                )
+                if step_save_due or time_save_due or wall_exit_due:
                     ckpt_file = ckpt_dir / f"checkpoint_step_{step}.pt"
+                    save_reason = "wall_limit" if wall_exit_due else ("time" if time_save_due else "step")
                     if self.is_master:
-                        print(f"\n  [Checkpoint Step {step:>6d}] Saving checkpoint weights to {ckpt_file}...", flush=True)
+                        print(f"\n  [Checkpoint Step {step:>6d} ({save_reason})] Saving checkpoint weights to {ckpt_file}...", flush=True)
 
                     # On multi-core TPU, in-loop evaluation on a single rank causes XLA graph desynchronization
                     # and barrier deadlocks against non-master ranks. Only run on non-TPU / single-device configurations.
@@ -1157,6 +1223,18 @@ class UnifiedPyTorchTrainer:
                     if self.is_master or self.world_size > 1:
                         self.save_checkpoint(ckpt_file)
                         print(f"  [Checkpoint Step {step:>6d}] Successfully saved weights to {ckpt_file}\n", flush=True)
+                        if self.is_master and on_checkpoint_saved is not None:
+                            on_checkpoint_saved(
+                                ckpt_file,
+                                step,
+                                {
+                                    "reason": save_reason,
+                                    "shard_cursor": self._shard_cursor,
+                                    "next_row": self._next_row,
+                                    "last_loss": getattr(self, "last_logged_loss", None),
+                                },
+                            )
+                    last_save_wall = time.time()
 
                     if self.is_tpu:
                         import torch_xla.core.xla_model as xm
@@ -1168,6 +1246,19 @@ class UnifiedPyTorchTrainer:
                             ctypes.CDLL("libc.so.6").malloc_trim(0)
                         except Exception:
                             pass
+
+                    if wall_exit_due:
+                        self.exited_early_for_wall_limit = True
+                        if self.is_master:
+                            elapsed_min = (time.time() - start_time) / 60.0
+                            print("=" * 70, flush=True)
+                            print(
+                                f"  [Wall-Clock Relay Exit] Cleanly paused at step {step}/{self.max_steps} "
+                                f"after {elapsed_min:.1f}m. Resume next session with --continue.",
+                                flush=True,
+                            )
+                            print("=" * 70, flush=True)
+                        return
 
             total_time = time.time() - start_time
             if benchmark:
@@ -1183,8 +1274,20 @@ class UnifiedPyTorchTrainer:
                 xm.mark_step()
                 xm.rendezvous("checkpoint_final_start")
 
+            final_ckpt = ckpt_dir / "checkpoint_final.pt"
             if self.is_master or self.world_size > 1:
-                self.save_checkpoint(ckpt_dir / "checkpoint_final.pt", sync=True)
+                self.save_checkpoint(final_ckpt, sync=True)
+                if self.is_master and on_checkpoint_saved is not None:
+                    on_checkpoint_saved(
+                        final_ckpt,
+                        self.global_step,
+                        {
+                            "reason": "final",
+                            "shard_cursor": self._shard_cursor,
+                            "next_row": self._next_row,
+                            "last_loss": getattr(self, "last_logged_loss", None),
+                        },
+                    )
             if self.is_master:
                 # Write standalone config.json for eval loader and downstream tools
                 with open(ckpt_dir / "config.json", "w", encoding="utf-8") as f:
@@ -1201,3 +1304,5 @@ class UnifiedPyTorchTrainer:
         finally:
             if prefetcher is not None:
                 prefetcher.close()
+            if sharded_dataset is not None:
+                sharded_dataset.close()
