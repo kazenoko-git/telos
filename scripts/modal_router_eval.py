@@ -334,6 +334,7 @@ def verify_and_eval(name: str, seen_prompts: list[str]):
             assert telos.__version__ == VERSION
             torch.set_num_threads(2)
             torch.manual_seed(73)
+            torch.cuda.reset_peak_memory_stats()
             rss.mark("start")
             model, tokenizer, _, repo, revision = _load_fresh_model(name)
             rss.mark("after_model_load")
@@ -463,6 +464,7 @@ def lowrank_baseline(name: str, seen_prompts: list[str]):
             assert telos.__version__ == VERSION
             torch.set_num_threads(2)
             torch.manual_seed(73)
+            torch.cuda.reset_peak_memory_stats()
             model, tokenizer, _, repo, revision = _load_fresh_model(name)
             rss.mark("after_model_load")
             result["load_seconds"] = time.monotonic() - started
