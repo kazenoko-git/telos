@@ -252,3 +252,15 @@ it("hides account existence, limits email requests, and removes undeliverable to
   for (let i=0; i<2; i++) await call("/api/password/request", "POST", { email: "owner@example.com" });
   expect((await call("/api/password/request", "POST", { email: "owner@example.com" })).status).toBe(429);
 });
+
+it("keeps legacy API keys usable before email verification and after it", async () => {
+  const owner = await signup();
+  const key = await createKey(owner.token);
+  await env.DB.prepare("UPDATE accounts SET email_verified_at=NULL WHERE id=?").bind(owner.id).run();
+  const requestModels = () => call("/v1/models", "GET", undefined, key.key, "https://tls.wingit.tech");
+  expect((await requestModels()).status).toBe(200);
+  expect((await call("/api/keys", "POST", { name: "blocked" }, owner.token)).status).toBe(403);
+  expect((await call("/api/verification/request", "POST", {}, owner.token)).status).toBe(200);
+  expect((await call("/api/verification/confirm", "POST", { token: mailedToken() })).status).toBe(200);
+  expect((await requestModels()).status).toBe(200);
+});
