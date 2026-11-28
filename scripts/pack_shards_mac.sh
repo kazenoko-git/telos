@@ -15,6 +15,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 NUM_SHARDS="${1:-12}"
+START_SHARD="${2:-0}"
 TOKENS_PER_SHARD="${TOKENS_PER_SHARD:-1000000000}"
 HF_DATASET_REPO="${HF_DATASET_REPO:-Kazenowoko/telos-alpha1-shards}"
 OUT_DIR="${OUT_DIR:-/tmp/alpha1_shards_mac}"
@@ -38,7 +39,7 @@ export RAYON_NUM_THREADS="$WORKERS"
 
 echo "========================================================================"
 echo "  Telos Alpha 1 — Local Mac Shard Packer"
-echo "  Cores (Rayon): $WORKERS | Shards: $NUM_SHARDS x $TOKENS_PER_SHARD tokens"
+echo "  Cores (Rayon): $WORKERS | Shards: $NUM_SHARDS starting at #$START_SHARD"
 echo "  HF Dataset:    $HF_DATASET_REPO | Temp dir: $OUT_DIR"
 echo "========================================================================"
 
@@ -60,8 +61,9 @@ exec "$PYTHON_BIN" -u scripts/build_alpha1_tokenizer_and_shards.py pack-shards \
   --tokenizer "$TOKENIZER" \
   --out-dir "$OUT_DIR" \
   --num-shards "$NUM_SHARDS" \
+  --start-shard "$START_SHARD" \
   --tokens-per-shard "$TOKENS_PER_SHARD" \
   --workers "$WORKERS" \
-  --batch-docs 2048 \
+  --batch-docs 256 \
   --hf-dataset-repo "$HF_DATASET_REPO" \
   --delete-after-upload

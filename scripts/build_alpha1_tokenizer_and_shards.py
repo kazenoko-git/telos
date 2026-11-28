@@ -28,6 +28,7 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import os
 import time
@@ -151,6 +152,8 @@ def _stream_hf_mix(
         text = row.get(active_fields[idx], "")
         if not isinstance(text, str) or not text.strip():
             continue
+        if len(text) > 200_000:
+            text = text[:200_000]
         emitted_bytes += len(text.encode("utf-8", errors="ignore"))
         yield text
         if max_bytes is not None and emitted_bytes >= max_bytes:
@@ -252,27 +255,36 @@ def _encode_batch_rayon(tok: Tokenizer, docs: list[str]) -> np.ndarray:
     return out
 
 
-def _flush_shard(
-    buf: np.ndarray,
+def _release_host_memory() -> None:
+    """Reclaim Python cyclic garbage and PyArrow Parquet streaming memory pools."""
+    gc.collect()
+    try:
+        import pyarrow as pa
+
+        pa.default_memory_pool().release_unused()
+    except Exception:
+        pass
+
+
+def _finalize_shard_file(
+    shard_path: Path,
+    num_tokens: int,
     shard_idx: int,
-    out_dir: Path,
     vocab_size: int,
     hf_dataset_repo: str | None = None,
     delete_after_upload: bool = False,
 ) -> Path:
-    shard_path = out_dir / f"shard_{shard_idx:04d}.bin"
-    buf.tofile(shard_path)
     meta = {
         "shard_index": shard_idx,
         "dtype": "uint16",
-        "num_tokens": int(buf.size),
+        "num_tokens": int(num_tokens),
         "vocab_size": vocab_size,
         "eos_token_id": EOS_TOKEN_ID,
     }
     meta_path = Path(str(shard_path) + ".json")
     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
     size_gb = shard_path.stat().st_size / (1024 ** 3)
-    print(f"  [Shard {shard_idx:04d}] Wrote {buf.size:,} uint16 tokens ({size_gb:.2f} GiB) -> {shard_path}", flush=True)
+    print(f"  [Shard {shard_idx:04d}] Wrote {num_tokens:,} uint16 tokens ({size_gb:.2f} GiB) -> {shard_path}", flush=True)
 
     if hf_dataset_repo:
         from huggingface_hub import HfApi
@@ -296,6 +308,7 @@ def _flush_shard(
         if delete_after_upload:
             shard_path.unlink()
             print(f"  [Disk] Deleted local {shard_path} after confirmed HF commit.", flush=True)
+    _release_host_memory()
     return shard_path
 
 
@@ -346,9 +359,10 @@ def pack_shards(
     out_dir: Path,
     *,
     num_shards: int = 10,
+    start_shard: int = 0,
     tokens_per_shard: int = 1_000_000_000,
     workers: int | None = None,
-    batch_docs: int = 2048,
+    batch_docs: int = 256,
     local_corpus: list[str] | None = None,
     hf_dataset_repo: str | None = None,
     delete_after_upload: bool = False,
@@ -356,10 +370,10 @@ def pack_shards(
 ) -> list[Path]:
     """Parallel-encode streaming text into exact `uint16` shards (default 1B tokens = 2 GB each).
 
-    Uses Rust `tokenizers` native Rayon thread pool (`TOKENIZERS_PARALLELISM=true`) so all
-    96 vCPUs on a Kaggle TPU VM are saturated with zero Python pickle/IPC overhead.
+    Streams encoded chunks directly to disk (zero 2 GB in-RAM buffer) and periodically
+    reclaims PyArrow Parquet memory pools so host RAM stays flat under ~2-3 GB.
     If `hf_dataset_repo` already contains `>= num_shards` pre-packed shards (and
-    `delete_after_upload` is False), downloads and reuses them instead of re-packing.
+    `delete_after_upload` is False and `start_shard == 0`), downloads and reuses them.
     """
     n_workers = workers if workers is not None else max(1, os.cpu_count() or 1)
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
@@ -371,18 +385,20 @@ def pack_shards(
         raise ValueError(f"uint16 packing requires vocab_size <= 65535 (got {vocab_size})")
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    if hf_dataset_repo and not delete_after_upload:
+    if hf_dataset_repo and not delete_after_upload and start_shard == 0:
         reused = _try_reuse_remote_shards(hf_dataset_repo, out_dir, num_shards)
         if reused is not None:
             return reused
 
+    effective_seed = seed + start_shard * 1009 if start_shard > 0 else seed
+    end_shard = start_shard + num_shards
     print(
-        f"  [Pack] Starting {num_shards} shards x {tokens_per_shard:,} tokens "
-        f"(Rust Rayon threads={n_workers}, vocab={vocab_size}, dtype=uint16)",
+        f"  [Pack] Starting shards {start_shard:04d}..{end_shard - 1:04d} ({num_shards} x {tokens_per_shard:,} tokens) "
+        f"(Rust Rayon threads={n_workers}, batch_docs={batch_docs}, vocab={vocab_size}, seed={effective_seed})",
         flush=True,
     )
 
-    doc_iter = _stream_local_files(local_corpus) if local_corpus else _stream_hf_mix(DEFAULT_STAGE1_SOURCES, seed=seed)
+    doc_iter = _stream_local_files(local_corpus) if local_corpus else _stream_hf_mix(DEFAULT_STAGE1_SOURCES, seed=effective_seed)
 
     def _batched_docs() -> Iterator[list[str]]:
         batch: list[str] = []
@@ -394,43 +410,65 @@ def pack_shards(
         if batch:
             yield batch
 
-    shard_buf = np.empty(tokens_per_shard, dtype=np.uint16)
+    shard_idx = start_shard
+    shard_path = out_dir / f"shard_{shard_idx:04d}.bin"
+    shard_fh = open(shard_path, "wb")
     fill = 0
-    shard_idx = 0
     written: list[Path] = []
     t_start = time.time()
     total_tokens = 0
+    batches_seen = 0
 
-    for batch in _batched_docs():
-        arr = _encode_batch_rayon(tok, batch)
-        offset = 0
-        while offset < arr.size and shard_idx < num_shards:
-            take = min(tokens_per_shard - fill, arr.size - offset)
-            shard_buf[fill : fill + take] = arr[offset : offset + take]
-            fill += take
-            offset += take
-            total_tokens += take
-            if fill == tokens_per_shard:
+    try:
+        for batch in _batched_docs():
+            arr = _encode_batch_rayon(tok, batch)
+            del batch
+            offset = 0
+            while offset < arr.size and shard_idx < end_shard:
+                take = min(tokens_per_shard - fill, arr.size - offset)
+                arr[offset : offset + take].tofile(shard_fh)
+                fill += take
+                offset += take
+                total_tokens += take
+                if fill == tokens_per_shard:
+                    shard_fh.close()
+                    written.append(
+                        _finalize_shard_file(
+                            shard_path, fill, shard_idx, vocab_size,
+                            hf_dataset_repo=hf_dataset_repo,
+                            delete_after_upload=delete_after_upload,
+                        )
+                    )
+                    shard_idx += 1
+                    fill = 0
+                    if shard_idx < end_shard:
+                        shard_path = out_dir / f"shard_{shard_idx:04d}.bin"
+                        shard_fh = open(shard_path, "wb")
+                    else:
+                        shard_fh = None
+            del arr
+            batches_seen += 1
+            if batches_seen % 25 == 0:
+                _release_host_memory()
+            if shard_idx >= end_shard:
+                break
+
+        if shard_fh is not None:
+            shard_fh.close()
+            shard_fh = None
+            if fill > 0 and shard_idx < end_shard:
                 written.append(
-                    _flush_shard(
-                        shard_buf, shard_idx, out_dir, vocab_size,
+                    _finalize_shard_file(
+                        shard_path, fill, shard_idx, vocab_size,
                         hf_dataset_repo=hf_dataset_repo,
                         delete_after_upload=delete_after_upload,
                     )
                 )
-                shard_idx += 1
-                fill = 0
-        if shard_idx >= num_shards:
-            break
-
-    if fill > 0 and shard_idx < num_shards:
-        written.append(
-            _flush_shard(
-                shard_buf[:fill], shard_idx, out_dir, vocab_size,
-                hf_dataset_repo=hf_dataset_repo,
-                delete_after_upload=delete_after_upload,
-            )
-        )
+            elif shard_path.exists() and fill == 0:
+                shard_path.unlink(missing_ok=True)
+    finally:
+        if shard_fh is not None:
+            shard_fh.close()
 
     elapsed = max(1e-6, time.time() - t_start)
     print(
@@ -457,9 +495,10 @@ def main() -> None:
     p_pack.add_argument("--tokenizer", default="configs/tokenizer_alpha1_32k.json")
     p_pack.add_argument("--out-dir", default="/tmp/alpha1_shards")
     p_pack.add_argument("--num-shards", type=int, default=10)
+    p_pack.add_argument("--start-shard", type=int, default=0, help="Starting shard index (offsets stream seed for fresh shards).")
     p_pack.add_argument("--tokens-per-shard", type=int, default=1_000_000_000)
     p_pack.add_argument("--workers", type=int, default=None)
-    p_pack.add_argument("--batch-docs", type=int, default=1024)
+    p_pack.add_argument("--batch-docs", type=int, default=256)
     p_pack.add_argument("--local-corpus", nargs="*", default=None, help="Optional local files/dirs instead of HF streaming.")
     p_pack.add_argument("--hf-dataset-repo", default=None)
     p_pack.add_argument("--delete-after-upload", action="store_true")
@@ -480,6 +519,7 @@ def main() -> None:
             Path(args.tokenizer),
             Path(args.out_dir),
             num_shards=args.num_shards,
+            start_shard=args.start_shard,
             tokens_per_shard=args.tokens_per_shard,
             workers=args.workers,
             batch_docs=args.batch_docs,
