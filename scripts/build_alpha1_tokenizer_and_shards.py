@@ -114,7 +114,10 @@ def _stream_hf_mix(
 
     for repo_id, subset, field, weight, label in sources:
         try:
-            ds = load_dataset(repo_id, subset, split="train", streaming=True)
+            if repo_id == "bigcode/starcoderdata" and subset:
+                ds = load_dataset(repo_id, data_dir=subset, split="train", streaming=True)
+            else:
+                ds = load_dataset(repo_id, subset, split="train", streaming=True)
             active_iters.append(iter(ds))
             active_weights.append(weight)
             active_fields.append(field)
