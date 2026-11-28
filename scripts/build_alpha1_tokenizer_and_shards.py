@@ -296,6 +296,48 @@ def _flush_shard(
     return shard_path
 
 
+def _try_reuse_remote_shards(hf_dataset_repo: str, out_dir: Path, num_shards: int) -> list[Path] | None:
+    """If >= num_shards already exist on HF Dataset, download them into out_dir and skip packing."""
+    try:
+        from huggingface_hub import HfApi, hf_hub_download
+
+        api = HfApi()
+        files = set(api.list_repo_files(repo_id=hf_dataset_repo, repo_type="dataset"))
+        remote_bins = sorted(f for f in files if f.startswith("shards/") and f.endswith(".bin"))
+        if len(remote_bins) < num_shards:
+            return None
+
+        selected = remote_bins[:num_shards]
+        print(
+            f"  [HF Dataset] Found {len(remote_bins)} existing shards in {hf_dataset_repo}; "
+            f"downloading first {num_shards} into {out_dir} and skipping re-packing...",
+            flush=True,
+        )
+        out_dir.mkdir(parents=True, exist_ok=True)
+        local_paths: list[Path] = []
+        t0 = time.time()
+        for rf in selected:
+            dl_bin = Path(hf_hub_download(repo_id=hf_dataset_repo, filename=rf, repo_type="dataset", local_dir=str(out_dir)))
+            flat_bin = out_dir / dl_bin.name
+            if dl_bin.resolve() != flat_bin.resolve():
+                dl_bin.replace(flat_bin)
+            meta_rf = rf + ".json"
+            if meta_rf in files:
+                dl_meta = Path(hf_hub_download(repo_id=hf_dataset_repo, filename=meta_rf, repo_type="dataset", local_dir=str(out_dir)))
+                flat_meta = out_dir / dl_meta.name
+                if dl_meta.resolve() != flat_meta.resolve():
+                    dl_meta.replace(flat_meta)
+            local_paths.append(flat_bin)
+        print(
+            f"  [HF Dataset] Reused {len(local_paths)} pre-packed shards from {hf_dataset_repo} in {time.time() - t0:.1f}s.",
+            flush=True,
+        )
+        return local_paths
+    except Exception as exc:
+        print(f"  [HF Dataset] Remote shard check skipped ({exc}); proceeding to pack locally.", flush=True)
+        return None
+
+
 def pack_shards(
     tokenizer_path: Path,
     out_dir: Path,
@@ -313,6 +355,8 @@ def pack_shards(
 
     Uses Rust `tokenizers` native Rayon thread pool (`TOKENIZERS_PARALLELISM=true`) so all
     96 vCPUs on a Kaggle TPU VM are saturated with zero Python pickle/IPC overhead.
+    If `hf_dataset_repo` already contains `>= num_shards` pre-packed shards (and
+    `delete_after_upload` is False), downloads and reuses them instead of re-packing.
     """
     n_workers = workers if workers is not None else max(1, os.cpu_count() or 1)
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
@@ -324,6 +368,11 @@ def pack_shards(
         raise ValueError(f"uint16 packing requires vocab_size <= 65535 (got {vocab_size})")
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    if hf_dataset_repo and not delete_after_upload:
+        reused = _try_reuse_remote_shards(hf_dataset_repo, out_dir, num_shards)
+        if reused is not None:
+            return reused
+
     print(
         f"  [Pack] Starting {num_shards} shards x {tokens_per_shard:,} tokens "
         f"(Rust Rayon threads={n_workers}, vocab={vocab_size}, dtype=uint16)",
